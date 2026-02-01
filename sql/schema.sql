@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS items (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    content_id VARCHAR(64) NOT NULL UNIQUE,
+    content_id VARCHAR(64) NOT NULL,
     product_id VARCHAR(64) DEFAULT NULL,
     title VARCHAR(255) NOT NULL,
     url TEXT,
@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS items (
     price_min INT DEFAULT NULL,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
+    UNIQUE KEY uq_items_content_id (content_id),
     INDEX idx_items_date_published (date_published),
     INDEX idx_items_price_min (price_min),
     INDEX idx_items_category_name (category_name)
