@@ -139,14 +139,15 @@ CREATE TABLE IF NOT EXISTS item_series (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS item_labels (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     content_id VARCHAR(64) NOT NULL,
-    label_id INT DEFAULT NULL,
+    label_id INT NULL,
     label_name VARCHAR(255) NOT NULL,
-    label_ruby VARCHAR(255) DEFAULT NULL,
-    INDEX idx_item_labels_label_id (label_id),
-    INDEX idx_item_labels_label_name (label_name),
-    CONSTRAINT fk_item_labels_content
-        FOREIGN KEY (content_id) REFERENCES items (content_id)
-        ON DELETE CASCADE
+    label_ruby VARCHAR(255) NULL,
+    PRIMARY KEY (id),
+    KEY idx_item_labels_content_id (content_id),
+    KEY idx_item_labels_label_id (label_id),
+    KEY idx_item_labels_name (label_name),
+    CONSTRAINT fk_item_labels_item
+        FOREIGN KEY (content_id) REFERENCES items(content_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

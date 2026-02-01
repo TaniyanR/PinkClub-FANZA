@@ -55,25 +55,16 @@ if ($errors) {
     redirect('/admin/settings.php?error=validation');
 }
 
-// 既存の local を読み、dmm_api だけ更新して保存（秘密情報は local に置く）
-$local = config_local();
-if (!is_array($local)) {
-    $local = [];
-}
-
-$local['dmm_api'] = array_replace(
-    is_array($local['dmm_api'] ?? null) ? $local['dmm_api'] : [],
-    [
+// dmm_api のみを config.local.php に保存（秘密情報は local に置く）
+$local = [
+    'dmm_api' => [
         'api_id' => $apiId,
         'affiliate_id' => $affiliateId,
         'site' => $site,
         'service' => $service,
         'floor' => $floor,
-    ]
-);
-
-// 念のため古いキーは消す（以後 dmm_api に統一）
-unset($local['api']);
+    ],
+];
 
 $export = "<?php\nreturn " . var_export($local, true) . ";\n";
 
