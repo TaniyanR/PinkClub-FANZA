@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../partials/db.php';
+require __DIR__ . '/../lib/config.php';
+require __DIR__ . '/../lib/db.php';
 
-$config = get_config();
-$api = $config['dmm_api'];
+$api = config_get('dmm_api', []);
 
 $requiredKeys = ['api_id', 'affiliate_id'];
 foreach ($requiredKeys as $key) {
     if (empty($api[$key]) || str_contains($api[$key], 'YOUR_')) {
-        fwrite(STDERR, "config.php の dmm_api.{$key} を設定してください。\n");
+        fwrite(STDERR, "config.php または config.local.php の dmm_api.{$key} を設定してください。\n");
         exit(1);
     }
 }
@@ -40,7 +40,7 @@ if (!is_array($data) || empty($data['result']['items'])) {
     exit(1);
 }
 
-$pdo = get_pdo();
+$pdo = db();
 $pdo->beginTransaction();
 
 $insert = $pdo->prepare(

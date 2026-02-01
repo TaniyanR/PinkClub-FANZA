@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../lib/config.php';
+require_once __DIR__ . '/../lib/db.php';
+
 function get_config(): array
 {
-    return require __DIR__ . '/../config.php';
+    return config();
 }
 
 function get_pdo(): PDO
 {
-    $config = get_config();
-    $db = $config['db'];
-
-    return new PDO($db['dsn'], $db['user'], $db['password'], $db['options']);
+    return db();
 }
 
 function e(string $value): string
