@@ -211,18 +211,18 @@ PinkClub-F は FANZA（DMM）API から作品データを取得し、自動記�
 
 ---
 
-## Phase1 (記事一覧 + 記事ページ)
+## Setup (最小手順)
 
-### セットアップ
-
-1. MySQLに `pinkclub_f` データベースを作成して `sql/schema.sql` を実行。
-2. `config.php` のDB接続情報と `dmm_api` を設定。
-3. `php scripts/import.php` を実行して記事をインポート。
-
-### 表示
-
-- 記事一覧: `public/index.php`
-- 記事詳細: `public/article.php?id=1`
+1. MySQL で `pinkclub_f` データベースを作成する。
+2. `sql/schema.sql` を実行してテーブルを作成する。
+3. `config.local.php` を用意し、DB接続情報を設定する。
+4. 管理画面にログインする。
+5. 管理画面の API設定で FANZA/DMM API を保存する。
+6. 管理画面のインポート機能を実行する。
+7. 必要に応じて `php scripts/import.php` で手動インポートする。
+8. `public/index.php` にアクセスして記事一覧を確認する。
+9. `public/article.php?id=1` で記事詳細を確認する。
+10. 取得結果が表示されればセットアップ完了。
 
 ---
 
