@@ -4,7 +4,7 @@ require_once __DIR__ . '/../../lib/dmm_api.php';
 require_once __DIR__ . '/../../lib/repository.php';
 
 $config = require __DIR__ . '/../../config.php';
-$apiConfig = $config['api'];
+$apiConfig = $config['dmm_api'];
 
 $resultLog = [];
 $errorLog = [];
