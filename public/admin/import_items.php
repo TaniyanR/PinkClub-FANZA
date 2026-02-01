@@ -2,9 +2,13 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../lib/config.php';
+require_once __DIR__ . '/../../lib/admin_auth.php';
+require_once __DIR__ . '/../../lib/csrf.php';
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/dmm_api.php';
 require_once __DIR__ . '/../../lib/repository.php';
+
+admin_basic_auth_required();
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
@@ -14,23 +18,6 @@ $apiConfig = config_get('dmm_api', []);
 
 $resultLog = [];
 $errorLog  = [];
-
-/**
- * CSRF（管理POSTのみ・簡易）
- */
-function csrf_token(): string
-{
-    if (empty($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token'])) {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    }
-    return $_SESSION['csrf_token'];
-}
-
-function csrf_validate(): bool
-{
-    $sent = $_POST['_token'] ?? '';
-    return is_string($sent) && hash_equals((string)($_SESSION['csrf_token'] ?? ''), $sent);
-}
 
 function e(string $value): string
 {
@@ -118,7 +105,7 @@ function normalize_taxonomy_payload(array $taxonomy): array
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!csrf_validate()) {
+    if (!csrf_verify($_POST['_token'] ?? null)) {
         $errorLog[] = 'CSRFトークンが不正です。ページを再読み込みしてやり直してください。';
     } else {
         $missing = validate_api_config($apiConfig);

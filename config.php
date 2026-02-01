@@ -1,6 +1,23 @@
 <?php
 declare(strict_types=1);
 
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
+error_reporting(E_ALL);
+
+set_exception_handler(static function (Throwable $e): void {
+    $dir = __DIR__ . '/logs';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+    $message = sprintf('[%s] Uncaught exception: %s in %s:%d', date('Y-m-d H:i:s'), $e->getMessage(), $e->getFile(), $e->getLine());
+    if (function_exists('log_message')) {
+        log_message($message);
+    } else {
+        @file_put_contents($dir . '/app.log', $message . "\n", FILE_APPEND);
+    }
+});
+
 return [
     'site' => [
         'title' => 'PinkClub-F',
@@ -29,5 +46,10 @@ return [
         'site' => 'FANZA',
         'service' => 'digital',
         'floor' => 'videoa',
+    ],
+
+    'admin' => [
+        'basic_user' => '',
+        'basic_pass' => '',
     ],
 ];

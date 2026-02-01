@@ -198,6 +198,12 @@ PinkClub-F は FANZA（DMM）API から作品データを取得し、自動記�
 - Asia/Tokyo
 - Cron禁止（内部タイマー方式）
 
+## 導入チェックリスト
+- DB接続OK
+- API設定OK
+- importで件数増える
+- トップ/詳細表示OK
+
 外部ライブラリ：
 
 - 原則なし

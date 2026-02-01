@@ -2,27 +2,13 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../lib/config.php';
+require_once __DIR__ . '/../../lib/admin_auth.php';
+require_once __DIR__ . '/../../lib/csrf.php';
+
+admin_basic_auth_required();
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
-}
-
-/**
- * 簡易CSRF（管理POST用）
- * ※settings.php 側フォームに <input type="hidden" name="_token" ...> を入れる想定
- */
-function csrf_token(): string
-{
-    if (empty($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token'])) {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    }
-    return $_SESSION['csrf_token'];
-}
-
-function csrf_validate(): bool
-{
-    $sent = $_POST['_token'] ?? '';
-    return is_string($sent) && hash_equals((string)($_SESSION['csrf_token'] ?? ''), $sent);
 }
 
 function redirect(string $path): void
@@ -37,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-if (!csrf_validate()) {
+if (!csrf_verify($_POST['_token'] ?? null)) {
     redirect('/admin/settings.php?error=csrf');
 }
 
