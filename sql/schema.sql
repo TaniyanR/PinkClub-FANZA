@@ -138,11 +138,11 @@ CREATE TABLE IF NOT EXISTS item_series (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS item_labels (
+    id INT AUTO_INCREMENT PRIMARY KEY,
     content_id VARCHAR(64) NOT NULL,
     label_id INT DEFAULT NULL,
     label_name VARCHAR(255) NOT NULL,
     label_ruby VARCHAR(255) DEFAULT NULL,
-    PRIMARY KEY (content_id, label_name),
     INDEX idx_item_labels_label_id (label_id),
     INDEX idx_item_labels_label_name (label_name),
     CONSTRAINT fk_item_labels_content
