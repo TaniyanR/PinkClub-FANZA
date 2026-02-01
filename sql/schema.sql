@@ -143,6 +143,7 @@ CREATE TABLE IF NOT EXISTS item_labels (
     label_ruby VARCHAR(255) DEFAULT NULL,
     PRIMARY KEY (content_id, label_name),
     INDEX idx_item_labels_label_id (label_id),
+    INDEX idx_item_labels_label_name (label_name),
     CONSTRAINT fk_item_labels_content
         FOREIGN KEY (content_id) REFERENCES items (content_id)
         ON DELETE CASCADE
