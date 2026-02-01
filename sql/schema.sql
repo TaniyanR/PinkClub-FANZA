@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS items (
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
     INDEX idx_items_date_published (date_published),
-    INDEX idx_items_price_min (price_min)
+    INDEX idx_items_price_min (price_min),
+    INDEX idx_items_category_name (category_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS actresses (
