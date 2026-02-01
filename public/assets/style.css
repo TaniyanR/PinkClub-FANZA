@@ -1,0 +1,178 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    background: #f7f7f7;
+    color: #222;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 16px;
+    display: flex;
+    gap: 20px;
+}
+
+header {
+    background: #111;
+    color: #fff;
+}
+
+.header-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 16px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.header-title {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.header-ad {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.header-ad .ad-box {
+    width: 728px;
+    height: 90px;
+    background: #333;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.header-ad form {
+    display: flex;
+    gap: 8px;
+}
+
+main {
+    flex: 1;
+}
+
+.sidebar {
+    width: 280px;
+    background: #fff;
+    padding: 16px;
+    border-radius: 8px;
+}
+
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.card {
+    background: #fff;
+    padding: 12px;
+    border-radius: 8px;
+    min-height: 160px;
+}
+
+.rail {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+}
+
+.rail-item {
+    min-width: 160px;
+    background: #fff;
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.section-title {
+    font-size: 18px;
+    margin: 16px 0 8px;
+}
+
+footer {
+    background: #111;
+    color: #fff;
+}
+
+.footer-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 16px;
+    text-align: right;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th,
+.table td {
+    border-bottom: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.pagination {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.pagination a {
+    padding: 4px 8px;
+    background: #fff;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #333;
+}
+
+.notice {
+    background: #fff4cc;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.admin-card {
+    background: #fff;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.admin-card input,
+.admin-card select {
+    width: 100%;
+    padding: 6px;
+    margin-bottom: 8px;
+}
+
+@media (max-width: 960px) {
+    .container {
+        flex-direction: column;
+    }
+
+    .header-inner {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .header-ad .ad-box {
+        width: 100%;
+    }
+
+    .sidebar {
+        width: 100%;
+    }
+}

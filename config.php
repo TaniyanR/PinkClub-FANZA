@@ -1,9 +1,15 @@
 <?php
-
 declare(strict_types=1);
 
 return [
+    'site' => [
+        'title' => 'PinkClub-F',
+        // 例: 'https://example.com'（末尾スラッシュなし）
+        'base_url' => '',
+    ],
+
     'db' => [
+        // DSN方式（PDOでそのまま使える）
         'dsn' => 'mysql:host=127.0.0.1;dbname=pinkclub_f;charset=utf8mb4',
         'user' => 'root',
         'password' => '',
@@ -12,12 +18,11 @@ return [
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ],
     ],
-    'site' => [
-        'title' => 'PinkClub-F',
-    ],
+
+    // DMM/FANZA API（settings.phpで上書きしてもOKな前提）
     'dmm_api' => [
-        'api_id' => 'YOUR_API_ID',
-        'affiliate_id' => 'YOUR_AFFILIATE_ID',
+        'api_id' => '',
+        'affiliate_id' => '',
         'site' => 'FANZA',
         'service' => 'digital',
         'floor' => 'videoa',
