@@ -198,6 +198,14 @@ PinkClub-F は FANZA（DMM）API から作品データを取得し、自動記�
 - Asia/Tokyo
 - Cron禁止（内部タイマー方式）
 
+---
+
+## DB Initialization
+
+- `php scripts/init_db.php` でDB初期化が実行できます。
+- 管理画面の `/admin/db_init.php` からも実行できます。
+- これにより「DB未作成」が原因のトラブルを回避できます。
+
 外部ライブラリ：
 
 - 原則なし
