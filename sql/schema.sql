@@ -151,3 +151,31 @@ CREATE TABLE IF NOT EXISTS item_labels (
     CONSTRAINT fk_item_labels_item
         FOREIGN KEY (content_id) REFERENCES items(content_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS partners (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    site_url TEXT,
+    rss_url TEXT,
+    token VARCHAR(128) NOT NULL,
+    supports_images_override TINYINT NULL,
+    supports_images_detected TINYINT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    last_checked_at DATETIME DEFAULT NULL,
+    UNIQUE KEY uq_partners_token (token)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS in_access_logs (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    partner_id INT NOT NULL,
+    ip_hash CHAR(64) NOT NULL,
+    ua_hash CHAR(64) NOT NULL,
+    ref TEXT,
+    created_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_in_access_partner_created (partner_id, created_at),
+    CONSTRAINT fk_in_access_partner
+        FOREIGN KEY (partner_id) REFERENCES partners (id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

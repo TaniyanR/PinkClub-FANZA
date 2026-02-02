@@ -52,4 +52,21 @@ return [
         'basic_user' => '',
         'basic_pass' => '',
     ],
+
+    'security' => [
+        // in.php のIP/UAハッシュに利用（本番は config.local.php で必ず上書き）
+        'secret' => '',
+    ],
+
+    'rss' => [
+        'base_items' => 5,
+        'max_items' => 30,
+        'access_window_hours' => 24,
+        'access_per_item' => 20,
+        'weight_new' => 0.6,
+        'cache_ttl_seconds' => 60,
+        'detection_refresh_hours' => 12,
+        'dedupe_window_seconds' => 600,
+        'log_retention_days' => 14,
+    ],
 ];
