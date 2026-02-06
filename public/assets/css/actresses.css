@@ -1,0 +1,182 @@
+.actresses-title h1 {
+    margin: 0 0 8px;
+    font-size: 26px;
+}
+
+.breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.breadcrumb a {
+    color: var(--muted);
+}
+
+.actresses-lead {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.actresses-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.actresses-controls-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 1.4fr) minmax(160px, 1fr) minmax(140px, 1fr);
+    gap: 16px;
+    align-items: end;
+}
+
+.control-input,
+.control-select {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.control-input input,
+.control-select select {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #fff;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.actresses-count {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.actresses-grid-wrapper {
+    padding: 0;
+}
+
+.actresses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    padding: 20px;
+}
+
+.actress-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.actress-thumb {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    border-radius: 12px;
+    overflow: hidden;
+    background: linear-gradient(135deg, rgba(255, 75, 122, 0.3), rgba(44, 118, 255, 0.35));
+}
+
+.actress-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.actress-name {
+    font-size: 14px;
+    font-weight: 600;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+}
+
+.page-numbers {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.page-btn {
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #fff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.page-btn.is-current {
+    background: var(--accent);
+    color: #fff;
+    border-color: transparent;
+}
+
+.actresses-sidebar .sidebar-actress-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 12px;
+}
+
+.sidebar-actress {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 10px;
+    align-items: center;
+}
+
+.sidebar-actress-thumb {
+    width: 64px;
+    height: 84px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: linear-gradient(135deg, rgba(255, 75, 122, 0.3), rgba(44, 118, 255, 0.35));
+    display: block;
+}
+
+.sidebar-actress-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.sidebar-actress-name {
+    font-size: 14px;
+    color: var(--text);
+}
+
+@media (max-width: 960px) {
+    .actresses-controls-row {
+        grid-template-columns: 1fr;
+    }
+
+    .actresses-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .actresses-grid {
+        padding: 16px;
+    }
+}
