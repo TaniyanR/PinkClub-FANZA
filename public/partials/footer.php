@@ -9,8 +9,8 @@ $year = (int) date('Y');
 </div>
 <footer>
     <div class="footer-inner">
-        <a class="footer-credit" href="https://www.dmm.co.jp/" target="_blank" rel="noopener">
-            <img src="https://placehold.co/140x40?text=FANZA" alt="FANZA">
+        <a class="footer-credit" href="https://affiliate.dmm.com/api/">
+            <img src="https://p.dmm.co.jp/p/affiliate/web_service/r18_135_17.gif" width="135" height="17" alt="WEB SERVICE BY FANZA" />
         </a>
         <div class="footer-copy">&copy; <?php echo $year; ?> <?php echo htmlspecialchars($siteTitle, ENT_QUOTES, 'UTF-8'); ?></div>
     </div>
