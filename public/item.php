@@ -1,106 +1,135 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/../lib/repository.php';
-
-function e(string $v): string
-{
-    return htmlspecialchars($v, ENT_QUOTES, 'UTF-8');
-}
-
-function safe_url(?string $url): string
-{
-    $url = trim((string)$url);
-    if ($url === '') {
-        return '#';
-    }
-    // http/https のみ許可
-    if (!preg_match('#^https?://#i', $url)) {
-        return '#';
-    }
-    return $url;
-}
-
-$cid = trim((string)($_GET['cid'] ?? ''));
-if ($cid !== '' && strlen($cid) > 64) { // 暴走防止（content_idは通常もっと短い）
-    $cid = '';
-}
-
-$item = null;
-
-try {
-    $item = $cid !== '' ? fetch_item_by_content_id($cid) : null;
-} catch (Throwable $e) {
-    if (function_exists('log_message')) {
-        log_message('item.php failed: ' . $e->getMessage());
-    }
-    $item = null;
-}
-
-if (!$item) {
-    http_response_code(404);
-}
+$pageStyles = ['/assets/css/detail.css'];
+$pageScripts = ['/assets/js/detail.js'];
 
 include __DIR__ . '/partials/header.php';
 ?>
-<main>
-    <?php if ($item) : ?>
-        <?php
-        $title = (string)($item['title'] ?? '');
-        $img = (string)($item['image_large'] ?? '');
-        if ($img === '') {
-            $img = (string)($item['image_small'] ?? '');
-        }
+<!-- partial: header -->
+<!-- partial: search -->
+<div class="search-bar">
+    <div class="search-bar-inner">
+        <div class="search-note"><strong>当サイトはアフィリエイト広告を使用しています。</strong></div>
+        <form method="get" action="/index.php" class="search-form">
+            <input type="text" name="q" placeholder="作品名・女優名で検索" value="">
+            <button type="submit">検索</button>
+        </form>
+    </div>
+</div>
 
-        $date = (string)($item['date_published'] ?? '');
-        $priceMin = $item['price_min'] ?? null;
-        $priceText = '';
-        if (is_numeric($priceMin)) {
-            $priceText = number_format((int)$priceMin) . '円';
-        }
-
-        $affiliateUrl = safe_url($item['affiliate_url'] ?? '');
-        $officialUrl  = safe_url($item['url'] ?? '');
-        ?>
-        <h1><?php echo e($title); ?></h1>
-
-        <div class="detail-card">
-            <?php if ($img !== '') : ?>
-                <img
-                    src="<?php echo e($img); ?>"
-                    alt="<?php echo e($title); ?>"
-                    loading="lazy"
-                >
-            <?php endif; ?>
-
-            <div class="detail-meta">
-                <?php if ($date !== '') : ?>
-                    <p>発売日: <?php echo e($date); ?></p>
-                <?php endif; ?>
-
-                <?php if ($priceText !== '') : ?>
-                    <p>価格: <?php echo e($priceText); ?></p>
-                <?php endif; ?>
-
-                <p>
-                    <?php if ($affiliateUrl !== '#') : ?>
-                        <a href="<?php echo e($affiliateUrl); ?>" target="_blank" rel="noopener noreferrer">関連リンク（アフィリエイト）</a>
-                    <?php else : ?>
-                        <span>関連リンク（アフィリエイト）: なし</span>
-                    <?php endif; ?>
-                </p>
-
-                <?php if ($officialUrl !== '#') : ?>
-                    <p><a href="<?php echo e($officialUrl); ?>" target="_blank" rel="noopener noreferrer">公式ページ</a></p>
-                <?php endif; ?>
-
-                <p><a href="/">← トップへ戻る</a></p>
-            </div>
+<div class="layout detail-layout">
+    <!-- partial: sidebar -->
+    <aside class="sidebar detail-sidebar">
+        <div class="sidebar-block">
+            <h3>この作品のメタ</h3>
+            <ul class="meta-list">
+                <li><a href="#">メーカー: Dummy Studio</a></li>
+                <li><a href="#">シリーズ: Pink Luxe</a></li>
+                <li><a href="#">ジャンル: ラブロマンス</a></li>
+                <li><a href="#">女優: Airi Sakura</a></li>
+            </ul>
         </div>
-    <?php else : ?>
-        <div class="notice">該当する作品が見つかりませんでした。</div>
-        <p><a href="/">← トップへ戻る</a></p>
-    <?php endif; ?>
-</main>
-<?php include __DIR__ . '/partials/sidebar.php'; ?>
+        <div class="sidebar-block">
+            <h3>広告枠</h3>
+            <div class="ad-box" style="width:100%;height:250px;">300x250</div>
+        </div>
+    </aside>
+
+    <main class="main-content detail-page">
+        <!-- partial: breadcrumb -->
+        <nav class="breadcrumb" aria-label="breadcrumb">
+            <a href="/">ホーム</a>
+            <span>/</span>
+            <a href="/list.php">作品一覧</a>
+            <span>/</span>
+            <span>サンプル作品詳細</span>
+        </nav>
+
+        <!-- partial: detail_video -->
+        <section class="detail-video">
+            <div class="video-frame">
+                <div class="video-placeholder">
+                    <span>Sample Video 16:9</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- partial: detail_title -->
+        <section class="detail-title">
+            <h1>ささやく夜に、彼女と過ごす特別な時間。サンプルタイトルのダミーテキスト。</h1>
+        </section>
+
+        <!-- partial: detail_main -->
+        <section class="detail-main">
+            <div class="detail-left">
+                <div class="package-media" data-package-media></div>
+                <a class="cta-buy" href="https://example.com" target="_blank" rel="noopener noreferrer">FANZAで購入</a>
+                <div class="mini-links">
+                    <a class="btn-mini" href="#samples">サンプル画像へ</a>
+                    <a class="btn-mini" href="#related">関連商品へ</a>
+                </div>
+            </div>
+            <div class="detail-right">
+                <div class="pill-group">
+                    <a href="#" class="pill">メーカー: Dummy Studio</a>
+                    <a href="#" class="pill">シリーズ: Pink Luxe</a>
+                    <a href="#" class="pill">ジャンル: ラブロマンス</a>
+                    <a href="#" class="pill">女優: Airi Sakura</a>
+                </div>
+                <p class="detail-description">
+                    ダミーテキスト：都会の夜に紛れて出会った二人のストーリー。視線が重なるたび、静かに熱が増す――。
+                    ここには作品の概要や見どころが入る想定です。
+                </p>
+                <div class="info-grid">
+                    <div class="info-card">
+                        <span class="info-label">配信日</span>
+                        <span class="info-value">2024/10/01</span>
+                    </div>
+                    <div class="info-card">
+                        <span class="info-label">収録時間</span>
+                        <span class="info-value">120分</span>
+                    </div>
+                    <div class="info-card">
+                        <span class="info-label">画質</span>
+                        <span class="info-value">HD</span>
+                    </div>
+                    <div class="info-card">
+                        <span class="info-label">品番</span>
+                        <span class="info-value">PCF-0001</span>
+                    </div>
+                    <div class="info-card">
+                        <span class="info-label">配信形式</span>
+                        <span class="info-value">ストリーミング</span>
+                    </div>
+                    <div class="info-card">
+                        <span class="info-label">監督</span>
+                        <span class="info-value">Pink Director</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- partial: detail_samples -->
+        <section class="detail-samples" id="samples">
+            <div class="section-head">
+                <h2 class="section-title">サンプル画像</h2>
+                <span class="section-sub">全6枚の想定</span>
+            </div>
+            <div class="sample-grid" data-sample-grid></div>
+            <a class="cta-buy" href="https://example.com" target="_blank" rel="noopener noreferrer">FANZAで購入</a>
+        </section>
+
+        <!-- partial: detail_related -->
+        <section class="detail-related" id="related">
+            <div class="section-head">
+                <h2 class="section-title">関連商品</h2>
+                <span class="section-sub">関連する6作品</span>
+            </div>
+            <div class="related-grid" data-related-grid></div>
+        </section>
+    </main>
+</div>
+
+<!-- partial: footer -->
 <?php include __DIR__ . '/partials/footer.php'; ?>
