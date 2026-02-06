@@ -1,80 +1,129 @@
-const actresses = Array.from({ length: 48 }, (_, index) => {
-    const number = index + 1;
+document.addEventListener('DOMContentLoaded', () => {
+  const grid = document.querySelector('[data-actresses-grid]');
+  if (!grid) return;
+
+  const countEl = document.querySelector('[data-actresses-count]');
+  const emptyEl = document.querySelector('[data-actresses-empty]');
+  const searchInput = document.querySelector('[data-actresses-search]');
+  const sortSelect = document.querySelector('[data-actresses-sort]');
+  const perPageSelect = document.querySelector('[data-actresses-per-page]');
+
+  const names = [
+    '葵 さくら',
+    '宮下 玲奈',
+    '天音 まひな',
+    '渚 みつき',
+    '石原 希',
+    '三上 悠亜',
+    '篠田 ゆう',
+    '川北 メイサ',
+    '河北 彩花',
+    '桜空 もも',
+    '楪 カレン',
+    '明里 つむぎ',
+    '深田 えいみ',
+    '波多野 結衣',
+    '夢乃 あいか',
+    '相沢 みなみ',
+    '新名 あみん',
+    '水川 スミレ',
+    '瀬名 ひかり',
+    '鈴村 あいり',
+    '小野 六花',
+    '羽咲 みはる',
+    '美谷 朱里',
+    '乙白 さやか',
+  ];
+
+  // 48件まで出せるようにダミーを拡張（表示件数48に対応）
+  const actresses = Array.from({ length: 48 }, (_, i) => {
+    const baseName = names[i % names.length];
+    const suffix = i >= names.length ? ` ${i + 1}` : '';
     return {
-        id: number,
-        name: `サンプル女優 ${number}`,
-        image: `https://via.placeholder.com/360x480?text=Actress+${number}`,
-        url: '#'
+      id: i + 1,
+      name: `${baseName}${suffix}`,
+      popularity: 48 - i,
+      image: `https://picsum.photos/seed/actress-${i + 1}/400/540`,
+      url: '#',
     };
-});
+  });
 
-const grid = document.querySelector('[data-actress-grid]');
-const searchInput = document.querySelector('[data-actress-search]');
-const limitSelect = document.querySelector('[data-actress-limit]');
-const countLabel = document.querySelector('[data-actress-count]');
+  const state = {
+    query: '',
+    sort: 'popular', // popular | new
+    perPage: perPageSelect ? Number(perPageSelect.value) : 24,
+  };
 
-const buildCard = (actress) => {
+  const buildCard = (actress) => {
     const card = document.createElement('article');
     card.className = 'actress-card';
 
-    const thumbLink = document.createElement('a');
-    thumbLink.href = actress.url;
-    thumbLink.className = 'actress-thumb';
+    // 画像リンク（CSSでは .actress-card-media がリンク扱い）
+    const mediaLink = document.createElement('a');
+    mediaLink.href = actress.url;
+    mediaLink.className = 'actress-card-media';
 
-    const image = document.createElement('img');
-    image.src = actress.image;
-    image.alt = actress.name;
-    image.loading = 'lazy';
-    image.addEventListener('error', () => {
-        image.remove();
-    });
+    const img = document.createElement('img');
+    img.src = actress.image;
+    img.alt = actress.name;
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.addEventListener('error', () => img.remove()); // 失敗時は背景だけ残す
 
-    thumbLink.appendChild(image);
+    mediaLink.appendChild(img);
 
+    // 名前リンク
     const nameLink = document.createElement('a');
     nameLink.href = actress.url;
     nameLink.className = 'actress-name';
     nameLink.textContent = actress.name;
 
-    card.appendChild(thumbLink);
+    card.appendChild(mediaLink);
     card.appendChild(nameLink);
 
     return card;
-};
+  };
 
-const render = () => {
-    if (!grid) {
-        return;
-    }
+  const render = () => {
+    const query = state.query.trim().toLowerCase();
 
-    const keyword = searchInput ? searchInput.value.trim().toLowerCase() : '';
-    const limit = limitSelect ? Number(limitSelect.value) : 24;
+    let filtered = actresses.filter((a) => a.name.toLowerCase().includes(query));
 
-    const filtered = actresses.filter((actress) => actress.name.toLowerCase().includes(keyword));
-    const visible = filtered.slice(0, limit);
+    filtered.sort((a, b) => {
+      if (state.sort === 'new') return b.id - a.id;
+      return b.popularity - a.popularity;
+    });
+
+    const visible = filtered.slice(0, state.perPage);
 
     grid.innerHTML = '';
-    visible.forEach((actress) => {
-        grid.appendChild(buildCard(actress));
+    visible.forEach((a) => grid.appendChild(buildCard(a)));
+
+    if (countEl) countEl.textContent = String(visible.length);
+    if (emptyEl) emptyEl.hidden = visible.length !== 0;
+  };
+
+  // init state from controls
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      state.query = e.target.value || '';
+      render();
     });
+  }
 
-    if (countLabel) {
-        countLabel.textContent = String(visible.length);
-    }
-};
-
-if (searchInput) {
-    searchInput.addEventListener('input', render);
-}
-
-if (limitSelect) {
-    limitSelect.addEventListener('change', render);
-}
-
-render();
-
-document.querySelectorAll('.sidebar-actress-thumb img').forEach((image) => {
-    image.addEventListener('error', () => {
-        image.remove();
+  if (sortSelect) {
+    sortSelect.addEventListener('change', (e) => {
+      state.sort = e.target.value || 'popular';
+      render();
     });
+  }
+
+  if (perPageSelect) {
+    perPageSelect.addEventListener('change', (e) => {
+      state.perPage = Number(e.target.value) || 24;
+      render();
+    });
+  }
+
+  render();
 });
