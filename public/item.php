@@ -5,19 +5,8 @@ $pageStyles = ['/assets/css/detail.css'];
 $pageScripts = ['/assets/js/detail.js'];
 
 include __DIR__ . '/partials/header.php';
+include __DIR__ . '/partials/nav_search.php';
 ?>
-<!-- partial: header -->
-<!-- partial: search -->
-<div class="search-bar">
-    <div class="search-bar-inner">
-        <div class="search-note"><strong>当サイトはアフィリエイト広告を使用しています。</strong></div>
-        <form method="get" action="/index.php" class="search-form">
-            <input type="text" name="q" placeholder="作品名・女優名で検索" value="">
-            <button type="submit">検索</button>
-        </form>
-    </div>
-</div>
-
 <div class="layout detail-layout">
     <!-- partial: sidebar -->
     <aside class="sidebar detail-sidebar">
@@ -41,7 +30,7 @@ include __DIR__ . '/partials/header.php';
         <nav class="breadcrumb" aria-label="breadcrumb">
             <a href="/">ホーム</a>
             <span>/</span>
-            <a href="/list.php">作品一覧</a>
+            <a href="/posts.php">作品一覧</a>
             <span>/</span>
             <span>サンプル作品詳細</span>
         </nav>

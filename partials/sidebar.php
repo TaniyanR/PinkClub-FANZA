@@ -1,4 +1,8 @@
-<section class="sidebar">
-    <h3>Sidebar</h3>
-    <p>今後: 女優 / ジャンル / シリーズ / メーカーの導線を追加予定。</p>
-</section>
+<?php
+declare(strict_types=1);
+
+/**
+ * Deprecated: use public/partials/sidebar.php.
+ * This wrapper keeps legacy includes working without duplicating markup.
+ */
+require __DIR__ . '/../public/partials/sidebar.php';

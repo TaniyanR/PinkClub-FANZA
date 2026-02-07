@@ -17,15 +17,17 @@ $article = $stmt->fetch();
 if (!$article) {
     http_response_code(404);
     $pageTitle = $siteTitle . ' | 記事が見つかりません';
-    require __DIR__ . '/../partials/header.php';
+    require __DIR__ . '/partials/header.php';
+    require __DIR__ . '/partials/nav_search.php';
     echo '<h1>記事が見つかりませんでした。</h1>';
-    require __DIR__ . '/../partials/footer.php';
+    require __DIR__ . '/partials/footer.php';
     exit;
 }
 
 $pageTitle = $siteTitle . ' | ' . $article['title'];
 
-require __DIR__ . '/../partials/header.php';
+require __DIR__ . '/partials/header.php';
+require __DIR__ . '/partials/nav_search.php';
 ?>
 <div class="layout">
     <article>
@@ -42,7 +44,7 @@ require __DIR__ . '/../partials/header.php';
         <?php endif; ?>
         <p><a href="<?php echo e($article['affiliate_url']); ?>" target="_blank" rel="noopener">FANZA商品ページへ</a></p>
     </article>
-    <?php require __DIR__ . '/../partials/sidebar.php'; ?>
+    <?php require __DIR__ . '/partials/sidebar.php'; ?>
 </div>
 <?php
-require __DIR__ . '/../partials/footer.php';
+require __DIR__ . '/partials/footer.php';

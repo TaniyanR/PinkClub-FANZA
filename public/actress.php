@@ -96,6 +96,7 @@ $relatedSeries = fetch_related_series_by_actress((int)$actress['id']);
 $relatedMakers = fetch_related_makers_by_actress((int)$actress['id']);
 
 include __DIR__ . '/partials/header.php';
+include __DIR__ . '/partials/nav_search.php';
 ?>
 <main>
     <h1><?php echo htmlspecialchars($actress['name'], ENT_QUOTES, 'UTF-8'); ?></h1>

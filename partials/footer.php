@@ -1,7 +1,8 @@
-    </div>
-</main>
-<footer>
-    <div class="wrap">&copy; <?php echo date('Y'); ?> <?php echo e($siteTitle); ?></div>
-</footer>
-</body>
-</html>
+<?php
+declare(strict_types=1);
+
+/**
+ * Deprecated: use public/partials/footer.php.
+ * This wrapper keeps legacy includes working without duplicating markup.
+ */
+require __DIR__ . '/../public/partials/footer.php';

@@ -14,6 +14,7 @@ $offset = ($page - 1) * $limit;
 $items = fetch_items_by_genre((int)($genre['id'] ?? 0), $limit, $offset);
 
 include __DIR__ . '/partials/header.php';
+include __DIR__ . '/partials/nav_search.php';
 ?>
 <main>
     <h1><?php echo htmlspecialchars($genre['name'], ENT_QUOTES, 'UTF-8'); ?></h1>

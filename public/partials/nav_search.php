@@ -2,10 +2,9 @@
 declare(strict_types=1);
 
 $path = (string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
-$current = basename($path);
-if ($current === '') {
-    $current = 'index.php';
-}
+$normalizedPath = trim($path, '/');
+$normalizedKey = $normalizedPath === '' ? 'index' : $normalizedPath;
+$normalizedKey = preg_replace('/\.php$/', '', $normalizedKey) ?? $normalizedKey;
 
 $navItems = [
     'index.php' => 'TOP',
@@ -16,6 +15,21 @@ $navItems = [
     'labels.php' => 'レーベル一覧',
     'genres.php' => 'ジャンル一覧',
 ];
+
+$aliases = [
+    'index' => 'index.php',
+    'posts' => 'posts.php',
+    'actresses' => 'actresses.php',
+    'series' => 'series.php',
+    'makers' => 'makers.php',
+    'labels' => 'labels.php',
+    'genres' => 'genres.php',
+];
+
+$current = $aliases[$normalizedKey] ?? basename($path);
+if ($current === '') {
+    $current = 'index.php';
+}
 ?>
 <section class="nav-search">
     <div class="nav-search__inner">
