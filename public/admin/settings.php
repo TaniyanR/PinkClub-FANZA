@@ -13,6 +13,16 @@ function e(string $value): string
 }
 
 $apiConfig = config_get('dmm_api', []);
+$localPath = __DIR__ . '/../../config.local.php';
+
+$errorMessages = [
+    'missing_required' => 'API ID / アフィリエイトIDが未入力です。対象ファイル: ' . $localPath,
+    'csrf_failed' => '不正なリクエストです。対象ファイル: ' . $localPath,
+    'not_writable_dir' => '設定ディレクトリに書き込めません。対象ファイル: ' . $localPath . '（ディレクトリ権限を確認してください）',
+    'not_writable_file' => '設定ファイルに書き込めません。対象ファイル: ' . $localPath . '（ファイル権限を確認してください）',
+    'write_failed' => 'config.local.php に書き込めません。対象ファイル: ' . $localPath . '（権限を確認してください）',
+    'rename_failed' => '設定ファイルの更新に失敗しました。対象ファイル: ' . $localPath . '（ディスク/権限を確認してください）',
+];
 
 include __DIR__ . '/../partials/header.php';
 ?>
@@ -27,7 +37,11 @@ include __DIR__ . '/../partials/header.php';
 
     <?php if (($_GET['error'] ?? '') !== '') : ?>
         <div class="admin-card">
-            <p>エラーが発生しました: <?php echo e((string)($_GET['error'] ?? '')); ?></p>
+            <?php
+            $errorCode = (string)($_GET['error'] ?? '');
+            $errorMessage = $errorMessages[$errorCode] ?? ('エラーが発生しました。対象ファイル: ' . $localPath . '（' . $errorCode . '）');
+            ?>
+            <p><?php echo e($errorMessage); ?></p>
         </div>
     <?php endif; ?>
 
