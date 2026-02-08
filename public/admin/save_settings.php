@@ -19,6 +19,8 @@ $affiliateId = trim((string)($_POST['affiliate_id'] ?? ''));
 $site = trim((string)($_POST['site'] ?? 'FANZA'));
 $service = trim((string)($_POST['service'] ?? 'digital'));
 $floor = trim((string)($_POST['floor'] ?? 'videoa'));
+$connectTimeout = (int)($_POST['connect_timeout'] ?? 10);
+$timeout = (int)($_POST['timeout'] ?? 20);
 
 if ($apiId === '' || $affiliateId === '') {
     header('Location: /admin/settings.php?error=missing_required');
@@ -37,6 +39,12 @@ if (!in_array($service, $allowedServices, true)) {
 }
 if (!in_array($floor, $allowedFloors, true)) {
     $floor = 'videoa';
+}
+if ($connectTimeout < 1 || $connectTimeout > 30) {
+    $connectTimeout = 10;
+}
+if ($timeout < 5 || $timeout > 60) {
+    $timeout = 20;
 }
 
 $localPath = __DIR__ . '/../../config.local.php';
@@ -67,6 +75,8 @@ $local['dmm_api'] = [
     'site' => $site,
     'service' => $service,
     'floor' => $floor,
+    'connect_timeout' => $connectTimeout,
+    'timeout' => $timeout,
 ];
 
 $export = "<?php\n";

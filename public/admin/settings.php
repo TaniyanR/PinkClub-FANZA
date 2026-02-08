@@ -14,6 +14,16 @@ function e(string $value): string
 
 $apiConfig = config_get('dmm_api', []);
 $localPath = __DIR__ . '/../../config.local.php';
+$defaultConnectTimeout = 10;
+$defaultTimeout = 20;
+$connectTimeout = (int)($apiConfig['connect_timeout'] ?? $defaultConnectTimeout);
+$timeout = (int)($apiConfig['timeout'] ?? $defaultTimeout);
+if ($connectTimeout < 1 || $connectTimeout > 30) {
+    $connectTimeout = $defaultConnectTimeout;
+}
+if ($timeout < 5 || $timeout > 60) {
+    $timeout = $defaultTimeout;
+}
 
 $errorMessages = [
     'missing_required' => 'API ID / アフィリエイトIDが未入力です。対象ファイル: ' . $localPath,
@@ -62,6 +72,14 @@ include __DIR__ . '/../partials/header.php';
 
         <label>Floor</label>
         <input type="text" name="floor" value="<?php echo e((string)($apiConfig['floor'] ?? 'videoa')); ?>">
+
+        <label>接続タイムアウト秒</label>
+        <input type="number" name="connect_timeout" min="1" max="30" step="1" value="<?php echo e((string)$connectTimeout); ?>">
+        <p class="admin-form-note">接続開始から確立までの最大秒数</p>
+
+        <label>全体タイムアウト秒</label>
+        <input type="number" name="timeout" min="5" max="60" step="1" value="<?php echo e((string)$timeout); ?>">
+        <p class="admin-form-note">接続後、レスポンス完了までの最大秒数</p>
 
         <button type="submit">保存</button>
     </form>
