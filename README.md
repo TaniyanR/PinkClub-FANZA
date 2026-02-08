@@ -223,12 +223,12 @@ PinkClub-FANZA は FANZA（DMM）API から作品データを取得し、自動�
 
 ## Setup (最小手順)
 
-1. `config.local.php.example` を `config.local.php` にコピーする（このファイルは `.gitignore` 済み）。
-2. `config.local.php` に DB 接続情報を設定する（XAMPP 例：ユーザー `root` / パスワード空）。
-3. MySQL でデータベースを作成する。
-4. 管理画面の `/admin/db_init.php` でテーブルを作成する（または `sql/schema.sql` をインポート）。
-5. 管理画面にログインする。
-6. 管理画面の API設定で FANZA/DMM API を保存する。
+1. 初回起動で `config.local.php` が無い場合、`/admin/settings.php` から作成できる。
+2. 作成後、DB接続情報（host/DB名/user/password）は環境に合わせて設定する。
+3. FANZA API設定は管理画面から設定できる。
+4. MySQL でデータベースを作成する。
+5. 管理画面の `/admin/db_init.php` でテーブルを作成する（または `sql/schema.sql` をインポート）。
+6. 管理画面にログインする。
 7. 管理画面のインポート機能を実行する。
 8. 必要に応じて `php scripts/import.php` で手動インポートする。
 9. `public/index.php` にアクセスして記事一覧を確認する。
@@ -239,6 +239,7 @@ PinkClub-FANZA は FANZA（DMM）API から作品データを取得し、自動�
 
 - cache/ ディレクトリはAPIレスポンスのキャッシュ保存に使います。Webサーバーから書き込み権限が必要です。
 - config.local.php は管理画面の設定保存に使うため、書き込み権限が必要です。
+- config.local.php は GitHub にコミットしません（.gitignore）。
 
 ---
 
