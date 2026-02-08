@@ -1,0 +1,23 @@
+<?php
+declare(strict_types=1);
+
+return [
+  'db' => [
+    'host' => '127.0.0.1',
+    'name' => 'YOUR_DB_NAME',
+    'charset' => 'utf8mb4',
+    'user' => 'root',
+    'password' => '',
+    // ポートが違う場合はdsnを使える旨をコメントで追記
+    // 'dsn' => 'mysql:host=127.0.0.1;port=3306;dbname=YOUR_DB_NAME;charset=utf8mb4',
+  ],
+  'dmm_api' => [
+    'api_id' => '',
+    'affiliate_id' => '',
+    'site' => 'FANZA',
+    'service' => 'digital',
+    'floor' => 'videoa',
+    'connect_timeout' => 10,
+    'timeout' => 20,
+  ],
+];
