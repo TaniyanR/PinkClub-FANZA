@@ -4,7 +4,96 @@ declare(strict_types=1);
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
 
-function dmm_api_request(string $endpoint, array $params): array
+function dmm_api_cache_dir(): ?string
+{
+    $dir = __DIR__ . '/../cache';
+    if (is_dir($dir)) {
+        return $dir;
+    }
+
+    if (@mkdir($dir, 0755, true) || is_dir($dir)) {
+        return $dir;
+    }
+
+    return null;
+}
+
+function dmm_api_cache_key(string $endpoint, array $params): string
+{
+    $keyParams = $params;
+    $keyParams['_endpoint'] = $endpoint;
+    ksort($keyParams);
+    return sha1((string)json_encode($keyParams, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}
+
+function dmm_api_cache_path(string $endpoint, array $params): ?string
+{
+    $dir = dmm_api_cache_dir();
+    if ($dir === null) {
+        return null;
+    }
+
+    $key = dmm_api_cache_key($endpoint, $params);
+    return $dir . '/dmm_api_' . $key . '.json';
+}
+
+function dmm_api_load_cache(?string $path, int $ttl): ?array
+{
+    if ($path === null || !is_readable($path)) {
+        return null;
+    }
+
+    $mtime = @filemtime($path);
+    if ($mtime === false || (time() - $mtime) > $ttl) {
+        return null;
+    }
+
+    $raw = @file_get_contents($path);
+    if ($raw === false) {
+        return null;
+    }
+
+    $data = json_decode($raw, true);
+    return is_array($data) ? $data : null;
+}
+
+function dmm_api_save_cache(?string $path, array $payload): void
+{
+    if ($path === null) {
+        return;
+    }
+
+    $dir = dirname($path);
+    if (!is_dir($dir)) {
+        return;
+    }
+
+    $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($json === false) {
+        return;
+    }
+
+    $tmp = $path . '.tmp.' . bin2hex(random_bytes(6));
+    if (@file_put_contents($tmp, $json, LOCK_EX) === false) {
+        return;
+    }
+
+    @rename($tmp, $path);
+}
+
+function dmm_api_empty_data(string $endpoint): array
+{
+    $endpoint = strtolower($endpoint);
+    if ($endpoint === 'itemlist') {
+        return ['result' => ['status' => '200', 'items' => []]];
+    }
+    if ($endpoint === 'actresssearch') {
+        return ['result' => ['status' => '200', 'actress' => []]];
+    }
+    return ['result' => ['status' => '200']];
+}
+
+function dmm_api_request_once(string $endpoint, array $params): array
 {
     // configのdmm_apiをベースに不足があれば補う（params側が優先）
     $api = config_get('dmm_api', []);
@@ -116,5 +205,56 @@ function dmm_api_request(string $endpoint, array $params): array
         'error' => null,
         'raw' => $raw,
         'data' => $data,
+    ];
+}
+
+function dmm_api_request(string $endpoint, array $params): array
+{
+    $cachePath = dmm_api_cache_path($endpoint, $params);
+    $cached = dmm_api_load_cache($cachePath, 3600);
+
+    $attempts = 0;
+    $lastResponse = null;
+    while ($attempts < 2) {
+        $attempts++;
+        $response = dmm_api_request_once($endpoint, $params);
+        $lastResponse = $response;
+        if (($response['ok'] ?? false) === true) {
+            dmm_api_save_cache($cachePath, [
+                'data' => $response['data'],
+                'cached_at' => time(),
+            ]);
+            $response['is_cached'] = false;
+            return $response;
+        }
+
+        if ($attempts < 2) {
+            usleep(200000);
+        }
+    }
+
+    if (is_array($cached) && isset($cached['data']) && is_array($cached['data'])) {
+        return [
+            'ok' => true,
+            'http_code' => 200,
+            'error' => $lastResponse['error'] ?? 'API failed',
+            'raw' => null,
+            'data' => $cached['data'],
+            'is_cached' => true,
+        ];
+    }
+
+    if (function_exists('log_message')) {
+        $message = $lastResponse['error'] ?? 'API failed';
+        log_message('API failed without cache: ' . $message);
+    }
+
+    return [
+        'ok' => true,
+        'http_code' => $lastResponse['http_code'] ?? 0,
+        'error' => $lastResponse['error'] ?? 'API failed',
+        'raw' => null,
+        'data' => dmm_api_empty_data($endpoint),
+        'is_cached' => false,
     ];
 }
