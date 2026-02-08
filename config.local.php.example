@@ -1,0 +1,18 @@
+<?php
+declare(strict_types=1);
+
+return [
+  'db' => [
+    // ここにDBホスト（例: 127.0.0.1 / localhost / 本番ホスト名）
+    'host' => 'YOUR_DB_HOST',
+    // ここにDB名
+    'name' => 'YOUR_DB_NAME',
+    'charset' => 'utf8mb4',
+    // ここにDBユーザー名
+    'user' => 'YOUR_DB_USER',
+    // ここにDBパスワード
+    'password' => 'YOUR_DB_PASSWORD',
+    // ポートが違う場合はDSNを使える（必要ならコメントで案内）
+    // 'dsn' => 'mysql:host=YOUR_DB_HOST;port=3306;dbname=YOUR_DB_NAME;charset=utf8mb4',
+  ],
+];
