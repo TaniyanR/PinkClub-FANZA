@@ -223,6 +223,14 @@ PinkClub-FANZA は FANZA（DMM）API から作品データを取得し、自動�
 
 ## Setup (最小手順)
 
+### Local Development (XAMPP)
+
+1. プロジェクト直下に `config.local.php` を作成します（Git管理しません）。
+   - 例：host=127.0.0.1 / user=root / password空 / db名は `pinkclub_fanza`
+   - 必要であれば `php scripts/create_local_config.php` で雛形を作成できます。
+2. MySQL に `pinkclub_fanza` を作成します（任意名でも可）。
+3. テーブル作成は `/admin/db_init.php` を開くか、`sql/schema.sql` を import します。
+
 1. 初回起動で `config.local.php` が無い場合、`/admin/settings.php` から作成できる。
 2. 作成後、DB接続情報（host/DB名/user/password）は環境に合わせて設定する。
 3. FANZA API設定は管理画面から設定できる。
