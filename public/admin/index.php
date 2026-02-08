@@ -1,8 +1,5 @@
 <?php
-require_once __DIR__ . '/../../lib/config.php';
-require_once __DIR__ . '/../../lib/admin_auth.php';
-
-admin_basic_auth_required();
+require_once __DIR__ . '/_bootstrap.php';
 
 include __DIR__ . '/../partials/header.php';
 ?>

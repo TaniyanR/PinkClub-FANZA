@@ -1,14 +1,10 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../lib/config.php';
-require_once __DIR__ . '/../../lib/admin_auth.php';
-require_once __DIR__ . '/../../lib/csrf.php';
+require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/dmm_api.php';
 require_once __DIR__ . '/../../lib/repository.php';
-
-admin_basic_auth_required();
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
@@ -105,197 +101,194 @@ function normalize_taxonomy_payload(array $taxonomy): array
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!csrf_verify($_POST['_token'] ?? null)) {
-        $errorLog[] = 'CSRFトークンが不正です。ページを再読み込みしてやり直してください。';
+    $missing = validate_api_config($apiConfig);
+    if ($missing) {
+        $errorLog[] = 'DMM API設定が不足しています: ' . implode(', ', $missing);
     } else {
-        $missing = validate_api_config($apiConfig);
-        if ($missing) {
-            $errorLog[] = 'DMM API設定が不足しています: ' . implode(', ', $missing);
-        } else {
-            $hits        = (int)($_POST['hits'] ?? 100);
-            $startOffset = (int)($_POST['offset'] ?? 1);
-            $maxPages    = (int)($_POST['pages'] ?? 1);
-            $keyword     = trim((string)($_POST['keyword'] ?? ''));
+        $hits        = (int)($_POST['hits'] ?? 100);
+        $startOffset = (int)($_POST['offset'] ?? 1);
+        $maxPages    = (int)($_POST['pages'] ?? 1);
+        $keyword     = trim((string)($_POST['keyword'] ?? ''));
 
-            // バリデーション（最低限）
-            $hits = min(100, max(1, $hits));
-            $startOffset = max(1, $startOffset);
-            $maxPages = max(1, min(200, $maxPages)); // 暴走防止（必要なら後で上限変更）
+        // バリデーション（最低限）
+        $hits = min(100, max(1, $hits));
+        $startOffset = max(1, $startOffset);
+        $maxPages = max(1, min(200, $maxPages)); // 暴走防止（必要なら後で上限変更）
 
-            $paramsBase = api_base_params($apiConfig);
+        $paramsBase = api_base_params($apiConfig);
 
-            $inserted = 0;
-            $updated  = 0;
+        $inserted = 0;
+        $updated  = 0;
 
-            for ($page = 0; $page < $maxPages; $page++) {
-                $offset = $startOffset + ($page * $hits);
+        for ($page = 0; $page < $maxPages; $page++) {
+            $offset = $startOffset + ($page * $hits);
 
-                $params = array_merge($paramsBase, [
-                    'hits'   => $hits,
-                    'offset' => $offset,
-                ]);
-                if ($keyword !== '') {
-                    $params['keyword'] = $keyword;
+            $params = array_merge($paramsBase, [
+                'hits'   => $hits,
+                'offset' => $offset,
+            ]);
+            if ($keyword !== '') {
+                $params['keyword'] = $keyword;
+            }
+
+            $response = dmm_api_request('ItemList', $params);
+            if (!($response['ok'] ?? false)) {
+                $errorLog[] = sprintf('APIエラー: HTTP %d %s', (int)($response['http_code'] ?? 0), (string)($response['error'] ?? 'unknown'));
+                break;
+            }
+
+            $data = $response['data']['result'] ?? [];
+            if (($data['status'] ?? '') !== '200') {
+                $errorLog[] = sprintf('APIステータスエラー: %s', (string)($data['status'] ?? 'unknown'));
+                break;
+            }
+
+            $list = $data['items'] ?? [];
+            if (!is_array($list)) {
+                $list = [];
+            }
+
+            foreach ($list as $row) {
+                if (!is_array($row)) {
+                    continue;
                 }
 
-                $response = dmm_api_request('ItemList', $params);
-                if (!($response['ok'] ?? false)) {
-                    $errorLog[] = sprintf('APIエラー: HTTP %d %s', (int)($response['http_code'] ?? 0), (string)($response['error'] ?? 'unknown'));
-                    break;
+                $contentId = (string)($row['content_id'] ?? '');
+                if ($contentId === '') {
+                    continue;
                 }
 
-                $data = $response['data']['result'] ?? [];
-                if (($data['status'] ?? '') !== '200') {
-                    $errorLog[] = sprintf('APIステータスエラー: %s', (string)($data['status'] ?? 'unknown'));
-                    break;
-                }
+                $pdo = db();
+                $pdo->beginTransaction();
+                try {
+                    $price = $row['prices']['price'] ?? ($row['price'] ?? null);
 
-                $list = $data['items'] ?? [];
-                if (!is_array($list)) {
-                    $list = [];
-                }
+                    $result = upsert_item([
+                        'content_id' => $contentId,
+                        'product_id' => (string)($row['product_id'] ?? ''),
+                        'title' => (string)($row['title'] ?? ''),
+                        'url' => (string)($row['URL'] ?? ''),
+                        'affiliate_url' => (string)($row['affiliateURL'] ?? ''),
+                        'image_list' => (string)($row['imageURL']['list'] ?? ''),
+                        'image_small' => (string)($row['imageURL']['small'] ?? ''),
+                        'image_large' => (string)($row['imageURL']['large'] ?? ''),
+                        'date_published' => $row['date'] ?? null,
+                        'service_code' => (string)($row['service_code'] ?? ''),
+                        'floor_code' => (string)($row['floor_code'] ?? ''),
+                        'category_name' => (string)($row['category_name'] ?? ''),
+                        'price_min' => is_numeric($price) ? (int)$price : null,
+                    ]);
 
-                foreach ($list as $row) {
-                    if (!is_array($row)) {
-                        continue;
-                    }
-
-                    $contentId = (string)($row['content_id'] ?? '');
-                    if ($contentId === '') {
-                        continue;
-                    }
-
-                    $pdo = db();
-                    $pdo->beginTransaction();
-                    try {
-                        $price = $row['prices']['price'] ?? ($row['price'] ?? null);
-
-                        $result = upsert_item([
-                            'content_id' => $contentId,
-                            'product_id' => (string)($row['product_id'] ?? ''),
-                            'title' => (string)($row['title'] ?? ''),
-                            'url' => (string)($row['URL'] ?? ''),
-                            'affiliate_url' => (string)($row['affiliateURL'] ?? ''),
-                            'image_list' => (string)($row['imageURL']['list'] ?? ''),
-                            'image_small' => (string)($row['imageURL']['small'] ?? ''),
-                            'image_large' => (string)($row['imageURL']['large'] ?? ''),
-                            'date_published' => $row['date'] ?? null,
-                            'service_code' => (string)($row['service_code'] ?? ''),
-                            'floor_code' => (string)($row['floor_code'] ?? ''),
-                            'category_name' => (string)($row['category_name'] ?? ''),
-                            'price_min' => is_numeric($price) ? (int)$price : null,
-                        ]);
-
-                        // ---- 以下は phase2（存在すれば反映）: 無ければスキップしてもimport自体は動く ----
-                        if (
-                            function_exists('upsert_actress')
-                            && function_exists('upsert_taxonomy')
-                            && function_exists('replace_item_relations')
-                            && function_exists('replace_item_labels')
-                        ) {
-                            $itemInfo = $row['iteminfo'] ?? [];
-                            if (!is_array($itemInfo)) {
-                                $itemInfo = [];
-                            }
-
-                            $actressIds = [];
-                            foreach (normalize_iteminfo_list($itemInfo['actress'] ?? []) as $actress) {
-                                if (!is_array($actress)) {
-                                    continue;
-                                }
-                                $payload = normalize_actress_payload($actress);
-                                if (($payload['id'] ?? 0) > 0 && ($payload['name'] ?? '') !== '') {
-                                    upsert_actress($payload);
-                                    $actressIds[] = (int)$payload['id'];
-                                }
-                            }
-
-                            $genreIds = [];
-                            foreach (normalize_iteminfo_list($itemInfo['genre'] ?? []) as $genre) {
-                                if (!is_array($genre)) {
-                                    continue;
-                                }
-                                $payload = normalize_taxonomy_payload($genre);
-                                if (($payload['id'] ?? 0) > 0 && ($payload['name'] ?? '') !== '') {
-                                    upsert_taxonomy('genres', 'id', $payload);
-                                    $genreIds[] = (int)$payload['id'];
-                                }
-                            }
-
-                            $makerIds = [];
-                            foreach (normalize_iteminfo_list($itemInfo['maker'] ?? []) as $maker) {
-                                if (!is_array($maker)) {
-                                    continue;
-                                }
-                                $payload = normalize_taxonomy_payload($maker);
-                                if (($payload['id'] ?? 0) > 0 && ($payload['name'] ?? '') !== '') {
-                                    upsert_taxonomy('makers', 'id', $payload);
-                                    $makerIds[] = (int)$payload['id'];
-                                }
-                            }
-
-                            $seriesIds = [];
-                            foreach (normalize_iteminfo_list($itemInfo['series'] ?? []) as $series) {
-                                if (!is_array($series)) {
-                                    continue;
-                                }
-                                $payload = normalize_taxonomy_payload($series);
-                                if (($payload['id'] ?? 0) > 0 && ($payload['name'] ?? '') !== '') {
-                                    upsert_taxonomy('series', 'id', $payload);
-                                    $seriesIds[] = (int)$payload['id'];
-                                }
-                            }
-
-                            $labels = [];
-                            foreach (normalize_iteminfo_list($itemInfo['label'] ?? []) as $label) {
-                                if (!is_array($label)) {
-                                    continue;
-                                }
-                                $labelName = (string)($label['name'] ?? '');
-                                if ($labelName === '') {
-                                    continue;
-                                }
-                                $labels[] = [
-                                    'id' => isset($label['id']) ? (int)$label['id'] : null,
-                                    'name' => $labelName,
-                                    'ruby' => $label['ruby'] ?? null,
-                                ];
-                            }
-
-                            replace_item_relations($contentId, $actressIds, 'item_actresses', 'actress_id');
-                            replace_item_relations($contentId, $genreIds, 'item_genres', 'genre_id');
-                            replace_item_relations($contentId, $makerIds, 'item_makers', 'maker_id');
-                            replace_item_relations($contentId, $seriesIds, 'item_series', 'series_id');
-                            replace_item_labels($contentId, $labels);
+                    // ---- 以下は phase2（存在すれば反映）: 無ければスキップしてもimport自体は動く ----
+                    if (
+                        function_exists('upsert_actress')
+                        && function_exists('upsert_taxonomy')
+                        && function_exists('replace_item_relations')
+                        && function_exists('replace_item_labels')
+                    ) {
+                        $itemInfo = $row['iteminfo'] ?? [];
+                        if (!is_array($itemInfo)) {
+                            $itemInfo = [];
                         }
 
-                        $pdo->commit();
+                        $actressIds = [];
+                        foreach (normalize_iteminfo_list($itemInfo['actress'] ?? []) as $actress) {
+                            if (!is_array($actress)) {
+                                continue;
+                            }
+                            $payload = normalize_actress_payload($actress);
+                            if (($payload['id'] ?? 0) > 0 && ($payload['name'] ?? '') !== '') {
+                                upsert_actress($payload);
+                                $actressIds[] = (int)$payload['id'];
+                            }
+                        }
 
-                        if (($result['status'] ?? '') === 'inserted') {
-                            $inserted++;
-                        } else {
-                            $updated++;
+                        $genreIds = [];
+                        foreach (normalize_iteminfo_list($itemInfo['genre'] ?? []) as $genre) {
+                            if (!is_array($genre)) {
+                                continue;
+                            }
+                            $payload = normalize_taxonomy_payload($genre);
+                            if (($payload['id'] ?? 0) > 0 && ($payload['name'] ?? '') !== '') {
+                                upsert_taxonomy('genres', 'id', $payload);
+                                $genreIds[] = (int)$payload['id'];
+                            }
                         }
-                    } catch (Throwable $e) {
-                        if ($pdo->inTransaction()) {
-                            $pdo->rollBack();
+
+                        $makerIds = [];
+                        foreach (normalize_iteminfo_list($itemInfo['maker'] ?? []) as $maker) {
+                            if (!is_array($maker)) {
+                                continue;
+                            }
+                            $payload = normalize_taxonomy_payload($maker);
+                            if (($payload['id'] ?? 0) > 0 && ($payload['name'] ?? '') !== '') {
+                                upsert_taxonomy('makers', 'id', $payload);
+                                $makerIds[] = (int)$payload['id'];
+                            }
                         }
-                        log_message('import_items failed: ' . $contentId . ' ' . $e->getMessage());
-                        $errorLog[] = sprintf('content_id %s の処理に失敗しました。', $contentId);
+
+                        $seriesIds = [];
+                        foreach (normalize_iteminfo_list($itemInfo['series'] ?? []) as $series) {
+                            if (!is_array($series)) {
+                                continue;
+                            }
+                            $payload = normalize_taxonomy_payload($series);
+                            if (($payload['id'] ?? 0) > 0 && ($payload['name'] ?? '') !== '') {
+                                upsert_taxonomy('series', 'id', $payload);
+                                $seriesIds[] = (int)$payload['id'];
+                            }
+                        }
+
+                        $labels = [];
+                        foreach (normalize_iteminfo_list($itemInfo['label'] ?? []) as $label) {
+                            if (!is_array($label)) {
+                                continue;
+                            }
+                            $labelName = (string)($label['name'] ?? '');
+                            if ($labelName === '') {
+                                continue;
+                            }
+                            $labels[] = [
+                                'id' => isset($label['id']) ? (int)$label['id'] : null,
+                                'name' => $labelName,
+                                'ruby' => $label['ruby'] ?? null,
+                            ];
+                        }
+
+                        replace_item_relations($contentId, $actressIds, 'item_actresses', 'actress_id');
+                        replace_item_relations($contentId, $genreIds, 'item_genres', 'genre_id');
+                        replace_item_relations($contentId, $makerIds, 'item_makers', 'maker_id');
+                        replace_item_relations($contentId, $seriesIds, 'item_series', 'series_id');
+                        replace_item_labels($contentId, $labels);
                     }
-                }
 
-                $resultLog[] = sprintf('offset %d を処理しました。', $offset);
+                    $pdo->commit();
 
-                // 返却が空なら以降も空の可能性が高いので打ち切り（無限ループ防止）
-                if (count($list) === 0) {
-                    $resultLog[] = '取得件数が0件のため終了しました。';
-                    break;
+                    if (($result['status'] ?? '') === 'inserted') {
+                        $inserted++;
+                    } else {
+                        $updated++;
+                    }
+                } catch (Throwable $e) {
+                    if ($pdo->inTransaction()) {
+                        $pdo->rollBack();
+                    }
+                    log_message('import_items failed: ' . $contentId . ' ' . $e->getMessage());
+                    $errorLog[] = sprintf('content_id %s の処理に失敗しました。', $contentId);
                 }
             }
 
-            $resultLog[] = sprintf('追加 %d件 / 更新 %d件', $inserted, $updated);
+            $resultLog[] = sprintf('offset %d を処理しました。', $offset);
+
+            // 返却が空なら以降も空の可能性が高いので打ち切り（無限ループ防止）
+            if (count($list) === 0) {
+                $resultLog[] = '取得件数が0件のため終了しました。';
+                break;
+            }
         }
+        }
+
+        $resultLog[] = sprintf('追加 %d件 / 更新 %d件', $inserted, $updated);
     }
 }
 
