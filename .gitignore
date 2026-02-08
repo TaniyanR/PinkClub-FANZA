@@ -1,4 +1,5 @@
 config.local.php
+/cache/
 /logs/
 /logs/*.log
 .DS_Store

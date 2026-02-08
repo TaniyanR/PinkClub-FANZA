@@ -233,6 +233,11 @@ PinkClub-FANZA は FANZA（DMM）API から作品データを取得し、自動�
 9. `public/article.php?id=1` で記事詳細を確認する。
 10. 取得結果が表示されればセットアップ完了。
 
+運用メモ：
+
+- cache/ ディレクトリはAPIレスポンスのキャッシュ保存に使います。Webサーバーから書き込み権限が必要です。
+- config.local.php は管理画面の設定保存に使うため、書き込み権限が必要です。
+
 ---
 
 ## License
