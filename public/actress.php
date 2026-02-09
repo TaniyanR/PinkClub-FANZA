@@ -3,6 +3,9 @@ require_once __DIR__ . '/../lib/config.php';
 require_once __DIR__ . '/../lib/dmm_api.php';
 require_once __DIR__ . '/../lib/repository.php';
 
+const SECONDS_PER_DAY = 86400;
+const ACTRESS_CACHE_DAYS = 30;
+
 function should_refresh_actress(array $actress): bool
 {
     if (empty($actress['updated_at'])) {
@@ -14,8 +17,8 @@ function should_refresh_actress(array $actress): bool
         return true;
     }
 
-    $days = (time() - $updatedAt) / 86400;
-    if ($days > 30) {
+    $days = (time() - $updatedAt) / SECONDS_PER_DAY;
+    if ($days > ACTRESS_CACHE_DAYS) {
         return true;
     }
 
@@ -51,8 +54,13 @@ function build_actress_payload(array $base, array $incoming): array
     ];
 }
 
-$id = (int)($_GET['id'] ?? 0);
-$actress = $id ? fetch_actress($id) : null;
+$id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+if ($id === false || $id === null || $id <= 0) {
+    http_response_code(404);
+    echo 'Invalid actress ID';
+    exit;
+}
+$actress = fetch_actress($id);
 
 if ($actress && should_refresh_actress($actress)) {
     $apiConfig = config_get('dmm_api', config_get('api', []));
