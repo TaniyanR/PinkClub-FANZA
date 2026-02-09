@@ -3,43 +3,99 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
 
-function admin_basic_auth_required(): void
+const ADMIN_DEFAULT_USERNAME = 'admin';
+const ADMIN_DEFAULT_PASSWORD_HASH = '$2y$12$58ws2D57sDIa5vHnPiEZ.e/x6.6T.aVOg3.WfTdoiKfX92Js0MLBu';
+
+function admin_session_start(): void
 {
-    $basicUser = (string)config_get('admin.basic_user', '');
-    $basicPass = (string)config_get('admin.basic_pass', '');
-
-    if ($basicUser === '' && $basicPass === '') {
-        return;
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
     }
+}
 
-    $sentUser = $_SERVER['PHP_AUTH_USER'] ?? null;
-    $sentPass = $_SERVER['PHP_AUTH_PW'] ?? null;
+function admin_config(): array
+{
+    $admin = config_get('admin', []);
+    $username = ADMIN_DEFAULT_USERNAME;
+    $passwordHash = ADMIN_DEFAULT_PASSWORD_HASH;
 
-    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
-    if (($sentUser === null || $sentPass === null) && is_string($authHeader) && stripos($authHeader, 'basic ') === 0) {
-        $decoded = base64_decode(substr($authHeader, 6), true);
-        if (is_string($decoded) && str_contains($decoded, ':')) {
-            [$sentUser, $sentPass] = explode(':', $decoded, 2);
+    if (is_array($admin)) {
+        $candidateUser = $admin['username'] ?? null;
+        if (is_string($candidateUser) && $candidateUser !== '') {
+            $username = $candidateUser;
+        }
+
+        $candidateHash = $admin['password_hash'] ?? null;
+        if (is_string($candidateHash) && $candidateHash !== '') {
+            $passwordHash = $candidateHash;
         }
     }
 
-    $userOk = is_string($sentUser) && hash_equals($basicUser, $sentUser);
-    $passOk = false;
-    if (is_string($sentPass)) {
-        $passInfo = password_get_info($basicPass);
-        if (($passInfo['algo'] ?? 0) !== 0) {
-            $passOk = password_verify($sentPass, $basicPass);
-        } else {
-            $passOk = hash_equals($basicPass, $sentPass);
-        }
+    return [
+        'username' => $username,
+        'password_hash' => $passwordHash,
+    ];
+}
+
+function admin_current_user(): ?string
+{
+    admin_session_start();
+
+    $user = $_SESSION['admin_user'] ?? null;
+    if (!is_string($user) || $user === '') {
+        return null;
     }
 
-    if ($userOk && $passOk) {
+    return $user;
+}
+
+function admin_require_login(): void
+{
+    if (admin_current_user() !== null) {
         return;
     }
 
-    header('WWW-Authenticate: Basic realm="Admin"');
-    http_response_code(401);
-    echo 'Unauthorized';
+    header('Location: /admin/login.php');
     exit;
+}
+
+function admin_login(string $username, string $password): bool
+{
+    admin_session_start();
+
+    $admin = admin_config();
+    if (!hash_equals($admin['username'], $username)) {
+        return false;
+    }
+
+    if (!password_verify($password, $admin['password_hash'])) {
+        return false;
+    }
+
+    session_regenerate_id(true);
+    $_SESSION['admin_user'] = $admin['username'];
+    return true;
+}
+
+function admin_logout(): void
+{
+    admin_session_start();
+
+    $_SESSION = [];
+
+    if (ini_get('session.use_cookies')) {
+        $params = session_get_cookie_params();
+        setcookie(
+            session_name(),
+            '',
+            time() - 42000,
+            $params['path'],
+            $params['domain'],
+            (bool)$params['secure'],
+            (bool)$params['httponly']
+        );
+    }
+
+    session_regenerate_id(true);
+    session_destroy();
 }

@@ -15,4 +15,9 @@ return [
     // ポートが違う場合はDSNを使える（必要ならコメントで案内）
     // 'dsn' => 'mysql:host=YOUR_DB_HOST;port=3306;dbname=YOUR_DB_NAME;charset=utf8mb4',
   ],
+  'admin' => [
+    // 管理ログイン用（password_hash で生成したハッシュを設定）
+    'username' => 'admin',
+    'password_hash' => '',
+  ],
 ];

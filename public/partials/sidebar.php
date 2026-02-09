@@ -1,4 +1,15 @@
 <aside class="sidebar">
+    <?php if (function_exists('admin_current_user') && admin_current_user() !== null) : ?>
+        <div class="sidebar-block">
+            <h3>管理</h3>
+            <form method="post" action="/admin/logout.php">
+                <?php if (function_exists('csrf_token')) : ?>
+                    <input type="hidden" name="_token" value="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); ?>">
+                <?php endif; ?>
+                <button type="submit">ログアウト</button>
+            </form>
+        </div>
+    <?php endif; ?>
     <div class="sidebar-block">
         <h3>クイックメニュー</h3>
         <ul>

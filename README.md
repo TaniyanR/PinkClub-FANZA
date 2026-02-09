@@ -173,6 +173,13 @@ PinkClub-FANZA は FANZA（DMM）API から作品データを取得し、自動�
 - メール＋パス
 - ログイン中表示（インジケータ）
 
+管理ログイン（このリポジトリの簡易管理画面）：
+
+- URL: `/admin/login.php`
+- 初期ユーザー名: `admin`
+- 初期パスワード: `admin12345`
+- 初回ログイン後に必ず `config.local.php` の `admin.password_hash` を変更してください（`password_hash()` で生成した値を設定）。
+
 ---
 
 ## SEO / Security
