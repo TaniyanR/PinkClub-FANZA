@@ -61,10 +61,14 @@ function dmm_api_cache_write(string $path, array $payload): void
 {
     $dir = dirname($path);
     if (!is_dir($dir)) {
-        @mkdir($dir, 0755, true);
+        if (!@mkdir($dir, 0755, true)) {
+            error_log("Failed to create cache directory: {$dir}");
+            return;
+        }
     }
 
     if (!is_dir($dir) || !is_writable($dir)) {
+        error_log("Cache directory is not writable: {$dir}");
         return;
     }
 
@@ -103,6 +107,13 @@ function dmm_api_request(string $endpoint, array $params): array
     $timeout = 20;
 
     if (is_array($api)) {
+        $cacheTtlValue = filter_var($api['cache_ttl'] ?? null, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 60, 'max_range' => 86400],
+        ]);
+        if ($cacheTtlValue !== false) {
+            $cacheTtl = $cacheTtlValue;
+        }
+
         $connectTimeoutValue = filter_var($api['connect_timeout'] ?? null, FILTER_VALIDATE_INT, [
             'options' => ['min_range' => 1, 'max_range' => 30],
         ]);

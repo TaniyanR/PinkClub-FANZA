@@ -11,11 +11,6 @@ function normalize_order(string $value, array $allowed, string $default): string
     return in_array($value, $allowed, true) ? $value : $default;
 }
 
-function normalize_order_column(string $value, array $allowed, string $default): string
-{
-    return in_array($value, $allowed, true) ? $value : $default;
-}
-
 /**
  * テーブル名を受け取る系は必ず許可リストで制限（SQLインジェクション防止）
  */
@@ -49,20 +44,25 @@ function normalize_content_id(string $contentId): string
     return $contentId;
 }
 
-function fetch_items(string $orderBy = 'date_published DESC', int $limit = 10, int $offset = 0): array
+function fetch_items(string $orderBy = 'date_published_desc', int $limit = 10, int $offset = 0): array
 {
-    $orderBy = normalize_order($orderBy, [
-        'date_published DESC',
-        'date_published ASC',
-        'price_min DESC',
-        'price_min ASC',
-        'RAND()',
-    ], 'date_published DESC');
+    $allowedOrders = [
+        'date_published_desc' => 'date_published DESC',
+        'date_published_asc' => 'date_published ASC',
+        'price_min_desc' => 'price_min DESC',
+        'price_min_asc' => 'price_min ASC',
+        'random' => 'RAND()',
+    ];
+    if (array_key_exists($orderBy, $allowedOrders)) {
+        $orderBySql = $allowedOrders[$orderBy];
+    } else {
+        $orderBySql = normalize_order($orderBy, array_values($allowedOrders), $allowedOrders['date_published_desc']);
+    }
 
     $limit = normalize_int($limit, 1, 100);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare("SELECT * FROM items ORDER BY {$orderBy} LIMIT :limit OFFSET :offset");
+    $stmt = db()->prepare("SELECT * FROM items ORDER BY {$orderBySql} LIMIT :limit OFFSET :offset");
     $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
@@ -115,7 +115,7 @@ function search_items(string $q, int $limit = 10, int $offset = 0): array
 
 function fetch_actresses(int $limit = 50, int $offset = 0, string $order = 'name'): array
 {
-    $orderBy = normalize_order_column($order, ['name', 'created_at', 'updated_at'], 'name');
+    $orderBy = normalize_order($order, ['name', 'created_at', 'updated_at'], 'name');
     $limit = normalize_int($limit, 1, 200);
     $offset = max(0, $offset);
 
@@ -204,7 +204,7 @@ function fetch_series_one(int $seriesId): ?array
 
 function fetch_genres(int $limit = 50, int $offset = 0, string $order = 'name'): array
 {
-    $orderBy = normalize_order_column($order, ['name', 'created_at', 'updated_at'], 'name');
+    $orderBy = normalize_order($order, ['name', 'created_at', 'updated_at'], 'name');
     $limit = normalize_int($limit, 1, 200);
     $offset = max(0, $offset);
 
@@ -217,7 +217,7 @@ function fetch_genres(int $limit = 50, int $offset = 0, string $order = 'name'):
 
 function fetch_makers(int $limit = 50, int $offset = 0, string $order = 'name'): array
 {
-    $orderBy = normalize_order_column($order, ['name', 'created_at', 'updated_at'], 'name');
+    $orderBy = normalize_order($order, ['name', 'created_at', 'updated_at'], 'name');
     $limit = normalize_int($limit, 1, 200);
     $offset = max(0, $offset);
 
@@ -230,7 +230,7 @@ function fetch_makers(int $limit = 50, int $offset = 0, string $order = 'name'):
 
 function fetch_series(int $limit = 50, int $offset = 0, string $order = 'name'): array
 {
-    $orderBy = normalize_order_column($order, ['name', 'created_at', 'updated_at'], 'name');
+    $orderBy = normalize_order($order, ['name', 'created_at', 'updated_at'], 'name');
     $limit = normalize_int($limit, 1, 200);
     $offset = max(0, $offset);
 
@@ -332,7 +332,7 @@ function fetch_items_by_series(int $seriesId, int $limit, int $offset = 0): arra
 function fetch_taxonomy_by_id(string $table, string $idField, int $id): ?array
 {
     $table = normalize_table($table, ['genres', 'makers', 'series']);
-    $idField = normalize_order_column($idField, ['id'], 'id'); // いまは 'id' のみ許可
+    $idField = normalize_order($idField, ['id'], 'id'); // いまは 'id' のみ許可
     $id = max(1, $id);
 
     $stmt = db()->prepare("SELECT * FROM {$table} WHERE {$idField} = :id LIMIT 1");
@@ -557,7 +557,7 @@ function replace_item_relations(string $contentId, array $relationIds, string $t
     }
 
     $table = normalize_table($table, ['item_actresses', 'item_genres', 'item_makers', 'item_series']);
-    $column = normalize_order_column($column, ['actress_id', 'genre_id', 'maker_id', 'series_id'], $column);
+    $column = normalize_order($column, ['actress_id', 'genre_id', 'maker_id', 'series_id'], $column);
 
     $pdo = db();
 

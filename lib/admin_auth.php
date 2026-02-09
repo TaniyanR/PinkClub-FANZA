@@ -24,7 +24,15 @@ function admin_basic_auth_required(): void
     }
 
     $userOk = is_string($sentUser) && hash_equals($basicUser, $sentUser);
-    $passOk = is_string($sentPass) && hash_equals($basicPass, $sentPass);
+    $passOk = false;
+    if (is_string($sentPass)) {
+        $passInfo = password_get_info($basicPass);
+        if (($passInfo['algo'] ?? 0) !== 0) {
+            $passOk = password_verify($sentPass, $basicPass);
+        } else {
+            $passOk = hash_equals($basicPass, $sentPass);
+        }
+    }
 
     if ($userOk && $passOk) {
         return;

@@ -28,9 +28,23 @@ $query = http_build_query([
 
 $url = 'https://api.dmm.com/affiliate/v3/ItemList?' . $query;
 
-$response = file_get_contents($url);
+$context = stream_context_create([
+    'http' => [
+        'timeout' => 30,
+        'ignore_errors' => true,
+    ],
+]);
+
+$response = @file_get_contents($url, false, $context);
 if ($response === false) {
-    fwrite(STDERR, "APIリクエストに失敗しました。\n");
+    $error = error_get_last();
+    fwrite(STDERR, "APIリクエストに失敗しました: " . ($error['message'] ?? 'Unknown error') . "\n");
+    exit(1);
+}
+
+$statusLine = $http_response_header[0] ?? '';
+if (!str_contains($statusLine, '200')) {
+    fwrite(STDERR, "APIがエラーを返しました: {$statusLine}\n");
     exit(1);
 }
 
@@ -51,42 +65,47 @@ $insert = $pdo->prepare(
 );
 
 $count = 0;
-foreach ($data['result']['items'] as $item) {
-    $productId = $item['content_id'] ?? $item['product_id'] ?? null;
-    if (!$productId) {
-        continue;
+try {
+    foreach ($data['result']['items'] as $item) {
+        $productId = $item['content_id'] ?? $item['product_id'] ?? null;
+        if (!$productId) {
+            continue;
+        }
+
+        $imageUrl = null;
+        if (!empty($item['imageURL']['large'])) {
+            $imageUrl = $item['imageURL']['large'];
+        } elseif (!empty($item['imageURL']['list'])) {
+            $imageUrl = $item['imageURL']['list'];
+        }
+
+        $releaseDate = null;
+        if (!empty($item['date'])) {
+            $releaseDate = substr($item['date'], 0, 10);
+        }
+
+        $price = null;
+        if (isset($item['prices']['price'])) {
+            $price = (int) $item['prices']['price'];
+        }
+
+        $insert->execute([
+            ':product_id' => $productId,
+            ':title' => $item['title'] ?? 'Untitled',
+            ':description' => $item['comment'] ?? '',
+            ':affiliate_url' => $item['affiliateURL'] ?? '',
+            ':image_url' => $imageUrl ?? '',
+            ':release_date' => $releaseDate,
+            ':price' => $price,
+        ]);
+
+        $count++;
     }
 
-    $imageUrl = null;
-    if (!empty($item['imageURL']['large'])) {
-        $imageUrl = $item['imageURL']['large'];
-    } elseif (!empty($item['imageURL']['list'])) {
-        $imageUrl = $item['imageURL']['list'];
-    }
-
-    $releaseDate = null;
-    if (!empty($item['date'])) {
-        $releaseDate = substr($item['date'], 0, 10);
-    }
-
-    $price = null;
-    if (isset($item['prices']['price'])) {
-        $price = (int) $item['prices']['price'];
-    }
-
-    $insert->execute([
-        ':product_id' => $productId,
-        ':title' => $item['title'] ?? 'Untitled',
-        ':description' => $item['comment'] ?? '',
-        ':affiliate_url' => $item['affiliateURL'] ?? '',
-        ':image_url' => $imageUrl ?? '',
-        ':release_date' => $releaseDate,
-        ':price' => $price,
-    ]);
-
-    $count++;
+    $pdo->commit();
+    fwrite(STDOUT, "{$count} 件をインポートしました。\n");
+} catch (Throwable $e) {
+    $pdo->rollBack();
+    fwrite(STDERR, "インポートに失敗しました: " . $e->getMessage() . "\n");
+    exit(1);
 }
-
-$pdo->commit();
-
-fwrite(STDOUT, "{$count} 件をインポートしました。\n");
