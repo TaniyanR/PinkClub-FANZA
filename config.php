@@ -49,7 +49,7 @@ return [
     ],
 
     'admin' => [
-        'basic_user' => '',
-        'basic_pass' => '',
+        'username' => 'admin',
+        'password_hash' => '$2y$12$58ws2D57sDIa5vHnPiEZ.e/x6.6T.aVOg3.WfTdoiKfX92Js0MLBu',
     ],
 ];
