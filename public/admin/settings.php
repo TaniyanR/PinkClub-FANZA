@@ -94,7 +94,7 @@ include __DIR__ . '/../partials/header.php';
         </div>
     <?php endif; ?>
 
-    <form class="admin-card" method="post" action="/admin/save_settings.php">
+    <form class="admin-card" method="post" action="<?php echo e(admin_url('save_settings.php')); ?>">
         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
 
         <label>API ID</label>

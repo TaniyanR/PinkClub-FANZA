@@ -46,7 +46,7 @@ include __DIR__ . '/../partials/header.php';
         </div>
     <?php endif; ?>
 
-    <form class="admin-card" method="post" action="/admin/db_init.php">
+    <form class="admin-card" method="post" action="<?php echo e(admin_url('db_init.php')); ?>">
         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
         <button type="submit">DB初期化</button>
     </form>

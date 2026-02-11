@@ -5,7 +5,7 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../../lib/local_config_writer.php';
 
 if (!admin_is_logged_in()) {
-    header('Location: /admin/login.php');
+    header('Location: ' . admin_url('login.php'));
     exit;
 }
 
@@ -40,7 +40,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 local_config_write($local);
 
                 $_SESSION['admin_default_password'] = false;
-                header('Location: /admin/settings.php?password_changed=1');
+                header('Location: ' . admin_url('settings.php') . '?password_changed=1');
                 exit;
             } catch (Throwable $e) {
                 error_log('admin change_password failed: ' . $e->getMessage());
@@ -61,7 +61,7 @@ include __DIR__ . '/../partials/header.php';
         </div>
     <?php endif; ?>
 
-    <form class="admin-card" method="post" action="/admin/change_password.php">
+    <form class="admin-card" method="post" action="<?php echo e(admin_url('change_password.php')); ?>">
         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
 
         <label>新しいパスワード</label>

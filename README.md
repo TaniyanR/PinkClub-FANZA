@@ -175,10 +175,10 @@ PinkClub-FANZA は FANZA（DMM）API から作品データを取得し、自動�
 
 管理ログイン（このリポジトリの簡易管理画面）：
 
-- URL: `/admin/login.php`
+- URL: `/public/admin/login.php`（設置場所に応じてサブディレクトリが先頭に付きます。例: `/PinkClub-FANZA-main/public/admin/login.php`）
 - 初期ユーザー名: `admin`
 - 初期パスワード: `admin12345`
-- 初回ログイン後に `/admin/change_password.php` へ強制遷移し、パスワード変更が必須です。
+- 初回ログイン後に `/public/admin/change_password.php` へ強制遷移し、パスワード変更が必須です。
 - `config.local.php` に `admin` が未設定でも、上記初期認証情報でログインできます。
 
 `config.local.php` の `admin` 設定例（`password_hash()` で生成した値を設定）：
@@ -191,6 +191,8 @@ PinkClub-FANZA は FANZA（DMM）API から作品データを取得し、自動�
 ```
 
 > `config.local.php` は機密情報を含むため Git にコミットしないでください（`.gitignore` 済み）。
+
+> セキュリティのため、初期資格情報（`admin` / `admin12345`）でログインした後は必ず新しいパスワードに変更してください。
 
 ---
 
@@ -224,7 +226,7 @@ PinkClub-FANZA は FANZA（DMM）API から作品データを取得し、自動�
 ## DB Initialization
 
 - `php scripts/init_db.php` でDB初期化が実行できます。
-- 管理画面の `/admin/db_init.php` からも実行できます。
+- 管理画面の `/public/admin/db_init.php` からも実行できます。
 - これにより「DB未作成」が原因のトラブルを回避できます。
 
 外部ライブラリ：
@@ -245,19 +247,19 @@ PinkClub-FANZA は FANZA（DMM）API から作品データを取得し、自動�
 ### Local Development (XAMPP)
 
 0. `config.local.php.example` を `config.local.php` にコピーし、DB値（host/name/user/password）を入力します。
-   - FANZA API設定は管理画面 `/admin/settings.php` で行います。
-   - テーブルは `/admin/db_init.php` で作成できます。
+   - FANZA API設定は管理画面 `/public/admin/settings.php` で行います。
+   - テーブルは `/public/admin/db_init.php` で作成できます。
 1. プロジェクト直下に `config.local.php` を作成します（Git管理しません）。
    - 例：host=127.0.0.1 / user=root / password空 / db名は `pinkclub_fanza`
    - 必要であれば `php scripts/create_local_config.php` で雛形を作成できます。
 2. MySQL に `pinkclub_fanza` を作成します（任意名でも可）。
-3. テーブル作成は `/admin/db_init.php` を開くか、`sql/schema.sql` を import します。
+3. テーブル作成は `/public/admin/db_init.php` を開くか、`sql/schema.sql` を import します。
 
-1. 初回起動で `config.local.php` が無い場合、`/admin/settings.php` でAPI設定を入力して「保存」すると、`/admin/save_settings.php` により `config.local.php` が作成・更新される。
+1. 初回起動で `config.local.php` が無い場合、`/public/admin/settings.php` でAPI設定を入力して「保存」すると、`/public/admin/save_settings.php` により `config.local.php` が作成・更新される。
 2. DB接続情報（host/DB名/user/password）は `config.local.php` に手動で追記する。
 3. FANZA API設定は管理画面から設定し、「保存」時に `config.local.php` に反映される。
 4. MySQL でデータベースを作成する。
-5. 管理画面の `/admin/db_init.php` でテーブルを作成する（または `sql/schema.sql` をインポート）。
+5. 管理画面の `/public/admin/db_init.php` でテーブルを作成する（または `sql/schema.sql` をインポート）。
 6. 管理画面にログインする。
 7. 管理画面のインポート機能を実行する。
 8. 必要に応じて `php scripts/import.php` で手動インポートする。
