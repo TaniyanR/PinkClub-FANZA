@@ -13,6 +13,13 @@
                 <button type="submit">ログアウト</button>
             </form>
         </div>
+    <?php elseif (function_exists('login_url')) : ?>
+        <div class="sidebar-block">
+            <h3>管理</h3>
+            <ul>
+                <li><a href="<?php echo htmlspecialchars(login_url(), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); ?>">管理ログイン</a></li>
+            </ul>
+        </div>
     <?php endif; ?>
     <div class="sidebar-block">
         <h3>クイックメニュー</h3>
