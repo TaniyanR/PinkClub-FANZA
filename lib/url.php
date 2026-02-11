@@ -47,3 +47,8 @@ function admin_url(string $path = ''): string
 {
     return base_url() . '/admin/' . ltrim($path, '/');
 }
+
+function login_url(): string
+{
+    return base_url() . '/login0718.php';
+}

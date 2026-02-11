@@ -65,7 +65,24 @@ function admin_require_login(): void
         return;
     }
 
-    header('Location: ' . admin_url('login.php'));
+    $scriptName = (string)($_SERVER['SCRIPT_NAME'] ?? '');
+    $path = str_replace('\\', '/', $scriptName);
+    $publicPos = strripos($path, '/public/');
+    if ($publicPos !== false) {
+        $path = substr($path, $publicPos + 7);
+    }
+
+    $returnTo = '';
+    if ($path !== '' && $path[0] === '/' && strpos($path, '/admin/') === 0) {
+        $returnTo = $path;
+    }
+
+    $location = login_url();
+    if ($returnTo !== '') {
+        $location .= '?return_to=' . rawurlencode($returnTo);
+    }
+
+    header('Location: ' . $location);
     exit;
 }
 

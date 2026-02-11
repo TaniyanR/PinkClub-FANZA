@@ -18,5 +18,5 @@ if (!csrf_verify(is_string($token) ? $token : null)) {
 
 admin_logout();
 
-header('Location: ' . admin_url('login.php'));
+header('Location: ' . login_url());
 exit;
