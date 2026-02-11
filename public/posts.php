@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/partials/_helpers.php';
 require_once __DIR__ . '/../lib/repository.php';
 
-$orderParam = (string)($_GET['order'] ?? 'date_desc');
+$orderParam = safe_str($_GET['order'] ?? 'date_desc', 20);
 $orderMap = [
     'date_desc' => 'date_published_desc',
     'date_asc' => 'date_published_asc',
@@ -18,14 +18,14 @@ if (!isset($orderMap[$orderParam])) {
 }
 
 $allowedLimits = [12, 24, 48];
-$limit = (int)($_GET['limit'] ?? 24);
+$limit = safe_int($_GET['limit'] ?? 24, 24, 1, 100);
 if (!in_array($limit, $allowedLimits, true)) {
     $limit = 24;
 }
 
-$page = max(1, (int)($_GET['page'] ?? 1));
+$page = safe_int($_GET['page'] ?? 1, 1, 1, 100000);
 $offset = ($page - 1) * $limit;
-$q = trim((string)($_GET['q'] ?? ''));
+$q = safe_str($_GET['q'] ?? '', 100);
 
 $rows = $q !== ''
     ? search_items($q, $limit + 1, $offset)

@@ -4,8 +4,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/partials/_helpers.php';
 require_once __DIR__ . '/../lib/repository.php';
 
-$id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
-if (!is_int($id) || $id < 1) {
+$id = safe_int($_GET['id'] ?? null, 0, 0, 2147483647);
+if ($id < 1) {
     abort_404('404 Not Found', 'ジャンルIDが不正です。');
 }
 
@@ -14,7 +14,7 @@ if ($genre === null) {
     abort_404('404 Not Found', '指定のジャンルが見つかりませんでした。');
 }
 
-$page = max(1, (int)($_GET['page'] ?? 1));
+$page = safe_int($_GET['page'] ?? 1, 1, 1, 100000);
 $limit = 12;
 $offset = ($page - 1) * $limit;
 [$items, $hasNext] = paginate_items(fetch_items_by_genre((int)$genre['id'], $limit + 1, $offset), $limit);
