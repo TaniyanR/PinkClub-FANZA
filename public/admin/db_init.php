@@ -15,11 +15,17 @@ $status = '';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    try {
-        $result = init_db();
-        $status = sprintf('DB初期化が完了しました。（%s使用: %dステートメント）', $result['source'], $result['count']);
-    } catch (Throwable $e) {
-        $error = $e->getMessage();
+    $token = $_POST['_token'] ?? null;
+    if (!csrf_verify(is_string($token) ? $token : null)) {
+        $error = '不正なリクエストです。';
+    } else {
+        try {
+            $result = init_db();
+            $status = sprintf('DB初期化が完了しました。（%s使用: %dステートメント）', $result['source'], $result['count']);
+        } catch (Throwable $e) {
+            error_log('db_init failed: ' . $e->getMessage());
+            $error = 'DB初期化に失敗しました。ログを確認してください。';
+        }
     }
 }
 
@@ -36,7 +42,7 @@ include __DIR__ . '/../partials/header.php';
 
     <?php if ($error !== '') : ?>
         <div class="admin-card">
-            <p>エラーが発生しました: <?php echo e($error); ?></p>
+            <p><?php echo e($error); ?></p>
         </div>
     <?php endif; ?>
 

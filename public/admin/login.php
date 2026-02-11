@@ -1,11 +1,14 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../lib/config.php';
-require_once __DIR__ . '/../../lib/admin_auth.php';
-require_once __DIR__ . '/../../lib/csrf.php';
+require_once __DIR__ . '/_bootstrap.php';
 
-if (admin_current_user() !== null) {
+if (admin_is_logged_in()) {
+    if (admin_is_default_password()) {
+        header('Location: /admin/change_password.php');
+        exit;
+    }
+
     header('Location: /admin/settings.php');
     exit;
 }
@@ -21,9 +24,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $password = (string)($_POST['password'] ?? '');
 
         if (admin_login($username, $password)) {
+            if (admin_is_default_password()) {
+                header('Location: /admin/change_password.php');
+                exit;
+            }
+
             header('Location: /admin/settings.php');
             exit;
         }
+
         $error = 'ユーザー名またはパスワードが違います。';
     }
 }
