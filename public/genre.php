@@ -1,10 +1,43 @@
 <?php
 declare(strict_types=1);
+
 require_once __DIR__ . '/partials/_helpers.php';
 require_once __DIR__ . '/../lib/repository.php';
-$id=filter_input(INPUT_GET,'id',FILTER_VALIDATE_INT); if(!$id){http_response_code(404);include __DIR__.'/404.php';exit;}
-$genre=fetch_genre($id); if(!$genre){http_response_code(404);include __DIR__.'/404.php';exit;}
-$page=max(1,(int)($_GET['page']??1));$limit=12;$offset=($page-1)*$limit;[$items,$hasNext]=paginate_items(fetch_items_by_genre((int)$genre['id'],$limit+1,$offset),$limit);
-$pageTitle=sprintf('%s | ジャンル',$genre['name']);$pageDescription=sprintf('%s の作品一覧。',$genre['name']);$canonicalUrl=canonical_url('/genre.php',['id'=>$genre['id'],'page'=>$page>1?$page:null]);
-include __DIR__.'/partials/header.php'; include __DIR__.'/partials/nav_search.php'; ?>
-<div class="layout"><?php include __DIR__.'/partials/sidebar.php'; ?><main class="main-content"><section class="block"><h1 class="section-title"><?php echo e($genre['name']); ?></h1></section><section class="block"><div class="product-grid product-grid--4"><?php foreach($items as $item): ?><article class="product-card"><a class="product-card__media" href="/item.php?cid=<?php echo urlencode((string)$item['content_id']); ?>"><img src="<?php echo e($item['image_small']?:$item['image_large']); ?>" alt="<?php echo e($item['title']); ?>"></a><div class="product-card__body"><a class="product-card__title" href="/item.php?cid=<?php echo urlencode((string)$item['content_id']); ?>"><?php echo e($item['title']); ?></a></div></article><?php endforeach; ?></div></section><nav class="pagination"><?php if($page>1):?><a class="page-btn" href="/genre.php?id=<?php echo e((string)$genre['id']); ?>&page=<?php echo e((string)($page-1)); ?>">前へ</a><?php else:?><span class="page-btn">前へ</span><?php endif; ?><span class="page-btn is-current"><?php echo e((string)$page); ?></span><?php if($hasNext):?><a class="page-btn" href="/genre.php?id=<?php echo e((string)$genre['id']); ?>&page=<?php echo e((string)($page+1)); ?>">次へ</a><?php else:?><span class="page-btn">次へ</span><?php endif; ?></nav></main></div><?php include __DIR__.'/partials/footer.php'; ?>
+
+$id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+if (!is_int($id) || $id < 1) {
+    abort_404('404 Not Found', 'ジャンルIDが不正です。');
+}
+
+$genre = fetch_genre($id);
+if ($genre === null) {
+    abort_404('404 Not Found', '指定のジャンルが見つかりませんでした。');
+}
+
+$page = max(1, (int)($_GET['page'] ?? 1));
+$limit = 12;
+$offset = ($page - 1) * $limit;
+[$items, $hasNext] = paginate_items(fetch_items_by_genre((int)$genre['id'], $limit + 1, $offset), $limit);
+
+$pageTitle = sprintf('%s | ジャンル', (string)$genre['name']);
+$pageDescription = sprintf('%s の作品一覧。', (string)$genre['name']);
+$canonicalUrl = canonical_url('/genre.php', ['id' => (string)$genre['id'], 'page' => $page > 1 ? (string)$page : null]);
+
+include __DIR__ . '/partials/header.php';
+include __DIR__ . '/partials/nav_search.php';
+?>
+<div class="layout">
+    <?php include __DIR__ . '/partials/sidebar.php'; ?>
+    <main class="main-content">
+        <section class="block"><h1 class="section-title"><?php echo e((string)$genre['name']); ?></h1></section>
+        <section class="block">
+            <div class="product-grid product-grid--4">
+                <?php foreach ($items as $item) : ?>
+                    <article class="product-card"><a class="product-card__media" href="/item.php?cid=<?php echo urlencode((string)$item['content_id']); ?>"><img src="<?php echo e((string)($item['image_small'] ?: $item['image_large'])); ?>" alt="<?php echo e((string)$item['title']); ?>"></a><div class="product-card__body"><a class="product-card__title" href="/item.php?cid=<?php echo urlencode((string)$item['content_id']); ?>"><?php echo e((string)$item['title']); ?></a></div></article>
+                <?php endforeach; ?>
+            </div>
+        </section>
+        <nav class="pagination"><?php if ($page > 1) : ?><a class="page-btn" href="<?php echo e(build_url('/genre.php', ['id' => (string)$genre['id'], 'page' => (string)($page - 1)])); ?>">前へ</a><?php else : ?><span class="page-btn">前へ</span><?php endif; ?><span class="page-btn is-current"><?php echo e((string)$page); ?></span><?php if ($hasNext) : ?><a class="page-btn" href="<?php echo e(build_url('/genre.php', ['id' => (string)$genre['id'], 'page' => (string)($page + 1)])); ?>">次へ</a><?php else : ?><span class="page-btn">次へ</span><?php endif; ?></nav>
+    </main>
+</div>
+<?php include __DIR__ . '/partials/footer.php'; ?>

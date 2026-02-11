@@ -13,6 +13,20 @@ function base_url(): string
     return rtrim((string)config_get('site.base_url', ''), '/');
 }
 
+function build_url(string $path, array $query = []): string
+{
+    $filtered = [];
+    foreach ($query as $key => $value) {
+        if ($value === null || $value === '') {
+            continue;
+        }
+        $filtered[(string)$key] = (string)$value;
+    }
+
+    $qs = http_build_query($filtered);
+    return $path . ($qs !== '' ? ('?' . $qs) : '');
+}
+
 function current_path(): string
 {
     $path = (string)parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
@@ -21,16 +35,8 @@ function current_path(): string
 
 function canonical_url(?string $path = null, array $query = []): string
 {
-    $targetPath = $path ?? current_path();
-    $qs = http_build_query($query);
-    $suffix = $qs !== '' ? ('?' . $qs) : '';
-    $url = $targetPath . $suffix;
-
-    if (base_url() !== '') {
-        return base_url() . $url;
-    }
-
-    return $url;
+    $url = build_url($path ?? current_path(), $query);
+    return base_url() !== '' ? (base_url() . $url) : $url;
 }
 
 function format_date(?string $value): string
@@ -39,10 +45,7 @@ function format_date(?string $value): string
         return '';
     }
     $ts = strtotime($value);
-    if ($ts === false) {
-        return $value;
-    }
-    return date('Y/m/d', $ts);
+    return $ts === false ? $value : date('Y/m/d', $ts);
 }
 
 function format_price(mixed $price): string
@@ -60,7 +63,7 @@ function parse_image_list(?string $value): array
     }
 
     $trimmed = trim($value);
-    if ($trimmed[0] === '[') {
+    if ($trimmed !== '' && $trimmed[0] === '[') {
         $decoded = json_decode($trimmed, true);
         if (is_array($decoded)) {
             return array_values(array_filter(array_map('strval', $decoded)));
@@ -82,4 +85,18 @@ function paginate_items(array $rows, int $limit): array
         array_pop($rows);
     }
     return [$rows, $hasNext];
+}
+
+function abort_404(string $title = '404 Not Found', string $message = 'ページが見つかりません'): never
+{
+    http_response_code(404);
+
+    $pageTitle = $title . ' | PinkClub-FANZA';
+    $pageDescription = $message;
+    $canonicalUrl = canonical_url('/404.php');
+    $notFoundTitle = $title;
+    $notFoundMessage = $message;
+
+    include __DIR__ . '/../404.php';
+    exit;
 }
