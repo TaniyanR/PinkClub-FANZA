@@ -286,7 +286,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
             }
         }
-        }
 
         $resultLog[] = sprintf('追加 %d件 / 更新 %d件', $inserted, $updated);
     }

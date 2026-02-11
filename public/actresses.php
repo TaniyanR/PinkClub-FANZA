@@ -1,58 +1,39 @@
 <?php
 declare(strict_types=1);
 
-$pageScripts = ['/assets/js/actresses.js'];
+require_once __DIR__ . '/partials/_helpers.php';
+require_once __DIR__ . '/../lib/repository.php';
+
+$page = max(1, (int)($_GET['page'] ?? 1));
+$limit = 24;
+$offset = ($page - 1) * $limit;
+[$actresses, $hasNext] = paginate_items(fetch_actresses($limit + 1, $offset), $limit);
+
+$pageTitle = '女優一覧 | PinkClub-FANZA';
+$pageDescription = '登録済み女優の一覧ページです。';
+$canonicalUrl = canonical_url('/actresses.php', ['page' => $page > 1 ? $page : null]);
 
 include __DIR__ . '/partials/header.php';
 include __DIR__ . '/partials/nav_search.php';
 ?>
 <div class="layout">
     <?php include __DIR__ . '/partials/sidebar.php'; ?>
-
     <main class="main-content">
         <section class="block">
-            <div class="section-head">
-                <h1 class="section-title">女優一覧</h1>
-                <span class="section-sub">人気女優から新着までまとめて表示</span>
-            </div>
-            <div class="controls">
-                <div class="controls__group">
-                    <label>
-                        女優名検索
-                        <input type="search" placeholder="女優名を入力">
-                    </label>
-                    <label>
-                        並び替え
-                        <select>
-                            <option>人気</option>
-                            <option>新着</option>
-                        </select>
-                    </label>
-                    <label>
-                        表示件数
-                        <select>
-                            <option selected>24</option>
-                            <option>48</option>
-                        </select>
-                    </label>
-                </div>
+            <div class="section-head"><h1 class="section-title">女優一覧</h1><span class="section-sub">実データ表示</span></div>
+            <div class="actress-grid">
+                <?php foreach ($actresses as $actress) : ?>
+                    <article class="actress-card">
+                        <a class="actress-card__media" href="/actress.php?id=<?php echo urlencode((string)$actress['id']); ?>"><img src="<?php echo e($actress['image_small'] ?: $actress['image_large']); ?>" alt="<?php echo e($actress['name']); ?>"></a>
+                        <a class="actress-card__name" href="/actress.php?id=<?php echo urlencode((string)$actress['id']); ?>"><?php echo e($actress['name']); ?></a>
+                    </article>
+                <?php endforeach; ?>
             </div>
         </section>
-
-        <section class="block">
-            <div class="actress-grid" data-grid="actresses"></div>
-        </section>
-
-        <nav class="pagination" aria-label="ページネーション">
-            <a class="page-btn" href="#">前へ</a>
-            <div class="page-numbers">
-                <a class="page-btn is-current" href="#">1</a>
-                <a class="page-btn" href="#">2</a>
-                <a class="page-btn" href="#">3</a>
-                <span class="page-ellipsis">…</span>
-                <a class="page-btn" href="#">10</a>
-            </div>
-            <a class="page-btn" href="#">次へ</a>
+        <nav class="pagination">
+            <?php if ($page > 1) : ?><a class="page-btn" href="/actresses.php?page=<?php echo e((string)($page - 1)); ?>">前へ</a><?php else : ?><span class="page-btn">前へ</span><?php endif; ?>
+            <span class="page-btn is-current"><?php echo e((string)$page); ?></span>
+            <?php if ($hasNext) : ?><a class="page-btn" href="/actresses.php?page=<?php echo e((string)($page + 1)); ?>">次へ</a><?php else : ?><span class="page-btn">次へ</span><?php endif; ?>
         </nav>
     </main>
 </div>
