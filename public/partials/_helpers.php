@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../lib/config.php';
+require_once __DIR__ . '/../../lib/url.php';
 
 function e(string $value): string
 {
@@ -47,11 +48,6 @@ function safe_str(mixed $value, int $maxLen = 200): string
     return $normalized;
 }
 
-function base_url(): string
-{
-    return rtrim((string)config_get('site.base_url', ''), '/');
-}
-
 function build_url(string $path, array $query = []): string
 {
     $filtered = [];
@@ -75,7 +71,8 @@ function current_path(): string
 function canonical_url(?string $path = null, array $query = []): string
 {
     $url = build_url($path ?? current_path(), $query);
-    return base_url() !== '' ? (base_url() . $url) : $url;
+    $base = rtrim(base_url(), '/');
+    return $base !== '' ? ($base . $url) : $url;
 }
 
 function format_date(?string $value): string
@@ -130,7 +127,7 @@ function abort_404(string $title = '404 Not Found', string $message = 'ページ
 {
     http_response_code(404);
 
-    $pageTitle = $title . ' | PinkClub-FANZA';
+    $pageTitle = $title;
     $pageDescription = $message;
     $canonicalUrl = canonical_url('/404.php');
     $notFoundTitle = $title;

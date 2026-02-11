@@ -9,7 +9,7 @@ $limit = 24;
 $offset = ($page - 1) * $limit;
 [$actresses, $hasNext] = paginate_items(fetch_actresses($limit + 1, $offset), $limit);
 
-$pageTitle = '女優一覧 | PinkClub-FANZA';
+$pageTitle = '女優一覧';
 $pageDescription = '登録済み女優の一覧ページです。';
 $canonicalUrl = canonical_url('/actresses.php', ['page' => $page > 1 ? $page : null]);
 
