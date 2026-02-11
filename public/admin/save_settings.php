@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../../lib/local_config_writer.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     header('Location: /admin/settings.php');
@@ -51,27 +52,7 @@ if ($timeout === false) {
     $timeout = 20;
 }
 
-$localPath = __DIR__ . '/../../config.local.php';
-$dir = dirname($localPath);
-$tmp = $localPath . '.tmp';
-
-if (!is_dir($dir) || !is_writable($dir)) {
-    header('Location: /admin/settings.php?error=not_writable_dir');
-    exit;
-}
-
-if (is_file($localPath) && !is_writable($localPath)) {
-    header('Location: /admin/settings.php?error=not_writable_file');
-    exit;
-}
-
-$local = [];
-if (is_file($localPath)) {
-    $loaded = require $localPath;
-    if (is_array($loaded)) {
-        $local = $loaded;
-    }
-}
+$local = local_config_load();
 
 $local['dmm_api'] = [
     'api_id' => $apiId,
@@ -83,23 +64,13 @@ $local['dmm_api'] = [
     'timeout' => $timeout,
 ];
 
-$export = "<?php\n";
-$export .= "declare(strict_types=1);\n\n";
-$export .= "return " . var_export($local, true) . ";\n";
-
-$result = @file_put_contents($tmp, $export, LOCK_EX);
-if ($result === false) {
+try {
+    local_config_write($local);
+} catch (Throwable $e) {
+    error_log('save_settings failed: ' . $e->getMessage());
     header('Location: /admin/settings.php?error=write_failed');
     exit;
 }
-
-if (!@rename($tmp, $localPath)) {
-    @unlink($tmp);
-    header('Location: /admin/settings.php?error=rename_failed');
-    exit;
-}
-
-@chmod($localPath, 0640);
 
 header('Location: /admin/settings.php?saved=1');
 exit;

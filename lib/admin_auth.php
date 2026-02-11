@@ -41,6 +41,10 @@ function admin_current_user(): ?string
 {
     admin_session_start();
 
+    if (($_SESSION['admin_logged_in'] ?? false) !== true) {
+        return null;
+    }
+
     $user = $_SESSION['admin_user'] ?? null;
     if (!is_string($user) || $user === '') {
         return null;
@@ -49,9 +53,14 @@ function admin_current_user(): ?string
     return $user;
 }
 
+function admin_is_logged_in(): bool
+{
+    return admin_current_user() !== null;
+}
+
 function admin_require_login(): void
 {
-    if (admin_current_user() !== null) {
+    if (admin_is_logged_in()) {
         return;
     }
 
@@ -73,8 +82,38 @@ function admin_login(string $username, string $password): bool
     }
 
     session_regenerate_id(true);
+    $_SESSION['admin_logged_in'] = true;
     $_SESSION['admin_user'] = $admin['username'];
+    $_SESSION['admin_default_password'] = hash_equals(ADMIN_DEFAULT_PASSWORD_HASH, $admin['password_hash']);
+
     return true;
+}
+
+function admin_is_default_password(): bool
+{
+    admin_session_start();
+
+    $flag = $_SESSION['admin_default_password'] ?? null;
+    if (is_bool($flag)) {
+        return $flag;
+    }
+
+    $admin = admin_config();
+    return hash_equals(ADMIN_DEFAULT_PASSWORD_HASH, $admin['password_hash']);
+}
+
+function admin_require_password_change_if_needed(): void
+{
+    if (!admin_is_logged_in()) {
+        return;
+    }
+
+    if (!admin_is_default_password()) {
+        return;
+    }
+
+    header('Location: /admin/change_password.php');
+    exit;
 }
 
 function admin_logout(): void
