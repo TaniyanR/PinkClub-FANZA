@@ -5,11 +5,11 @@ require_once __DIR__ . '/_bootstrap.php';
 
 if (admin_is_logged_in()) {
     if (admin_is_default_password()) {
-        header('Location: /admin/change_password.php');
+        header('Location: ' . admin_url('change_password.php'));
         exit;
     }
 
-    header('Location: /admin/settings.php');
+    header('Location: ' . admin_url('settings.php'));
     exit;
 }
 
@@ -25,11 +25,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
         if (admin_login($username, $password)) {
             if (admin_is_default_password()) {
-                header('Location: /admin/change_password.php');
+                header('Location: ' . admin_url('change_password.php'));
                 exit;
             }
 
-            header('Location: /admin/settings.php');
+            header('Location: ' . admin_url('settings.php'));
             exit;
         }
 
@@ -48,7 +48,7 @@ include __DIR__ . '/../partials/header.php';
         </div>
     <?php endif; ?>
 
-    <form class="admin-card" method="post" action="/admin/login.php">
+    <form class="admin-card" method="post" action="<?php echo htmlspecialchars(admin_url('login.php'), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); ?>">
         <input type="hidden" name="_token" value="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); ?>">
 
         <label>ユーザー名</label>

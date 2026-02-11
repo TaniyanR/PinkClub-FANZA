@@ -3,10 +3,10 @@
         <div class="sidebar-block">
             <h3>管理</h3>
             <ul>
-                <li><a href="/admin/settings.php">管理設定</a></li>
-                <li><a href="/admin/change_password.php">パスワード変更</a></li>
+                <li><a href="<?php echo htmlspecialchars(admin_url('settings.php'), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); ?>">管理設定</a></li>
+                <li><a href="<?php echo htmlspecialchars(admin_url('change_password.php'), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); ?>">パスワード変更</a></li>
             </ul>
-            <form method="post" action="/admin/logout.php">
+            <form method="post" action="<?php echo htmlspecialchars(admin_url('logout.php'), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); ?>">
                 <?php if (function_exists('csrf_token')) : ?>
                     <input type="hidden" name="_token" value="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); ?>">
                 <?php endif; ?>

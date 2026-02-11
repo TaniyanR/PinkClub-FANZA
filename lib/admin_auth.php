@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/url.php';
 
 const ADMIN_DEFAULT_USERNAME = 'admin';
 const ADMIN_DEFAULT_PASSWORD_HASH = '$2y$12$58ws2D57sDIa5vHnPiEZ.e/x6.6T.aVOg3.WfTdoiKfX92Js0MLBu';
@@ -64,7 +65,7 @@ function admin_require_login(): void
         return;
     }
 
-    header('Location: /admin/login.php');
+    header('Location: ' . admin_url('login.php'));
     exit;
 }
 
@@ -112,7 +113,7 @@ function admin_require_password_change_if_needed(): void
         return;
     }
 
-    header('Location: /admin/change_password.php');
+    header('Location: ' . admin_url('change_password.php'));
     exit;
 }
 

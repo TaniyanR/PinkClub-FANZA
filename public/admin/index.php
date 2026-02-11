@@ -7,8 +7,8 @@ include __DIR__ . '/../partials/header.php';
     <h1>管理画面</h1>
     <div class="admin-card">
         <ul>
-            <li><a href="/admin/settings.php">API設定</a></li>
-            <li><a href="/admin/import_items.php">作品インポート</a></li>
+            <li><a href="<?php echo htmlspecialchars(admin_url('settings.php'), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); ?>">API設定</a></li>
+            <li><a href="<?php echo htmlspecialchars(admin_url('import_items.php'), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); ?>">作品インポート</a></li>
         </ul>
     </div>
 </main>
