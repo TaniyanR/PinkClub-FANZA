@@ -70,7 +70,7 @@ FANZA（DMM）APIから取得してDBへ保存した作品データを、**生PH
 
 * ログインURL（固定）：`/login0718.php`
 
-  * 旧URLが存在する場合は、このURLへリダイレクトする想定です。
+  * 旧URL（`/login.php`）は、このURLへ302リダイレクトされます。
 * 初期ユーザー名：`admin`
 * 初期パスワード：`admin12345`
 * 初回ログイン後は `/public/admin/change_password.php` へ **強制遷移**し、パスワード変更が必須です。
