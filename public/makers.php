@@ -9,7 +9,7 @@ $limit = 24;
 $offset = ($page - 1) * $limit;
 [$makers, $hasNext] = paginate_items(fetch_makers($limit + 1, $offset), $limit);
 
-$pageTitle = 'メーカー一覧 | PinkClub-FANZA';
+$pageTitle = 'メーカー一覧';
 $pageDescription = 'メーカー一覧ページです。';
 $canonicalUrl = canonical_url('/makers.php', ['page' => $page > 1 ? (string)$page : null]);
 

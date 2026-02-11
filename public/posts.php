@@ -12,18 +12,16 @@ $orderMap = [
     'price_asc' => 'price_min_asc',
     'random' => 'random',
 ];
-$order = $orderMap[$orderParam] ?? 'date_published_desc';
-if (!isset($orderMap[$orderParam])) {
-    $orderParam = 'date_desc';
-}
+$orderParam = normalize_order($orderParam, array_keys($orderMap), 'date_desc');
+$order = $orderMap[$orderParam];
 
 $allowedLimits = [12, 24, 48];
-$limit = safe_int($_GET['limit'] ?? 24, 24, 1, 100);
+$limit = normalize_int((int)($_GET['limit'] ?? 24), 1, 100);
 if (!in_array($limit, $allowedLimits, true)) {
     $limit = 24;
 }
 
-$page = safe_int($_GET['page'] ?? 1, 1, 1, 100000);
+$page = normalize_int((int)($_GET['page'] ?? 1), 1, 100000);
 $offset = ($page - 1) * $limit;
 $q = safe_str($_GET['q'] ?? '', 100);
 
@@ -32,7 +30,7 @@ $rows = $q !== ''
     : fetch_items($order, $limit + 1, $offset);
 [$items, $hasNext] = paginate_items($rows, $limit);
 
-$pageTitle = $q !== '' ? sprintf('検索結果: %s | PinkClub-FANZA', $q) : '作品一覧 | PinkClub-FANZA';
+$pageTitle = $q !== '' ? sprintf('検索結果: %s', $q) : '作品一覧';
 $pageDescription = $q !== '' ? sprintf('「%s」の検索結果です。', $q) : 'FANZA作品一覧。検索・並び替え・ページング対応。';
 $canonicalUrl = canonical_url('/posts.php', [
     'q' => $q,

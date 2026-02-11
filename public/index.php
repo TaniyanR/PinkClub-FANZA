@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/partials/_helpers.php';
 require_once __DIR__ . '/../lib/repository.php';
 
-$pageTitle = 'トップ | PinkClub-FANZA';
+$pageTitle = 'トップ';
 $pageDescription = '新着作品、注目作品、女優・シリーズ・メーカー・ジャンルを実データで表示します。';
 $canonicalUrl = canonical_url('/index.php');
 

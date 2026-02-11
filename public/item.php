@@ -4,12 +4,15 @@ declare(strict_types=1);
 require_once __DIR__ . '/partials/_helpers.php';
 require_once __DIR__ . '/../lib/repository.php';
 
-$cid = safe_str($_GET['cid'] ?? '', 64);
+$cid = normalize_content_id((string)($_GET['cid'] ?? ''));
 if ($cid === '') {
     abort_404('404 Not Found', '作品IDが指定されていません。');
 }
 
 $item = fetch_item_by_content_id($cid);
+if ($item === null) {
+    $item = fetch_item_by_cid($cid);
+}
 if ($item === null) {
     abort_404('404 Not Found', '指定の作品が見つかりませんでした。');
 }
@@ -34,7 +37,7 @@ $related = array_values(array_filter(
 $related = array_slice($related, 0, 6);
 
 $pageStyles = ['/assets/css/detail.css'];
-$pageTitle = sprintf('%s | PinkClub-FANZA', (string)$item['title']);
+$pageTitle = (string)$item['title'];
 $pageDescription = (string)($item['description'] ?? $item['category_name'] ?? $item['title']);
 $canonicalUrl = canonical_url('/item.php', ['cid' => (string)$item['content_id']]);
 $ogImage = (string)($item['image_large'] ?: $item['image_small']);

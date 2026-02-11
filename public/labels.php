@@ -9,7 +9,7 @@ $limit = 24;
 $offset = ($page - 1) * $limit;
 [$labels, $hasNext] = paginate_items(fetch_labels($limit + 1, $offset), $limit);
 
-$pageTitle = 'レーベル一覧 | PinkClub-FANZA';
+$pageTitle = 'レーベル一覧';
 $pageDescription = 'レーベル一覧ページです。';
 $canonicalUrl = canonical_url('/labels.php', ['page' => $page > 1 ? $page : null]);
 

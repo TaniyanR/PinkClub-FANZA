@@ -13,13 +13,13 @@ $sidebarSeries = fetch_series(8, 0);
 <aside class="sidebar">
     <div class="sidebar-block">
         <h3>管理</h3>
-        <?php if (admin_is_logged_in()) : ?>
+        <?php if (function_exists('admin_current_user') && admin_current_user() !== null) : ?>
             <ul>
                 <li><a href="<?php echo e(admin_url('settings.php')); ?>">管理設定</a></li>
                 <li><a href="<?php echo e(admin_url('change_password.php')); ?>">パスワード変更</a></li>
             </ul>
             <form method="post" action="<?php echo e(admin_url('logout.php')); ?>">
-                <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+                <?php if (function_exists('csrf_token')) : ?><input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>"><?php endif; ?>
                 <button type="submit">ログアウト</button>
             </form>
         <?php else : ?>
