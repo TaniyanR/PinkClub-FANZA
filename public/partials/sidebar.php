@@ -2,34 +2,32 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../lib/repository.php';
+require_once __DIR__ . '/../../lib/admin_auth.php';
+require_once __DIR__ . '/../../lib/csrf.php';
+require_once __DIR__ . '/../../lib/url.php';
 
 $sidebarGenres = fetch_genres(8, 0);
 $sidebarMakers = fetch_makers(8, 0);
 $sidebarSeries = fetch_series(8, 0);
 ?>
 <aside class="sidebar">
-    <?php if (function_exists('admin_current_user') && admin_current_user() !== null) : ?>
-        <div class="sidebar-block">
-            <h3>管理</h3>
+    <div class="sidebar-block">
+        <h3>管理</h3>
+        <?php if (admin_is_logged_in()) : ?>
             <ul>
-                <li><a href="<?php echo htmlspecialchars(admin_url('settings.php'), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); ?>">管理設定</a></li>
-                <li><a href="<?php echo htmlspecialchars(admin_url('change_password.php'), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); ?>">パスワード変更</a></li>
+                <li><a href="<?php echo e(admin_url('settings.php')); ?>">管理設定</a></li>
+                <li><a href="<?php echo e(admin_url('change_password.php')); ?>">パスワード変更</a></li>
             </ul>
-            <form method="post" action="<?php echo htmlspecialchars(admin_url('logout.php'), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); ?>">
-                <?php if (function_exists('csrf_token')) : ?>
-                    <input type="hidden" name="_token" value="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); ?>">
-                <?php endif; ?>
+            <form method="post" action="<?php echo e(admin_url('logout.php')); ?>">
+                <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
                 <button type="submit">ログアウト</button>
             </form>
-        </div>
-    <?php elseif (function_exists('login_url')) : ?>
-        <div class="sidebar-block">
-            <h3>管理</h3>
+        <?php else : ?>
             <ul>
-                <li><a href="<?php echo htmlspecialchars(login_url(), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); ?>">管理ログイン</a></li>
+                <li><a href="<?php echo e(login_url()); ?>">管理ログイン</a></li>
             </ul>
-        </div>
-    <?php endif; ?>
+        <?php endif; ?>
+    </div>
 
     <div class="sidebar-block">
         <h3>クイックメニュー</h3>
