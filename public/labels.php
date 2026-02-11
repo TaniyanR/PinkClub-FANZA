@@ -25,7 +25,7 @@ include __DIR__ . '/partials/nav_search.php';
                 <?php foreach ($labels as $label) : ?>
                     <a class="taxonomy-card" href="/posts.php?q=<?php echo urlencode((string)$label['name']); ?>">
                         <div class="taxonomy-card__media">Label</div>
-                        <div class="taxonomy-card__name"><?php echo e($label['name']); ?></div>
+                        <div class="taxonomy-card__name"><?php echo e((string)$label['name']); ?></div>
                     </a>
                 <?php endforeach; ?>
             </div>

@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/partials/_helpers.php';
 require_once __DIR__ . '/../lib/repository.php';
 
-$page = max(1, (int)($_GET['page'] ?? 1));
+$page = safe_int($_GET['page'] ?? 1, 1, 1, 100000);
 $limit = 24;
 $offset = ($page - 1) * $limit;
 [$actresses, $hasNext] = paginate_items(fetch_actresses($limit + 1, $offset), $limit);
@@ -24,8 +24,8 @@ include __DIR__ . '/partials/nav_search.php';
             <div class="actress-grid">
                 <?php foreach ($actresses as $actress) : ?>
                     <article class="actress-card">
-                        <a class="actress-card__media" href="/actress.php?id=<?php echo urlencode((string)$actress['id']); ?>"><img src="<?php echo e($actress['image_small'] ?: $actress['image_large']); ?>" alt="<?php echo e($actress['name']); ?>"></a>
-                        <a class="actress-card__name" href="/actress.php?id=<?php echo urlencode((string)$actress['id']); ?>"><?php echo e($actress['name']); ?></a>
+                        <a class="actress-card__media" href="/actress.php?id=<?php echo urlencode((string)$actress['id']); ?>"><img src="<?php echo e((string)($actress['image_small'] ?: $actress['image_large'])); ?>" alt="<?php echo e((string)$actress['name']); ?>"></a>
+                        <a class="actress-card__name" href="/actress.php?id=<?php echo urlencode((string)$actress['id']); ?>"><?php echo e((string)$actress['name']); ?></a>
                     </article>
                 <?php endforeach; ?>
             </div>

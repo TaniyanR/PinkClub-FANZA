@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/partials/_helpers.php';
 require_once __DIR__ . '/../lib/repository.php';
 
-$cid = trim((string)($_GET['cid'] ?? ''));
+$cid = safe_str($_GET['cid'] ?? '', 64);
 if ($cid === '') {
     abort_404('404 Not Found', '作品IDが指定されていません。');
 }
@@ -77,7 +77,7 @@ include __DIR__ . '/partials/nav_search.php';
                     <img src="<?php echo e((string)($item['image_large'] ?: $item['image_small'])); ?>" alt="<?php echo e((string)$item['title']); ?>">
                 </div>
                 <?php if (!empty($item['affiliate_url'])) : ?>
-                    <a class="cta-buy" href="<?php echo e((string)$item['affiliate_url']); ?>" target="_blank" rel="noopener noreferrer">FANZAで購入</a>
+                    <a class="cta-buy" href="<?php echo e((string)$item['affiliate_url']); ?>" target="_blank" rel="noopener">FANZAで購入</a>
                 <?php endif; ?>
             </div>
             <div class="detail-right">
@@ -104,7 +104,7 @@ include __DIR__ . '/partials/nav_search.php';
                 <div class="sample-grid">
                     <?php foreach ($images as $img) : ?><img src="<?php echo e($img); ?>" alt="<?php echo e((string)$item['title']); ?> サンプル"><?php endforeach; ?>
                 </div>
-                <?php if (!empty($item['affiliate_url'])) : ?><a class="cta-buy" href="<?php echo e((string)$item['affiliate_url']); ?>" target="_blank" rel="noopener noreferrer">FANZAで購入</a><?php endif; ?>
+                <?php if (!empty($item['affiliate_url'])) : ?><a class="cta-buy" href="<?php echo e((string)$item['affiliate_url']); ?>" target="_blank" rel="noopener">FANZAで購入</a><?php endif; ?>
             </section>
         <?php endif; ?>
 

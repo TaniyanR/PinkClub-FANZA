@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/partials/_helpers.php';
 require_once __DIR__ . '/../lib/repository.php';
 
-$page = max(1, (int)($_GET['page'] ?? 1));
+$page = safe_int($_GET['page'] ?? 1, 1, 1, 100000);
 $limit = 24;
 $offset = ($page - 1) * $limit;
 [$makers, $hasNext] = paginate_items(fetch_makers($limit + 1, $offset), $limit);

@@ -70,10 +70,10 @@ FANZA（DMM）APIから取得してDBへ保存した作品データを、**生PH
 
 * ログインURL（固定）：`/login0718.php`
 
-  * 旧URL（`/login.php` と `/admin/login.php`）は、このURLへ302リダイレクトされます。
+  * 旧URL（`/login.php` と `/admin/login.php`）は、このURLへ302リダイレクトされます（互換）。
 * 初期ユーザー名：`admin`
 * 初期パスワード：`admin12345`
-* 初回ログイン後は `/public/admin/change_password.php` へ **強制遷移**し、パスワード変更が必須です。
+* 初回ログイン後は `/admin/change_password.php` へ **強制遷移**し、パスワード変更が必須です。
 * `config.local.php` に `admin` が未設定でも、上記初期資格情報でログインできます。
 
 ### `config.local.php` の `admin` 設定例
@@ -151,7 +151,7 @@ FANZA（DMM）APIから取得してDBへ保存した作品データを、**生PH
 
   * `/public/admin/db_init.php` を開いて実行
   * `php scripts/init_db.php` を実行
-  * もしくは `schema.sql` を import（配置がある場合）
+  * もしくは `db/schema.sql` または `sql/schema.sql` を import
 
 ### 3) 管理画面でAPI設定 → 取り込み
 

@@ -23,7 +23,7 @@ $navItems = [
         <nav class="nav-search__menu" aria-label="メインメニュー">
             <ul>
                 <?php foreach ($navItems as $file => $label) : ?>
-                    <li><a class="nav-link<?php echo $current === $file ? ' is-active' : ''; ?>" href="/<?php echo e($file); ?>"><?php echo e($label); ?></a></li>
+                    <li><a class="nav-link<?php echo $current === $file ? ' is-active' : ''; ?>" href="/<?php echo e((string)$file); ?>"><?php echo e((string)$label); ?></a></li>
                 <?php endforeach; ?>
             </ul>
         </nav>

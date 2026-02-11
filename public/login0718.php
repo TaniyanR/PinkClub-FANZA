@@ -19,7 +19,7 @@ function normalize_return_to(mixed $value): string
         return '';
     }
 
-    $path = trim($value);
+    $path = trim(mb_substr($value, 0, 255));
     if ($path === '') {
         return '';
     }
@@ -64,6 +64,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $returnTo = normalize_return_to($_POST['return_to'] ?? '');
 
         if (admin_login($username, $password)) {
+            session_regenerate_id(true);
+
             if (admin_is_default_password()) {
                 header('Location: ' . admin_url('change_password.php'));
                 exit;

@@ -3,9 +3,48 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../lib/config.php';
 
-function e(mixed $value): string
+function e(string $value): string
 {
-    return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
+    return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
+}
+
+function safe_int(mixed $value, int $default = 0, int $min = 0, ?int $max = null): int
+{
+    if (is_int($value)) {
+        $result = $value;
+    } elseif (is_string($value) && preg_match('/^-?\d+$/', trim($value)) === 1) {
+        $result = (int)trim($value);
+    } else {
+        $result = $default;
+    }
+
+    if ($result < $min) {
+        $result = $min;
+    }
+
+    if ($max !== null && $result > $max) {
+        $result = $max;
+    }
+
+    return $result;
+}
+
+function safe_str(mixed $value, int $maxLen = 200): string
+{
+    if (!is_string($value)) {
+        return '';
+    }
+
+    $normalized = trim($value);
+    if ($normalized === '') {
+        return '';
+    }
+
+    if (mb_strlen($normalized) > $maxLen) {
+        $normalized = mb_substr($normalized, 0, $maxLen);
+    }
+
+    return $normalized;
 }
 
 function base_url(): string
@@ -97,6 +136,15 @@ function abort_404(string $title = '404 Not Found', string $message = 'ページ
     $notFoundTitle = $title;
     $notFoundMessage = $message;
 
-    include __DIR__ . '/../404.php';
+    include __DIR__ . '/header.php';
+    include __DIR__ . '/nav_search.php';
+    echo '<div class="layout">';
+    include __DIR__ . '/sidebar.php';
+    echo '<main class="main-content"><section class="block">';
+    echo '<h1 class="section-title">' . e($notFoundTitle) . '</h1>';
+    echo '<p>' . e($notFoundMessage) . '</p>';
+    echo '<a class="button button--primary" href="/">トップへ戻る</a>';
+    echo '</section></main></div>';
+    include __DIR__ . '/footer.php';
     exit;
 }

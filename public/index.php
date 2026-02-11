@@ -14,6 +14,7 @@ $actresses = fetch_actresses(12, 0);
 $series = fetch_series(12, 0);
 $makers = fetch_makers(12, 0);
 $genres = fetch_genres(12, 0);
+$ogImage = isset($newItems[0]['image_large']) ? (string)$newItems[0]['image_large'] : '';
 
 include __DIR__ . '/partials/header.php';
 include __DIR__ . '/partials/nav_search.php';

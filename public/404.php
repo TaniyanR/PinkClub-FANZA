@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/partials/_helpers.php';
 
-$pageTitle = isset($pageTitle) ? (string)$pageTitle : '404 Not Found | PinkClub-FANZA';
-$pageDescription = isset($pageDescription) ? (string)$pageDescription : 'ページが見つかりませんでした。';
+$pageTitle = isset($pageTitle) ? safe_str($pageTitle, 120) : '404 Not Found | PinkClub-FANZA';
+$pageDescription = isset($pageDescription) ? safe_str($pageDescription, 200) : 'ページが見つかりませんでした。';
 $canonicalUrl = isset($canonicalUrl) ? (string)$canonicalUrl : canonical_url('/404.php');
 $notFoundTitle = isset($notFoundTitle) ? (string)$notFoundTitle : '404 Not Found';
 $notFoundMessage = isset($notFoundMessage) ? (string)$notFoundMessage : '指定されたページまたはデータは見つかりませんでした。';
