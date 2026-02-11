@@ -48,7 +48,7 @@ if (admin_is_logged_in()) {
         exit;
     }
 
-    header('Location: ' . admin_url('settings.php'));
+    header('Location: ' . admin_url('index.php'));
     exit;
 }
 
@@ -74,7 +74,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 exit;
             }
 
-            header('Location: ' . admin_url('settings.php'));
+            header('Location: ' . admin_url('index.php'));
             exit;
         }
 

@@ -7,6 +7,8 @@ if ($path === '/' || $path === '') {
     $current = 'index.php';
 }
 
+$currentQuery = trim((string)($_GET['q'] ?? ''));
+
 $navItems = [
     'index.php' => 'TOP',
     'posts.php' => '作品一覧',
@@ -26,7 +28,7 @@ $navItems = [
             </ul>
         </nav>
         <form class="nav-search__form" method="get" action="/posts.php">
-            <input type="text" name="q" value="<?php echo e((string)($_GET['q'] ?? '')); ?>" placeholder="作品名で検索">
+            <input type="text" name="q" value="<?php echo e($currentQuery); ?>" placeholder="作品名で検索">
             <button type="submit">検索</button>
         </form>
     </div>

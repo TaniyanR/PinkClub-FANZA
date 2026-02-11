@@ -34,7 +34,7 @@ FANZA（DMM）APIから取得してDBへ保存した作品データを、**生PH
   * 作品一覧（検索・並び替え・件数・ページング）
 * `/public/item.php?cid=...`
 
-  * 作品詳細（タクソノミ、サンプル画像、関連作品）
+  * 作品詳細（タクソノミ、サンプル画像、関連作品、404対応）
 * タクソノミ一覧と詳細
 
   * 女優：`/public/actresses.php` `/public/actress.php?id=...`
@@ -70,7 +70,7 @@ FANZA（DMM）APIから取得してDBへ保存した作品データを、**生PH
 
 * ログインURL（固定）：`/login0718.php`
 
-  * 旧URL（`/login.php`）は、このURLへ302リダイレクトされます。
+  * 旧URL（`/login.php` と `/admin/login.php`）は、このURLへ302リダイレクトされます。
 * 初期ユーザー名：`admin`
 * 初期パスワード：`admin12345`
 * 初回ログイン後は `/public/admin/change_password.php` へ **強制遷移**し、パスワード変更が必須です。
