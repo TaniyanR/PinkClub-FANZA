@@ -1,37 +1,10 @@
 <?php
+declare(strict_types=1);
+require_once __DIR__ . '/partials/_helpers.php';
 require_once __DIR__ . '/../lib/repository.php';
-
-$id = (int)($_GET['id'] ?? 0);
-$series = $id ? fetch_series_one($id) : null;
-if (!$series) {
-    $dummy = dummy_taxonomies(1, 'series');
-    $series = $dummy[0];
-}
-
-$page = max(1, (int)($_GET['page'] ?? 1));
-$limit = 10;
-$offset = ($page - 1) * $limit;
-$items = fetch_items_by_series((int)($series['id'] ?? 0), $limit, $offset);
-
-include __DIR__ . '/partials/header.php';
-include __DIR__ . '/partials/nav_search.php';
-?>
-<main>
-    <h1><?php echo htmlspecialchars($series['name'], ENT_QUOTES, 'UTF-8'); ?></h1>
-    <h2 class="section-title">シリーズ作品</h2>
-    <?php if (!$items) : ?>
-        <div class="notice">まだデータがありません。</div>
-    <?php else : ?>
-        <?php
-        $railTitle = 'シリーズ作品';
-        $railItems = $items;
-        include __DIR__ . '/partials/block_rail.php';
-        ?>
-        <div class="pagination">
-            <a href="?id=<?php echo urlencode((string)($series['id'] ?? 0)); ?>&page=<?php echo $page - 1; ?>">前へ</a>
-            <a href="?id=<?php echo urlencode((string)($series['id'] ?? 0)); ?>&page=<?php echo $page + 1; ?>">次へ</a>
-        </div>
-    <?php endif; ?>
-</main>
-<?php include __DIR__ . '/partials/sidebar.php'; ?>
-<?php include __DIR__ . '/partials/footer.php'; ?>
+$id=filter_input(INPUT_GET,'id',FILTER_VALIDATE_INT); if(!$id){http_response_code(404);include __DIR__.'/404.php';exit;}
+$series=fetch_series_one($id); if(!$series){http_response_code(404);include __DIR__.'/404.php';exit;}
+$page=max(1,(int)($_GET['page']??1));$limit=12;$offset=($page-1)*$limit;[$items,$hasNext]=paginate_items(fetch_items_by_series((int)$series['id'],$limit+1,$offset),$limit);
+$pageTitle=sprintf('%s | シリーズ',$series['name']);$pageDescription=sprintf('%s の作品一覧。',$series['name']);$canonicalUrl=canonical_url('/series_one.php',['id'=>$series['id'],'page'=>$page>1?$page:null]);
+include __DIR__.'/partials/header.php'; include __DIR__.'/partials/nav_search.php'; ?>
+<div class="layout"><?php include __DIR__.'/partials/sidebar.php'; ?><main class="main-content"><section class="block"><h1 class="section-title"><?php echo e($series['name']); ?></h1></section><section class="block"><div class="product-grid product-grid--4"><?php foreach($items as $item): ?><article class="product-card"><a class="product-card__media" href="/item.php?cid=<?php echo urlencode((string)$item['content_id']); ?>"><img src="<?php echo e($item['image_small']?:$item['image_large']); ?>" alt="<?php echo e($item['title']); ?>"></a><div class="product-card__body"><a class="product-card__title" href="/item.php?cid=<?php echo urlencode((string)$item['content_id']); ?>"><?php echo e($item['title']); ?></a></div></article><?php endforeach; ?></div></section><nav class="pagination"><?php if($page>1):?><a class="page-btn" href="/series_one.php?id=<?php echo e((string)$series['id']); ?>&page=<?php echo e((string)($page-1)); ?>">前へ</a><?php else:?><span class="page-btn">前へ</span><?php endif; ?><span class="page-btn is-current"><?php echo e((string)$page); ?></span><?php if($hasNext):?><a class="page-btn" href="/series_one.php?id=<?php echo e((string)$series['id']); ?>&page=<?php echo e((string)($page+1)); ?>">次へ</a><?php else:?><span class="page-btn">次へ</span><?php endif; ?></nav></main></div><?php include __DIR__.'/partials/footer.php'; ?>

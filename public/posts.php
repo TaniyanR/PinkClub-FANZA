@@ -1,7 +1,43 @@
 <?php
 declare(strict_types=1);
 
-$pageScripts = ['/assets/js/posts.js'];
+require_once __DIR__ . '/partials/_helpers.php';
+require_once __DIR__ . '/../lib/repository.php';
+
+$orderParam = (string)($_GET['order'] ?? 'date_desc');
+$orderMap = [
+    'date_desc' => 'date_published_desc',
+    'date_asc' => 'date_published_asc',
+    'price_desc' => 'price_min_desc',
+    'price_asc' => 'price_min_asc',
+    'random' => 'random',
+];
+$order = $orderMap[$orderParam] ?? 'date_published_desc';
+
+$limit = (int)($_GET['limit'] ?? 24);
+$allowedLimits = [12, 24, 48];
+if (!in_array($limit, $allowedLimits, true)) {
+    $limit = 24;
+}
+$limit = min($limit, 100);
+
+$page = max(1, (int)($_GET['page'] ?? 1));
+$offset = ($page - 1) * $limit;
+$q = trim((string)($_GET['q'] ?? ''));
+
+$rows = $q !== ''
+    ? search_items($q, $limit + 1, $offset)
+    : fetch_items($order, $limit + 1, $offset);
+[$items, $hasNext] = paginate_items($rows, $limit);
+
+$pageTitle = $q !== '' ? sprintf('検索結果: %s | PinkClub-FANZA', $q) : '作品一覧 | PinkClub-FANZA';
+$pageDescription = $q !== '' ? sprintf('「%s」の検索結果です。', $q) : 'FANZA作品一覧。新着順・価格順・ランダム表示に対応。';
+$canonicalUrl = canonical_url('/posts.php', array_filter([
+    'q' => $q !== '' ? $q : null,
+    'order' => $orderParam !== 'date_desc' ? $orderParam : null,
+    'limit' => $limit !== 24 ? $limit : null,
+    'page' => $page > 1 ? $page : null,
+]));
 
 include __DIR__ . '/partials/header.php';
 include __DIR__ . '/partials/nav_search.php';
@@ -12,51 +48,85 @@ include __DIR__ . '/partials/nav_search.php';
     <main class="main-content">
         <section class="block">
             <div class="section-head">
-                <h1 class="section-title">記事一覧</h1>
-                <span class="section-sub">商品カードはダミー表示です</span>
+                <h1 class="section-title">作品一覧</h1>
+                <span class="section-sub"><?php echo $q !== '' ? e(sprintf('検索: %s', $q)) : '実データを表示'; ?></span>
             </div>
-            <div class="controls">
+            <form class="controls" method="get" action="/posts.php">
+                <?php if ($q !== '') : ?>
+                    <input type="hidden" name="q" value="<?php echo e($q); ?>">
+                <?php endif; ?>
                 <div class="controls__group">
                     <label>
                         並び替え
-                        <select>
-                            <option>人気（想定）</option>
-                            <option>新着（想定）</option>
+                        <select name="order">
+                            <option value="date_desc" <?php echo $orderParam === 'date_desc' ? 'selected' : ''; ?>>新着順</option>
+                            <option value="date_asc" <?php echo $orderParam === 'date_asc' ? 'selected' : ''; ?>>古い順</option>
+                            <option value="price_desc" <?php echo $orderParam === 'price_desc' ? 'selected' : ''; ?>>価格が高い順</option>
+                            <option value="price_asc" <?php echo $orderParam === 'price_asc' ? 'selected' : ''; ?>>価格が安い順</option>
+                            <option value="random" <?php echo $orderParam === 'random' ? 'selected' : ''; ?>>ランダム</option>
                         </select>
                     </label>
                     <label>
                         表示件数
-                        <select>
-                            <option>12</option>
-                            <option selected>24</option>
-                            <option>48</option>
+                        <select name="limit">
+                            <?php foreach ($allowedLimits as $candidate) : ?>
+                                <option value="<?php echo e((string)$candidate); ?>" <?php echo $limit === $candidate ? 'selected' : ''; ?>><?php echo e((string)$candidate); ?></option>
+                            <?php endforeach; ?>
                         </select>
                     </label>
+                    <button class="button button--primary" type="submit">適用</button>
                 </div>
-                <div class="controls__filters">
-                    <button class="pill is-active" type="button">すべて</button>
-                    <button class="pill" type="button">単体</button>
-                    <button class="pill" type="button">VR</button>
-                    <button class="pill" type="button">4K</button>
-                    <button class="pill" type="button">最新</button>
-                </div>
-            </div>
+            </form>
         </section>
 
         <section class="block">
-            <div class="product-grid product-grid--4" data-grid="posts"></div>
+            <?php if (!$items) : ?>
+                <p>データが見つかりませんでした。</p>
+            <?php else : ?>
+                <div class="product-grid product-grid--4">
+                    <?php foreach ($items as $item) : ?>
+                        <article class="product-card">
+                            <a class="product-card__media" href="/item.php?cid=<?php echo urlencode((string)$item['content_id']); ?>">
+                                <img src="<?php echo e($item['image_small'] ?: $item['image_large']); ?>" alt="<?php echo e($item['title']); ?>">
+                            </a>
+                            <div class="product-card__body">
+                                <a class="product-card__title" href="/item.php?cid=<?php echo urlencode((string)$item['content_id']); ?>"><?php echo e($item['title']); ?></a>
+                                <small><?php echo e(format_date($item['date_published'] ?? null)); ?> / <?php echo e(format_price($item['price_min'] ?? null)); ?></small>
+                                <div class="product-card__actions">
+                                    <?php if (!empty($item['affiliate_url'])) : ?>
+                                        <a class="button button--primary" href="<?php echo e($item['affiliate_url']); ?>" target="_blank" rel="noopener noreferrer">購入</a>
+                                    <?php endif; ?>
+                                    <?php if (!empty($item['image_list'])) : ?>
+                                        <a class="button" href="/item.php?cid=<?php echo urlencode((string)$item['content_id']); ?>#samples">サンプル画像</a>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </section>
 
         <nav class="pagination" aria-label="ページネーション">
-            <a class="page-btn" href="#">前へ</a>
+            <?php
+            $prevQuery = $_GET;
+            $prevQuery['page'] = max(1, $page - 1);
+            $nextQuery = $_GET;
+            $nextQuery['page'] = $page + 1;
+            ?>
+            <?php if ($page > 1) : ?>
+                <a class="page-btn" href="/posts.php?<?php echo e(http_build_query($prevQuery)); ?>">前へ</a>
+            <?php else : ?>
+                <span class="page-btn">前へ</span>
+            <?php endif; ?>
             <div class="page-numbers">
-                <a class="page-btn is-current" href="#">1</a>
-                <a class="page-btn" href="#">2</a>
-                <a class="page-btn" href="#">3</a>
-                <span class="page-ellipsis">…</span>
-                <a class="page-btn" href="#">10</a>
+                <span class="page-btn is-current"><?php echo e((string)$page); ?></span>
             </div>
-            <a class="page-btn" href="#">次へ</a>
+            <?php if ($hasNext) : ?>
+                <a class="page-btn" href="/posts.php?<?php echo e(http_build_query($nextQuery)); ?>">次へ</a>
+            <?php else : ?>
+                <span class="page-btn">次へ</span>
+            <?php endif; ?>
         </nav>
     </main>
 </div>

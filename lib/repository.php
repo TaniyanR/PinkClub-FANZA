@@ -241,6 +241,51 @@ function fetch_series(int $limit = 50, int $offset = 0, string $order = 'name'):
     return $stmt->fetchAll() ?: [];
 }
 
+
+function fetch_labels(int $limit = 50, int $offset = 0): array
+{
+    $limit = normalize_int($limit, 1, 200);
+    $offset = max(0, $offset);
+
+    $stmt = db()->prepare(
+        'SELECT label_id AS id, label_name AS name, MAX(label_ruby) AS ruby, COUNT(*) AS item_count
+         FROM item_labels
+         GROUP BY label_id, label_name
+         ORDER BY label_name ASC
+         LIMIT :limit OFFSET :offset'
+    );
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->fetchAll() ?: [];
+}
+
+function fetch_items_by_label_name(string $labelName, int $limit, int $offset = 0): array
+{
+    $labelName = trim($labelName);
+    if ($labelName === '') {
+        return [];
+    }
+
+    $limit = normalize_int($limit, 1, 100);
+    $offset = max(0, $offset);
+
+    $stmt = db()->prepare(
+        'SELECT items.*
+         FROM items
+         INNER JOIN item_labels ON items.content_id = item_labels.content_id
+         WHERE item_labels.label_name = :label_name
+         ORDER BY items.date_published DESC
+         LIMIT :limit OFFSET :offset'
+    );
+    $stmt->bindValue(':label_name', $labelName, PDO::PARAM_STR);
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+
+    return $stmt->fetchAll() ?: [];
+}
+
 function fetch_items_by_actress(int $actressId, int $limit, int $offset = 0): array
 {
     $actressId = max(1, $actressId);
@@ -326,6 +371,96 @@ function fetch_items_by_series(int $seriesId, int $limit, int $offset = 0): arra
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
 
+    return $stmt->fetchAll() ?: [];
+}
+
+
+function fetch_item_actresses(string $contentId): array
+{
+    $cid = normalize_content_id($contentId);
+    if ($cid === '') {
+        return [];
+    }
+
+    $stmt = db()->prepare(
+        'SELECT actresses.*
+         FROM actresses
+         INNER JOIN item_actresses ON actresses.id = item_actresses.actress_id
+         WHERE item_actresses.content_id = :cid
+         ORDER BY actresses.name ASC'
+    );
+    $stmt->execute([':cid' => $cid]);
+    return $stmt->fetchAll() ?: [];
+}
+
+function fetch_item_genres(string $contentId): array
+{
+    $cid = normalize_content_id($contentId);
+    if ($cid === '') {
+        return [];
+    }
+
+    $stmt = db()->prepare(
+        'SELECT genres.*
+         FROM genres
+         INNER JOIN item_genres ON genres.id = item_genres.genre_id
+         WHERE item_genres.content_id = :cid
+         ORDER BY genres.name ASC'
+    );
+    $stmt->execute([':cid' => $cid]);
+    return $stmt->fetchAll() ?: [];
+}
+
+function fetch_item_makers(string $contentId): array
+{
+    $cid = normalize_content_id($contentId);
+    if ($cid === '') {
+        return [];
+    }
+
+    $stmt = db()->prepare(
+        'SELECT makers.*
+         FROM makers
+         INNER JOIN item_makers ON makers.id = item_makers.maker_id
+         WHERE item_makers.content_id = :cid
+         ORDER BY makers.name ASC'
+    );
+    $stmt->execute([':cid' => $cid]);
+    return $stmt->fetchAll() ?: [];
+}
+
+function fetch_item_series(string $contentId): array
+{
+    $cid = normalize_content_id($contentId);
+    if ($cid === '') {
+        return [];
+    }
+
+    $stmt = db()->prepare(
+        'SELECT series.*
+         FROM series
+         INNER JOIN item_series ON series.id = item_series.series_id
+         WHERE item_series.content_id = :cid
+         ORDER BY series.name ASC'
+    );
+    $stmt->execute([':cid' => $cid]);
+    return $stmt->fetchAll() ?: [];
+}
+
+function fetch_item_labels(string $contentId): array
+{
+    $cid = normalize_content_id($contentId);
+    if ($cid === '') {
+        return [];
+    }
+
+    $stmt = db()->prepare(
+        'SELECT label_id, label_name, label_ruby
+         FROM item_labels
+         WHERE content_id = :cid
+         ORDER BY label_name ASC'
+    );
+    $stmt->execute([':cid' => $cid]);
     return $stmt->fetchAll() ?: [];
 }
 
