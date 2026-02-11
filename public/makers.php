@@ -1,60 +1,8 @@
 <?php
 declare(strict_types=1);
-
-$pageScripts = ['/assets/js/makers.js'];
-
-include __DIR__ . '/partials/header.php';
-include __DIR__ . '/partials/nav_search.php';
-?>
-<div class="layout">
-    <?php include __DIR__ . '/partials/sidebar.php'; ?>
-
-    <main class="main-content">
-        <section class="block">
-            <div class="section-head">
-                <h1 class="section-title">メーカー一覧</h1>
-                <span class="section-sub">メーカーのカテゴリをまとめて表示</span>
-            </div>
-            <div class="controls">
-                <div class="controls__group">
-                    <label>
-                        検索
-                        <input type="search" placeholder="メーカー名で検索">
-                    </label>
-                    <label>
-                        並び替え
-                        <select>
-                            <option>人気</option>
-                            <option>新着</option>
-                            <option>名前</option>
-                        </select>
-                    </label>
-                    <label>
-                        表示件数
-                        <select>
-                            <option selected>24</option>
-                            <option>48</option>
-                        </select>
-                    </label>
-                </div>
-            </div>
-        </section>
-
-        <section class="block">
-            <div class="taxonomy-grid" data-grid="makers"></div>
-        </section>
-
-        <nav class="pagination" aria-label="ページネーション">
-            <a class="page-btn" href="#">前へ</a>
-            <div class="page-numbers">
-                <a class="page-btn is-current" href="#">1</a>
-                <a class="page-btn" href="#">2</a>
-                <a class="page-btn" href="#">3</a>
-                <span class="page-ellipsis">…</span>
-                <a class="page-btn" href="#">10</a>
-            </div>
-            <a class="page-btn" href="#">次へ</a>
-        </nav>
-    </main>
-</div>
-<?php include __DIR__ . '/partials/footer.php'; ?>
+require_once __DIR__ . '/partials/_helpers.php';
+require_once __DIR__ . '/../lib/repository.php';
+$page=max(1,(int)($_GET['page']??1));$limit=24;$offset=($page-1)*$limit;[$makers,$hasNext]=paginate_items(fetch_makers($limit+1,$offset),$limit);
+$pageTitle='メーカー一覧 | PinkClub-FANZA';$pageDescription='メーカー一覧です。';$canonicalUrl=canonical_url('/makers.php',['page'=>$page>1?$page:null]);
+include __DIR__ . '/partials/header.php'; include __DIR__ . '/partials/nav_search.php'; ?>
+<div class="layout"><?php include __DIR__ . '/partials/sidebar.php'; ?><main class="main-content"><section class="block"><div class="section-head"><h1 class="section-title">メーカー一覧</h1></div><div class="taxonomy-grid"><?php foreach($makers as $maker): ?><a class="taxonomy-card" href="/maker.php?id=<?php echo urlencode((string)$maker['id']); ?>"><div class="taxonomy-card__media">#<?php echo e((string)$maker['id']); ?></div><div class="taxonomy-card__name"><?php echo e($maker['name']); ?></div></a><?php endforeach; ?></div></section><nav class="pagination"><?php if($page>1):?><a class="page-btn" href="/makers.php?page=<?php echo e((string)($page-1)); ?>">前へ</a><?php else:?><span class="page-btn">前へ</span><?php endif; ?><span class="page-btn is-current"><?php echo e((string)$page); ?></span><?php if($hasNext):?><a class="page-btn" href="/makers.php?page=<?php echo e((string)($page+1)); ?>">次へ</a><?php else:?><span class="page-btn">次へ</span><?php endif; ?></nav></main></div><?php include __DIR__ . '/partials/footer.php'; ?>

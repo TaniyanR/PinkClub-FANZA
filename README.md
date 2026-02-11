@@ -1,187 +1,84 @@
-# TaniyanR-PinkClub-FANZA
-FANZA（DMM）API連携・自動記事生成対応の生PHP製アダルト向けCMS “PinkClub-FANZA”。
+# PinkClub-FANZA
 
-PinkClub-FANZA は FANZA（DMM）API から作品データを取得し、自動記事化＋内部回遊＋相互リンク＋RSS＋アクセス解析により集客を最適化する個人開発向けCMSです。  
-技術的制約により Cron を利用せず、内部タイマー方式でAPI取得を制御します。
+FANZA（DMM）APIから取得してDBへ保存した作品データを、**生PHP（Frameworkなし）のSSR**で表示するサイトです。
 
 ---
 
-## Features
+## 概要
 
-- FANZA（DMM）API対応
-- 自動記事生成
-- 自動タグ生成
-- 関連記事自動表示
-- 内部リンク最適化
-- キーワードフィルタ（含む/除外）
-- 相互リンク申請＋承認＋IN/OUT計測
-- RSSキャッシュ＋表示
-- 逆アクセスランキング
-- 人気ランキング
-- PV/UU解析
-- 検索流入解析
-- 固定ページ管理（特商法/プライバシー等）
-- GA4 / Search Console 対応
-- DMM APIエラーフェイルセーフ
+* 管理画面で **FANZA API設定**を保存し、データを **DBへ取り込み（upsert）**
+* フロントは **DBの実データ**を表示（一覧・詳細・タクソノミ別一覧）
+* 外部ライブラリは原則なし（PHP + MySQL + PDO）
 
 ---
 
-## API Integration (FANZA / DMM)
+## できること（実装済み）
 
-- 取得間隔：1h / 3h / 6h / 12h / 24h
-- 取得件数：10 / 100 / 500 / 1000
-- Cron禁止 → 内部タイマー方式
-- ロック・キャッシュ・フェイルセーフ実装
-- 失敗時は72hキャッシュ保持
-- 連続5回失敗で管理画面警告
-- cache/ ディレクトリは書き込み権限が必要
-- config.local.php は管理画面の設定保存に使うため書き込み権限が必要
+### 管理画面
 
-取得項目例：
+* 管理画面ログイン（CSRF保護）
+* 管理画面から API設定保存
+* `import_items.php` による DMM API取得 → DB upsert
+* DB初期化（テーブル作成）
 
-- 商品ID
-- タイトル
-- URL（アフィ付）
-- サンプル画像 / サンプル動画
-- 出演者 / ジャンル / シリーズ
-- メーカー / レーベル
-- 発売日 / 価格
-- 説明文 / サムネイル
+  * `php scripts/init_db.php`
+  * `/public/admin/db_init.php`
 
----
+### フロント（すべてDB実データ表示）
 
-## Content Model
+* `/public/index.php`
 
-- 記事（Article）
-- 女優（Actress）
-- シリーズ（Series）
-- メーカー（Maker）
-- レーベル（Label）
-- タグ（Tag）
+  * 新着 / ピックアップ / 女優 / シリーズ / メーカー / ジャンル
+* `/public/posts.php`
 
-※ Article → タクソノミ形式で関連付け  
-※ タグは最大10自動生成
+  * 作品一覧（検索・並び替え・件数・ページング）
+* `/public/item.php?cid=...`
+
+  * 作品詳細（タクソノミ、サンプル画像、関連作品）
+* タクソノミ一覧と詳細
+
+  * 女優：`/public/actresses.php` `/public/actress.php?id=...`
+  * ジャンル：`/public/genres.php` `/public/genre.php?id=...`
+  * メーカー：`/public/makers.php` `/public/maker.php?id=...`
+  * シリーズ：`/public/series.php` `/public/series_one.php?id=...`
+* 404ページ
+* basic SEO（title / description / canonical / OGP）
 
 ---
 
-## Keyword Filter
+## 未実装（旧構想から整理）
 
-含むキーワード：
+以下は現時点では **未実装** です。
 
-- 最大5枠
-- 各枠最大3ワード
-- ワードはOR、枠もOR
-- 未設定時は全文件許可
-
-除外キーワード：
-
-- 最大5ワード
-- 1ワードヒットで除外
-
-判定対象：
-
-- タイトル / 説明文 / 出演者 / ジャンル / シリーズ / メーカー / レーベル
-
----
-
-## Internal Linking
-
-- 関連記事自動
-- タクソノミ経由の回遊
-- タグ経由内部回遊
-- 「新着 / 人気 / おすすめ」の内部表示
+* PV/UU解析
+* アクセス解析 / 人気 / 逆アクセス
+* 相互リンク管理
+* RSS取得と表示
+* 固定ページCMS
+* sitemap.xml / robots.txt 自動生成
+* GA4 / Search Console 連携
+* デザイン設定
+* コード挿入（広告枠）
+* メール
+* Backup
+* アカウント設定（複数ユーザー等の拡張）
+* フロント用の「ログイン（メール＋パス）」やログイン中表示（インジケータ）
 
 ---
 
-## Reciprocal Links (相互リンク)
+## 管理ログイン（このリポジトリの簡易管理画面）
 
-外部ユーザー申請 → 管理者承認方式
+* ログインURL（固定）：`/login0718.php`
 
-機能内容：
+  * 旧URLが存在する場合は、このURLへリダイレクトする想定です。
+* 初期ユーザー名：`admin`
+* 初期パスワード：`admin12345`
+* 初回ログイン後は `/public/admin/change_password.php` へ **強制遷移**し、パスワード変更が必須です。
+* `config.local.php` に `admin` が未設定でも、上記初期資格情報でログインできます。
 
-- サイト名 / URL / RSS 登録
-- 承認/非表示管理
-- 表示位置指定（PC/スマホ別）
-- RSSキャッシュ
-- IN/OUT計測
-- 逆アクセスランキング
+### `config.local.php` の `admin` 設定例
 
-表示位置：
-
-**PC**
-- サイド
-- リンク集ページ
-- RSS：本文トップ / サイド / 本文ボトム
-
-**SP**
-- リンク：トップ
-- RSS：ボトム
-
----
-
-## Access Analytics
-
-記録：
-
-- PV / UU
-- リンク元
-- クリック先（OUT）
-- 検索流入
-- ボット判定（最低限UA）
-
-集計：
-
-- 時間 / 日 / 月
-- 人気ランキング
-- 逆アクセスランキング
-
----
-
-## Fixed Pages
-
-管理画面で編集可能：
-
-- プライバシーポリシー
-- 特商法
-- 使い方
-- お問い合わせ
-- 追加/削除可能
-
----
-
-## Admin Panel
-
-項目：
-
-- Dashboard
-- 記事管理
-- タクソノミ管理（女優/シリーズ/メーカー/レーベル）
-- 相互リンク管理
-- API設定
-- アクセス解析
-- 人気/逆アクセス
-- デザイン設定
-- コード挿入（広告枠）
-- メール
-- Backup
-- GA4 / Search Console
-- アカウント設定
-- Logout
-
-ログイン：
-
-- メール＋パス
-- ログイン中表示（インジケータ）
-
-管理ログイン（このリポジトリの簡易管理画面）：
-
-- URL: `/login0718.php`（公開URL固定。旧 `/admin/login.php` はこのURLへリダイレクト）
-- 初期ユーザー名: `admin`
-- 初期パスワード: `admin12345`
-- 初回ログイン後に `/public/admin/change_password.php` へ強制遷移し、パスワード変更が必須です。
-- `config.local.php` に `admin` が未設定でも、上記初期認証情報でログインできます。
-
-`config.local.php` の `admin` 設定例（`password_hash()` で生成した値を設定）：
+`password_hash()` で生成した値を設定します。
 
 ```php
 'admin' => [
@@ -190,91 +87,89 @@ PinkClub-FANZA は FANZA（DMM）API から作品データを取得し、自動�
 ],
 ```
 
-> `config.local.php` は機密情報を含むため Git にコミットしないでください（`.gitignore` 済み）。
+> `config.local.php` は機密情報を含むため **Gitにコミットしないでください**（`.gitignore` 済み）。
 
 > セキュリティのため、初期資格情報（`admin` / `admin12345`）でログインした後は必ず新しいパスワードに変更してください。
 
 ---
 
-## SEO / Security
+## SEO / Security（方針・実装）
 
-- canonical
-- meta title / description / OGP
-- alt自動付与
-- パンくず（構造化データ）
-- sitemap.xml
-- robots.txt
-- HTTPS必須
-- CSRF / XSS / Clickjacking対策
-- セッション管理
-- PDO + Prepared必須
+### SEO
+
+* title / description
+* canonical
+* OGP（最低限）
+
+### Security
+
+* DBアクセスは **PDO + Prepared Statement**
+* 出力は `e()` 等でエスケープ（XSS対策）
+* 管理画面は既存のCSRF実装を維持
+* セッション管理（ログイン時に必要な対策を実施）
+
+※ Clickjacking対策・構造化データ・パンくず・sitemap/robots・HTTPS必須等は「方針として有効」ですが、README上で **実装済みと断言しない**範囲に留めます（実装したら追記してください）。
 
 ---
 
 ## Technology Stack
 
-- PHP 8.x（Frameworkなし）
-- MySQL 8.x
-- PDO
-- Vanilla JS
-- UTF-8
-- Asia/Tokyo
-- Cron禁止（内部タイマー方式）
+* PHP 8.x（Frameworkなし）
+* MySQL 8.x
+* PDO
+* Vanilla JS（必要最小限）
+* UTF-8
+* Timezone: Asia/Tokyo
 
 ---
 
-## DB Initialization
+## URL設計（本番推奨）
 
-- `php scripts/init_db.php` でDB初期化が実行できます。
-- 管理画面の `/public/admin/db_init.php` からも実行できます。
-- これにより「DB未作成」が原因のトラブルを回避できます。
+本番では **`public/` をドキュメントルート**にするのを推奨します。
 
-外部ライブラリ：
+* 推奨（`public/` がWebルート）
 
-- 原則なし
+  * トップ：`https://example.com/` → `public/index.php`
+  * 管理ログイン：`https://example.com/login0718.php`
 
----
-
-## Development Status
-
-仕様確定済み  
-実装準備中
+ドキュメントルート変更ができない場合は、`https://example.com/public/` のように `public/` 配下で運用してください。
 
 ---
 
-## Setup (最小手順)
+## Setup（最小手順）
 
-### Local Development (XAMPP)
+### 1) `config.local.php` を用意
 
-0. `config.local.php.example` を `config.local.php` にコピーし、DB値（host/name/user/password）を入力します。
-   - FANZA API設定は管理画面 `/public/admin/settings.php` で行います。
-   - テーブルは `/public/admin/db_init.php` で作成できます。
-1. プロジェクト直下に `config.local.php` を作成します（Git管理しません）。
-   - 例：host=127.0.0.1 / user=root / password空 / db名は `pinkclub_fanza`
-   - 必要であれば `php scripts/create_local_config.php` で雛形を作成できます。
-2. MySQL に `pinkclub_fanza` を作成します（任意名でも可）。
-3. テーブル作成は `/public/admin/db_init.php` を開くか、`sql/schema.sql` を import します。
+1. `config.local.php.example` を `config.local.php` にコピー
+2. DB接続情報（host/dbname/user/password）を設定
+   ※ `config.local.php` は **コミットしない**（`.gitignore`）
 
-1. 初回起動で `config.local.php` が無い場合、`/public/admin/settings.php` でAPI設定を入力して「保存」すると、`/public/admin/save_settings.php` により `config.local.php` が作成・更新される。
-2. DB接続情報（host/DB名/user/password）は `config.local.php` に手動で追記する。
-3. FANZA API設定は管理画面から設定し、「保存」時に `config.local.php` に反映される。
-4. MySQL でデータベースを作成する。
-5. 管理画面の `/public/admin/db_init.php` でテーブルを作成する（または `sql/schema.sql` をインポート）。
-6. 管理画面にログインする。
-7. 管理画面のインポート機能を実行する。
-8. 必要に応じて `php scripts/import.php` で手動インポートする。
-9. `public/index.php` にアクセスして記事一覧を確認する。
-10. `public/article.php?id=1` で記事詳細を確認する。
-11. 取得結果が表示されればセットアップ完了。
+### 2) DB作成 & テーブル作成
 
-運用メモ：
+* MySQLでDBを作成（例：`pinkclub_fanza`）
+* テーブル作成は以下いずれか
 
-- cache/ ディレクトリはAPIレスポンスのキャッシュ保存に使います。Webサーバーから書き込み権限が必要です。
-- config.local.php は管理画面の設定保存に使うため、書き込み権限が必要です。
-- config.local.php は GitHub にコミットしません（.gitignore）。
+  * `/public/admin/db_init.php` を開いて実行
+  * `php scripts/init_db.php` を実行
+  * もしくは `schema.sql` を import（配置がある場合）
+
+### 3) 管理画面でAPI設定 → 取り込み
+
+1. `/login0718.php` でログイン
+2. `/public/admin/settings.php` でFANZA API設定を保存
+3. `/public/admin/import_items.php` でデータ取得（DBへ保存）
+
+### 4) フロント確認
+
+* `/public/index.php`（トップ）
+* `/public/posts.php`（一覧）
+* `/public/item.php?cid=...`（詳細）
 
 ---
 
-## License
+## セキュリティ方針（要点）
 
-TBD
+* DBアクセスはPDOプリペアドステートメント
+* 出力は `e()` でエスケープ
+* 管理画面は既存のCSRF実装を維持
+* `config.local.php` は機密のためコミット禁止
