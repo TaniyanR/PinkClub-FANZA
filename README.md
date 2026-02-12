@@ -68,12 +68,13 @@ FANZA（DMM）APIから取得してDBへ保存した作品データを、**生PH
 
 ## 管理ログイン（このリポジトリの簡易管理画面）
 
-* ログインURL（固定）：`/login0718.php`
+* 管理ログインURL（XAMPP時）：`/public/login0718.php`
 
   * 旧URL（`/login.php` と `/admin/login.php`）は、このURLへ302リダイレクトされます（互換）。
+  * XAMPP例：`http://localhost/pinkclub-fanza/public/login0718.php`
 * 初期ユーザー名：`admin`
-* 初期パスワード：`admin12345`
-* 初回ログイン後は `/admin/change_password.php` へ **強制遷移**し、パスワード変更が必須です。
+* 初期パスワード：`password`
+* パスワード変更は任意です。管理メニューの `/public/admin/change_password.php` から実行できます。
 * `config.local.php` に `admin` が未設定でも、上記初期資格情報でログインできます。
 
 ### `config.local.php` の `admin` 設定例
@@ -89,7 +90,7 @@ FANZA（DMM）APIから取得してDBへ保存した作品データを、**生PH
 
 > `config.local.php` は機密情報を含むため **Gitにコミットしないでください**（`.gitignore` 済み）。
 
-> セキュリティのため、初期資格情報（`admin` / `admin12345`）でログインした後は必ず新しいパスワードに変更してください。
+> セキュリティのため、初期資格情報（`admin` / `password`）でログインした後は、管理メニューから任意でパスワード変更することを推奨します。
 
 ---
 
@@ -130,7 +131,7 @@ FANZA（DMM）APIから取得してDBへ保存した作品データを、**生PH
 * 推奨（`public/` がWebルート）
 
   * トップ：`https://example.com/` → `public/index.php`
-  * 管理ログイン：`https://example.com/login0718.php`
+  * 管理ログイン：`https://example.com/public/login0718.php`
 
 ドキュメントルート変更ができない場合は、`https://example.com/public/` のように `public/` 配下で運用してください。
 
@@ -155,7 +156,7 @@ FANZA（DMM）APIから取得してDBへ保存した作品データを、**生PH
 
 ### 3) 管理画面でAPI設定 → 取り込み
 
-1. `/login0718.php` でログイン
+1. `/public/login0718.php` でログイン
 2. `/public/admin/settings.php` でFANZA API設定を保存
 3. `/public/admin/import_items.php` でデータ取得（DBへ保存）
 

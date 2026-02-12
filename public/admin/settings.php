@@ -72,12 +72,20 @@ $errorMessages = [
     'rename_failed'     => '設定ファイルの更新に失敗しました。対象ファイル: ' . $localPath . '（ディスク/権限を確認してください）',
 ];
 
-include __DIR__ . '/../partials/header.php';
+$pageTitle = '管理設定';
+include __DIR__ . '/partials/header.php';
+include __DIR__ . '/partials/nav.php';
 ?>
 <main>
     <h1>API設定</h1>
     <p class="admin-form-note">APIが一時的に失敗した場合、最大60分以内のキャッシュを表示します（空になりにくい）</p>
 
+
+    <?php if (($_GET['password_changed'] ?? '') === '1') : ?>
+        <div class="admin-card">
+            <p>パスワードを変更しました。</p>
+        </div>
+    <?php endif; ?>
     <?php if (($_GET['saved'] ?? '') === '1') : ?>
         <div class="admin-card">
             <p>保存しました。</p>
@@ -141,5 +149,4 @@ include __DIR__ . '/../partials/header.php';
         <button type="submit">保存</button>
     </form>
 </main>
-<?php include __DIR__ . '/../partials/sidebar.php'; ?>
-<?php include __DIR__ . '/../partials/footer.php'; ?>
+<?php include __DIR__ . '/partials/footer.php'; ?>

@@ -34,11 +34,6 @@ function normalize_return_to(mixed $value): string
 $returnTo = normalize_return_to($_GET['return_to'] ?? '');
 
 if (admin_is_logged_in()) {
-    if (admin_is_default_password()) {
-        header('Location: ' . admin_url('change_password.php'));
-        exit;
-    }
-
     if ($returnTo !== '') {
         header('Location: ' . base_url() . $returnTo);
         exit;
@@ -62,11 +57,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if (admin_login($username, $password)) {
             session_regenerate_id(true);
 
-            if (admin_is_default_password()) {
-                header('Location: ' . admin_url('change_password.php'));
-                exit;
-            }
-
             if ($returnTo !== '') {
                 header('Location: ' . base_url() . $returnTo);
                 exit;
@@ -80,7 +70,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 }
 
-include __DIR__ . '/partials/header.php';
+include __DIR__ . '/admin/partials/header.php';
+include __DIR__ . '/admin/partials/nav.php';
 ?>
 <main>
     <h1>管理画面ログイン</h1>
@@ -106,4 +97,4 @@ include __DIR__ . '/partials/header.php';
         <button type="submit">ログイン</button>
     </form>
 </main>
-<?php include __DIR__ . '/partials/footer.php'; ?>
+<?php include __DIR__ . '/admin/partials/footer.php'; ?>
