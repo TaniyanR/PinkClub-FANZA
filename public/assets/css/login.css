@@ -5,44 +5,80 @@ body {
     background: #f6f7f7;
     color: #1d2327;
 }
+
 .login-shell {
     min-height: 100vh;
-    display: flex;
-    flex-direction: column;
 }
+
 .login-header {
     padding: 16px;
     text-align: center;
 }
+
 .login-header a {
     color: #1d2327;
     text-decoration: none;
     font-weight: 700;
 }
+
 .login-main {
-    flex: 1;
-    display: grid;
-    place-items: center;
-    padding: 16px;
+    min-height: 100vh;
+    padding: 24px 16px 16px;
 }
+
+.login-page {
+    min-height: 100vh;
+    padding-top: 72px;
+}
+
+.login-headline {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 16px;
+    text-align: center;
+}
+
+.login-headline__item {
+    font-size: clamp(20px, 2.8vw, 24px);
+    font-weight: 700;
+    line-height: 1.3;
+}
+
 .admin-card {
     width: min(420px, 100%);
+    margin: 0 auto;
     background: #fff;
     border: 1px solid #dcdcde;
     border-radius: 6px;
     padding: 16px;
 }
+
+.login-card {
+    margin-top: 24px;
+}
+
+.login-alert {
+    margin-top: 18px;
+}
+
+.admin-card form {
+    margin: 0;
+}
+
 .admin-card label {
     display: block;
     margin: 10px 0 4px;
     font-weight: 600;
 }
+
 .admin-card input,
 .admin-card button {
     width: 100%;
     padding: 10px;
     font-size: 14px;
 }
+
 .admin-card button {
     margin-top: 14px;
     background: #2271b1;
@@ -50,24 +86,42 @@ body {
     color: #fff;
     border-radius: 4px;
 }
-h1 { margin-top: 0; text-align: center; }
 
 .admin-card--success {
     border-color: #68b168;
     background: #f2fbf2;
 }
 
-.login-sub-link {
-    margin-top: 10px;
+.login-help {
+    margin-top: 12px;
     text-align: center;
-    font-size: 12px;
+    font-size: 13px;
 }
 
-.login-sub-link a {
+.login-help a {
     color: #2271b1;
+    text-decoration: none;
+}
+
+.login-help a:hover {
     text-decoration: underline;
 }
 
-.login-sub-link a:hover {
-    opacity: 0.85;
+@media (max-width: 640px) {
+    .login-main {
+        padding-top: 16px;
+    }
+
+    .login-page {
+        padding-top: 52px;
+    }
+
+    .login-headline {
+        flex-wrap: wrap;
+        gap: 8px 12px;
+    }
+
+    .login-card {
+        margin-top: 16px;
+    }
 }
