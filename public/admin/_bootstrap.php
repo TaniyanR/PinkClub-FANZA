@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../lib/config.php';
+require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/admin_auth.php';
 require_once __DIR__ . '/../../lib/csrf.php';
 require_once __DIR__ . '/../../lib/url.php';
@@ -18,6 +19,21 @@ function admin_is_dev_environment(): bool
     }
 
     return filter_var(ini_get('display_errors'), FILTER_VALIDATE_BOOL) === true;
+}
+
+function admin_log_error(string $message, ?Throwable $exception = null): void
+{
+    if ($exception instanceof Throwable) {
+        $message .= sprintf(
+            ' | %s: %s @ %s:%d',
+            get_class($exception),
+            $exception->getMessage(),
+            $exception->getFile(),
+            $exception->getLine()
+        );
+    }
+
+    log_message('[admin] ' . $message);
 }
 
 function admin_render_error_page(string $title, string $message, ?Throwable $exception = null): void
@@ -56,6 +72,8 @@ set_error_handler(static function (int $severity, string $message, string $file 
 });
 
 set_exception_handler(static function (Throwable $exception): void {
+    admin_log_error('Unhandled exception', $exception);
+
     $publicMessage = admin_is_dev_environment()
         ? '管理画面で例外が発生しました。'
         : 'エラーが発生しました。時間をおいて再度お試しください。';
@@ -81,6 +99,8 @@ register_shutdown_function(static function (): void {
         (string)$lastError['file'],
         (int)$lastError['line']
     );
+
+    admin_log_error('Shutdown fatal error', $exception);
 
     $publicMessage = admin_is_dev_environment()
         ? '管理画面で致命的エラーが発生しました。'

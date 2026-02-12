@@ -5,6 +5,7 @@ require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../admin/menu.php';
 
 $currentScript = basename((string)($_SERVER['SCRIPT_NAME'] ?? 'index.php'));
+$currentStubPage = basename((string)($_GET['page'] ?? ''));
 
 $groups = admin_menu_groups();
 ?>
@@ -17,18 +18,23 @@ $groups = admin_menu_groups();
                     $file = (string)($item['file'] ?? '');
                     $label = (string)($item['label'] ?? '');
                     $status = (string)($item['status'] ?? 'ready');
-                    $isActive = ($currentScript === $file);
+
+                    $href = $status === 'coming_soon'
+                        ? admin_url('stub.php?page=' . rawurlencode($file))
+                        : admin_url($file);
+
+                    $isActive = $status === 'coming_soon'
+                        ? ($currentScript === 'stub.php' && $currentStubPage === $file)
+                        : ($currentScript === $file);
                     ?>
                     <li class="admin-sidebar__item">
                         <?php if ($file === '') : ?>
                             <span class="admin-menu__disabled">（未設定）</span>
-                        <?php elseif ($status === 'coming_soon') : ?>
-                            <!-- coming_soon は「準備中ページ」に飛ばす or 無効表示。いったん無効表示 -->
-                            <span class="admin-menu__disabled"><?php echo e($label); ?><small>（準備中）</small></span>
                         <?php else : ?>
                             <a class="admin-menu__link <?php echo $isActive ? 'is-active' : ''; ?>"
-                               href="<?php echo e(admin_url($file)); ?>">
+                               href="<?php echo e($href); ?>">
                                 <?php echo e($label); ?>
+                                <?php if ($status === 'coming_soon') : ?><small>（準備中）</small><?php endif; ?>
                             </a>
                         <?php endif; ?>
                     </li>

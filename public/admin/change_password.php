@@ -5,10 +5,6 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../../lib/local_config_writer.php';
 require_once __DIR__ . '/../../lib/db.php';
 
-function e(string $value): string
-{
-    return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
-}
 
 $error = '';
 
