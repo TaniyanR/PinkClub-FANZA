@@ -5,13 +5,9 @@ require_once __DIR__ . '/../lib/config.php';
 require_once __DIR__ . '/../lib/admin_auth.php';
 require_once __DIR__ . '/../lib/csrf.php';
 require_once __DIR__ . '/../lib/url.php';
+require_once __DIR__ . '/partials/_helpers.php';
 
 admin_session_start();
-
-function e(string $value): string
-{
-    return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
-}
 
 function normalize_return_to(mixed $value): string
 {
