@@ -6,7 +6,8 @@ require_once __DIR__ . '/url.php';
 require_once __DIR__ . '/db.php';
 
 const ADMIN_DEFAULT_USERNAME = 'admin';
-const ADMIN_DEFAULT_PASSWORD_HASH = '$2y$12$aa6K4m5qZD3A998IJvAqeOwQH9dvtDjiMEdCn7cBWrOoJLBiZw9G6';
+// default = admin/password
+const ADMIN_DEFAULT_PASSWORD_HASH = '$2y$12$SS2ptXwc56Bwj.VaTsErye.Dmyde0fi/XefAYSy7v0KQPf7w2dUqG';
 
 function admin_session_start(): void
 {

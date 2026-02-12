@@ -1,28 +1,52 @@
 <?php
-
 declare(strict_types=1);
 
-return [
-    '基本' => [
-        ['file' => 'index.php', 'label' => 'ダッシュボード'],
-        ['file' => 'settings.php', 'label' => '管理設定'],
-        ['file' => 'import_items.php', 'label' => 'インポート'],
-    ],
-    '運用' => [
-        ['file' => 'links.php', 'label' => '相互リンク管理'],
-        ['file' => 'mail.php', 'label' => 'メール'],
-        ['file' => 'rss.php', 'label' => 'RSS'],
-        ['file' => 'analytics.php', 'label' => 'アクセス解析'],
-        ['file' => 'backup.php', 'label' => 'バックアップ'],
-    ],
-    'サイト管理' => [
-        ['file' => 'pages.php', 'label' => '固定ページCMS'],
-        ['file' => 'seo.php', 'label' => 'sitemap/robots/SEO'],
-        ['file' => 'ads.php', 'label' => 'コード挿入/広告枠'],
-        ['file' => 'design.php', 'label' => 'デザイン設定'],
-    ],
-    'アカウント' => [
-        ['file' => 'users.php', 'label' => 'アカウント設定'],
-        ['file' => 'change_password.php', 'label' => 'パスワード変更'],
-    ],
-];
+/**
+ * 管理メニュー定義
+ * - heading: 左メニューのグループ見出し
+ * - items:
+ *   - file: 遷移先（public/admin/ 配下）
+ *   - label: 表示名
+ *   - status: 'ready' | 'coming_soon'
+ */
+function admin_menu_groups(): array
+{
+    return [
+        [
+            'heading' => '基本',
+            'items' => [
+                ['file' => 'index.php',        'label' => 'ダッシュボード', 'status' => 'ready'],
+                ['file' => 'settings.php',     'label' => '管理設定',       'status' => 'ready'],
+                ['file' => 'db_init.php',      'label' => 'DB初期化',       'status' => 'ready'],
+                ['file' => 'import_items.php', 'label' => 'インポート',     'status' => 'ready'],
+                ['file' => 'api_logs.php',     'label' => 'API履歴',        'status' => 'coming_soon'],
+            ],
+        ],
+        [
+            'heading' => '運用',
+            'items' => [
+                ['file' => 'links.php',     'label' => '相互リンク管理', 'status' => 'coming_soon'],
+                ['file' => 'rss.php',       'label' => 'RSS',           'status' => 'coming_soon'],
+                ['file' => 'analytics.php', 'label' => 'アクセス解析',   'status' => 'coming_soon'],
+                ['file' => 'mail.php',      'label' => 'メール',         'status' => 'coming_soon'],
+                ['file' => 'backup.php',    'label' => 'バックアップ',   'status' => 'coming_soon'],
+            ],
+        ],
+        [
+            'heading' => 'サイト管理',
+            'items' => [
+                ['file' => 'pages.php',  'label' => '固定ページCMS',     'status' => 'coming_soon'],
+                ['file' => 'seo.php',    'label' => 'sitemap/robots/SEO', 'status' => 'coming_soon'],
+                ['file' => 'ads.php',    'label' => 'コード挿入/広告枠',   'status' => 'coming_soon'],
+                ['file' => 'design.php', 'label' => 'デザイン設定',       'status' => 'coming_soon'],
+            ],
+        ],
+        [
+            'heading' => 'アカウント',
+            'items' => [
+                ['file' => 'users.php',           'label' => 'アカウント設定',   'status' => 'coming_soon'],
+                ['file' => 'change_password.php', 'label' => 'パスワード変更',   'status' => 'ready'],
+            ],
+        ],
+    ];
+}
