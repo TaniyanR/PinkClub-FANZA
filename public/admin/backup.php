@@ -1,4 +1,11 @@
-<?php declare(strict_types=1); require_once __DIR__ . '/_bootstrap.php'; require_once __DIR__ . '/../../lib/db.php'; require_once __DIR__ . '/../../lib/app_features.php'; function e(string $v): string { return htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); }
-if(isset($_GET['download']) && $_GET['download']==='db'){ $pdo=db(); $tables=$pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN); header('Content-Type: application/sql'); header('Content-Disposition: attachment; filename="backup_'.date('Ymd_His').'.sql"'); foreach($tables as $t){$t=(string)$t; echo "-- {$t}\n"; $rows=$pdo->query("SELECT * FROM `{$t}`")->fetchAll(PDO::FETCH_ASSOC); foreach($rows as $r){$cols=array_map(fn($c)=>'`'.$c.'`',array_keys($r)); $vals=array_map(fn($v)=>$v===null?'NULL':$pdo->quote((string)$v),array_values($r)); echo "INSERT INTO `{$t}` (".implode(',',$cols).") VALUES (".implode(',',$vals).");\n";}} exit; }
-if(isset($_GET['download']) && $_GET['download']==='settings'){ header('Content-Type: application/json'); header('Content-Disposition: attachment; filename="settings_'.date('Ymd_His').'.json"'); echo json_encode(app_settings(), JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE); exit; }
-$pageTitle='Backup'; ob_start();?><h1>Backup</h1><div class="admin-card"><p><a href="?download=db">DBバックアップ(SQL)ダウンロード</a></p><p><a href="?download=settings">重要設定(JSON)ダウンロード</a></p><p>復元は高リスクです。ローカル環境でのみ実施し、十分に検証してください。</p></div><?php $content=(string)ob_get_clean(); include __DIR__.'/../partials/admin_layout.php';
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/_stub.php';
+
+admin_render_stub_page('バックアップ', [
+    'DBと設定ファイルのスナップショット作成',
+    '世代管理と自動削除ポリシー',
+    'リストア手順の安全ガード',
+], '次期リリースで段階実装');
