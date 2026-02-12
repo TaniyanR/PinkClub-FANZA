@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/partials/_helpers.php';
 require_once __DIR__ . '/../lib/repository.php';
+require_once __DIR__ . '/../lib/app_features.php';
 
 $cid = normalize_content_id((string)($_GET['cid'] ?? ''));
 if ($cid === '') {
@@ -42,6 +43,7 @@ $pageDescription = (string)($item['description'] ?? $item['category_name'] ?? $i
 $canonicalUrl = canonical_url('/item.php', ['cid' => (string)$item['content_id']]);
 $ogImage = (string)($item['image_large'] ?: $item['image_small']);
 $ogType = 'article';
+$itemCid = (string)$item['content_id'];
 
 include __DIR__ . '/partials/header.php';
 include __DIR__ . '/partials/nav_search.php';
@@ -109,6 +111,13 @@ include __DIR__ . '/partials/nav_search.php';
                 </div>
                 <?php if (!empty($item['affiliate_url'])) : ?><a class="cta-buy" href="<?php echo e((string)$item['affiliate_url']); ?>" target="_blank" rel="noopener">FANZAで購入</a><?php endif; ?>
             </section>
+        <?php endif; ?>
+
+        <?php $itemInlineAd = (string)app_setting_get('item_inline_ad_html', ''); ?>
+        <?php if ($itemInlineAd !== '') : ?>
+            <section class="block"><?php echo $itemInlineAd; ?></section>
+        <?php else : ?>
+            <section class="block"><div class="ad-box">記事内広告枠</div></section>
         <?php endif; ?>
 
         <?php if ($related !== []) : ?>

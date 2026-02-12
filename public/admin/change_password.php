@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../../lib/local_config_writer.php';
+require_once __DIR__ . '/../../lib/db.php';
 
 function e(string $value): string
 {
@@ -28,20 +29,43 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $error = '新しいパスワードが一致しません。';
         } elseif (preg_match('/\s/u', $password) === 1) {
             $error = 'パスワードに空白は使用できません。';
-        } elseif (!password_verify($currentPassword, admin_config()['password_hash'])) {
-            $error = '現在のパスワードが正しくありません。';
         } else {
             try {
-                $local = local_config_load();
-                $admin = is_array($local['admin'] ?? null) ? $local['admin'] : [];
-                $admin['username'] = admin_current_user() ?? ADMIN_DEFAULT_USERNAME;
-                $admin['password_hash'] = password_hash($password, PASSWORD_DEFAULT);
-                $local['admin'] = $admin;
-                local_config_write($local);
+                $updated = false;
+                try {
+                    $stmt = db()->prepare('SELECT id,password_hash FROM admin_users WHERE username=:u AND is_active=1 LIMIT 1');
+                    $stmt->execute([':u' => (string)(admin_current_user() ?? '')]);
+                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                    if (is_array($row)) {
+                        if (!password_verify($currentPassword, (string)$row['password_hash'])) {
+                            $error = '現在のパスワードが正しくありません。';
+                        } else {
+                            db()->prepare('UPDATE admin_users SET password_hash=:p WHERE id=:id')->execute([':p' => password_hash($password, PASSWORD_DEFAULT), ':id' => (int)$row['id']]);
+                            $updated = true;
+                        }
+                    }
+                } catch (Throwable $e) {
+                }
 
-                $_SESSION['admin_default_password'] = false;
-                header('Location: ' . admin_url('settings.php') . '?password_changed=1');
-                exit;
+                if (!$updated && $error === '') {
+                    if (!password_verify($currentPassword, admin_config()['password_hash'])) {
+                        $error = '現在のパスワードが正しくありません。';
+                    } else {
+                        $local = local_config_load();
+                        $admin = is_array($local['admin'] ?? null) ? $local['admin'] : [];
+                        $admin['username'] = admin_current_user() ?? ADMIN_DEFAULT_USERNAME;
+                        $admin['password_hash'] = password_hash($password, PASSWORD_DEFAULT);
+                        $local['admin'] = $admin;
+                        local_config_write($local);
+                        $updated = true;
+                    }
+                }
+
+                if ($updated) {
+                    $_SESSION['admin_default_password'] = false;
+                    header('Location: ' . admin_url('settings.php') . '?password_changed=1');
+                    exit;
+                }
             } catch (Throwable $e) {
                 error_log('admin change_password failed: ' . $e->getMessage());
                 $error = 'パスワード更新に失敗しました。時間をおいて再度お試しください。';

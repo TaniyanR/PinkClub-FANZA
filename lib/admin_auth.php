@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/url.php';
+require_once __DIR__ . '/db.php';
 
 const ADMIN_DEFAULT_USERNAME = 'admin';
 const ADMIN_DEFAULT_PASSWORD_HASH = '$2y$12$aa6K4m5qZD3A998IJvAqeOwQH9dvtDjiMEdCn7cBWrOoJLBiZw9G6';
@@ -86,9 +87,34 @@ function admin_require_login(): void
     exit;
 }
 
+
+function admin_users_table_available(): bool
+{
+    try {
+        $stmt = db()->query("SHOW TABLES LIKE 'admin_users'");
+        return $stmt !== false && $stmt->fetchColumn() !== false;
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
 function admin_login(string $username, string $password): bool
 {
     admin_session_start();
+
+    if (admin_users_table_available()) {
+        $stmt = db()->prepare('SELECT username,password_hash FROM admin_users WHERE username=:u AND is_active=1 LIMIT 1');
+        $stmt->execute([':u' => $username]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (is_array($row) && password_verify($password, (string)$row['password_hash'])) {
+            session_regenerate_id(true);
+            $_SESSION['admin_logged_in'] = true;
+            $_SESSION['admin_user'] = (string)$row['username'];
+            $_SESSION['admin_default_password'] = false;
+            return true;
+        }
+        return false;
+    }
 
     $admin = admin_config();
     if (!hash_equals($admin['username'], $username)) {
