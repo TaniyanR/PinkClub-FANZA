@@ -27,17 +27,8 @@ $makers = fetch_item_makers((string)$item['content_id']);
 $seriesList = fetch_item_series((string)$item['content_id']);
 $labels = fetch_item_labels((string)$item['content_id']);
 
-$related = [];
-if (!empty($actresses[0]['id'])) {
-    $related = fetch_items_by_actress((int)$actresses[0]['id'], 7, 0);
-} elseif (!empty($seriesList[0]['id'])) {
-    $related = fetch_items_by_series((int)$seriesList[0]['id'], 7, 0);
-}
-$related = array_values(array_filter(
-    $related,
-    static fn(array $row): bool => (string)($row['content_id'] ?? '') !== (string)$item['content_id']
-));
-$related = array_slice($related, 0, 6);
+// Use new related items function with better relevance scoring
+$related = fetch_related_items((string)$item['content_id'], 6);
 
 $pageStyles = ['/assets/css/detail.css'];
 $pageTitle = (string)$item['title'];
