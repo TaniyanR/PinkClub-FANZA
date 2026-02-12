@@ -73,10 +73,8 @@ $errorMessages = [
 ];
 
 $pageTitle = '管理設定';
-include __DIR__ . '/partials/header.php';
-include __DIR__ . '/partials/nav.php';
+ob_start();
 ?>
-<main>
     <h1>API設定</h1>
     <p class="admin-form-note">APIが一時的に失敗した場合、最大60分以内のキャッシュを表示します（空になりにくい）</p>
 
@@ -148,5 +146,6 @@ include __DIR__ . '/partials/nav.php';
 
         <button type="submit">保存</button>
     </form>
-</main>
-<?php include __DIR__ . '/partials/footer.php'; ?>
+<?php
+$content = (string)ob_get_clean();
+include __DIR__ . '/../partials/admin_layout.php';

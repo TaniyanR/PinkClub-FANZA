@@ -19,10 +19,8 @@ try {
 }
 
 $pageTitle = '管理ダッシュボード';
-include __DIR__ . '/partials/header.php';
-include __DIR__ . '/partials/nav.php';
+ob_start();
 ?>
-<main>
     <h1>管理ダッシュボード</h1>
 
     <div class="admin-card">
@@ -36,5 +34,6 @@ include __DIR__ . '/partials/nav.php';
             <p>登録済み作品数: <?php echo e((string)$itemCount); ?> 件</p>
         <?php endif; ?>
     </div>
-</main>
-<?php include __DIR__ . '/partials/footer.php'; ?>
+<?php
+$content = (string)ob_get_clean();
+include __DIR__ . '/../partials/admin_layout.php';

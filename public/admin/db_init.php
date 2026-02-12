@@ -29,10 +29,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-include __DIR__ . '/partials/header.php';
-include __DIR__ . '/partials/nav.php';
+$pageTitle = 'DB初期化';
+ob_start();
 ?>
-<main>
     <h1>DB初期化</h1>
 
     <?php if ($status !== '') : ?>
@@ -51,5 +50,6 @@ include __DIR__ . '/partials/nav.php';
         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
         <button type="submit">DB初期化</button>
     </form>
-</main>
-<?php include __DIR__ . '/partials/footer.php'; ?>
+<?php
+$content = (string)ob_get_clean();
+include __DIR__ . '/../partials/admin_layout.php';
