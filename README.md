@@ -92,6 +92,13 @@ FANZA（DMM）APIから取得してDBへ保存した作品データを、**生PH
 
 > セキュリティのため、初期資格情報（`admin` / `password`）でログインした後は、管理メニューから任意でパスワード変更することを推奨します。
 
+### パスワードを忘れた場合（メール送信なし）
+
+* `config.local.php` の `security.password_reset_key` に、**十分に長いランダム文字列**を設定します。
+* `/public/forgot_password.php` を開き、リセットキーと新しいパスワードを入力して再設定します。
+* `password_reset_key` は機密情報です。**絶対にGitへコミットしないでください**。
+* 初期ログイン（`admin` / `password`）は新規環境向けです。`config.local.php` に `admin` 設定がある場合はそちらが優先されます。
+
 ---
 
 ## SEO / Security（方針・実装）
