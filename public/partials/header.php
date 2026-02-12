@@ -2,16 +2,26 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_helpers.php';
+require_once __DIR__ . '/../../lib/app_features.php';
 
-$siteTitle = (string)config_get('site.title', 'PinkClub-FANZA');
+$siteTitle = (string)app_setting_get('site_name', (string)config_get('site.title', 'PinkClub-FANZA'));
 $defaultDescription = (string)config_get('site.description', 'FANZA作品を実データで紹介するPinkClub-FANZA。');
 
 $rawPageTitle = isset($pageTitle) && $pageTitle !== '' ? (string)$pageTitle : null;
 $pageDescription = isset($pageDescription) && $pageDescription !== '' ? (string)$pageDescription : $defaultDescription;
+$canonicalBase = (string)app_setting_get('canonical_base', '');
 $canonicalUrl = isset($canonicalUrl) && $canonicalUrl !== '' ? (string)$canonicalUrl : canonical_url();
-$ogImage = isset($ogImage) && $ogImage !== '' ? (string)$ogImage : null;
+if ($canonicalBase !== '') {
+    $canonicalUrl = rtrim($canonicalBase, '/') . current_path();
+}
+$ogImage = isset($ogImage) && $ogImage !== '' ? (string)$ogImage : (string)app_setting_get('ogp_default_image', '');
 $ogType = isset($ogType) && $ogType !== '' ? (string)$ogType : 'website';
 $fullTitle = $rawPageTitle !== null ? ($rawPageTitle . ' | ' . $siteTitle) : $siteTitle;
+$ga4Id = (string)app_setting_get('ga4_measurement_id', '');
+$scMeta = (string)app_setting_get('search_console_verification', '');
+$themeColor = (string)app_setting_get('theme_color', '');
+$headCode = (string)app_setting_get('head_injection_code', '');
+track_page_view($itemCid ?? null);
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -21,29 +31,37 @@ $fullTitle = $rawPageTitle !== null ? ($rawPageTitle . ' | ' . $siteTitle) : $si
     <title><?php echo e($fullTitle); ?></title>
     <meta name="description" content="<?php echo e($pageDescription); ?>">
     <link rel="canonical" href="<?php echo e($canonicalUrl); ?>">
+    <?php if ($scMeta !== '') : ?><meta name="google-site-verification" content="<?php echo e($scMeta); ?>"><?php endif; ?>
     <meta property="og:type" content="<?php echo e($ogType); ?>">
     <meta property="og:site_name" content="<?php echo e($siteTitle); ?>">
     <meta property="og:title" content="<?php echo e($fullTitle); ?>">
     <meta property="og:description" content="<?php echo e($pageDescription); ?>">
     <meta property="og:url" content="<?php echo e($canonicalUrl); ?>">
-    <?php if ($ogImage !== null) : ?>
-        <meta property="og:image" content="<?php echo e($ogImage); ?>">
-    <?php endif; ?>
+    <?php if ($ogImage !== '') : ?><meta property="og:image" content="<?php echo e($ogImage); ?>"><?php endif; ?>
     <link rel="stylesheet" href="/assets/css/common.css">
-    <?php if (isset($pageStyles) && is_array($pageStyles)) : ?>
-        <?php foreach ($pageStyles as $stylePath) : ?>
-            <link rel="stylesheet" href="<?php echo e((string)$stylePath); ?>">
-        <?php endforeach; ?>
+    <?php if ($themeColor !== '') : ?><style>:root{--theme-accent:<?php echo e($themeColor); ?>;}</style><?php endif; ?>
+    <?php if ($headCode !== '') : ?><?php echo $headCode; ?><?php endif; ?>
+    <?php if ($ga4Id !== '') : ?>
+        <script async src="https://www.googletagmanager.com/gtag/js?id=<?php echo e($ga4Id); ?>"></script>
+        <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','<?php echo e($ga4Id); ?>');</script>
     <?php endif; ?>
+    <?php if (isset($pageStyles) && is_array($pageStyles)) : foreach ($pageStyles as $stylePath) : ?>
+        <link rel="stylesheet" href="<?php echo e((string)$stylePath); ?>">
+    <?php endforeach; endif; ?>
 </head>
 <body>
 <header class="site-header">
     <div class="site-header__inner">
         <div class="site-header__brand">
-            <a class="site-header__title" href="/">
-                <?php echo e($siteTitle); ?>
-            </a>
+            <a class="site-header__title" href="/"><?php echo e($siteTitle); ?></a>
             <div class="site-header__note"><strong>当サイトはプロモーションを含みます。</strong></div>
+        </div>
+        <div>
+            <?php if (user_current_email() !== null) : ?>
+                ログイン中: <?php echo e((string)user_current_email()); ?> <a href="/user_logout.php">ログアウト</a>
+            <?php else : ?>
+                <a href="/user_login.php">会員ログイン</a>
+            <?php endif; ?>
         </div>
     </div>
 </header>
