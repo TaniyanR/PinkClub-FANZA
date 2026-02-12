@@ -790,6 +790,7 @@ function update_items_view_count(): int
 /**
  * Fetch related items based on genre, actress, and series matches
  * Returns items sorted by relevance score
+ * Optimized version using JOINs instead of correlated subqueries
  */
 function fetch_related_items(string $contentId, int $limit = 6): array
 {
@@ -801,27 +802,43 @@ function fetch_related_items(string $contentId, int $limit = 6): array
     $limit = normalize_int($limit, 1, 50);
 
     try {
-        // Get related items by matching genre, actress, or series
+        // Optimized query using LEFT JOINs and conditional aggregation
         $stmt = db()->prepare(
-            'SELECT DISTINCT items.*, 
-                   (
-                       (SELECT COUNT(*) FROM item_genres ig1 
-                        INNER JOIN item_genres ig2 ON ig1.genre_id = ig2.genre_id 
-                        WHERE ig1.content_id = items.content_id AND ig2.content_id = :cid) * 3 +
-                       (SELECT COUNT(*) FROM item_actresses ia1 
-                        INNER JOIN item_actresses ia2 ON ia1.actress_id = ia2.actress_id 
-                        WHERE ia1.content_id = items.content_id AND ia2.content_id = :cid) * 5 +
-                       (SELECT COUNT(*) FROM item_series is1 
-                        INNER JOIN item_series is2 ON is1.series_id = is2.series_id 
-                        WHERE is1.content_id = items.content_id AND is2.content_id = :cid) * 4
-                   ) AS relevance_score
-             FROM items
-             WHERE items.content_id != :cid
+            'SELECT DISTINCT i.*, 
+                   (COALESCE(genre_matches, 0) * 3 + 
+                    COALESCE(actress_matches, 0) * 5 + 
+                    COALESCE(series_matches, 0) * 4) AS relevance_score
+             FROM items i
+             LEFT JOIN (
+                 SELECT ig1.content_id, COUNT(*) as genre_matches
+                 FROM item_genres ig1
+                 INNER JOIN item_genres ig2 ON ig1.genre_id = ig2.genre_id
+                 WHERE ig2.content_id = :cid1
+                 GROUP BY ig1.content_id
+             ) genre_scores ON i.content_id = genre_scores.content_id
+             LEFT JOIN (
+                 SELECT ia1.content_id, COUNT(*) as actress_matches
+                 FROM item_actresses ia1
+                 INNER JOIN item_actresses ia2 ON ia1.actress_id = ia2.actress_id
+                 WHERE ia2.content_id = :cid2
+                 GROUP BY ia1.content_id
+             ) actress_scores ON i.content_id = actress_scores.content_id
+             LEFT JOIN (
+                 SELECT is1.content_id, COUNT(*) as series_matches
+                 FROM item_series is1
+                 INNER JOIN item_series is2 ON is1.series_id = is2.series_id
+                 WHERE is2.content_id = :cid3
+                 GROUP BY is1.content_id
+             ) series_scores ON i.content_id = series_scores.content_id
+             WHERE i.content_id != :cid4
              HAVING relevance_score > 0
-             ORDER BY relevance_score DESC, items.date_published DESC
+             ORDER BY relevance_score DESC, i.date_published DESC
              LIMIT :limit'
         );
-        $stmt->bindValue(':cid', $cid, PDO::PARAM_STR);
+        $stmt->bindValue(':cid1', $cid, PDO::PARAM_STR);
+        $stmt->bindValue(':cid2', $cid, PDO::PARAM_STR);
+        $stmt->bindValue(':cid3', $cid, PDO::PARAM_STR);
+        $stmt->bindValue(':cid4', $cid, PDO::PARAM_STR);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
         $related = $stmt->fetchAll() ?: [];

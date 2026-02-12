@@ -9,9 +9,9 @@ declare(strict_types=1);
  * Cron Example (run every hour):
  * 0 * * * * /usr/bin/php /path/to/PinkClub-FANZA/scripts/auto_import.php >> /path/to/logs/cron.log 2>&1
  * 
- * Cron Example (run every 3 hours):
+ * Cron Example (run every 3 hours - replace STAR with * character):
  * 0 STAR/3 * * * /usr/bin/php /path/to/PinkClub-FANZA/scripts/auto_import.php >> /path/to/logs/cron.log 2>&1
- * (Replace STAR with asterisk character)
+ * Example: 0 asterisk-slash-3 * * * (where asterisk-slash-3 is written as a single cron wildcard expression)
  */
 
 require_once __DIR__ . '/../lib/db.php';
