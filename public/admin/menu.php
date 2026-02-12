@@ -11,7 +11,13 @@ function admin_menu_groups(): array
                 ['file' => 'settings.php', 'label' => '管理設定', 'status' => 'ready'],
                 ['file' => 'db_init.php', 'label' => 'DB初期化', 'status' => 'ready'],
                 ['file' => 'import_items.php', 'label' => 'インポート', 'status' => 'ready'],
-                ['file' => 'api_logs.php', 'label' => 'API履歴', 'status' => 'coming_soon'],
+                ['file' => 'api_logs.php', 'label' => 'API履歴', 'status' => 'ready'],
+            ],
+        ],
+        [
+            'heading' => 'コンテンツ',
+            'items' => [
+                ['file' => 'tags.php', 'label' => 'タグ管理', 'status' => 'ready'],
             ],
         ],
         [

@@ -11,7 +11,7 @@ $pageDescription = '新着作品、注目作品、女優・シリーズ・メー
 $canonicalUrl = canonical_url('/index.php');
 
 $newItems = fetch_items('date_published_desc', 10, 0);
-$pickupItems = fetch_items('date_published_desc', 10, 10); // TODO: 人気指標導入時に差し替え
+$pickupItems = fetch_items('popularity_desc', 10, 0); // Now using popularity order
 $actresses = fetch_actresses(12, 0);
 $series = fetch_series(12, 0);
 $makers = fetch_makers(12, 0);
@@ -48,7 +48,7 @@ include __DIR__ . '/partials/nav_search.php';
         <section class="block">
             <div class="section-head">
                 <h2 class="section-title">ピックアップ</h2>
-                <span class="section-sub">暫定: 新着順</span>
+                <span class="section-sub">人気順</span>
             </div>
             <div class="product-grid product-grid--4">
                 <?php foreach ($pickupItems as $item) : ?>

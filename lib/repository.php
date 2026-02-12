@@ -51,6 +51,7 @@ function fetch_items(string $orderBy = 'date_published_desc', int $limit = 10, i
         'date_published_asc' => 'date_published ASC',
         'price_min_desc' => 'price_min DESC',
         'price_min_asc' => 'price_min ASC',
+        'popularity_desc' => 'view_count DESC, date_published DESC',
         'random' => 'RAND()',
     ];
     if (array_key_exists($orderBy, $allowedOrders)) {
@@ -757,5 +758,263 @@ function replace_item_labels(string $contentId, array $labels): void
             ':label_name' => $name,
             ':label_ruby' => ($label['ruby'] ?? null),
         ]);
+    }
+}
+
+/**
+ * Update view count for items based on page_views data
+ * This should be run periodically (e.g., via cron or manually)
+ */
+function update_items_view_count(): int
+{
+    try {
+        $stmt = db()->prepare(
+            'UPDATE items i 
+             SET view_count = (
+                 SELECT COUNT(*) 
+                 FROM page_views pv 
+                 WHERE pv.item_cid = i.content_id
+             )
+             WHERE EXISTS (
+                 SELECT 1 FROM page_views pv2 WHERE pv2.item_cid = i.content_id
+             )'
+        );
+        $stmt->execute();
+        return $stmt->rowCount();
+    } catch (PDOException $e) {
+        error_log('update_items_view_count error: ' . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Fetch related items based on genre, actress, and series matches
+ * Returns items sorted by relevance score
+ * Optimized version using JOINs instead of correlated subqueries
+ */
+function fetch_related_items(string $contentId, int $limit = 6): array
+{
+    $cid = normalize_content_id($contentId);
+    if ($cid === '') {
+        return [];
+    }
+
+    $limit = normalize_int($limit, 1, 50);
+
+    try {
+        // Optimized query using LEFT JOINs and conditional aggregation
+        $stmt = db()->prepare(
+            'SELECT DISTINCT i.*, 
+                   (COALESCE(genre_matches, 0) * 3 + 
+                    COALESCE(actress_matches, 0) * 5 + 
+                    COALESCE(series_matches, 0) * 4) AS relevance_score
+             FROM items i
+             LEFT JOIN (
+                 SELECT ig1.content_id, COUNT(*) as genre_matches
+                 FROM item_genres ig1
+                 INNER JOIN item_genres ig2 ON ig1.genre_id = ig2.genre_id
+                 WHERE ig2.content_id = :cid1
+                 GROUP BY ig1.content_id
+             ) genre_scores ON i.content_id = genre_scores.content_id
+             LEFT JOIN (
+                 SELECT ia1.content_id, COUNT(*) as actress_matches
+                 FROM item_actresses ia1
+                 INNER JOIN item_actresses ia2 ON ia1.actress_id = ia2.actress_id
+                 WHERE ia2.content_id = :cid2
+                 GROUP BY ia1.content_id
+             ) actress_scores ON i.content_id = actress_scores.content_id
+             LEFT JOIN (
+                 SELECT is1.content_id, COUNT(*) as series_matches
+                 FROM item_series is1
+                 INNER JOIN item_series is2 ON is1.series_id = is2.series_id
+                 WHERE is2.content_id = :cid3
+                 GROUP BY is1.content_id
+             ) series_scores ON i.content_id = series_scores.content_id
+             WHERE i.content_id != :cid4
+             HAVING relevance_score > 0
+             ORDER BY relevance_score DESC, i.date_published DESC
+             LIMIT :limit'
+        );
+        $stmt->bindValue(':cid1', $cid, PDO::PARAM_STR);
+        $stmt->bindValue(':cid2', $cid, PDO::PARAM_STR);
+        $stmt->bindValue(':cid3', $cid, PDO::PARAM_STR);
+        $stmt->bindValue(':cid4', $cid, PDO::PARAM_STR);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        $related = $stmt->fetchAll() ?: [];
+
+        // If we don't have enough related items, fill with recent items
+        if (count($related) < $limit) {
+            $remaining = $limit - count($related);
+            $stmt2 = db()->prepare(
+                'SELECT * FROM items 
+                 WHERE content_id != :cid
+                 ORDER BY date_published DESC
+                 LIMIT :limit'
+            );
+            $stmt2->bindValue(':cid', $cid, PDO::PARAM_STR);
+            $stmt2->bindValue(':limit', $remaining, PDO::PARAM_INT);
+            $stmt2->execute();
+            $newItems = $stmt2->fetchAll() ?: [];
+            
+            // Merge and deduplicate
+            $existingIds = array_column($related, 'content_id');
+            foreach ($newItems as $item) {
+                if (!in_array($item['content_id'], $existingIds, true)) {
+                    $related[] = $item;
+                }
+            }
+        }
+
+        return array_slice($related, 0, $limit);
+    } catch (PDOException $e) {
+        error_log('fetch_related_items error: ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Generate and save tags for an item based on title and category
+ */
+function generate_item_tags(string $contentId, string $title, string $category = ''): void
+{
+    $cid = normalize_content_id($contentId);
+    if ($cid === '') {
+        return;
+    }
+
+    try {
+        $pdo = db();
+        
+        // Extract keywords from title and category
+        $text = $title . ' ' . $category;
+        $keywords = extract_tag_keywords($text);
+        
+        if (empty($keywords)) {
+            return;
+        }
+        
+        // Insert tags and get their IDs
+        $tagIds = [];
+        foreach ($keywords as $keyword) {
+            // Insert or get existing tag
+            $stmt = $pdo->prepare(
+                'INSERT INTO tags (name, created_at) 
+                 VALUES (:name, NOW()) 
+                 ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)'
+            );
+            $stmt->execute([':name' => $keyword]);
+            $tagId = (int)$pdo->lastInsertId();
+            
+            if ($tagId > 0) {
+                $tagIds[] = $tagId;
+            }
+        }
+        
+        // Delete existing tag associations for this item
+        $stmt = $pdo->prepare('DELETE FROM item_tags WHERE item_content_id = :cid');
+        $stmt->execute([':cid' => $cid]);
+        
+        // Insert new tag associations
+        if (!empty($tagIds)) {
+            $stmt = $pdo->prepare(
+                'INSERT IGNORE INTO item_tags (item_content_id, tag_id) 
+                 VALUES (:cid, :tag_id)'
+            );
+            
+            foreach ($tagIds as $tagId) {
+                $stmt->execute([':cid' => $cid, ':tag_id' => $tagId]);
+            }
+        }
+    } catch (PDOException $e) {
+        error_log('generate_item_tags error: ' . $e->getMessage());
+    }
+}
+
+/**
+ * Extract keywords from text for tag generation
+ * Simple implementation - extracts common patterns
+ */
+function extract_tag_keywords(string $text): array
+{
+    $text = mb_strtolower($text);
+    $keywords = [];
+    
+    // Common patterns for adult content tags (basic version)
+    $patterns = [
+        '巨乳', '爆乳', '美乳', '貧乳',
+        '痴女', '人妻', '熟女', '若妻',
+        'OL', 'JK', '女子校生', '制服',
+        'メイド', 'ナース', 'CA',
+        'ハメ撮り', 'ごっくん', '中出し',
+        '潮吹き', 'フェラ', 'パイズリ',
+        '3P', '4P', '乱交',
+        'SM', '緊縛', '拘束',
+        'アナル', '顔射', 'ぶっかけ',
+        'バイブ', 'ローター',
+        '野外', '露出', '温泉',
+        'コスプレ', 'レズ', '女優',
+    ];
+    
+    foreach ($patterns as $pattern) {
+        if (mb_strpos($text, $pattern) !== false) {
+            $keywords[] = $pattern;
+        }
+    }
+    
+    // Limit to top 10 tags
+    return array_slice(array_unique($keywords), 0, 10);
+}
+
+/**
+ * Fetch tags for an item
+ */
+function fetch_item_tags(string $contentId): array
+{
+    $cid = normalize_content_id($contentId);
+    if ($cid === '') {
+        return [];
+    }
+
+    try {
+        $stmt = db()->prepare(
+            'SELECT tags.* 
+             FROM tags
+             INNER JOIN item_tags ON tags.id = item_tags.tag_id
+             WHERE item_tags.item_content_id = :cid
+             ORDER BY tags.name ASC'
+        );
+        $stmt->execute([':cid' => $cid]);
+        return $stmt->fetchAll() ?: [];
+    } catch (PDOException $e) {
+        error_log('fetch_item_tags error: ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Fetch all tags with item counts
+ */
+function fetch_all_tags(int $limit = 100, int $offset = 0): array
+{
+    $limit = normalize_int($limit, 1, 500);
+    $offset = max(0, $offset);
+
+    try {
+        $stmt = db()->prepare(
+            'SELECT tags.*, COUNT(item_tags.item_content_id) as item_count
+             FROM tags
+             LEFT JOIN item_tags ON tags.id = item_tags.tag_id
+             GROUP BY tags.id
+             ORDER BY item_count DESC, tags.name ASC
+             LIMIT :limit OFFSET :offset'
+        );
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
+    } catch (PDOException $e) {
+        error_log('fetch_all_tags error: ' . $e->getMessage());
+        return [];
     }
 }

@@ -128,6 +128,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $response = dmm_api_request('ItemList', $params);
+            
+            // Log API request to api_logs table
+            try {
+                $pdo = db();
+                $isSuccess = $response['ok'] ?? false;
+                $itemCount = 0;
+                
+                if ($isSuccess && isset($response['data']['result']['items'])) {
+                    $items = $response['data']['result']['items'];
+                    $itemCount = is_array($items) ? count($items) : 0;
+                }
+                
+                $stmt = $pdo->prepare(
+                    'INSERT INTO api_logs (
+                        created_at, endpoint, params_json, status, http_code, 
+                        item_count, error_message, success
+                     ) VALUES (
+                        NOW(), :endpoint, :params_json, :status, :http_code,
+                        :item_count, :error_message, :success
+                     )'
+                );
+                
+                $stmt->execute([
+                    ':endpoint' => 'ItemList',
+                    ':params_json' => json_encode($params, JSON_UNESCAPED_UNICODE),
+                    ':status' => $isSuccess ? 'success' : 'error',
+                    ':http_code' => $response['http_code'] ?? 0,
+                    ':item_count' => $itemCount,
+                    ':error_message' => $response['error'] ?? null,
+                    ':success' => $isSuccess ? 1 : 0,
+                ]);
+            } catch (PDOException $e) {
+                error_log('Failed to log API request: ' . $e->getMessage());
+                // Don't fail the import if logging fails
+            }
+            
             if (!($response['ok'] ?? false)) {
                 $errorLog[] = sprintf('APIエラー: HTTP %d %s', (int)($response['http_code'] ?? 0), (string)($response['error'] ?? 'unknown'));
                 break;
@@ -256,6 +292,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         replace_item_relations($contentId, $makerIds, 'item_makers', 'maker_id');
                         replace_item_relations($contentId, $seriesIds, 'item_series', 'series_id');
                         replace_item_labels($contentId, $labels);
+                        
+                        // Auto-generate tags if function is available
+                        if (function_exists('generate_item_tags')) {
+                            $title = (string)($row['title'] ?? '');
+                            $category = (string)($row['category_name'] ?? '');
+                            generate_item_tags($contentId, $title, $category);
+                        }
                     }
 
                     $pdo->commit();
