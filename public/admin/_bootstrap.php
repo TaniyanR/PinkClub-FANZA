@@ -23,4 +23,3 @@ if ($isChangePassword) {
 }
 
 admin_require_login();
-admin_require_password_change_if_needed();

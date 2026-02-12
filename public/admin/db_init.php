@@ -29,7 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-include __DIR__ . '/../partials/header.php';
+include __DIR__ . '/partials/header.php';
+include __DIR__ . '/partials/nav.php';
 ?>
 <main>
     <h1>DB初期化</h1>
@@ -51,5 +52,4 @@ include __DIR__ . '/../partials/header.php';
         <button type="submit">DB初期化</button>
     </form>
 </main>
-<?php include __DIR__ . '/../partials/sidebar.php'; ?>
-<?php include __DIR__ . '/../partials/footer.php'; ?>
+<?php include __DIR__ . '/partials/footer.php'; ?>

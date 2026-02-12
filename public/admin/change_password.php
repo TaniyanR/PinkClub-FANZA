@@ -16,15 +16,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!csrf_verify(is_string($token) ? $token : null)) {
         $error = '不正なリクエストです。';
     } else {
+        $currentPassword = (string)($_POST['current_password'] ?? '');
         $password = (string)($_POST['password'] ?? '');
         $passwordConfirm = (string)($_POST['password_confirm'] ?? '');
 
-        if ($password !== $passwordConfirm) {
-            $error = 'パスワードが一致しません。';
+        if ($currentPassword === '' || $password === '' || $passwordConfirm === '') {
+            $error = 'すべての項目を入力してください。';
         } elseif (strlen($password) < 8) {
-            $error = 'パスワードは8文字以上で入力してください。';
+            $error = '新しいパスワードは8文字以上で入力してください。';
+        } elseif ($password !== $passwordConfirm) {
+            $error = '新しいパスワードが一致しません。';
         } elseif (preg_match('/\s/u', $password) === 1) {
             $error = 'パスワードに空白は使用できません。';
+        } elseif (!password_verify($currentPassword, admin_config()['password_hash'])) {
+            $error = '現在のパスワードが正しくありません。';
         } else {
             try {
                 $local = local_config_load();
@@ -45,7 +50,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 }
 
-include __DIR__ . '/../partials/header.php';
+$pageTitle = 'パスワード変更';
+include __DIR__ . '/partials/header.php';
+include __DIR__ . '/partials/nav.php';
 ?>
 <main>
     <h1>管理者パスワード変更</h1>
@@ -59,6 +66,9 @@ include __DIR__ . '/../partials/header.php';
     <form class="admin-card" method="post" action="<?php echo e(admin_url('change_password.php')); ?>">
         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
 
+        <label>現在のパスワード</label>
+        <input type="password" name="current_password" autocomplete="current-password" required>
+
         <label>新しいパスワード</label>
         <input type="password" name="password" autocomplete="new-password" minlength="8" required>
 
@@ -69,5 +79,4 @@ include __DIR__ . '/../partials/header.php';
         <button type="submit">パスワードを更新</button>
     </form>
 </main>
-<?php include __DIR__ . '/../partials/sidebar.php'; ?>
-<?php include __DIR__ . '/../partials/footer.php'; ?>
+<?php include __DIR__ . '/partials/footer.php'; ?>
