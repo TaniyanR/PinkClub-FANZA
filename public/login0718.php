@@ -77,36 +77,46 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 }
 
 $pageTitle = '管理画面ログイン';
+$hideLoginHeaderBrand = true;
 include __DIR__ . '/partials/login_header.php';
 ?>
-    <h1>管理画面ログイン</h1>
-
-
-    <?php if ($success !== '') : ?>
-        <div class="admin-card admin-card--success">
-            <p><?php echo e($success); ?></p>
+    <div class="login-page">
+        <div class="login-headline" aria-label="管理画面ログイン見出し">
+            <span class="login-headline__item">PinkClub-FANZA</span>
+            <span class="login-headline__item">管理画面ログイン</span>
         </div>
-    <?php endif; ?>
 
-    <?php if ($error !== '') : ?>
-        <div class="admin-card">
-            <p><?php echo e($error); ?></p>
-        </div>
-    <?php endif; ?>
-
-    <form class="admin-card" method="post" action="<?php echo e(login_url()); ?>">
-        <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
-        <?php if ($returnTo !== '') : ?>
-            <input type="hidden" name="return_to" value="<?php echo e($returnTo); ?>">
+        <?php if ($success !== '') : ?>
+            <div class="admin-card admin-card--success login-alert">
+                <p><?php echo e($success); ?></p>
+            </div>
         <?php endif; ?>
 
-        <label>ユーザー名</label>
-        <input type="text" name="username" autocomplete="username" required>
+        <?php if ($error !== '') : ?>
+            <div class="admin-card login-alert">
+                <p><?php echo e($error); ?></p>
+            </div>
+        <?php endif; ?>
 
-        <label>パスワード</label>
-        <input type="password" name="password" autocomplete="current-password" required>
+        <div class="admin-card login-card">
+            <form method="post" action="<?php echo e(login_url()); ?>">
+                <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+                <?php if ($returnTo !== '') : ?>
+                    <input type="hidden" name="return_to" value="<?php echo e($returnTo); ?>">
+                <?php endif; ?>
 
-        <button type="submit">ログイン</button>
-    </form>
-    <p class="login-sub-link"><a href="<?php echo e(base_url() . '/forgot_password.php'); ?>">パスワードを忘れた方はコチラ</a></p>
+                <label>ユーザー名</label>
+                <input type="text" name="username" autocomplete="username" required>
+
+                <label>パスワード</label>
+                <input type="password" name="password" autocomplete="current-password" required>
+
+                <button type="submit">ログイン</button>
+
+                <div class="login-help">
+                    <a href="<?php echo e(base_url() . '/forgot_password.php'); ?>">パスワードを忘れた方はコチラ</a>
+                </div>
+            </form>
+        </div>
+    </div>
 <?php include __DIR__ . '/partials/login_footer.php'; ?>
