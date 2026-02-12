@@ -10,7 +10,8 @@ declare(strict_types=1);
  * 0 * * * * /usr/bin/php /path/to/PinkClub-FANZA/scripts/auto_import.php >> /path/to/logs/cron.log 2>&1
  * 
  * Cron Example (run every 3 hours):
- * 0 */3 * * * /usr/bin/php /path/to/PinkClub-FANZA/scripts/auto_import.php >> /path/to/logs/cron.log 2>&1
+ * 0 STAR/3 * * * /usr/bin/php /path/to/PinkClub-FANZA/scripts/auto_import.php >> /path/to/logs/cron.log 2>&1
+ * (Replace STAR with asterisk character)
  */
 
 require_once __DIR__ . '/../lib/db.php';
