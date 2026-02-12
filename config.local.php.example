@@ -20,4 +20,8 @@ return [
     'username' => 'admin',
     'password_hash' => '',
   ],
+  'security' => [
+    // パスワード再設定用の秘密キー（十分に長いランダム文字列を設定し、Gitへコミットしない）
+    'password_reset_key' => 'CHANGE_ME_LONG_RANDOM',
+  ],
 ];

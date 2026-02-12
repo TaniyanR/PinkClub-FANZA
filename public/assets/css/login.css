@@ -51,3 +51,23 @@ body {
     border-radius: 4px;
 }
 h1 { margin-top: 0; text-align: center; }
+
+.admin-card--success {
+    border-color: #68b168;
+    background: #f2fbf2;
+}
+
+.login-sub-link {
+    margin-top: 10px;
+    text-align: center;
+    font-size: 12px;
+}
+
+.login-sub-link a {
+    color: #2271b1;
+    text-decoration: underline;
+}
+
+.login-sub-link a:hover {
+    opacity: 0.85;
+}

@@ -44,6 +44,12 @@ if (admin_is_logged_in()) {
 }
 
 $error = '';
+$success = '';
+
+if (isset($_SESSION['forgot_password_success']) && is_string($_SESSION['forgot_password_success'])) {
+    $success = $_SESSION['forgot_password_success'];
+    unset($_SESSION['forgot_password_success']);
+}
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $token = $_POST['_token'] ?? null;
@@ -75,6 +81,13 @@ include __DIR__ . '/partials/login_header.php';
 ?>
     <h1>管理画面ログイン</h1>
 
+
+    <?php if ($success !== '') : ?>
+        <div class="admin-card admin-card--success">
+            <p><?php echo e($success); ?></p>
+        </div>
+    <?php endif; ?>
+
     <?php if ($error !== '') : ?>
         <div class="admin-card">
             <p><?php echo e($error); ?></p>
@@ -95,4 +108,5 @@ include __DIR__ . '/partials/login_header.php';
 
         <button type="submit">ログイン</button>
     </form>
+    <p class="login-sub-link"><a href="<?php echo e(base_url() . '/forgot_password.php'); ?>">パスワードを忘れた方はコチラ</a></p>
 <?php include __DIR__ . '/partials/login_footer.php'; ?>
