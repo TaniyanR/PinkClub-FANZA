@@ -291,10 +291,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-include __DIR__ . '/partials/header.php';
-include __DIR__ . '/partials/nav.php';
+$pageTitle = 'インポート';
+ob_start();
 ?>
-<main>
     <h1>作品インポート</h1>
 
     <div class="admin-card">
@@ -338,5 +337,6 @@ include __DIR__ . '/partials/nav.php';
             </ul>
         </div>
     <?php endif; ?>
-</main>
-<?php include __DIR__ . '/partials/footer.php'; ?>
+<?php
+$content = (string)ob_get_clean();
+include __DIR__ . '/../partials/admin_layout.php';

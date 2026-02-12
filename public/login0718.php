@@ -70,10 +70,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 }
 
-include __DIR__ . '/admin/partials/header.php';
-include __DIR__ . '/admin/partials/nav.php';
+$pageTitle = '管理画面ログイン';
+include __DIR__ . '/partials/login_header.php';
 ?>
-<main>
     <h1>管理画面ログイン</h1>
 
     <?php if ($error !== '') : ?>
@@ -96,5 +95,4 @@ include __DIR__ . '/admin/partials/nav.php';
 
         <button type="submit">ログイン</button>
     </form>
-</main>
-<?php include __DIR__ . '/admin/partials/footer.php'; ?>
+<?php include __DIR__ . '/partials/login_footer.php'; ?>
