@@ -50,6 +50,6 @@ return [
 
     'admin' => [
         'username' => 'admin',
-        'password_hash' => '$2y$12$58ws2D57sDIa5vHnPiEZ.e/x6.6T.aVOg3.WfTdoiKfX92Js0MLBu',
+        'password_hash' => '$2y$12$aa6K4m5qZD3A998IJvAqeOwQH9dvtDjiMEdCn7cBWrOoJLBiZw9G6',
     ],
 ];
