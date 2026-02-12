@@ -292,6 +292,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         replace_item_relations($contentId, $makerIds, 'item_makers', 'maker_id');
                         replace_item_relations($contentId, $seriesIds, 'item_series', 'series_id');
                         replace_item_labels($contentId, $labels);
+                        
+                        // Auto-generate tags if function is available
+                        if (function_exists('generate_item_tags')) {
+                            $title = (string)($row['title'] ?? '');
+                            $category = (string)($row['category_name'] ?? '');
+                            generate_item_tags($contentId, $title, $category);
+                        }
                     }
 
                     $pdo->commit();

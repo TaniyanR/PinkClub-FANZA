@@ -15,6 +15,12 @@ function admin_menu_groups(): array
             ],
         ],
         [
+            'heading' => 'コンテンツ',
+            'items' => [
+                ['file' => 'tags.php', 'label' => 'タグ管理', 'status' => 'ready'],
+            ],
+        ],
+        [
             'heading' => '運用',
             'items' => [
                 ['file' => 'links.php', 'label' => '相互リンク管理', 'status' => 'coming_soon'],
