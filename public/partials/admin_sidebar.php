@@ -1,24 +1,33 @@
 <?php
+
 declare(strict_types=1);
 
 require_once __DIR__ . '/_helpers.php';
+require_once __DIR__ . '/../admin/menu.php';
 
 $currentScript = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
-$menuItems = [
-    ['file' => 'index.php', 'label' => 'ダッシュボード'],
-    ['file' => 'settings.php', 'label' => 'API設定'],
-    ['file' => 'import_items.php', 'label' => 'インポート'],
-    ['file' => 'analytics.php', 'label' => 'PV/UU・アクセス解析'],
-    ['file' => 'links.php', 'label' => '相互リンク管理'],
-    ['file' => 'rss.php', 'label' => 'RSS取得'],
-    ['file' => 'pages.php', 'label' => '固定ページ'],
-    ['file' => 'seo.php', 'label' => 'SEO'],
-    ['file' => 'design.php', 'label' => 'デザイン設定'],
-    ['file' => 'ads.php', 'label' => '広告/コード挿入'],
-    ['file' => 'mail.php', 'label' => 'メール'],
-    ['file' => 'backup.php', 'label' => 'Backup'],
-    ['file' => 'users.php', 'label' => 'アカウント設定'],
-    ['file' => 'change_password.php', 'label' => 'パスワード変更'],
-];
+$groups = admin_menu_groups();
 ?>
-<aside class="admin-sidebar" aria-label="管理メニュー"><nav><ul><?php foreach ($menuItems as $item) : $isActive = $currentScript === $item['file']; ?><li><a class="<?php echo $isActive ? 'is-active' : ''; ?>" href="<?php echo e(admin_url($item['file'])); ?>"><?php echo e($item['label']); ?></a></li><?php endforeach; ?></ul></nav></aside>
+<aside class="admin-sidebar" aria-label="管理メニュー">
+    <nav>
+        <?php foreach ($groups as $group) : ?>
+            <p class="admin-sidebar__heading"><?php echo e((string)$group['heading']); ?></p>
+            <ul>
+                <?php foreach ((array)$group['items'] as $item) :
+                    $file = (string)($item['file'] ?? '');
+                    $label = (string)($item['label'] ?? '');
+                    $status = (string)($item['status'] ?? 'ready');
+                    $isActive = $currentScript === $file;
+                    ?>
+                    <li>
+                        <?php if ($status === 'coming_soon') : ?>
+                            <span class="admin-menu__disabled"><?php echo e($label); ?></span>
+                        <?php else : ?>
+                            <a class="<?php echo $isActive ? 'is-active' : ''; ?>" href="<?php echo e(admin_url($file)); ?>"><?php echo e($label); ?></a>
+                        <?php endif; ?>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endforeach; ?>
+    </nav>
+</aside>
