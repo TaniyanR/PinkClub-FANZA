@@ -1,3 +1,11 @@
-<?php declare(strict_types=1); require_once __DIR__ . '/_bootstrap.php'; require_once __DIR__ . '/../../lib/db.php'; function e(string $v): string { return htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); } $rows=db()->query('SELECT * FROM pages ORDER BY updated_at DESC')->fetchAll(PDO::FETCH_ASSOC); $pageTitle='固定ページ'; ob_start();?>
-<h1>固定ページ</h1><p><a href="<?php echo e(admin_url('page_edit.php')); ?>">新規追加</a></p><div class="admin-card"><table><tr><th>ID</th><th>slug</th><th>title</th><th>公開</th><th></th></tr><?php foreach($rows as $r): ?><tr><td><?php echo e((string)$r['id']); ?></td><td><?php echo e((string)$r['slug']); ?></td><td><?php echo e((string)$r['title']); ?></td><td><?php echo e((string)$r['is_published']); ?></td><td><a href="<?php echo e(admin_url('page_edit.php?id='.(string)$r['id'])); ?>">編集</a></td></tr><?php endforeach; ?></table></div>
-<?php $content=(string)ob_get_clean(); include __DIR__.'/../partials/admin_layout.php';
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/_stub.php';
+
+admin_render_stub_page('固定ページCMS', [
+    '固定ページの一覧・検索',
+    '下書き/公開ステータス管理',
+    'メタ情報とOG設定編集',
+], '次期リリースで段階実装');

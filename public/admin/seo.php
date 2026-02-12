@@ -1,2 +1,11 @@
-<?php declare(strict_types=1); require_once __DIR__ . '/_bootstrap.php'; require_once __DIR__ . '/../../lib/app_features.php'; function e(string $v): string { return htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); } $msg=''; if(($_SERVER['REQUEST_METHOD']??'GET')==='POST' && csrf_verify((string)($_POST['_token']??''))){app_setting_set_many(['ga4_measurement_id'=>trim((string)$_POST['ga4_measurement_id']),'search_console_verification'=>trim((string)$_POST['search_console_verification']),'canonical_base'=>trim((string)$_POST['canonical_base'])]);$msg='保存しました';}
-$pageTitle='SEO'; ob_start();?><h1>SEO</h1><?php if($msg!==''): ?><div class="admin-card"><?php echo e($msg); ?></div><?php endif; ?><form class="admin-card" method="post"><input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>"><label>GA4 Measurement ID</label><input name="ga4_measurement_id" value="<?php echo e((string)app_setting_get('ga4_measurement_id','')); ?>"><label>Search Console verification</label><input name="search_console_verification" value="<?php echo e((string)app_setting_get('search_console_verification','')); ?>"><label>canonical base</label><input name="canonical_base" value="<?php echo e((string)app_setting_get('canonical_base','')); ?>"><button>保存</button></form><?php $content=(string)ob_get_clean(); include __DIR__.'/../partials/admin_layout.php';
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/_stub.php';
+
+admin_render_stub_page('sitemap / robots / SEO', [
+    'sitemap.xml自動生成・再構築',
+    'robots.txt編集と環境別切り替え',
+    'サイト全体のSEO基本設定',
+], '次期リリースで段階実装');
