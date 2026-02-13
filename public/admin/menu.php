@@ -5,49 +5,45 @@ function admin_menu_groups(): array
 {
     return [
         [
-            'heading' => 'ダッシュボード',
+            'heading' => '設定',
             'items' => [
-                ['file' => 'index.php', 'label' => '状態サマリー', 'status' => 'ready'],
+                ['file' => 'settings_site.php', 'label' => 'サイト設定'],
+                ['file' => 'users.php', 'label' => 'アカウント設定'],
+                ['file' => 'design.php', 'label' => 'デザイン設定'],
+                ['file' => 'settings_import_export.php', 'label' => 'インポート、エクスポート'],
             ],
         ],
         [
-            'heading' => '初期セットアップ',
+            'heading' => 'リンク設定',
             'items' => [
-                ['file' => 'db_init.php', 'label' => 'DB初期化', 'status' => 'ready'],
-                ['file' => 'settings.php', 'label' => 'API設定', 'status' => 'ready'],
+                ['file' => 'links.php', 'label' => '相互リンク管理'],
+                ['file' => 'rss.php', 'label' => 'RSS管理'],
             ],
         ],
         [
-            'heading' => 'データ取得',
+            'standalone' => true,
             'items' => [
-                ['file' => 'import_items.php', 'label' => 'インポート実行', 'status' => 'ready'],
-                ['file' => 'api_logs.php', 'label' => 'API履歴', 'status' => 'ready'],
+                ['file' => 'analytics.php', 'label' => 'アクセス解析'],
             ],
         ],
         [
-            'heading' => '運用',
+            'heading' => 'アフィリエイト設定',
             'items' => [
-                ['file' => 'links.php', 'label' => '相互リンク管理', 'status' => 'ready'],
-                ['file' => 'rss.php', 'label' => 'RSS管理', 'status' => 'ready'],
-                ['file' => 'analytics.php', 'label' => 'アクセス解析', 'status' => 'ready'],
-                ['file' => 'mail.php', 'label' => 'メールログ', 'status' => 'ready'],
-                ['file' => 'backup.php', 'label' => 'バックアップ', 'status' => 'ready'],
+                ['file' => 'api_settings.php', 'label' => 'API設定'],
+                ['file' => 'ads.php', 'label' => '広告コード'],
             ],
         ],
         [
-            'heading' => 'サイト管理',
+            'heading' => '固定ページ',
             'items' => [
-                ['file' => 'pages.php', 'label' => '固定ページCMS', 'status' => 'ready'],
-                ['file' => 'seo.php', 'label' => 'sitemap/robots/SEO', 'status' => 'ready'],
-                ['file' => 'ads.php', 'label' => '広告コード', 'status' => 'ready'],
-                ['file' => 'design.php', 'label' => 'デザイン設定', 'status' => 'ready'],
+                ['file' => 'pages_new.php', 'label' => '新規'],
+                ['file' => 'pages.php', 'label' => '編集'],
             ],
         ],
         [
-            'heading' => 'アカウント',
+            'standalone' => true,
             'items' => [
-                ['file' => 'users.php', 'label' => 'アカウント設定', 'status' => 'ready'],
-                ['file' => 'change_password.php', 'label' => 'パスワード変更', 'status' => 'ready'],
+                ['file' => 'mail.php', 'label' => 'メール'],
             ],
         ],
     ];
