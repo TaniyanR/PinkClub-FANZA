@@ -375,3 +375,27 @@ ALTER TABLE api_schedules ADD COLUMN IF NOT EXISTS fail_count INT NOT NULL DEFAU
 ALTER TABLE api_schedules ADD COLUMN IF NOT EXISTS last_error TEXT NULL;
 ALTER TABLE api_schedules ADD COLUMN IF NOT EXISTS max_items INT NOT NULL DEFAULT 100;
 ALTER TABLE api_schedules ADD COLUMN IF NOT EXISTS interval_hours INT NOT NULL DEFAULT 1;
+
+
+ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS display_name VARCHAR(255) NULL;
+ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS pending_email VARCHAR(255) NULL;
+ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS email_verified_at DATETIME NULL;
+ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS login_mode VARCHAR(20) NOT NULL DEFAULT 'username';
+ALTER TABLE mutual_links ADD COLUMN IF NOT EXISTS display_order INT NOT NULL DEFAULT 0;
+ALTER TABLE mutual_links ADD COLUMN IF NOT EXISTS approved_at DATETIME NULL;
+ALTER TABLE access_events ADD COLUMN IF NOT EXISTS from_id INT NULL;
+CREATE INDEX idx_mutual_links_status_approved_order ON mutual_links(status, approved_at, display_order);
+CREATE INDEX idx_access_events_created_type_from ON access_events(event_at, event_type, from_id);
+CREATE INDEX idx_rss_items_source_created ON rss_items(source_id, created_at);
+CREATE TABLE IF NOT EXISTS admin_email_verifications (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    token_hash CHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    consumed_at DATETIME NULL,
+    created_at DATETIME NOT NULL,
+    INDEX idx_admin_email_verifications_user (user_id),
+    INDEX idx_admin_email_verifications_token (token_hash),
+    INDEX idx_admin_email_verifications_expires (expires_at),
+    CONSTRAINT fk_admin_email_verifications_user FOREIGN KEY (user_id) REFERENCES admin_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

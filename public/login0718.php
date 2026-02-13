@@ -56,11 +56,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!csrf_verify(is_string($token) ? $token : null)) {
         $error = '不正なリクエストです。';
     } else {
-        $username = trim((string)($_POST['username'] ?? ''));
+        $identifier = trim((string)($_POST['identifier'] ?? ''));
         $password = (string)($_POST['password'] ?? '');
         $returnTo = normalize_return_to($_POST['return_to'] ?? '');
 
-        if (admin_login($username, $password)) {
+        if (admin_login($identifier, $password)) {
             session_regenerate_id(true);
 
             if ($returnTo !== '') {
@@ -105,8 +105,8 @@ include __DIR__ . '/partials/login_header.php';
                     <input type="hidden" name="return_to" value="<?php echo e($returnTo); ?>">
                 <?php endif; ?>
 
-                <label>ユーザー名</label>
-                <input type="text" name="username" autocomplete="username" required>
+                <label>ユーザー名またはメールアドレス</label>
+                <input type="text" name="identifier" autocomplete="username" required>
 
                 <label>パスワード</label>
                 <input type="password" name="password" autocomplete="current-password" required>

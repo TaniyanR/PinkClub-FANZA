@@ -3,8 +3,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/app_features.php';
+require_once __DIR__ . '/../../lib/site_settings.php';
 
-$siteTitle = (string)app_setting_get('site_name', (string)config_get('site.title', 'PinkClub-FANZA'));
+$siteTitle = site_setting_get('site.name', '');
+if ($siteTitle === '') {
+    $siteTitle = (string)config_get('site.title', 'PinkClub-FANZA');
+}
 $defaultDescription = (string)config_get('site.description', 'FANZA作品を実データで紹介するPinkClub-FANZA。');
 
 $rawPageTitle = isset($pageTitle) && $pageTitle !== '' ? (string)$pageTitle : null;
@@ -14,7 +18,7 @@ $canonicalUrl = isset($canonicalUrl) && $canonicalUrl !== '' ? (string)$canonica
 if ($canonicalBase !== '') {
     $canonicalUrl = rtrim($canonicalBase, '/') . current_path();
 }
-$ogImage = isset($ogImage) && $ogImage !== '' ? (string)$ogImage : (string)app_setting_get('ogp_default_image', '');
+$ogImage = isset($ogImage) && $ogImage !== '' ? (string)$ogImage : site_setting_get('design.ogp_image_url', '');
 $ogType = isset($ogType) && $ogType !== '' ? (string)$ogType : 'website';
 $fullTitle = $rawPageTitle !== null ? ($rawPageTitle . ' | ' . $siteTitle) : $siteTitle;
 $ga4Id = (string)app_setting_get('ga4_measurement_id', '');
@@ -55,6 +59,8 @@ $adDevice = ad_current_device();
 <header class="site-header">
     <div class="site-header__inner">
         <div class="site-header__brand">
+            <?php $logoUrl = site_setting_get('design.logo_url', ''); ?>
+            <?php if ($logoUrl !== '') : ?><img src="<?php echo e($logoUrl); ?>" alt="<?php echo e($siteTitle); ?>" style="height:36px;width:auto;display:block;margin-bottom:4px;"><?php endif; ?>
             <a class="site-header__title" href="/"><?php echo e($siteTitle); ?></a>
             <div class="site-header__note"><strong>当サイトはプロモーションを含みます。</strong></div>
         </div>

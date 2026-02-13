@@ -2,34 +2,27 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_common.php';
+require_once __DIR__ . '/../../lib/site_settings.php';
 
 $error = '';
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!admin_post_csrf_valid()) {
         $error = 'CSRFトークンが無効です。';
     } else {
-        $pairs = [
+        site_setting_set_many([
             'site.name' => trim((string)($_POST['site_name'] ?? '')),
             'site.base_url' => trim((string)($_POST['base_url'] ?? '')),
-            'site.contact_email' => trim((string)($_POST['contact_email'] ?? '')),
-            'site.show_rss' => isset($_POST['show_rss']) ? '1' : '0',
-            'site.show_links' => isset($_POST['show_links']) ? '1' : '0',
-            'site.show_mail' => isset($_POST['show_mail']) ? '1' : '0',
-        ];
-
-        foreach ($pairs as $key => $value) {
-            db()->prepare('INSERT INTO site_settings(setting_key,setting_value,updated_at,created_at) VALUES (:k,:v,NOW(),NOW()) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value), updated_at=NOW()')
-                ->execute([':k' => $key, ':v' => $value]);
-        }
-
+        ]);
         admin_flash_set('ok', 'サイト設定を保存しました。');
         header('Location: ' . admin_url('settings_site.php'));
         exit;
     }
 }
 
-$settings = db()->query("SELECT setting_key,setting_value FROM site_settings WHERE setting_key LIKE 'site.%'")->fetchAll(PDO::FETCH_KEY_PAIR);
 $ok = admin_flash_get('ok');
+$siteName = site_setting_get('site.name', '');
+$baseUrlOverride = site_setting_get('site.base_url', '');
+$autoBaseUrl = detect_base_url();
 
 $pageTitle = 'サイト設定';
 ob_start();
@@ -42,17 +35,11 @@ ob_start();
         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
 
         <label>サイト名</label>
-        <input type="text" name="site_name" value="<?php echo e((string)($settings['site.name'] ?? 'PinkClub-FANZA')); ?>" required>
+        <input type="text" name="site_name" value="<?php echo e($siteName); ?>">
 
-        <label>URL</label>
-        <input type="url" name="base_url" value="<?php echo e((string)($settings['site.base_url'] ?? base_url())); ?>" required>
-
-        <label>連絡先メール</label>
-        <input type="email" name="contact_email" value="<?php echo e((string)($settings['site.contact_email'] ?? '')); ?>">
-
-        <label><input type="checkbox" name="show_rss" value="1" <?php echo (($settings['site.show_rss'] ?? '1') === '1') ? 'checked' : ''; ?>> RSS表示</label>
-        <label><input type="checkbox" name="show_links" value="1" <?php echo (($settings['site.show_links'] ?? '1') === '1') ? 'checked' : ''; ?>> 相互リンク表示</label>
-        <label><input type="checkbox" name="show_mail" value="1" <?php echo (($settings['site.show_mail'] ?? '1') === '1') ? 'checked' : ''; ?>> メール導線表示</label>
+        <label>サイトURL（手動上書き）</label>
+        <input type="url" name="base_url" value="<?php echo e($baseUrlOverride); ?>" placeholder="未入力時は自動検出">
+        <p>自動検出URL: <?php echo e($autoBaseUrl); ?></p>
 
         <button type="submit">保存</button>
     </form>
