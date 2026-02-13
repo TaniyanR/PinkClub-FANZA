@@ -190,12 +190,16 @@ CREATE TABLE IF NOT EXISTS pages (
 
 CREATE TABLE IF NOT EXISTS mail_logs (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    created_at DATETIME NOT NULL,
-    from_email VARCHAR(255) NOT NULL,
+    direction ENUM('in','out') NOT NULL DEFAULT 'in',
+    from_name VARCHAR(255) DEFAULT NULL,
+    from_email VARCHAR(255) DEFAULT NULL,
+    to_email VARCHAR(255) DEFAULT NULL,
     subject VARCHAR(255) NOT NULL,
     body TEXT NOT NULL,
-    sent_ok TINYINT(1) NOT NULL DEFAULT 0,
-    error_message TEXT DEFAULT NULL,
+    status ENUM('received','sent','failed') NOT NULL DEFAULT 'received',
+    last_error TEXT DEFAULT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME DEFAULT NULL,
     INDEX idx_mail_logs_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

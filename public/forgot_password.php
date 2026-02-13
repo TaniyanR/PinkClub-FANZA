@@ -26,8 +26,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $body = "管理者パスワード再設定リンク\n" . $link;
             $to = (string)(config_get('mail.to', 'admin@example.com'));
             $ok = @mail($to, '[PinkClub-FANZA] Password Reset', $body);
-            db()->prepare('INSERT INTO mail_logs(created_at, from_email, subject, body, sent_ok, error_message) VALUES (NOW(), :from, :subj, :body, :ok, :err)')
-                ->execute([':from' => 'noreply@pinkclub.local', ':subj' => 'Password Reset', ':body' => $body, ':ok' => $ok ? 1 : 0, ':err' => $ok ? null : 'mail() unavailable']);
+            db()->prepare('INSERT INTO mail_logs(direction,from_name,from_email,to_email,subject,body,status,last_error,created_at,updated_at) VALUES ("out",NULL,:from,:to,:subj,:body,:status,:err,NOW(),NOW())')
+                ->execute([':from' => 'noreply@pinkclub.local', ':to' => $to, ':subj' => 'Password Reset', ':body' => $body, ':status' => $ok ? 'sent' : 'failed', ':err' => $ok ? null : 'mail() unavailable']);
         }
         $message = '入力情報を受け付けました。該当ユーザーが存在する場合は再設定案内を送信しました。';
     }
