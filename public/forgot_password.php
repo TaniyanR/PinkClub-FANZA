@@ -28,8 +28,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $ok = @mail($to, '[PinkClub-FANZA] Password Reset', $body);
             db()->prepare('INSERT INTO mail_logs(direction,from_name,from_email,to_email,subject,body,status,last_error,created_at,updated_at) VALUES ("out",NULL,:from,:to,:subj,:body,:status,:err,NOW(),NOW())')
                 ->execute([':from' => 'noreply@pinkclub.local', ':to' => $to, ':subj' => 'Password Reset', ':body' => $body, ':status' => $ok ? 'sent' : 'failed', ':err' => $ok ? null : 'mail() unavailable']);
+            if (!$ok) {
+                $message = '現在メールを送信できません。しばらくしてから再度お試しください。';
+            }
         }
-        $message = '入力情報を受け付けました。該当ユーザーが存在する場合は再設定案内を送信しました。';
+        if ($message === '') {
+            $message = '入力情報を受け付けました。該当ユーザーが存在する場合は再設定案内を送信しました。';
+        }
     }
 }
 
