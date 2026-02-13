@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_common.php';
+admin_trace_push('page:start:ads.php');
 require_once __DIR__ . '/../partials/_helpers.php';
 
 $slotLabels = [
@@ -107,4 +108,6 @@ ob_start();
 </div>
 <?php
 $content = (string)ob_get_clean();
+admin_trace_push('page:content:ready');
+admin_trace_push('page:render:layout');
 include __DIR__ . '/../partials/admin_layout.php';
