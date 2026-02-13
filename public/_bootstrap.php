@@ -2,38 +2,79 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../lib/config.php';
-require_once __DIR__ . '/../lib/db.php';
-require_once __DIR__ . '/../lib/scheduler.php';
-require_once __DIR__ . '/partials/_helpers.php';
+function app_h(string $value): string
+{
+    return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
+}
+
+function app_bootstrap_is_development(): bool
+{
+    $appEnv = getenv('APP_ENV');
+    if (is_string($appEnv) && $appEnv !== '' && in_array(strtolower($appEnv), ['dev', 'development', 'local', 'staging'], true)) {
+        return true;
+    }
+
+    $appDebug = getenv('APP_DEBUG');
+    if (is_string($appDebug) && in_array(strtolower($appDebug), ['1', 'true', 'yes', 'on'], true)) {
+        return true;
+    }
+
+    return filter_var((string)ini_get('display_errors'), FILTER_VALIDATE_BOOL) === true;
+}
 
 function app_is_development(): bool
 {
-    $appEnv = strtolower((string)config_get('app.env', ''));
-    if ($appEnv !== '' && in_array($appEnv, ['dev', 'development', 'local', 'staging'], true)) {
-        return true;
+    if (function_exists('config_get')) {
+        $appEnv = strtolower((string)config_get('app.env', ''));
+        if ($appEnv !== '' && in_array($appEnv, ['dev', 'development', 'local', 'staging'], true)) {
+            return true;
+        }
+
+        $debug = config_get('app.debug', null);
+        if (is_bool($debug)) {
+            return $debug;
+        }
     }
 
-    $debug = config_get('app.debug', null);
-    if (is_bool($debug)) {
-        return $debug;
+    return app_bootstrap_is_development();
+}
+
+function app_log_error(string $message, ?Throwable $exception = null): void
+{
+    if ($exception instanceof Throwable) {
+        $message .= sprintf(
+            ' | %s: %s @ %s:%d',
+            get_class($exception),
+            $exception->getMessage(),
+            $exception->getFile(),
+            $exception->getLine()
+        );
     }
 
-    $envDebug = getenv('APP_DEBUG');
-    if (is_string($envDebug) && in_array(strtolower($envDebug), ['1', 'true', 'yes', 'on'], true)) {
-        return true;
+    if (function_exists('log_message')) {
+        log_message('[front] ' . $message);
+        return;
     }
 
-    return false;
+    error_log('[front] ' . $message);
 }
 
 function render_fatal_error_page(string $message, ?Throwable $exception = null): never
 {
     $isDevelopment = app_is_development();
-    http_response_code(500);
+    if (headers_sent() === false) {
+        http_response_code(500);
+        header('Content-Type: text/html; charset=UTF-8');
+    }
 
     $detail = $isDevelopment && $exception !== null
-        ? $exception->getMessage() . "\n\n" . $exception->getTraceAsString()
+        ? sprintf(
+            "%s\n\n%s:%d\n\n%s",
+            $exception->getMessage(),
+            $exception->getFile(),
+            $exception->getLine(),
+            $exception->getTraceAsString()
+        )
         : '';
 
     $escape = static function (string $value): string {
@@ -41,11 +82,11 @@ function render_fatal_error_page(string $message, ?Throwable $exception = null):
             return e($value);
         }
 
-        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
+        return app_h($value);
     };
 
     try {
-    ?>
+        ?>
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -81,14 +122,70 @@ function render_fatal_error_page(string $message, ?Throwable $exception = null):
 
         echo '<!doctype html><html lang="ja"><head><meta charset="UTF-8"><title>エラーが発生しました</title></head><body>';
         echo '<h1>エラーが発生しました</h1>';
-        echo '<p>' . htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '</p>';
-        if ($isDevelopment && $exception !== null) {
-            echo '<pre>' . htmlspecialchars($detail, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '</pre>';
+        echo '<p>' . app_h($message) . '</p>';
+        if ($isDevelopment && $detail !== '') {
+            echo '<pre>' . app_h($detail) . '</pre>';
         }
         echo '</body></html>';
     }
 
     exit;
+}
+
+set_error_handler(static function (int $severity, string $message, string $file = '', int $line = 0): bool {
+    if (!(error_reporting() & $severity)) {
+        return false;
+    }
+
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+
+set_exception_handler(static function (Throwable $e): void {
+    try {
+        app_log_error('Unhandled exception', $e);
+    } catch (Throwable) {
+        error_log('[front] Unhandled exception logging failed.');
+    }
+
+    render_fatal_error_page('予期しないエラーが発生しました。', $e);
+});
+
+register_shutdown_function(static function (): void {
+    $error = error_get_last();
+    if (!is_array($error)) {
+        return;
+    }
+
+    $fatalTypes = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR];
+    if (!in_array((int)($error['type'] ?? 0), $fatalTypes, true)) {
+        return;
+    }
+
+    $exception = new ErrorException(
+        (string)($error['message'] ?? 'fatal error'),
+        0,
+        (int)($error['type'] ?? E_ERROR),
+        (string)($error['file'] ?? __FILE__),
+        (int)($error['line'] ?? 0)
+    );
+
+    try {
+        app_log_error('Shutdown fatal error', $exception);
+    } catch (Throwable) {
+        error_log('[front] Shutdown fatal error logging failed.');
+    }
+
+    render_fatal_error_page('致命的なエラーが発生しました。', $exception);
+});
+
+try {
+    require_once __DIR__ . '/../lib/config.php';
+    require_once __DIR__ . '/../lib/db.php';
+    require_once __DIR__ . '/../lib/scheduler.php';
+    require_once __DIR__ . '/partials/_helpers.php';
+} catch (Throwable $e) {
+    app_log_error('Require failed in front bootstrap', $e);
+    render_fatal_error_page('システムの初期化に失敗しました。', $e);
 }
 
 function render_setup_needed(?Throwable $exception = null): never
@@ -144,54 +241,14 @@ if (!headers_sent()) {
 
 ini_set('display_errors', app_is_development() ? '1' : '0');
 
-set_exception_handler(static function (Throwable $e): void {
-    try {
-        log_message('[front_exception] ' . $e->getMessage());
-    } catch (Throwable) {
-        // ignore logging failure and continue rendering the error page
-    }
-
-    render_fatal_error_page('予期しないエラーが発生しました。', $e);
-});
-
-set_error_handler(static function (int $severity, string $message, string $file, int $line): bool {
-    if (!(error_reporting() & $severity)) {
-        return false;
-    }
-
-    throw new ErrorException($message, 0, $severity, $file, $line);
-});
-
-register_shutdown_function(static function (): void {
-    $error = error_get_last();
-    if ($error === null) {
-        return;
-    }
-
-    $fatalTypes = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR];
-    if (!in_array($error['type'] ?? 0, $fatalTypes, true)) {
-        return;
-    }
-
-    $message = sprintf('%s in %s:%d', (string)$error['message'], (string)$error['file'], (int)$error['line']);
-    try {
-        log_message('[front_shutdown] ' . $message);
-    } catch (Throwable) {
-        // ignore logging failure and continue rendering the error page
-    }
-
-    render_fatal_error_page('致命的なエラーが発生しました。', new RuntimeException($message));
-});
-
 try {
     db();
 } catch (Throwable $e) {
-    log_message('[front_setup_needed] ' . $e->getMessage());
+    app_log_error('Setup needed', $e);
     render_setup_needed($e);
 }
 
 maybe_run_scheduled_jobs();
-
 
 if (isset($_GET['from']) && preg_match('/^\d+$/', (string)$_GET['from']) === 1) {
     try {
@@ -203,6 +260,6 @@ if (isset($_GET['from']) && preg_match('/^\d+$/', (string)$_GET['from']) === 1) 
                 ':ip_hash' => hash('sha256', (string)($_SERVER['REMOTE_ADDR'] ?? '')),
             ]);
     } catch (Throwable $e) {
-        log_message('[track_in] ' . $e->getMessage());
+        app_log_error('track_in failed', $e);
     }
 }
