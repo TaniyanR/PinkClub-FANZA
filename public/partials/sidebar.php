@@ -16,13 +16,12 @@ $adHtml = function_exists('app_setting_get') ? (string)app_setting_get('sidebar_
 
 $scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $isHome = $scriptName === 'index.php';
-$isItem = $scriptName === 'item.php';
-$scope = site_setting_get('links.display_scope', 'both');
-$showLinks = ($scope === 'both' && ($isHome || $isItem)) || ($scope === 'home' && $isHome) || ($scope === 'item' && $isItem);
+$linksEnabled = site_setting_get('links_display_enabled', '1') === '1';
+$showLinks = $isHome && $linksEnabled;
 
 $mutualLinks = [];
 if ($showLinks) {
-    $sortMode = (string)site_setting_get('links.sort_mode', 'manual');
+    $sortMode = (string)site_setting_get('links_sort_mode', 'manual');
     $orderBy = 'display_order ASC, id DESC';
     if ($sortMode === 'approved_desc') {
         $orderBy = 'approved_at DESC, id DESC';
