@@ -47,12 +47,22 @@ function admin_log_error(string $message, ?Throwable $exception = null): void
         );
     }
 
-    if (function_exists('log_message')) {
-        log_message('[admin] ' . $message);
-        return;
+    $line = '[admin] ' . $message;
+
+    try {
+        if (function_exists('log_message')) {
+            log_message($line);
+            return;
+        }
+    } catch (Throwable) {
+        // fallback to error_log below
     }
 
-    error_log('[admin] ' . $message);
+    try {
+        error_log($line);
+    } catch (Throwable) {
+        // no-op: logging must never interrupt rendering
+    }
 }
 
 function admin_render_plain_error_page(string $title, string $message, ?Throwable $exception = null): void
