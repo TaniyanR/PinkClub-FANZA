@@ -3,6 +3,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_helpers.php';
 
+if (headers_sent() === false) {
+    header('X-Robots-Tag: noindex, nofollow');
+}
+
 $siteTitle = (string)config_get('site.title', 'PinkClub-FANZA');
 $rawPageTitle = isset($pageTitle) && $pageTitle !== '' ? (string)$pageTitle : 'ログイン';
 $fullTitle = $rawPageTitle . ' | ' . $siteTitle;
@@ -12,6 +16,7 @@ $fullTitle = $rawPageTitle . ' | ' . $siteTitle;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
     <title><?php echo e($fullTitle); ?></title>
     <link rel="stylesheet" href="<?php echo e(base_url() . '/assets/css/login.css'); ?>">
 </head>
