@@ -26,6 +26,8 @@ $scMeta = (string)app_setting_get('search_console_verification', '');
 $themeColor = (string)app_setting_get('theme_color', '');
 $headCode = (string)app_setting_get('head_injection_code', '');
 track_page_view($itemCid ?? null);
+$adPageType = ad_current_page_type();
+$adDevice = ad_current_device();
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -71,4 +73,6 @@ track_page_view($itemCid ?? null);
         </div>
     </div>
 </header>
+<?php render_ad('header_left_728x90', $adPageType, 'pc'); ?>
+<?php render_ad('sp_header_below', $adPageType, 'sp'); ?>
 <div class="site-body">

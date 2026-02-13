@@ -10,6 +10,7 @@ $footerText = (string)app_setting_get('footer_text', '');
 $bodyEndCode = (string)app_setting_get('body_end_injection_code', '');
 ?>
 </div>
+<?php render_ad('sp_footer_above', ad_current_page_type(), 'sp'); ?>
 <footer class="site-footer">
     <div class="site-footer__inner">
         <div class="site-footer__credit">

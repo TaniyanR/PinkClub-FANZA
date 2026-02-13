@@ -11,11 +11,24 @@ require_once __DIR__ . '/../../lib/site_settings.php';
 $sidebarGenres = fetch_genres(8, 0);
 $sidebarMakers = fetch_makers(8, 0);
 $sidebarSeries = fetch_series(8, 0);
-$adHtml = (string)app_setting_get('sidebar_ad_html', '');
 
+/**
+ * 旧方式の広告HTML（存在する場合だけフォールバックで使う）
+ * ※新方式（render_ad）を優先したいので、ここは保険。
+ */
+$adHtml = '';
+if (function_exists('app_setting_get')) {
+    $adHtml = (string)app_setting_get('sidebar_ad_html', '');
+}
+
+/**
+ * 相互リンク（index.php のみ表示）
+ */
 $mutualLinks = [];
 if (basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'index.php') {
-    $sortMode = site_setting_get('links.sort_mode', 'manual');
+    $sortMode = (string)site_setting_get('links.sort_mode', 'manual');
+
+    // ORDER BY は固定候補のみ（SQL注入の余地が出ないように）
     $orderBy = 'display_order ASC, id DESC';
     if ($sortMode === 'approved_desc') {
         $orderBy = 'approved_at DESC, id DESC';
@@ -24,9 +37,14 @@ if (basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'index.php') {
     } elseif ($sortMode === 'in_desc') {
         $orderBy = '(SELECT COUNT(*) FROM access_events ae WHERE ae.event_type="in" AND ae.link_id=mutual_links.id AND ae.event_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)) DESC, id DESC';
     }
-    $mutualLinks = db()->query("SELECT id,site_name,site_url FROM mutual_links WHERE status='approved' ORDER BY {$orderBy} LIMIT 50")->fetchAll(PDO::FETCH_ASSOC);
+
+    $sql = "SELECT id,site_name,site_url FROM mutual_links WHERE status='approved' ORDER BY {$orderBy} LIMIT 50";
+    $mutualLinks = db()->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 }
 
+/**
+ * 最新RSS（5件）
+ */
 $rssLatest = [];
 try {
     $stmt = db()->query('SELECT title,url,image_url FROM rss_items ORDER BY published_at DESC, id DESC LIMIT 5');
@@ -36,11 +54,96 @@ try {
 }
 ?>
 <aside class="sidebar" style="--links-box-max-height:420px;">
-    <div class="sidebar-block"><h3>クイックメニュー</h3><ul><li><a href="/posts.php">作品一覧</a></li><li><a href="/rss.php">RSS</a></li><li><a href="/contact.php">お問い合わせ</a></li><li><a href="/links.php">リンク集</a></li></ul></div>
-    <?php if ($mutualLinks !== []) : ?><div class="sidebar-block"><h3>相互リンク</h3><ul style="max-height:var(--links-box-max-height);overflow:auto;"><?php foreach ($mutualLinks as $link) : ?><li><a href="<?php echo e(base_url() . '/out.php?id=' . (string)$link['id']); ?>" target="_blank" rel="noopener noreferrer"><?php echo e((string)$link['site_name']); ?></a></li><?php endforeach; ?></ul></div><?php endif; ?>
-    <div class="sidebar-block"><h3>ジャンル</h3><ul><?php foreach ($sidebarGenres as $genre) : ?><li><a href="/genre.php?id=<?php echo urlencode((string)$genre['id']); ?>"><?php echo e((string)$genre['name']); ?></a></li><?php endforeach; ?></ul></div>
-    <div class="sidebar-block"><h3>メーカー</h3><ul><?php foreach ($sidebarMakers as $maker) : ?><li><a href="/maker.php?id=<?php echo urlencode((string)$maker['id']); ?>"><?php echo e((string)$maker['name']); ?></a></li><?php endforeach; ?></ul></div>
-    <div class="sidebar-block"><h3>シリーズ</h3><ul><?php foreach ($sidebarSeries as $series) : ?><li><a href="/series_one.php?id=<?php echo urlencode((string)$series['id']); ?>"><?php echo e((string)$series['name']); ?></a></li><?php endforeach; ?></ul></div>
-    <?php if ($rssLatest !== []) : ?><div class="sidebar-block"><h3>最新RSS</h3><ul><?php foreach ($rssLatest as $rss) : ?><li><?php if ((string)($rss['image_url'] ?? '') !== '') : ?><img src="<?php echo e((string)$rss['image_url']); ?>" alt="" style="max-width:100%;height:auto"><?php endif; ?><a href="<?php echo e((string)$rss['url']); ?>" target="_blank" rel="noopener noreferrer"><?php echo e((string)$rss['title']); ?></a></li><?php endforeach; ?></ul></div><?php endif; ?>
-    <div class="sidebar-block"><h3>広告枠</h3><?php if ($adHtml !== '') : ?><?php echo $adHtml; ?><?php else : ?><div class="ad-box ad-box--sidebar" aria-label="広告枠">300x250</div><?php endif; ?></div>
+    <div class="sidebar-block">
+        <h3>クイックメニュー</h3>
+        <ul>
+            <li><a href="/posts.php">作品一覧</a></li>
+            <li><a href="/rss.php">RSS</a></li>
+            <li><a href="/contact.php">お問い合わせ</a></li>
+            <li><a href="/links.php">リンク集</a></li>
+        </ul>
+    </div>
+
+    <?php if ($mutualLinks !== []) : ?>
+        <div class="sidebar-block">
+            <h3>相互リンク</h3>
+            <ul style="max-height:var(--links-box-max-height);overflow:auto;">
+                <?php foreach ($mutualLinks as $link) : ?>
+                    <li>
+                        <a href="<?php echo e(base_url() . '/out.php?id=' . (string)$link['id']); ?>"
+                           target="_blank" rel="noopener noreferrer">
+                            <?php echo e((string)$link['site_name']); ?>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+
+    <div class="sidebar-block">
+        <h3>ジャンル</h3>
+        <ul>
+            <?php foreach ($sidebarGenres as $genre) : ?>
+                <li><a href="/genre.php?id=<?php echo urlencode((string)$genre['id']); ?>"><?php echo e((string)$genre['name']); ?></a></li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+
+    <div class="sidebar-block">
+        <h3>メーカー</h3>
+        <ul>
+            <?php foreach ($sidebarMakers as $maker) : ?>
+                <li><a href="/maker.php?id=<?php echo urlencode((string)$maker['id']); ?>"><?php echo e((string)$maker['name']); ?></a></li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+
+    <div class="sidebar-block">
+        <h3>シリーズ</h3>
+        <ul>
+            <?php foreach ($sidebarSeries as $series) : ?>
+                <li><a href="/series_one.php?id=<?php echo urlencode((string)$series['id']); ?>"><?php echo e((string)$series['name']); ?></a></li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+
+    <?php if ($rssLatest !== []) : ?>
+        <div class="sidebar-block">
+            <h3>最新RSS</h3>
+            <ul>
+                <?php foreach ($rssLatest as $rss) : ?>
+                    <li>
+                        <?php if ((string)($rss['image_url'] ?? '') !== '') : ?>
+                            <img src="<?php echo e((string)$rss['image_url']); ?>" alt="" style="max-width:100%;height:auto">
+                        <?php endif; ?>
+                        <a href="<?php echo e((string)$rss['url']); ?>" target="_blank" rel="noopener noreferrer">
+                            <?php echo e((string)$rss['title']); ?>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+
+    <?php
+    // 新方式の広告（設定でOFFなら出さない）
+    $canUseNewAd = function_exists('should_show_ad') && function_exists('render_ad') && function_exists('ad_current_page_type');
+    if ($canUseNewAd && should_show_ad('sidebar_bottom', ad_current_page_type(), 'pc')) : ?>
+        <div class="sidebar-block">
+            <h3>広告枠</h3>
+            <?php render_ad('sidebar_bottom', ad_current_page_type(), 'pc'); ?>
+        </div>
+    <?php elseif ($adHtml !== '') : ?>
+        <!-- 旧方式フォールバック（必要なら残す） -->
+        <div class="sidebar-block">
+            <h3>広告枠</h3>
+            <?php echo $adHtml; ?>
+        </div>
+    <?php else : ?>
+        <!-- 何も無い時のダミー（不要なら丸ごと削除OK） -->
+        <div class="sidebar-block">
+            <h3>広告枠</h3>
+            <div class="ad-box ad-box--sidebar" aria-label="広告枠">300x250</div>
+        </div>
+    <?php endif; ?>
 </aside>

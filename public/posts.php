@@ -48,6 +48,7 @@ include __DIR__ . '/partials/nav_search.php';
     <?php include __DIR__ . '/partials/sidebar.php'; ?>
 
     <main class="main-content">
+        <?php render_ad('content_top', 'list', 'pc'); ?>
         <section class="block">
             <div class="section-head">
                 <h1 class="section-title">作品一覧</h1>
@@ -121,6 +122,7 @@ include __DIR__ . '/partials/nav_search.php';
                 <span class="page-btn">次へ</span>
             <?php endif; ?>
         </nav>
+        <?php render_ad('content_bottom', 'list', 'pc'); ?>
     </main>
 </div>
 <?php include __DIR__ . '/partials/footer.php'; ?>

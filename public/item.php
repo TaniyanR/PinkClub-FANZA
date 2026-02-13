@@ -63,6 +63,7 @@ include __DIR__ . '/partials/nav_search.php';
     </aside>
 
     <main class="main-content detail-page">
+        <?php render_ad('content_top', 'item', 'pc'); ?>
         <nav class="breadcrumb" aria-label="breadcrumb">
             <a href="/">ホーム</a><span>/</span><a href="/posts.php">作品一覧</a><span>/</span><span><?php echo e((string)$item['title']); ?></span>
         </nav>
@@ -106,12 +107,7 @@ include __DIR__ . '/partials/nav_search.php';
             </section>
         <?php endif; ?>
 
-        <?php $itemInlineAd = (string)app_setting_get('item_inline_ad_html', ''); ?>
-        <?php if ($itemInlineAd !== '') : ?>
-            <section class="block"><?php echo $itemInlineAd; ?></section>
-        <?php else : ?>
-            <section class="block"><div class="ad-box">記事内広告枠</div></section>
-        <?php endif; ?>
+        <?php render_ad('content_bottom', 'item', 'pc'); ?>
 
         <?php if ($related !== []) : ?>
             <section class="detail-related" id="related">
