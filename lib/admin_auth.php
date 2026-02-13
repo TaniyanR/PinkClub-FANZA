@@ -8,6 +8,11 @@ require_once __DIR__ . '/db.php';
 const ADMIN_DEFAULT_USERNAME = 'admin';
 const ADMIN_DEFAULT_PASSWORD = 'password';
 
+function admin_is_dev_env(): bool
+{
+    return strtolower((string)config_get('app.env', '')) === 'dev';
+}
+
 function admin_session_start(): void
 {
     if (session_status() !== PHP_SESSION_ACTIVE) {
@@ -95,41 +100,114 @@ SQL;
     return is_array($row) ? $row : null;
 }
 
-function admin_login(string $username_or_email, string $password): bool
+function admin_config_authenticate(string $identifier, string $password): ?array
+{
+    $configUsername = (string)config_get('admin.username', ADMIN_DEFAULT_USERNAME);
+    $configPasswordHash = (string)config_get('admin.password_hash', '');
+
+    if ($configPasswordHash === '' || !hash_equals($configUsername, $identifier)) {
+        return null;
+    }
+
+    if (!password_verify($password, $configPasswordHash)) {
+        return null;
+    }
+
+    return [
+        'id' => 0,
+        'username' => $configUsername,
+        'email' => null,
+        'login_mode' => 'config',
+        'password_hash' => $configPasswordHash,
+    ];
+}
+
+function admin_attempt_login(string $username_or_email, string $password): array
 {
     admin_session_start();
 
-    if (!admin_users_table_available()) {
-        return false;
-    }
-
-    admin_ensure_default_user();
-
     $identifier = trim($username_or_email);
     if ($identifier === '') {
-        return false;
+        return [
+            'success' => false,
+            'auth_source' => 'unknown',
+            'admin_users_table_available' => admin_users_table_available(),
+            'failure_reason' => 'identifier empty',
+        ];
     }
 
-    $admin = admin_find_user_by_identifier($identifier);
+    $tableAvailable = admin_users_table_available();
+    if ($tableAvailable) {
+        admin_ensure_default_user();
+
+        $admin = admin_find_user_by_identifier($identifier);
+        if (!is_array($admin)) {
+            return [
+                'success' => false,
+                'auth_source' => 'db',
+                'admin_users_table_available' => true,
+                'failure_reason' => 'user not found',
+            ];
+        }
+
+        $passwordHash = (string)($admin['password_hash'] ?? '');
+        if ($passwordHash === '' || !password_verify($password, $passwordHash)) {
+            return [
+                'success' => false,
+                'auth_source' => 'db',
+                'admin_users_table_available' => true,
+                'failure_reason' => 'password mismatch',
+            ];
+        }
+
+        session_regenerate_id(true);
+        $_SESSION['admin_user'] = [
+            'id' => (int)$admin['id'],
+            'username' => (string)$admin['username'],
+            'email' => isset($admin['email']) && is_string($admin['email']) ? $admin['email'] : null,
+            'login_mode' => isset($admin['login_mode']) && is_string($admin['login_mode']) ? $admin['login_mode'] : null,
+            'password_hash' => $passwordHash,
+        ];
+
+        return [
+            'success' => true,
+            'auth_source' => 'db',
+            'admin_users_table_available' => true,
+            'failure_reason' => '',
+        ];
+    }
+
+    $admin = admin_config_authenticate($identifier, $password);
     if (!is_array($admin)) {
-        return false;
-    }
-
-    $passwordHash = (string)($admin['password_hash'] ?? '');
-    if ($passwordHash === '' || !password_verify($password, $passwordHash)) {
-        return false;
+        return [
+            'success' => false,
+            'auth_source' => 'config',
+            'admin_users_table_available' => false,
+            'failure_reason' => 'config auth failed',
+        ];
     }
 
     session_regenerate_id(true);
     $_SESSION['admin_user'] = [
-        'id' => (int)$admin['id'],
+        'id' => 0,
         'username' => (string)$admin['username'],
-        'email' => isset($admin['email']) && is_string($admin['email']) ? $admin['email'] : null,
-        'login_mode' => isset($admin['login_mode']) && is_string($admin['login_mode']) ? $admin['login_mode'] : null,
-        'password_hash' => $passwordHash,
+        'email' => null,
+        'login_mode' => 'config',
+        'password_hash' => (string)$admin['password_hash'],
     ];
 
-    return true;
+    return [
+        'success' => true,
+        'auth_source' => 'config',
+        'admin_users_table_available' => false,
+        'failure_reason' => '',
+    ];
+}
+
+function admin_login(string $username_or_email, string $password): bool
+{
+    $attempt = admin_attempt_login($username_or_email, $password);
+    return ($attempt['success'] ?? false) === true;
 }
 
 function admin_logout(): void

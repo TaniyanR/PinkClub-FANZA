@@ -45,6 +45,7 @@ if (admin_is_logged_in()) {
 
 $error = '';
 $success = '';
+$devDiagnostic = '';
 
 if (isset($_SESSION['forgot_password_success']) && is_string($_SESSION['forgot_password_success'])) {
     $success = $_SESSION['forgot_password_success'];
@@ -54,13 +55,24 @@ if (isset($_SESSION['forgot_password_success']) && is_string($_SESSION['forgot_p
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $token = $_POST['_token'] ?? null;
     if (!csrf_verify(is_string($token) ? $token : null)) {
+        if (admin_is_dev_env()) {
+            $sessionId = session_id();
+            $userAgent = mb_substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255);
+            log_message(sprintf('[admin_login] CSRF failed | session_id=%s | user_agent=%s', $sessionId, $userAgent));
+        }
         $error = '不正なリクエストです。';
     } else {
         $identifier = trim((string)($_POST['identifier'] ?? ''));
         $password = (string)($_POST['password'] ?? '');
         $returnTo = normalize_return_to($_POST['return_to'] ?? '');
 
-        if (admin_login($identifier, $password)) {
+        $attempt = admin_attempt_login($identifier, $password);
+        $usedDbAuth = (($attempt['auth_source'] ?? '') === 'db');
+        if (admin_is_dev_env()) {
+            $devDiagnostic = $usedDbAuth ? '診断: DB認証を使いました。' : '診断: Config認証を使いました。';
+        }
+
+        if (($attempt['success'] ?? false) === true) {
             session_regenerate_id(true);
 
             if ($returnTo !== '') {
@@ -70,6 +82,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
             header('Location: ' . admin_url('index.php'));
             exit;
+        }
+
+        if (admin_is_dev_env()) {
+            $identifierLength = mb_strlen($identifier);
+            $tableAvailable = (($attempt['admin_users_table_available'] ?? false) === true) ? 'true' : 'false';
+            $reason = (string)($attempt['failure_reason'] ?? 'unknown');
+            log_message(sprintf('[admin_login] auth failed | admin_users_table_available=%s | username_length=%d | reason=%s', $tableAvailable, $identifierLength, $reason));
         }
 
         $error = 'ユーザー名またはパスワードが違います。';
@@ -99,6 +118,9 @@ include __DIR__ . '/partials/login_header.php';
         <?php endif; ?>
 
         <div class="admin-card login-card">
+            <?php if ($devDiagnostic !== '') : ?>
+                <p class="login-diagnostic"><?php echo e($devDiagnostic); ?></p>
+            <?php endif; ?>
             <form method="post" action="<?php echo e(login_url()); ?>">
                 <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
                 <?php if ($returnTo !== '') : ?>
