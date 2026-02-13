@@ -75,7 +75,9 @@ function admin_render_error_page(string $title, string $message, ?Throwable $exc
         $content = (string)ob_get_clean();
         include __DIR__ . '/../partials/admin_layout.php';
     } catch (Throwable $renderError) {
-        ob_end_clean();
+        while (ob_get_level() > 0) {
+            @ob_end_clean();
+        }
         if (headers_sent() === false) {
             http_response_code(500);
             header('Content-Type: text/html; charset=UTF-8');
@@ -110,7 +112,16 @@ set_exception_handler(static function (Throwable $exception): void {
         ? '管理画面で例外が発生しました。'
         : 'エラーが発生しました。時間をおいて再度お試しください。';
 
-    admin_render_error_page('管理画面エラー', $publicMessage, $exception);
+    try {
+        admin_render_error_page('管理画面エラー', $publicMessage, $exception);
+    } catch (Throwable) {
+        if (headers_sent() === false) {
+            http_response_code(500);
+            header('Content-Type: text/html; charset=UTF-8');
+        }
+
+        echo '<!doctype html><html lang="ja"><head><meta charset="UTF-8"><title>管理画面エラー</title></head><body><h1>管理画面エラー</h1><p>エラーが発生しました。</p></body></html>';
+    }
     exit;
 });
 
@@ -142,7 +153,16 @@ register_shutdown_function(static function (): void {
         ? '管理画面で致命的エラーが発生しました。'
         : 'システムエラーが発生しました。管理者へお問い合わせください。';
 
-    admin_render_error_page('管理画面エラー', $publicMessage, $exception);
+    try {
+        admin_render_error_page('管理画面エラー', $publicMessage, $exception);
+    } catch (Throwable) {
+        if (headers_sent() === false) {
+            http_response_code(500);
+            header('Content-Type: text/html; charset=UTF-8');
+        }
+
+        echo '<!doctype html><html lang="ja"><head><meta charset="UTF-8"><title>管理画面エラー</title></head><body><h1>管理画面エラー</h1><p>システムエラーが発生しました。</p></body></html>';
+    }
 });
 
 admin_session_start();

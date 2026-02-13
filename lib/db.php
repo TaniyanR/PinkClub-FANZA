@@ -70,6 +70,7 @@ function log_message(string $message): void
         $result = @file_put_contents($path, $line . "\n", FILE_APPEND);
         if ($result === false) {
             error_log($fallback . ' | failed to write logs/app.log.');
+            return;
         }
     } catch (Throwable $e) {
         error_log($fallback . ' | logging fallback: ' . $e->getMessage());
