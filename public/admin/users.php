@@ -3,29 +3,77 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_common.php';
 
-$error='';
+$error = '';
+$currentUsername = (string)(admin_current_user() ?? '');
+$currentUser = [];
+if ($currentUsername !== '') {
+    $stmt = db()->prepare('SELECT id, username, email FROM admin_users WHERE username=:u LIMIT 1');
+    $stmt->execute([':u' => $currentUsername]);
+    $currentUser = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!admin_post_csrf_valid()) {
-        $error='CSRFトークンが無効です。';
+        $error = 'CSRFトークンが無効です。';
+    } elseif ($currentUser === []) {
+        $error = 'ログイン中ユーザーが見つかりません。';
     } else {
-        $action=(string)($_POST['action'] ?? '');
-        if($action==='create'){
-            $u=trim((string)$_POST['username']);$p=(string)$_POST['password'];
-            if($u!=='' && strlen($p)>=8){
-                db()->prepare('INSERT INTO admin_users(username,password_hash,role,is_active,created_at,updated_at) VALUES (:u,:p,"admin",1,NOW(),NOW())')->execute([':u'=>$u,':p'=>password_hash($p,PASSWORD_DEFAULT)]);
-                admin_flash_set('ok','ユーザーを追加しました。');
+        $username = trim((string)($_POST['username'] ?? ''));
+        $displayName = trim((string)($_POST['display_name'] ?? ''));
+        $password = (string)($_POST['new_password'] ?? '');
+
+        if ($username === '') {
+            $error = 'ユーザー名は必須です。';
+        } else {
+            $displayName = $displayName !== '' ? $displayName : $username;
+            db()->prepare('UPDATE admin_users SET username=:username, email=:email, updated_at=NOW() WHERE id=:id')
+                ->execute([':username' => $username, ':email' => $displayName, ':id' => (int)$currentUser['id']]);
+
+            if ($password !== '') {
+                if (strlen($password) < 8) {
+                    $error = 'パスワードは8文字以上で入力してください。';
+                } else {
+                    db()->prepare('UPDATE admin_users SET password_hash=:hash, updated_at=NOW() WHERE id=:id')
+                        ->execute([':hash' => password_hash($password, PASSWORD_DEFAULT), ':id' => (int)$currentUser['id']]);
+                }
             }
-        } elseif($action==='toggle'){
-            db()->prepare('UPDATE admin_users SET is_active = IF(is_active=1,0,1), updated_at=NOW() WHERE id=:id')->execute([':id'=>(int)$_POST['id']]);
-            admin_flash_set('ok','状態を更新しました。');
+
+            if ($error === '') {
+                $_SESSION['admin_user'] = $username;
+                admin_flash_set('ok', 'アカウント設定を保存しました。');
+                header('Location: ' . admin_url('users.php'));
+                exit;
+            }
         }
-        header('Location: '.admin_url('users.php')); exit;
     }
 }
-$rows=db()->query('SELECT id,username,role,is_active,created_at FROM admin_users ORDER BY id ASC')->fetchAll(PDO::FETCH_ASSOC);
-$ok=admin_flash_get('ok');
-$pageTitle='アカウント設定'; ob_start(); ?>
-<h1>アカウント設定</h1><?php if($ok!==''): ?><div class="admin-card"><p><?php echo e($ok); ?></p></div><?php endif; ?><?php if($error!==''): ?><div class="admin-card"><p><?php echo e($error); ?></p></div><?php endif; ?>
-<div class="admin-card"><form method="post"><input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>"><input type="hidden" name="action" value="create"><label>ユーザー名</label><input name="username" required><label>パスワード(8文字以上)</label><input type="password" name="password" minlength="8" required><button>追加</button></form></div>
-<div class="admin-card"><table class="admin-table"><thead><tr><th>ID</th><th>ユーザー名</th><th>ロール</th><th>有効</th><th></th></tr></thead><tbody><?php foreach($rows as $r): ?><tr><td><?php echo e((string)$r['id']); ?></td><td><?php echo e((string)$r['username']); ?></td><td><?php echo e((string)$r['role']); ?></td><td><?php echo ((int)$r['is_active']===1)?'ON':'OFF'; ?></td><td><form method="post"><input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>"><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?php echo e((string)$r['id']); ?>"><button>ON/OFF</button></form></td></tr><?php endforeach; ?><?php if($rows===[]): ?><tr><td colspan="5">ユーザーなし</td></tr><?php endif; ?></tbody></table></div>
-<?php $content=(string)ob_get_clean(); include __DIR__.'/../partials/admin_layout.php';
+
+if ($currentUser !== []) {
+    $currentUser['display_name'] = (string)($currentUser['email'] ?? $currentUser['username']);
+}
+$ok = admin_flash_get('ok');
+$pageTitle = 'アカウント設定';
+ob_start();
+?>
+<h1>アカウント設定</h1>
+<?php if ($ok !== '') : ?><div class="admin-card"><p><?php echo e($ok); ?></p></div><?php endif; ?>
+<?php if ($error !== '') : ?><div class="admin-card"><p><?php echo e($error); ?></p></div><?php endif; ?>
+<div class="admin-card">
+    <form method="post">
+        <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+
+        <label>表示名</label>
+        <input type="text" name="display_name" value="<?php echo e((string)($currentUser['display_name'] ?? '')); ?>">
+
+        <label>ユーザー名</label>
+        <input type="text" name="username" value="<?php echo e((string)($currentUser['username'] ?? '')); ?>" required>
+
+        <label>パスワード変更（任意）</label>
+        <input type="password" name="new_password" minlength="8" placeholder="変更する場合のみ入力">
+
+        <button type="submit">保存</button>
+    </form>
+</div>
+<?php
+$content = (string)ob_get_clean();
+include __DIR__ . '/../partials/admin_layout.php';
