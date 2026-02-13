@@ -19,6 +19,11 @@ set_exception_handler(static function (Throwable $e): void {
 });
 
 return [
+
+    'app' => [
+        'env' => 'dev',
+        'debug' => true,
+    ],
     'site' => [
         'title' => 'PinkClub-FANZA',
         // 例: 'https://example.com'（末尾スラッシュなし）
@@ -50,6 +55,7 @@ return [
 
     'admin' => [
         'username' => 'admin',
-        'password_hash' => '$2y$12$aa6K4m5qZD3A998IJvAqeOwQH9dvtDjiMEdCn7cBWrOoJLBiZw9G6',
+        // password
+        'password_hash' => '$2y$12$SS2ptXwc56Bwj.VaTsErye.Dmyde0fi/XefAYSy7v0KQPf7w2dUqG',
     ],
 ];

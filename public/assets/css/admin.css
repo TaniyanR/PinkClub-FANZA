@@ -180,3 +180,7 @@ body {
     background: #fff8e5;
     border: 1px solid #f0d28a;
 }
+
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th, .admin-table td { border-bottom: 1px solid #dcdcde; padding: 8px; text-align: left; vertical-align: top; }
+.admin-card textarea { width: 100%; max-width: 100%; padding: 8px; font-size: 14px; }

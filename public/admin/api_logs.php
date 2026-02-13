@@ -1,142 +1,29 @@
 <?php
-
 declare(strict_types=1);
 
-require_once __DIR__ . '/_bootstrap.php';
-require_once __DIR__ . '/../../lib/db.php';
-require_once __DIR__ . '/../../lib/repository.php';
+require_once __DIR__ . '/_common.php';
 
-$pageNum = max(1, (int)($_GET['page'] ?? 1));
-$perPage = 50;
-$offset = ($pageNum - 1) * $perPage;
-
-// Fetch API logs
-function fetch_api_logs(int $limit, int $offset): array
-{
-    $limit = max(1, min(200, $limit));
-    $offset = max(0, $offset);
-    
-    try {
-        $stmt = db()->prepare(
-            'SELECT * FROM api_logs 
-             ORDER BY created_at DESC 
-             LIMIT :limit OFFSET :offset'
-        );
-        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll() ?: [];
-    } catch (PDOException $e) {
-        error_log('fetch_api_logs error: ' . $e->getMessage());
-        return [];
-    }
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && admin_post_csrf_valid()) {
+    $interval = (int)($_POST['interval_hours'] ?? 1);
+    $maxItems = (int)($_POST['max_items'] ?? 100);
+    $interval = in_array($interval, [1,3,6,12,24], true) ? $interval : 1;
+    $maxItems = in_array($maxItems, [10,100,500,1000], true) ? $maxItems : 100;
+    db()->prepare('INSERT INTO api_schedules(schedule_type,last_run_at,next_run_at,interval_minutes,interval_hours,max_items,lock_until,is_enabled,fail_count,last_error,created_at,updated_at) VALUES ("item_import",NULL,NULL,:m,:h,:max,NULL,1,0,NULL,NOW(),NOW()) ON DUPLICATE KEY UPDATE interval_minutes=VALUES(interval_minutes),interval_hours=VALUES(interval_hours),max_items=VALUES(max_items),updated_at=NOW()')
+        ->execute([':m' => $interval * 60, ':h' => $interval, ':max' => $maxItems]);
+    admin_flash_set('ok', 'スケジュール設定を保存しました。');
+    header('Location: ' . admin_url('api_logs.php'));exit;
 }
 
-function count_api_logs(): int
-{
-    try {
-        $stmt = db()->query('SELECT COUNT(*) FROM api_logs');
-        return (int)$stmt->fetchColumn();
-    } catch (PDOException $e) {
-        error_log('count_api_logs error: ' . $e->getMessage());
-        return 0;
-    }
-}
+$pageNum=max(1,(int)($_GET['page']??1));$perPage=50;$offset=($pageNum-1)*$perPage;
+$stmt=db()->prepare('SELECT * FROM api_logs ORDER BY created_at DESC LIMIT :l OFFSET :o');$stmt->bindValue(':l',$perPage,PDO::PARAM_INT);$stmt->bindValue(':o',$offset,PDO::PARAM_INT);$stmt->execute();$logs=$stmt->fetchAll(PDO::FETCH_ASSOC);
+$total=(int)(db()->query('SELECT COUNT(*) FROM api_logs')->fetchColumn()?:0);$totalPages=max(1,(int)ceil($total/$perPage));
+$sch=db()->query("SELECT * FROM api_schedules WHERE schedule_type='item_import' LIMIT 1")->fetch(PDO::FETCH_ASSOC) ?: ['interval_hours'=>1,'max_items'=>100,'fail_count'=>0,'last_error'=>''];
+$ok=admin_flash_get('ok');
 
-$logs = fetch_api_logs($perPage, $offset);
-$totalLogs = count_api_logs();
-$totalPages = max(1, (int)ceil($totalLogs / $perPage));
-
-$pageTitle = 'API履歴';
-ob_start();
-?>
-<h1>API履歴</h1>
-
-<div class="admin-card">
-    <p>DMM API の実行履歴を表示します。直近<?php echo e((string)$perPage); ?>件ずつ表示されます。</p>
-    <?php if ($totalLogs > 0) : ?>
-        <p><strong>合計:</strong> <?php echo e((string)$totalLogs); ?>件</p>
-    <?php endif; ?>
-</div>
-
-<?php if (empty($logs)) : ?>
-    <div class="admin-card">
-        <p>API履歴がありません。インポートを実行するとここに履歴が表示されます。</p>
-    </div>
-<?php else : ?>
-    <div class="admin-card">
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr style="border-bottom: 2px solid #ddd;">
-                    <th style="padding: 8px; text-align: left;">日時</th>
-                    <th style="padding: 8px; text-align: left;">エンドポイント</th>
-                    <th style="padding: 8px; text-align: center;">ステータス</th>
-                    <th style="padding: 8px; text-align: center;">HTTPコード</th>
-                    <th style="padding: 8px; text-align: center;">取得件数</th>
-                    <th style="padding: 8px; text-align: left;">エラー</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($logs as $log) : ?>
-                    <?php
-                    $isSuccess = (int)($log['success'] ?? 0) === 1 || 
-                                 in_array($log['status'] ?? '', ['success', 'ok', 'SUCCESS'], true);
-                    $statusClass = $isSuccess ? 'success' : 'error';
-                    $statusText = $isSuccess ? '成功' : '失敗';
-                    ?>
-                    <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 8px;"><?php echo e((string)($log['created_at'] ?? '')); ?></td>
-                        <td style="padding: 8px;">
-                            <?php 
-                            $endpoint = (string)($log['endpoint'] ?? '');
-                            echo e(strlen($endpoint) > 50 ? substr($endpoint, 0, 50) . '...' : $endpoint); 
-                            ?>
-                        </td>
-                        <td style="padding: 8px; text-align: center;">
-                            <span style="color: <?php echo $isSuccess ? 'green' : 'red'; ?>; font-weight: bold;">
-                                <?php echo e($statusText); ?>
-                            </span>
-                        </td>
-                        <td style="padding: 8px; text-align: center;">
-                            <?php echo e((string)($log['http_code'] ?? '-')); ?>
-                        </td>
-                        <td style="padding: 8px; text-align: center;">
-                            <?php echo e((string)($log['item_count'] ?? 0)); ?>
-                        </td>
-                        <td style="padding: 8px; font-size: 0.9em;">
-                            <?php 
-                            $error = (string)($log['error_message'] ?? '');
-                            if ($error !== '') {
-                                echo e(strlen($error) > 60 ? substr($error, 0, 60) . '...' : $error); 
-                            } else {
-                                echo '-';
-                            }
-                            ?>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
-
-    <?php if ($totalPages > 1) : ?>
-        <div class="admin-card" style="text-align: center;">
-            <div style="display: inline-flex; gap: 8px; align-items: center;">
-                <?php if ($pageNum > 1) : ?>
-                    <a href="?page=<?php echo e((string)($pageNum - 1)); ?>" style="padding: 4px 12px; border: 1px solid #ddd; text-decoration: none;">« 前</a>
-                <?php endif; ?>
-                
-                <span>ページ <?php echo e((string)$pageNum); ?> / <?php echo e((string)$totalPages); ?></span>
-                
-                <?php if ($pageNum < $totalPages) : ?>
-                    <a href="?page=<?php echo e((string)($pageNum + 1)); ?>" style="padding: 4px 12px; border: 1px solid #ddd; text-decoration: none;">次 »</a>
-                <?php endif; ?>
-            </div>
-        </div>
-    <?php endif; ?>
-<?php endif; ?>
-
-<?php
-$content = (string)ob_get_clean();
-include __DIR__ . '/../partials/admin_layout.php';
-
+$pageTitle='API履歴';ob_start(); ?>
+<h1>API履歴 / 内部タイマー</h1>
+<?php if($ok!==''): ?><div class="admin-card"><p><?php echo e($ok); ?></p></div><?php endif; ?>
+<div class="admin-card"><form method="post"><input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>"><label>実行間隔</label><select name="interval_hours"><?php foreach([1,3,6,12,24] as $h): ?><option value="<?php echo e((string)$h); ?>" <?php echo ((int)$sch['interval_hours']===$h)?'selected':''; ?>><?php echo e((string)$h); ?>時間</option><?php endforeach; ?></select><label>取得件数</label><select name="max_items"><?php foreach([10,100,500,1000] as $n): ?><option value="<?php echo e((string)$n); ?>" <?php echo ((int)$sch['max_items']===$n)?'selected':''; ?>><?php echo e((string)$n); ?></option><?php endforeach; ?></select><button>保存</button></form><p>fail_count: <?php echo e((string)$sch['fail_count']); ?> / last_error: <?php echo e((string)($sch['last_error'] ?? '')); ?></p></div>
+<div class="admin-card"><table class="admin-table"><thead><tr><th>日時</th><th>endpoint</th><th>status</th><th>件数</th><th>error</th></tr></thead><tbody><?php foreach($logs as $log): ?><tr><td><?php echo e((string)$log['created_at']); ?></td><td><?php echo e((string)$log['endpoint']); ?></td><td><?php echo e((string)$log['status']); ?></td><td><?php echo e((string)$log['item_count']); ?></td><td><?php echo e((string)($log['error_message']??'')); ?></td></tr><?php endforeach; ?><?php if($logs===[]): ?><tr><td colspan="5">履歴がありません。</td></tr><?php endif; ?></tbody></table></div>
+<?php if($totalPages>1): ?><div class="admin-card"><?php for($i=1;$i<=$totalPages;$i++): ?><a href="<?php echo e(admin_url('api_logs.php?page='.(string)$i)); ?>"><?php echo e((string)$i); ?></a> <?php endfor; ?></div><?php endif; ?>
+<?php $content=(string)ob_get_clean(); include __DIR__.'/../partials/admin_layout.php';

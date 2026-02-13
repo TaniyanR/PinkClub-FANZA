@@ -111,6 +111,12 @@ function render_setup_needed(?Throwable $exception = null): never
 }
 
 error_reporting(E_ALL);
+if (!headers_sent()) {
+    header('X-Frame-Options: SAMEORIGIN');
+    header('X-Content-Type-Options: nosniff');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+}
+
 ini_set('display_errors', app_is_development() ? '1' : '0');
 
 set_exception_handler(static function (Throwable $e): void {
