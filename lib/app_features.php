@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/local_config_writer.php';
+require_once __DIR__ . '/site_settings.php';
 
 function app_session_start(): void
 {
@@ -172,6 +173,11 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
     if ($xml === false) {
         return ['ok' => false, 'message' => 'xml parse failed'];
     }
+    $ngCategoryWords = preg_split('/\R+/', site_setting_get('rss.ng_category_words', '')) ?: [];
+    $ngTagWords = preg_split('/\R+/', site_setting_get('rss.ng_tag_words', '')) ?: [];
+    $ngCategoryWords = array_values(array_filter(array_map('trim', $ngCategoryWords), static fn(string $v): bool => $v !== ''));
+    $ngTagWords = array_values(array_filter(array_map('trim', $ngTagWords), static fn(string $v): bool => $v !== ''));
+
     $items = $xml->channel->item ?? [];
     $insert = $pdo->prepare('INSERT IGNORE INTO rss_items (source_id,title,url,published_at,summary,guid,created_at) VALUES (:sid,:title,:url,:pub,:summary,:guid,NOW())');
     foreach ($items as $item) {
@@ -179,6 +185,33 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
         if ($guid === '') {
             continue;
         }
+
+        $categories = [];
+        foreach ($item->category ?? [] as $c) {
+            $categories[] = trim((string)$c);
+        }
+        $isBlocked = false;
+        foreach ($ngCategoryWords as $ng) {
+            foreach ($categories as $cat) {
+                if ($cat !== '' && mb_stripos($cat, $ng) !== false) {
+                    $isBlocked = true;
+                    break 2;
+                }
+            }
+        }
+        if (!$isBlocked) {
+            $tagsText = trim((string)($item->keywords ?? ''));
+            foreach ($ngTagWords as $ng) {
+                if ($tagsText !== '' && mb_stripos($tagsText, $ng) !== false) {
+                    $isBlocked = true;
+                    break;
+                }
+            }
+        }
+        if ($isBlocked) {
+            continue;
+        }
+
         $insert->execute([
             ':sid' => $sourceId,
             ':title' => mb_substr((string)($item->title ?? ''), 0, 255),
