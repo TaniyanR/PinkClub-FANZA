@@ -14,12 +14,13 @@ function send_verification_mail(int $userId, string $email): void
     $subject = '[PinkClub-FANZA] メールアドレス確認';
     $body = "以下のリンクを60分以内に開いて確認してください。\n" . $link;
     $ok = @mail($email, $subject, $body);
-    db()->prepare('INSERT INTO mail_logs(created_at,from_email,subject,body,sent_ok,error_message) VALUES(NOW(),:from_email,:subject,:body,:ok,:error)')
+    db()->prepare('INSERT INTO mail_logs(direction,from_name,from_email,to_email,subject,body,status,last_error,created_at,updated_at) VALUES ("out",NULL,:from_email,:to_email,:subject,:body,:status,:error,NOW(),NOW())')
         ->execute([
             ':from_email' => 'noreply@pinkclub.local',
+            ':to_email' => $email,
             ':subject' => $subject,
             ':body' => $body,
-            ':ok' => $ok ? 1 : 0,
+            ':status' => $ok ? 'sent' : 'failed',
             ':error' => $ok ? null : 'mail() unavailable',
         ]);
 }
