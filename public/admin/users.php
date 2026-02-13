@@ -3,12 +3,33 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_common.php';
 
+function send_verification_mail(int $userId, string $email): void
+{
+    $token = bin2hex(random_bytes(32));
+    $hash = hash('sha256', $token);
+    db()->prepare('INSERT INTO admin_email_verifications(user_id,token_hash,expires_at,consumed_at,created_at) VALUES(:uid,:hash,DATE_ADD(NOW(), INTERVAL 60 MINUTE),NULL,NOW())')
+        ->execute([':uid' => $userId, ':hash' => $hash]);
+
+    $link = base_url() . '/admin/verify_email.php?token=' . rawurlencode($token);
+    $subject = '[PinkClub-FANZA] メールアドレス確認';
+    $body = "以下のリンクを60分以内に開いて確認してください。\n" . $link;
+    $ok = @mail($email, $subject, $body);
+    db()->prepare('INSERT INTO mail_logs(created_at,from_email,subject,body,sent_ok,error_message) VALUES(NOW(),:from_email,:subject,:body,:ok,:error)')
+        ->execute([
+            ':from_email' => 'noreply@pinkclub.local',
+            ':subject' => $subject,
+            ':body' => $body,
+            ':ok' => $ok ? 1 : 0,
+            ':error' => $ok ? null : 'mail() unavailable',
+        ]);
+}
+
 $error = '';
-$currentUsername = (string)(admin_current_user() ?? '');
+$currentUserId = admin_current_user_id();
 $currentUser = [];
-if ($currentUsername !== '') {
-    $stmt = db()->prepare('SELECT id, username, email FROM admin_users WHERE username=:u LIMIT 1');
-    $stmt->execute([':u' => $currentUsername]);
+if ($currentUserId !== null) {
+    $stmt = db()->prepare('SELECT * FROM admin_users WHERE id=:id LIMIT 1');
+    $stmt->execute([':id' => $currentUserId]);
     $currentUser = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 }
 
@@ -21,13 +42,30 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $username = trim((string)($_POST['username'] ?? ''));
         $displayName = trim((string)($_POST['display_name'] ?? ''));
         $password = (string)($_POST['new_password'] ?? '');
-
+        $email = trim((string)($_POST['email'] ?? ''));
         if ($username === '') {
             $error = 'ユーザー名は必須です。';
+        } elseif ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $error = 'メールアドレス形式が正しくありません。';
         } else {
-            $displayName = $displayName !== '' ? $displayName : $username;
-            db()->prepare('UPDATE admin_users SET username=:username, email=:email, updated_at=NOW() WHERE id=:id')
-                ->execute([':username' => $username, ':email' => $displayName, ':id' => (int)$currentUser['id']]);
+            $verified = !empty($currentUser['email_verified_at']) && !empty($currentUser['email']);
+            $loginMode = (string)($currentUser['login_mode'] ?? 'username');
+            if ($username !== (string)$currentUser['username'] && $verified) {
+                $loginMode = 'email_only';
+            }
+
+            db()->prepare('UPDATE admin_users SET username=:username, display_name=:display_name, login_mode=:mode, pending_email=:pending_email, updated_at=NOW() WHERE id=:id')
+                ->execute([
+                    ':username' => $username,
+                    ':display_name' => $displayName,
+                    ':mode' => $loginMode,
+                    ':pending_email' => $email !== '' ? $email : null,
+                    ':id' => (int)$currentUser['id'],
+                ]);
+
+            if ($email !== '' && $email !== (string)($currentUser['email'] ?? '') && $email !== (string)($currentUser['pending_email'] ?? '')) {
+                send_verification_mail((int)$currentUser['id'], $email);
+            }
 
             if ($password !== '') {
                 if (strlen($password) < 8) {
@@ -35,12 +73,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 } else {
                     db()->prepare('UPDATE admin_users SET password_hash=:hash, updated_at=NOW() WHERE id=:id')
                         ->execute([':hash' => password_hash($password, PASSWORD_DEFAULT), ':id' => (int)$currentUser['id']]);
+                    $_SESSION['admin_default_password'] = false;
                 }
             }
 
             if ($error === '') {
                 $_SESSION['admin_user'] = $username;
-                admin_flash_set('ok', 'アカウント設定を保存しました。');
+                admin_flash_set('ok', 'アカウント設定を保存しました。メール変更時は確認リンクを開いてください。');
                 header('Location: ' . admin_url('users.php'));
                 exit;
             }
@@ -48,8 +87,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 }
 
-if ($currentUser !== []) {
-    $currentUser['display_name'] = (string)($currentUser['email'] ?? $currentUser['username']);
+if ($currentUserId !== null) {
+    $stmt = db()->prepare('SELECT * FROM admin_users WHERE id=:id LIMIT 1');
+    $stmt->execute([':id' => $currentUserId]);
+    $currentUser = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 }
 $ok = admin_flash_get('ok');
 $pageTitle = 'アカウント設定';
@@ -62,11 +103,15 @@ ob_start();
     <form method="post">
         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
 
+        <label>ユーザー名</label>
+        <input type="text" name="username" value="<?php echo e((string)($currentUser['username'] ?? '')); ?>" required>
+
         <label>表示名</label>
         <input type="text" name="display_name" value="<?php echo e((string)($currentUser['display_name'] ?? '')); ?>">
 
-        <label>ユーザー名</label>
-        <input type="text" name="username" value="<?php echo e((string)($currentUser['username'] ?? '')); ?>" required>
+        <label>メールアドレス（保存後に確認メール送信）</label>
+        <input type="email" name="email" value="<?php echo e((string)($currentUser['pending_email'] ?? $currentUser['email'] ?? '')); ?>">
+        <p>現在のログイン方式: <?php echo e((string)($currentUser['login_mode'] ?? 'username')); ?></p>
 
         <label>パスワード変更（任意）</label>
         <input type="password" name="new_password" minlength="8" placeholder="変更する場合のみ入力">
