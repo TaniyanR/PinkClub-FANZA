@@ -15,13 +15,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if (!in_array($mode, ['manual', 'approved_desc', 'in_desc', 'random'], true)) {
                 $mode = 'manual';
             }
-            $scope = (string)($_POST['links_display_scope'] ?? 'both');
-            if (!in_array($scope, ['home', 'item', 'both'], true)) {
-                $scope = 'both';
-            }
+            $enabled = isset($_POST['links_display_enabled']) ? '1' : '0';
             site_setting_set_many([
-                'links.sort_mode' => $mode,
-                'links.display_scope' => $scope,
+                'links_sort_mode' => $mode,
+                'links_display_enabled' => $enabled,
             ]);
             admin_flash_set('ok', '表示設定を保存しました。');
         } else {
@@ -52,8 +49,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
 $rows = db()->query('SELECT * FROM mutual_links ORDER BY created_at DESC LIMIT 200')->fetchAll(PDO::FETCH_ASSOC);
 $ok = admin_flash_get('ok');
-$sortMode = site_setting_get('links.sort_mode', 'manual');
-$displayScope = site_setting_get('links.display_scope', 'both');
+$sortMode = site_setting_get('links_sort_mode', 'manual');
+$linksDisplayEnabled = site_setting_get('links_display_enabled', '1') === '1';
 $pageTitle = '相互リンク管理';
 ob_start();
 ?>
@@ -71,12 +68,7 @@ ob_start();
             <option value="in_desc" <?php echo $sortMode === 'in_desc' ? 'selected' : ''; ?>>IN多い順</option>
             <option value="random" <?php echo $sortMode === 'random' ? 'selected' : ''; ?>>ランダム</option>
         </select>
-        <label>表示範囲</label>
-        <select name="links_display_scope">
-            <option value="home" <?php echo $displayScope === 'home' ? 'selected' : ''; ?>>トップのみ</option>
-            <option value="item" <?php echo $displayScope === 'item' ? 'selected' : ''; ?>>個別ページのみ</option>
-            <option value="both" <?php echo $displayScope === 'both' ? 'selected' : ''; ?>>トップ + 個別ページ</option>
-        </select>
+        <label><input type="checkbox" name="links_display_enabled" value="1" <?php echo $linksDisplayEnabled ? 'checked' : ''; ?>> トップページに相互リンクを表示する</label>
         <button type="submit">保存</button>
     </form>
     <p>外部申請フォームは <a href="<?php echo e(base_url() . '/link_apply.php'); ?>" target="_blank" rel="noopener">こちら</a>。</p>
