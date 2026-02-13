@@ -49,23 +49,46 @@ function admin_render_error_page(string $title, string $message, ?Throwable $exc
 
     $isDev = admin_is_dev_environment();
     $pageTitle = $title;
+    $escape = static function (string $value): string {
+        if (function_exists('e')) {
+            return e($value);
+        }
+
+        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
+    };
 
     ob_start();
+    try {
     ?>
-    <h1><?php echo e($title); ?></h1>
+    <h1><?php echo $escape($title); ?></h1>
     <div class="admin-card">
-        <p><?php echo e($message); ?></p>
+        <p><?php echo $escape($message); ?></p>
 
         <?php if ($isDev && $exception !== null) : ?>
             <hr>
-            <p><strong><?php echo e(get_class($exception)); ?></strong>: <?php echo e($exception->getMessage()); ?></p>
-            <p><?php echo e($exception->getFile()); ?>:<?php echo e((string)$exception->getLine()); ?></p>
-            <pre><?php echo e($exception->getTraceAsString()); ?></pre>
+            <p><strong><?php echo $escape(get_class($exception)); ?></strong>: <?php echo $escape($exception->getMessage()); ?></p>
+            <p><?php echo $escape($exception->getFile()); ?>:<?php echo $escape((string)$exception->getLine()); ?></p>
+            <pre><?php echo $escape($exception->getTraceAsString()); ?></pre>
         <?php endif; ?>
     </div>
     <?php
-    $content = (string)ob_get_clean();
-    include __DIR__ . '/../partials/admin_layout.php';
+        $content = (string)ob_get_clean();
+        include __DIR__ . '/../partials/admin_layout.php';
+    } catch (Throwable $renderError) {
+        ob_end_clean();
+        if (headers_sent() === false) {
+            http_response_code(500);
+            header('Content-Type: text/html; charset=UTF-8');
+        }
+
+        echo '<!doctype html><html lang="ja"><head><meta charset="UTF-8"><title>管理画面エラー</title></head><body>';
+        echo '<h1>' . htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '</h1>';
+        echo '<p>' . htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '</p>';
+        if ($isDev && $exception !== null) {
+            echo '<pre>' . htmlspecialchars($exception->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '</pre>';
+        }
+        echo '</body></html>';
+    }
 }
 
 set_error_handler(static function (int $severity, string $message, string $file = '', int $line = 0): bool {
@@ -77,7 +100,11 @@ set_error_handler(static function (int $severity, string $message, string $file 
 });
 
 set_exception_handler(static function (Throwable $exception): void {
-    admin_log_error('Unhandled exception', $exception);
+    try {
+        admin_log_error('Unhandled exception', $exception);
+    } catch (Throwable) {
+        // ignore logging failure and keep rendering error page
+    }
 
     $publicMessage = admin_is_dev_environment()
         ? '管理画面で例外が発生しました。'
@@ -105,7 +132,11 @@ register_shutdown_function(static function (): void {
         (int)$lastError['line']
     );
 
-    admin_log_error('Shutdown fatal error', $exception);
+    try {
+        admin_log_error('Shutdown fatal error', $exception);
+    } catch (Throwable) {
+        // ignore logging failure and keep rendering error page
+    }
 
     $publicMessage = admin_is_dev_environment()
         ? '管理画面で致命的エラーが発生しました。'

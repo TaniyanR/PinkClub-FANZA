@@ -36,6 +36,15 @@ function render_fatal_error_page(string $message, ?Throwable $exception = null):
         ? $exception->getMessage() . "\n\n" . $exception->getTraceAsString()
         : '';
 
+    $escape = static function (string $value): string {
+        if (function_exists('e')) {
+            return e($value);
+        }
+
+        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
+    };
+
+    try {
     ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -55,15 +64,30 @@ function render_fatal_error_page(string $message, ?Throwable $exception = null):
 <div class="wrap">
     <section class="card">
         <h1>エラーが発生しました</h1>
-        <p><?php echo e($message); ?></p>
+        <p><?php echo $escape($message); ?></p>
         <?php if ($detail !== '') : ?>
-            <pre><?php echo e($detail); ?></pre>
+            <pre><?php echo $escape($detail); ?></pre>
         <?php endif; ?>
     </section>
 </div>
 </body>
 </html>
 <?php
+    } catch (Throwable $renderError) {
+        if (headers_sent() === false) {
+            http_response_code(500);
+            header('Content-Type: text/html; charset=UTF-8');
+        }
+
+        echo '<!doctype html><html lang="ja"><head><meta charset="UTF-8"><title>エラーが発生しました</title></head><body>';
+        echo '<h1>エラーが発生しました</h1>';
+        echo '<p>' . htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '</p>';
+        if ($isDevelopment && $exception !== null) {
+            echo '<pre>' . htmlspecialchars($detail, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '</pre>';
+        }
+        echo '</body></html>';
+    }
+
     exit;
 }
 
@@ -121,7 +145,12 @@ if (!headers_sent()) {
 ini_set('display_errors', app_is_development() ? '1' : '0');
 
 set_exception_handler(static function (Throwable $e): void {
-    log_message('[front_exception] ' . $e->getMessage());
+    try {
+        log_message('[front_exception] ' . $e->getMessage());
+    } catch (Throwable) {
+        // ignore logging failure and continue rendering the error page
+    }
+
     render_fatal_error_page('予期しないエラーが発生しました。', $e);
 });
 
@@ -145,7 +174,12 @@ register_shutdown_function(static function (): void {
     }
 
     $message = sprintf('%s in %s:%d', (string)$error['message'], (string)$error['file'], (int)$error['line']);
-    log_message('[front_shutdown] ' . $message);
+    try {
+        log_message('[front_shutdown] ' . $message);
+    } catch (Throwable) {
+        // ignore logging failure and continue rendering the error page
+    }
+
     render_fatal_error_page('致命的なエラーが発生しました。', new RuntimeException($message));
 });
 

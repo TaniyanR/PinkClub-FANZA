@@ -47,12 +47,33 @@ function now(): string
 
 function log_message(string $message): void
 {
-    $dir = __DIR__ . '/../logs';
-    if (!is_dir($dir)) {
-        mkdir($dir, 0755, true);
+    static $isLogging = false;
+
+    $line = sprintf("[%s] %s", date('Y-m-d H:i:s'), $message);
+    $fallback = '[PinkClub-FANZA] ' . $line;
+
+    if ($isLogging) {
+        error_log($fallback);
+        return;
     }
 
-    $path = $dir . '/app.log';
-    $line = sprintf("[%s] %s\n", date('Y-m-d H:i:s'), $message);
-    file_put_contents($path, $line, FILE_APPEND);
+    $isLogging = true;
+
+    try {
+        $dir = __DIR__ . '/../logs';
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            error_log($fallback . ' | log directory is not writable.');
+            return;
+        }
+
+        $path = $dir . '/app.log';
+        $result = @file_put_contents($path, $line . "\n", FILE_APPEND);
+        if ($result === false) {
+            error_log($fallback . ' | failed to write logs/app.log.');
+        }
+    } catch (Throwable $e) {
+        error_log($fallback . ' | logging fallback: ' . $e->getMessage());
+    } finally {
+        $isLogging = false;
+    }
 }
