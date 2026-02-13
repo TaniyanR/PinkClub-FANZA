@@ -5,8 +5,6 @@ require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../admin/menu.php';
 
 $currentScript = basename((string)($_SERVER['SCRIPT_NAME'] ?? 'index.php'));
-$currentStubPage = basename((string)($_GET['page'] ?? ''));
-
 $groups = admin_menu_groups();
 ?>
 <aside class="admin-sidebar" aria-label="管理メニュー">
@@ -17,26 +15,26 @@ $groups = admin_menu_groups();
                 <?php foreach ((array)($group['items'] ?? []) as $item) :
                     $file = (string)($item['file'] ?? '');
                     $label = (string)($item['label'] ?? '');
-                    $status = (string)($item['status'] ?? 'ready');
+                    $href = '#';
 
-                    $href = $status === 'coming_soon'
-                        ? admin_url('stub.php?page=' . rawurlencode($file))
-                        : admin_url($file);
+                    if ($file !== '' && function_exists('admin_url')) {
+                        $href = admin_url($file);
+                    } elseif (!empty($item['href'])) {
+                        $href = (string)$item['href'];
+                    }
 
-                    $isActive = $status === 'coming_soon'
-                        ? ($currentScript === 'stub.php' && $currentStubPage === $file)
-                        : ($currentScript === $file);
+                    $isActive = false;
+                    if ($file !== '') {
+                        $isActive = ($currentScript === basename($file));
+                    } else {
+                        $isActive = (basename((string)(parse_url($href, PHP_URL_PATH) ?? '')) === $currentScript);
+                    }
                     ?>
                     <li class="admin-sidebar__item">
-                        <?php if ($file === '') : ?>
-                            <span class="admin-menu__disabled">（未設定）</span>
-                        <?php else : ?>
-                            <a class="admin-menu__link <?php echo $isActive ? 'is-active' : ''; ?>"
-                               href="<?php echo e($href); ?>">
-                                <?php echo e($label); ?>
-                                <?php if ($status === 'coming_soon') : ?><small>（準備中）</small><?php endif; ?>
-                            </a>
-                        <?php endif; ?>
+                        <a class="admin-menu__link <?php echo $isActive ? 'is-active' : ''; ?>"
+                           href="<?php echo e($href); ?>">
+                            <?php echo e($label); ?>
+                        </a>
                     </li>
                 <?php endforeach; ?>
             </ul>
