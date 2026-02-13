@@ -147,7 +147,8 @@ ob_start();
 ?>
 <h1>管理ダッシュボード</h1>
 
-<?php if (admin_is_default_password()) : ?>
+<?php $currentAdmin = admin_current_user(); ?>
+<?php if (is_array($currentAdmin) && admin_is_default_password($currentAdmin)) : ?>
     <div class="admin-card admin-note">
         <p>初期パスワードのままです。必要に応じて「パスワード変更」から変更してください（任意）。</p>
     </div>

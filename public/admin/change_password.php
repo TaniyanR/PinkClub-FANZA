@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
-require_once __DIR__ . '/../../lib/local_config_writer.php';
 require_once __DIR__ . '/../../lib/db.php';
 
 
@@ -29,8 +28,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             try {
                 $updated = false;
                 try {
+                    $currentAdmin = admin_current_user();
+                    $username = is_array($currentAdmin) ? (string)($currentAdmin['username'] ?? '') : '';
                     $stmt = db()->prepare('SELECT id,password_hash FROM admin_users WHERE username=:u AND is_active=1 LIMIT 1');
-                    $stmt->execute([':u' => (string)(admin_current_user() ?? '')]);
+                    $stmt->execute([':u' => $username]);
                     $row = $stmt->fetch(PDO::FETCH_ASSOC);
                     if (is_array($row)) {
                         if (!password_verify($currentPassword, (string)$row['password_hash'])) {
@@ -44,21 +45,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 }
 
                 if (!$updated && $error === '') {
-                    if (!password_verify($currentPassword, admin_config()['password_hash'])) {
-                        $error = '現在のパスワードが正しくありません。';
-                    } else {
-                        $local = local_config_load();
-                        $admin = is_array($local['admin'] ?? null) ? $local['admin'] : [];
-                        $admin['username'] = admin_current_user() ?? ADMIN_DEFAULT_USERNAME;
-                        $admin['password_hash'] = password_hash($password, PASSWORD_DEFAULT);
-                        $local['admin'] = $admin;
-                        local_config_write($local);
-                        $updated = true;
-                    }
+                    $error = '現在のログインユーザーを確認できませんでした。再ログイン後にお試しください。';
                 }
 
                 if ($updated) {
-                    $_SESSION['admin_default_password'] = false;
                     header('Location: ' . admin_url('settings.php') . '?password_changed=1');
                     exit;
                 }
