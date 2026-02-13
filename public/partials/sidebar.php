@@ -10,7 +10,6 @@ require_once __DIR__ . '/../../lib/app_features.php';
 $sidebarGenres = fetch_genres(8, 0);
 $sidebarMakers = fetch_makers(8, 0);
 $sidebarSeries = fetch_series(8, 0);
-$adHtml = (string)app_setting_get('sidebar_ad_html', '');
 $rssLatest = [];
 try {
     $stmt = db()->query('SELECT title,url FROM rss_items ORDER BY published_at DESC, id DESC LIMIT 5');
@@ -25,5 +24,7 @@ try {
     <div class="sidebar-block"><h3>メーカー</h3><ul><?php foreach ($sidebarMakers as $maker) : ?><li><a href="/maker.php?id=<?php echo urlencode((string)$maker['id']); ?>"><?php echo e((string)$maker['name']); ?></a></li><?php endforeach; ?></ul></div>
     <div class="sidebar-block"><h3>シリーズ</h3><ul><?php foreach ($sidebarSeries as $series) : ?><li><a href="/series_one.php?id=<?php echo urlencode((string)$series['id']); ?>"><?php echo e((string)$series['name']); ?></a></li><?php endforeach; ?></ul></div>
     <div class="sidebar-block"><h3>最新RSS</h3><ul><?php foreach ($rssLatest as $rss) : ?><li><a href="<?php echo e((string)$rss['url']); ?>" target="_blank" rel="noopener noreferrer"><?php echo e((string)$rss['title']); ?></a></li><?php endforeach; ?></ul></div>
-    <div class="sidebar-block"><h3>広告枠</h3><?php if ($adHtml !== '') : ?><?php echo $adHtml; ?><?php else : ?><div class="ad-box ad-box--sidebar" aria-label="広告枠">300x250</div><?php endif; ?></div>
+    <?php if (should_show_ad('sidebar_bottom', ad_current_page_type(), 'pc')) : ?>
+        <div class="sidebar-block"><h3>広告枠</h3><?php render_ad('sidebar_bottom', ad_current_page_type(), 'pc'); ?></div>
+    <?php endif; ?>
 </aside>

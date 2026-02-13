@@ -25,6 +25,7 @@ include __DIR__ . '/partials/nav_search.php';
     <?php include __DIR__ . '/partials/sidebar.php'; ?>
 
     <main class="main-content">
+        <?php render_ad('content_top', 'home', 'pc'); ?>
         <section class="block">
             <div class="section-head">
                 <h1 class="section-title">新着作品</h1>
@@ -114,6 +115,7 @@ include __DIR__ . '/partials/nav_search.php';
                 <?php endforeach; ?>
             </div>
         </section>
+        <?php render_ad('content_bottom', 'home', 'pc'); ?>
     </main>
 </div>
 <?php include __DIR__ . '/partials/footer.php'; ?>

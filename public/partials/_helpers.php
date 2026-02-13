@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../lib/config.php';
 require_once __DIR__ . '/../../lib/url.php';
+require_once __DIR__ . '/../../lib/db.php';
+require_once __DIR__ . '/../../lib/app_features.php';
 
 if (!function_exists('e')) {
     function e(string $value): string
@@ -165,5 +167,153 @@ if (!function_exists('abort_404')) {
         echo '</section></main></div>';
         include __DIR__ . '/footer.php';
         exit;
+    }
+}
+
+if (!function_exists('ad_default_display_rules')) {
+    function ad_default_display_rules(): array
+    {
+        return [
+            'pc' => [
+                'header_left_728x90' => ['all' => true],
+                'sidebar_bottom' => ['home' => true, 'list' => false, 'item' => false, 'page' => false],
+                'content_top' => ['home' => false, 'list' => false, 'item' => true, 'page' => false],
+                'content_bottom' => ['home' => false, 'list' => false, 'item' => true, 'page' => false],
+            ],
+            'sp' => [
+                'sp_header_below' => ['home' => true, 'list' => true, 'item' => true, 'page' => true],
+                'sp_footer_above' => ['home' => true, 'list' => true, 'item' => true, 'page' => true],
+            ],
+        ];
+    }
+}
+
+if (!function_exists('ad_all_positions')) {
+    function ad_all_positions(): array
+    {
+        return ['header_left_728x90', 'sidebar_bottom', 'content_top', 'content_bottom', 'sp_header_below', 'sp_footer_above'];
+    }
+}
+
+if (!function_exists('ad_current_page_type')) {
+    function ad_current_page_type(): string
+    {
+        $path = (string)parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+        $script = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
+        if ($script === 'index.php' || $path === '/') {
+            return 'home';
+        }
+        if ($script === 'posts.php' || $script === 'list.php') {
+            return 'list';
+        }
+        if ($script === 'item.php') {
+            return 'item';
+        }
+        if ($script === 'page.php' || str_starts_with($path, '/p/')) {
+            return 'page';
+        }
+        return 'home';
+    }
+}
+
+if (!function_exists('ad_current_device')) {
+    function ad_current_device(): string
+    {
+        $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
+        if ($ua !== '' && preg_match('/iPhone|iPod|Android.+Mobile|Windows Phone/i', $ua) === 1) {
+            return 'sp';
+        }
+        return 'pc';
+    }
+}
+
+if (!function_exists('ad_display_rules')) {
+    function ad_display_rules(): array
+    {
+        $raw = app_setting_get('ads_display_rules', null);
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $raw = $decoded;
+            }
+        }
+        $default = ad_default_display_rules();
+        if (!is_array($raw)) {
+            return $default;
+        }
+        return array_replace_recursive($default, $raw);
+    }
+}
+
+if (!function_exists('ad_snippet_rows')) {
+    function ad_snippet_rows(): array
+    {
+        static $cache = null;
+        if (is_array($cache)) {
+            return $cache;
+        }
+        $stmt = db()->query('SELECT slot_key,snippet_html,is_enabled FROM code_snippets');
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        $cache = [];
+        foreach ($rows as $row) {
+            $slotKey = (string)($row['slot_key'] ?? '');
+            if ($slotKey === '') {
+                continue;
+            }
+            $cache[$slotKey] = [
+                'snippet_html' => (string)($row['snippet_html'] ?? ''),
+                'is_enabled' => (int)($row['is_enabled'] ?? 0) === 1,
+            ];
+        }
+        return $cache;
+    }
+}
+
+if (!function_exists('get_ad_code')) {
+    function get_ad_code(string $position_key): ?string
+    {
+        $rows = ad_snippet_rows();
+        $row = $rows[$position_key] ?? null;
+        if (!is_array($row) || $row['is_enabled'] !== true) {
+            return null;
+        }
+        $html = trim((string)$row['snippet_html']);
+        return $html !== '' ? $html : null;
+    }
+}
+
+if (!function_exists('should_show_ad')) {
+    function should_show_ad(string $position_key, string $page_type, string $device): bool
+    {
+        if (get_ad_code($position_key) === null) {
+            return false;
+        }
+        $rules = ad_display_rules();
+        $deviceRules = $rules[$device] ?? null;
+        if (!is_array($deviceRules)) {
+            return false;
+        }
+        $positionRules = $deviceRules[$position_key] ?? null;
+        if (!is_array($positionRules)) {
+            return false;
+        }
+        if (array_key_exists('all', $positionRules)) {
+            return (bool)$positionRules['all'];
+        }
+        return (bool)($positionRules[$page_type] ?? false);
+    }
+}
+
+if (!function_exists('render_ad')) {
+    function render_ad(string $position_key, string $page_type, string $device): void
+    {
+        if (!should_show_ad($position_key, $page_type, $device)) {
+            return;
+        }
+        $html = get_ad_code($position_key);
+        if ($html === null) {
+            return;
+        }
+        echo $html;
     }
 }
