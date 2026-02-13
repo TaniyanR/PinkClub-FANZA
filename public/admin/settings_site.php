@@ -12,6 +12,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         site_setting_set_many([
             'site.name' => trim((string)($_POST['site_name'] ?? '')),
             'site.base_url' => trim((string)($_POST['base_url'] ?? '')),
+            'site.notification_email' => trim((string)($_POST['notification_email'] ?? '')),
         ]);
         admin_flash_set('ok', 'サイト設定を保存しました。');
         header('Location: ' . admin_url('settings_site.php'));
@@ -23,6 +24,14 @@ $ok = admin_flash_get('ok');
 $siteName = site_setting_get('site.name', '');
 $baseUrlOverride = site_setting_get('site.base_url', '');
 $autoBaseUrl = detect_base_url();
+$notificationEmail = site_setting_get('site.notification_email', '');
+$currentUserEmail = '';
+$currentUserId = admin_current_user_id();
+if ($currentUserId !== null) {
+    $st = db()->prepare('SELECT email FROM admin_users WHERE id=:id LIMIT 1');
+    $st->execute([':id' => $currentUserId]);
+    $currentUserEmail = (string)($st->fetchColumn() ?: '');
+}
 
 $pageTitle = 'サイト設定';
 ob_start();
@@ -40,6 +49,10 @@ ob_start();
         <label>サイトURL（手動上書き）</label>
         <input type="url" name="base_url" value="<?php echo e($baseUrlOverride); ?>" placeholder="未入力時は自動検出">
         <p>自動検出URL: <?php echo e($autoBaseUrl); ?></p>
+
+        <label>通知先メール（未入力時はログイン中管理者メールを利用）</label>
+        <input type="email" name="notification_email" value="<?php echo e($notificationEmail); ?>">
+        <p>候補: <?php echo e($currentUserEmail !== '' ? $currentUserEmail : '未検証'); ?></p>
 
         <button type="submit">保存</button>
     </form>

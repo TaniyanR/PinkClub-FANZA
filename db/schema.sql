@@ -190,12 +190,16 @@ CREATE TABLE IF NOT EXISTS pages (
 
 CREATE TABLE IF NOT EXISTS mail_logs (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    created_at DATETIME NOT NULL,
-    from_email VARCHAR(255) NOT NULL,
+    direction ENUM('in','out') NOT NULL DEFAULT 'in',
+    from_name VARCHAR(255) DEFAULT NULL,
+    from_email VARCHAR(255) DEFAULT NULL,
+    to_email VARCHAR(255) DEFAULT NULL,
     subject VARCHAR(255) NOT NULL,
     body TEXT NOT NULL,
-    sent_ok TINYINT(1) NOT NULL DEFAULT 0,
-    error_message TEXT DEFAULT NULL,
+    status ENUM('received','sent','failed') NOT NULL DEFAULT 'received',
+    last_error TEXT DEFAULT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME DEFAULT NULL,
     INDEX idx_mail_logs_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -402,3 +406,9 @@ CREATE TABLE IF NOT EXISTS admin_email_verifications (
     INDEX idx_admin_email_verifications_expires (expires_at),
     CONSTRAINT fk_admin_email_verifications_user FOREIGN KEY (user_id) REFERENCES admin_users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+ALTER TABLE mutual_links ADD COLUMN IF NOT EXISTS is_enabled TINYINT(1) NOT NULL DEFAULT 0;
+ALTER TABLE mutual_links ADD COLUMN IF NOT EXISTS apply_type VARCHAR(20) NOT NULL DEFAULT 'link_only';
+ALTER TABLE mutual_links ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255) NULL;
+ALTER TABLE mutual_links ADD COLUMN IF NOT EXISTS rule_text TEXT NULL;
+ALTER TABLE mutual_links ADD COLUMN IF NOT EXISTS rule_json JSON NULL;
+CREATE INDEX idx_mutual_links_status_enabled_approved_order ON mutual_links(status, is_enabled, approved_at, display_order);
