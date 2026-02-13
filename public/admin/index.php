@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/admin_auth.php';
+require_once __DIR__ . '/../../lib/site_settings.php';
 
 function admin_table_map(PDO $pdo): array
 {
@@ -93,10 +94,9 @@ if (!$dbConnected) {
     $tableStatus = '未実施（不足: ' . implode(', ', $missingTables) . '）';
 }
 
-$api = config_get('dmm_api', []);
-$apiId = trim((string)($api['api_id'] ?? ''));
-$affiliateId = trim((string)($api['affiliate_id'] ?? ''));
-$apiStatus = ($apiId !== '' && $affiliateId !== '') ? '設定済' : '未設定';
+$apiKey = trim(site_setting_get('api_key', ''));
+$affiliateId = trim(site_setting_get('api_affiliate_id', ''));
+$apiStatus = ($apiKey !== '' && $affiliateId !== '') ? '設定済' : '未設定';
 
 $itemsCountLabel = '未取得';
 if ($dbConnected && isset($existingTables['items']) && $pdo instanceof PDO) {
@@ -135,7 +135,7 @@ if ($dbConnected && $pdo instanceof PDO) {
 $scheduleWarning = '';
 if ($dbConnected && $pdo instanceof PDO) {
     try {
-        $sch = $pdo->query("SELECT fail_count,last_error FROM api_schedules WHERE schedule_type='rss_fetch' LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+        $sch = $pdo->query('SELECT fail_count,last_error FROM api_schedules ORDER BY id ASC LIMIT 1')->fetch(PDO::FETCH_ASSOC);
         if (is_array($sch) && (int)($sch['fail_count'] ?? 0) >= 5) {
             $scheduleWarning = '内部タイマーが連続失敗しています: ' . (string)($sch['last_error'] ?? '');
         }

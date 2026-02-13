@@ -278,15 +278,14 @@ CREATE TABLE IF NOT EXISTS dmm_api (
 
 CREATE TABLE IF NOT EXISTS api_schedules (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    schedule_type VARCHAR(50) NOT NULL,
-    last_run_at DATETIME DEFAULT NULL,
-    next_run_at DATETIME DEFAULT NULL,
-    interval_minutes INT DEFAULT 60,
+    interval_minutes INT NOT NULL DEFAULT 60,
+    last_run DATETIME DEFAULT NULL,
     lock_until DATETIME DEFAULT NULL,
-    is_enabled TINYINT(1) DEFAULT 1,
+    fail_count INT NOT NULL DEFAULT 0,
+    last_error TEXT DEFAULT NULL,
+    last_success_at DATETIME DEFAULT NULL,
     created_at DATETIME NOT NULL,
-    updated_at DATETIME NOT NULL,
-    UNIQUE KEY uq_schedule_type (schedule_type)
+    updated_at DATETIME DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS tags (
@@ -375,6 +374,10 @@ ALTER TABLE api_schedules ADD COLUMN IF NOT EXISTS fail_count INT NOT NULL DEFAU
 ALTER TABLE api_schedules ADD COLUMN IF NOT EXISTS last_error TEXT NULL;
 ALTER TABLE api_schedules ADD COLUMN IF NOT EXISTS max_items INT NOT NULL DEFAULT 100;
 ALTER TABLE api_schedules ADD COLUMN IF NOT EXISTS interval_hours INT NOT NULL DEFAULT 1;
+ALTER TABLE api_schedules ADD COLUMN IF NOT EXISTS last_run DATETIME NULL;
+ALTER TABLE api_schedules ADD COLUMN IF NOT EXISTS last_success_at DATETIME NULL;
+ALTER TABLE api_schedules ADD COLUMN IF NOT EXISTS lock_until DATETIME NULL;
+ALTER TABLE api_schedules ADD COLUMN IF NOT EXISTS interval_minutes INT NOT NULL DEFAULT 60;
 
 
 ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS display_name VARCHAR(255) NULL;

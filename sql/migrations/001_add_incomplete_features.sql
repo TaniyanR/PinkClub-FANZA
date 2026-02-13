@@ -35,15 +35,14 @@ CREATE TABLE IF NOT EXISTS dmm_api (
 -- Create api_schedules table
 CREATE TABLE IF NOT EXISTS api_schedules (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    schedule_type VARCHAR(50) NOT NULL,
-    last_run_at DATETIME DEFAULT NULL,
-    next_run_at DATETIME DEFAULT NULL,
-    interval_minutes INT DEFAULT 60,
+    interval_minutes INT NOT NULL DEFAULT 60,
+    last_run DATETIME DEFAULT NULL,
     lock_until DATETIME DEFAULT NULL,
-    is_enabled TINYINT(1) DEFAULT 1,
+    fail_count INT NOT NULL DEFAULT 0,
+    last_error TEXT DEFAULT NULL,
+    last_success_at DATETIME DEFAULT NULL,
     created_at DATETIME NOT NULL,
-    updated_at DATETIME NOT NULL,
-    UNIQUE KEY uq_schedule_type (schedule_type)
+    updated_at DATETIME DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Create tags table
@@ -79,6 +78,7 @@ CREATE TABLE IF NOT EXISTS access_events (
     INDEX idx_access_events_type (event_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Initialize api_schedules with default auto_import schedule
-INSERT IGNORE INTO api_schedules (schedule_type, interval_minutes, is_enabled, created_at, updated_at)
-VALUES ('auto_import', 60, 1, NOW(), NOW());
+-- Initialize api_schedules with default interval
+INSERT INTO api_schedules (interval_minutes, created_at, updated_at)
+SELECT 60, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM api_schedules);
