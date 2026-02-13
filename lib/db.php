@@ -47,17 +47,17 @@ function now(): string
 
 function log_message(string $message): void
 {
-    static $isLogging = false;
+    static $inProgress = false;
 
     $line = sprintf("[%s] %s", date('Y-m-d H:i:s'), $message);
     $fallback = '[PinkClub-FANZA] ' . $line;
 
-    if ($isLogging) {
+    if ($inProgress) {
         error_log($fallback);
         return;
     }
 
-    $isLogging = true;
+    $inProgress = true;
 
     try {
         $dir = __DIR__ . '/../logs';
@@ -75,6 +75,6 @@ function log_message(string $message): void
     } catch (Throwable $e) {
         error_log($fallback . ' | logging fallback: ' . $e->getMessage());
     } finally {
-        $isLogging = false;
+        $inProgress = false;
     }
 }
