@@ -131,6 +131,17 @@ if ($dbConnected && $pdo instanceof PDO) {
     }
 }
 
+
+$scheduleWarning = '';
+if ($dbConnected && $pdo instanceof PDO) {
+    try {
+        $sch = $pdo->query("SELECT fail_count,last_error FROM api_schedules WHERE schedule_type='rss_fetch' LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+        if (is_array($sch) && (int)($sch['fail_count'] ?? 0) >= 5) {
+            $scheduleWarning = '内部タイマーが連続失敗しています: ' . (string)($sch['last_error'] ?? '');
+        }
+    } catch (Throwable $e) {}
+}
+
 $pageTitle = 'ダッシュボード';
 ob_start();
 ?>
@@ -141,6 +152,8 @@ ob_start();
         <p>初期パスワードのままです。必要に応じて「パスワード変更」から変更してください（任意）。</p>
     </div>
 <?php endif; ?>
+
+<?php if ($scheduleWarning !== '') : ?><div class="admin-card admin-note"><p><?php echo e($scheduleWarning); ?></p></div><?php endif; ?>
 
 <div class="admin-status-grid">
     <section class="admin-card admin-status-card"><strong>DB接続</strong><p><?php echo e($dbStatus); ?></p></section>

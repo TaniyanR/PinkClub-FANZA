@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/config.php';
 require_once __DIR__ . '/../lib/db.php';
+require_once __DIR__ . '/../lib/scheduler.php';
 require_once __DIR__ . '/partials/_helpers.php';
 
 function app_is_development(): bool
@@ -153,4 +154,21 @@ try {
 } catch (Throwable $e) {
     log_message('[front_setup_needed] ' . $e->getMessage());
     render_setup_needed($e);
+}
+
+maybe_run_scheduled_jobs();
+
+
+if (isset($_GET['from']) && preg_match('/^\d+$/', (string)$_GET['from']) === 1) {
+    try {
+        db()->prepare('INSERT INTO access_events(event_type,event_at,path,referrer,link_id,ip_hash) VALUES("in",NOW(),:path,:ref,:link_id,:ip_hash)')
+            ->execute([
+                ':path' => (string)($_SERVER['REQUEST_URI'] ?? ''),
+                ':ref' => (string)($_SERVER['HTTP_REFERER'] ?? ''),
+                ':link_id' => (int)$_GET['from'],
+                ':ip_hash' => hash('sha256', (string)($_SERVER['REMOTE_ADDR'] ?? '')),
+            ]);
+    } catch (Throwable $e) {
+        log_message('[track_in] ' . $e->getMessage());
+    }
 }

@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/admin_auth.php';
 require_once __DIR__ . '/../../lib/csrf.php';
 require_once __DIR__ . '/../../lib/url.php';
+require_once __DIR__ . '/../../lib/scheduler.php';
 require_once __DIR__ . '/../partials/_helpers.php';
 
 function admin_is_dev_environment(): bool
@@ -114,7 +115,10 @@ admin_session_start();
 $script = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $isLogin = $script === 'login.php';
 $isLogout = $script === 'logout.php';
+$isEmailVerify = $script === 'verify_email.php';
 
-if (!$isLogin && !$isLogout) {
+if (!$isLogin && !$isLogout && !$isEmailVerify) {
     admin_require_login();
 }
+
+maybe_run_scheduled_jobs();
