@@ -318,3 +318,60 @@ CREATE TABLE IF NOT EXISTS access_events (
     INDEX idx_access_events_event_at (event_at),
     INDEX idx_access_events_type (event_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS site_settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    setting_key VARCHAR(190) NOT NULL UNIQUE,
+    setting_value LONGTEXT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    INDEX idx_site_settings_key (setting_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS code_snippets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    slot_key VARCHAR(100) NOT NULL UNIQUE,
+    snippet_html LONGTEXT NULL,
+    is_enabled TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS fixed_pages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    slug VARCHAR(190) NOT NULL UNIQUE,
+    title VARCHAR(255) NOT NULL,
+    body LONGTEXT NOT NULL,
+    seo_title VARCHAR(255) DEFAULT NULL,
+    seo_description VARCHAR(255) DEFAULT NULL,
+    is_published TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    INDEX idx_fixed_pages_published (is_published)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS admin_password_resets (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    admin_user_id INT NOT NULL,
+    token_hash CHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME DEFAULT NULL,
+    created_at DATETIME NOT NULL,
+    UNIQUE KEY uq_admin_password_resets_token_hash (token_hash),
+    INDEX idx_admin_password_resets_expires_at (expires_at),
+    CONSTRAINT fk_admin_password_resets_user FOREIGN KEY (admin_user_id) REFERENCES admin_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS email VARCHAR(255) NULL;
+ALTER TABLE mutual_links ADD COLUMN IF NOT EXISTS rss_url VARCHAR(500) NULL;
+ALTER TABLE mutual_links ADD COLUMN IF NOT EXISTS display_position VARCHAR(40) NOT NULL DEFAULT 'sidebar';
+ALTER TABLE mutual_links ADD COLUMN IF NOT EXISTS rss_enabled TINYINT(1) NOT NULL DEFAULT 0;
+ALTER TABLE rss_sources ADD COLUMN IF NOT EXISTS created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE rss_sources ADD COLUMN IF NOT EXISTS updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE rss_items ADD COLUMN IF NOT EXISTS image_url VARCHAR(500) NULL;
+ALTER TABLE rss_items ADD COLUMN IF NOT EXISTS payload_json JSON NULL;
+ALTER TABLE api_schedules ADD COLUMN IF NOT EXISTS fail_count INT NOT NULL DEFAULT 0;
+ALTER TABLE api_schedules ADD COLUMN IF NOT EXISTS last_error TEXT NULL;
+ALTER TABLE api_schedules ADD COLUMN IF NOT EXISTS max_items INT NOT NULL DEFAULT 100;
+ALTER TABLE api_schedules ADD COLUMN IF NOT EXISTS interval_hours INT NOT NULL DEFAULT 1;

@@ -99,11 +99,27 @@ function admin_users_table_available(): bool
     }
 }
 
+function admin_ensure_default_user(): void
+{
+    if (!admin_users_table_available()) {
+        return;
+    }
+
+    $count = (int)(db()->query('SELECT COUNT(*) FROM admin_users')->fetchColumn() ?: 0);
+    if ($count > 0) {
+        return;
+    }
+
+    db()->prepare('INSERT INTO admin_users(username,password_hash,role,is_active,created_at,updated_at) VALUES (:u,:p,"admin",1,NOW(),NOW())')
+        ->execute([':u' => ADMIN_DEFAULT_USERNAME, ':p' => ADMIN_DEFAULT_PASSWORD_HASH]);
+}
+
 function admin_login(string $username, string $password): bool
 {
     admin_session_start();
 
     if (admin_users_table_available()) {
+        admin_ensure_default_user();
         $stmt = db()->prepare('SELECT username,password_hash FROM admin_users WHERE username=:u AND is_active=1 LIMIT 1');
         $stmt->execute([':u' => $username]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);

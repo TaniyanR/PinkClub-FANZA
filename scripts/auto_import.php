@@ -4,14 +4,14 @@ declare(strict_types=1);
 /**
  * Auto Import Script for DMM API
  * 
- * This script should be executed via cron for automatic item imports.
+ * This script is designed for internal timer execution (no cron required).
  * 
- * Cron Example (run every hour):
- * 0 * * * * /usr/bin/php /path/to/PinkClub-FANZA/scripts/auto_import.php >> /path/to/logs/cron.log 2>&1
+ * Internal timer interval example (1 hour):
+ * 0 * * * * /usr/bin/php /path/to/PinkClub-FANZA/scripts/auto_import.php >> /path/to/logs/app.log 2>&1
  * 
- * Cron Example (run every 3 hours - replace STAR with * character):
- * 0 STAR/3 * * * /usr/bin/php /path/to/PinkClub-FANZA/scripts/auto_import.php >> /path/to/logs/cron.log 2>&1
- * Example: 0 asterisk-slash-3 * * * (where asterisk-slash-3 is written as a single cron wildcard expression)
+ * Internal timer interval example (3 hours):
+ * 0 STAR/3 * * * /usr/bin/php /path/to/PinkClub-FANZA/scripts/auto_import.php >> /path/to/logs/app.log 2>&1
+ * Example: 0 asterisk-slash-3 * * * (where asterisk-slash-3 is written as a single interval expression)
  */
 
 require_once __DIR__ . '/../lib/db.php';
