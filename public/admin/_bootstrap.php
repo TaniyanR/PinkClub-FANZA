@@ -10,6 +10,10 @@ require_once __DIR__ . '/../../lib/url.php';
 require_once __DIR__ . '/../../lib/scheduler.php';
 require_once __DIR__ . '/../partials/_helpers.php';
 
+if (headers_sent() === false) {
+    header('X-Robots-Tag: noindex, nofollow');
+}
+
 function admin_is_dev_environment(): bool
 {
     $configEnv = config_get('app.env', null);

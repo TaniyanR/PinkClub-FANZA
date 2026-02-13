@@ -47,3 +47,10 @@
 7. RSSソース追加→取得→表示
 8. 解析画面確認
 9. バックアップDL確認
+
+## SEOエンドポイント
+
+- `public/sitemap.php` が動的XMLサイトマップを返します（`public/sitemap.xml` からも同内容に到達可能）。
+- `public/robots.php` が動的 robots.txt を返します（`public/robots.txt` からも同内容に到達可能）。
+- sitemap にはトップ/一覧/作品詳細のみを含み、固定ページは含めません。
+
