@@ -19,7 +19,29 @@ $isHome = isset($is_home) ? (bool)$is_home : ($scriptName === 'index.php');
 $mutualLinks = [];
 if ($isHome) {
     try {
-        $sql = "SELECT id, site_name, site_url FROM mutual_links WHERE status='approved' AND is_enabled=1 ORDER BY display_order ASC, id ASC LIMIT 50";
+        $hasIsEnabled = false;
+        $hasDisplayOrder = false;
+
+        $colStmt = db()->prepare(
+            "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND COLUMN_NAME IN ('is_enabled', 'display_order')"
+        );
+        $colStmt->execute([':table' => 'mutual_links']);
+        foreach ($colStmt->fetchAll(PDO::FETCH_COLUMN) as $column) {
+            if ($column === 'is_enabled') {
+                $hasIsEnabled = true;
+            }
+            if ($column === 'display_order') {
+                $hasDisplayOrder = true;
+            }
+        }
+
+        $where = ["status='approved'"];
+        if ($hasIsEnabled) {
+            $where[] = 'is_enabled=1';
+        }
+        $orderBy = $hasDisplayOrder ? 'display_order ASC, id ASC' : 'id ASC';
+
+        $sql = 'SELECT id, site_name, site_url, link_url FROM mutual_links WHERE ' . implode(' AND ', $where) . ' ORDER BY ' . $orderBy . ' LIMIT 50';
         $stmt = db()->query($sql);
         $mutualLinks = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
     } catch (Throwable $e) {
