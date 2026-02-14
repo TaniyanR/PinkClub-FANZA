@@ -27,6 +27,27 @@ function site_setting_set(string $key, string $value): void
         ->execute([':key' => $key, ':value' => $value]);
 }
 
+function setting_get(string $key, ?string $default = null): ?string
+{
+    $fallback = $default ?? '';
+    $value = site_setting_get($key, $fallback);
+    if ($value === '' && $default === null) {
+        return null;
+    }
+
+    return $value;
+}
+
+function setting_set(string $key, string $value): void
+{
+    site_setting_set($key, $value);
+}
+
+function setting_delete(string $key): void
+{
+    site_setting_set($key, '');
+}
+
 function site_setting_set_many(array $pairs): void
 {
     foreach ($pairs as $key => $value) {
