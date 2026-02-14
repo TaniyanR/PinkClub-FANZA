@@ -32,7 +32,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!admin_post_csrf_valid()) {
         $error = 'CSRFトークンが無効です。';
     } elseif (!$hasTable) {
-        $error = 'mutual_links テーブルが未作成のため保存できません。';
+        $error = 'mutual_links テーブルが未作成��ため保存できません。';
     } else {
         $action = (string)($_POST['action'] ?? 'create');
         $title = trim((string)($_POST['title'] ?? ''));
@@ -155,131 +155,131 @@ if ($hasTable) {
 }
 
 $pageTitle = '相互リンク管理';
-require_once __DIR__ . '/_page.php';
-admin_render($pageTitle, static function () use ($ok, $error, $hasTable, $rows, $hasDisplayOrder, $hasIsEnabled, $form): void {
-    ?>
-    <h1>相互リンク管理</h1>
-    
-    <?php if ($ok !== '') : ?>
-        <div class="admin-card" style="background-color: #d4edda; border-color: #c3e6cb; color: #155724; padding: 12px; margin-bottom: 16px;">
-            <p style="margin: 0;">
-                <?php if ($ok === 'created') : ?>登録しました。
-                <?php elseif ($ok === 'updated') : ?>更新しました。
-                <?php elseif ($ok === 'deleted') : ?>削除しました。
-                <?php else : ?>処理が完了しました。
-                <?php endif; ?>
-            </p>
-        </div>
-    <?php endif; ?>
-    
-    <?php if ($error !== '') : ?>
-        <div class="admin-card" style="background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; padding: 12px; margin-bottom: 16px;">
-            <p style="margin: 0;"><?php echo e($error); ?></p>
-        </div>
-    <?php endif; ?>
-    
-    <?php if (!$hasTable) : ?>
-        <div class="admin-card">
-            <p>mutual_links テーブルが存在しません。db_init.php でテーブルを作成してください。</p>
-        </div>
-    <?php else : ?>
-        <div class="admin-card">
-            <h2><?php echo ((int)$form['id'] > 0) ? '相互リンクを編集' : '相互リンクを追加'; ?></h2>
-            <form method="post">
-                <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
-                <input type="hidden" name="action" value="<?php echo ((int)$form['id'] > 0) ? 'update' : 'create'; ?>">
-                <?php if ((int)$form['id'] > 0) : ?>
-                    <input type="hidden" name="id" value="<?php echo e($form['id']); ?>">
-                <?php endif; ?>
-                
-                <label>サイト名 <span style="color: #d00;">*</span></label>
-                <input type="text" name="title" value="<?php echo e($form['title']); ?>" required maxlength="200" style="width: 100%; max-width: 500px;">
-                
-                <label>URL <span style="color: #d00;">*</span></label>
-                <input type="url" name="url" value="<?php echo e($form['url']); ?>" required style="width: 100%; max-width: 500px;" placeholder="https://example.com">
-                
-                <?php if ($hasDisplayOrder) : ?>
-                    <label>表示順序</label>
-                    <input type="number" name="sort_order" value="<?php echo e($form['sort_order']); ?>" min="0" max="9999" style="width: 150px;">
-                    <p style="margin: 4px 0 12px 0; font-size: 0.9em; color: #666;">小さい数値ほど上位に表示されます</p>
-                <?php endif; ?>
-                
-                <?php if ($hasIsEnabled) : ?>
-                    <label>
-                        <input type="checkbox" name="is_enabled" value="1" <?php echo ($form['is_enabled'] === '1') ? 'checked' : ''; ?>>
-                        有効化（チェックを外すと非表示になります）
-                    </label>
-                <?php endif; ?>
-                
-                <div style="margin-top: 16px;">
-                    <button type="submit" style="padding: 8px 24px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 14px;">
-                        <?php echo ((int)$form['id'] > 0) ? '更新' : '登録'; ?>
-                    </button>
-                    <?php if ((int)$form['id'] > 0) : ?>
-                        <a href="<?php echo e(admin_url('links.php')); ?>" style="margin-left: 8px; padding: 8px 24px; background: #6c757d; color: white; text-decoration: none; border-radius: 4px; display: inline-block; font-size: 14px;">キャンセル</a>
-                    <?php endif; ?>
-                </div>
-            </form>
-        </div>
-        
-        <div class="admin-card">
-            <h2>登録済み相互リンク (<?php echo e((string)count($rows)); ?>件)</h2>
-            <?php if (count($rows) === 0) : ?>
-                <p>相互リンクが登録されていません。</p>
-            <?php else : ?>
-                <table class="admin-table" style="width: 100%; border-collapse: collapse; margin-top: 12px;">
-                    <thead>
-                        <tr style="border-bottom: 2px solid #ddd; background-color: #f8f9fa;">
-                            <th style="padding: 10px; text-align: left; width: 60px;">ID</th>
-                            <th style="padding: 10px; text-align: left;">サイト名</th>
-                            <th style="padding: 10px; text-align: left;">URL</th>
-                            <?php if ($hasDisplayOrder) : ?>
-                                <th style="padding: 10px; text-align: center; width: 80px;">順序</th>
-                            <?php endif; ?>
-                            <?php if ($hasIsEnabled) : ?>
-                                <th style="padding: 10px; text-align: center; width: 80px;">状態</th>
-                            <?php endif; ?>
-                            <th style="padding: 10px; text-align: center; width: 150px;">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($rows as $row) : ?>
-                            <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 10px;"><?php echo e((string)$row['id']); ?></td>
-                                <td style="padding: 10px; font-weight: 500;"><?php echo e((string)($row['site_name'] ?? '')); ?></td>
-                                <td style="padding: 10px;">
-                                    <a href="<?php echo e((string)($row['site_url'] ?? '')); ?>" target="_blank" rel="noopener" style="color: #007bff; text-decoration: none;">
-                                        <?php echo e((string)($row['site_url'] ?? '')); ?>
-                                    </a>
-                                </td>
-                                <?php if ($hasDisplayOrder) : ?>
-                                    <td style="padding: 10px; text-align: center;"><?php echo e((string)($row['display_order'] ?? '100')); ?></td>
-                                <?php endif; ?>
-                                <?php if ($hasIsEnabled) : ?>
-                                    <td style="padding: 10px; text-align: center;">
-                                        <?php if (((int)($row['is_enabled'] ?? 1)) === 1) : ?>
-                                            <span style="color: #28a745; font-weight: 500;">●</span>
-                                        <?php else : ?>
-                                            <span style="color: #dc3545;">○</span>
-                                        <?php endif; ?>
-                                    </td>
-                                <?php endif; ?>
-                                <td style="padding: 10px; text-align: center;">
-                                    <a href="<?php echo e(admin_url('links.php?edit=' . (string)$row['id'])); ?>" style="padding: 4px 12px; background: #ffc107; color: #000; text-decoration: none; border-radius: 3px; display: inline-block; margin-right: 4px; font-size: 13px;">編集</a>
-                                    <?php $deleteMsg = '「' . (string)($row['site_name'] ?? '') . '」を削除してもよろしいですか？'; ?>
-                                    <form method="post" style="display: inline;" onsubmit="return confirm(<?php echo json_encode($deleteMsg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);">
-                                        <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
-                                        <input type="hidden" name="action" value="delete">
-                                        <input type="hidden" name="id" value="<?php echo e((string)$row['id']); ?>">
-                                        <button type="submit" style="padding: 4px 12px; background: #dc3545; color: white; border: none; cursor: pointer; border-radius: 3px; font-size: 13px;">削除</button>
-                                    </form>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+$okMessageMap = [
+    'created' => '相互リンクを作成しました。',
+    'updated' => '相互リンクを更新しました。',
+    'deleted' => '相互リンクを削除しました。',
+];
+$okMessage = $okMessageMap[$ok] ?? '';
+$isCreate = (int)$form['id'] === 0;
+ob_start();
+?>
+<h1>相互リンク管理</h1>
+<?php if ($okMessage !== '') : ?>
+    <div class="admin-card" style="background:#e7f5e7;padding:12px;margin-bottom:16px;">
+        <p style="margin:0;">✓ <?php echo e($okMessage); ?></p>
+    </div>
+<?php endif; ?>
+<?php if ($error !== '') : ?>
+    <div class="admin-card" style="background:#ffe7e7;padding:12px;margin-bottom:16px;">
+        <p style="margin:0;color:#c00;">✗ <?php echo e($error); ?></p>
+    </div>
+<?php endif; ?>
+
+<?php if (!$hasTable) : ?>
+    <div class="admin-card" style="background:#fff3cd;padding:12px;margin-bottom:16px;">
+        <p style="margin:0;">⚠ mutual_linksテーブルが未作成です。データベース初期化を実行してください。</p>
+    </div>
+<?php endif; ?>
+
+<div class="admin-card" style="margin-bottom:24px;">
+    <h2><?php echo $isCreate ? '相互リンク新規作成' : '相互リンク編集'; ?></h2>
+    <form method="post" style="max-width:600px;">
+        <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+        <input type="hidden" name="action" value="<?php echo $isCreate ? 'create' : 'update'; ?>">
+        <input type="hidden" name="id" value="<?php echo e((string)$form['id']); ?>">
+
+        <label style="display:block;margin-bottom:8px;font-weight:bold;">サイト名 <span style="color:#c00;">*</span></label>
+        <input type="text" name="title" value="<?php echo e((string)$form['title']); ?>" required placeholder="例：PinkClub" style="width:100%;max-width:500px;padding:6px;border:1px solid #ddd;border-radius:4px;margin-bottom:16px;">
+
+        <label style="display:block;margin-bottom:8px;font-weight:bold;">URL <span style="color:#c00;">*</span></label>
+        <input type="url" name="url" value="<?php echo e((string)$form['url']); ?>" required placeholder="https://example.com" style="width:100%;max-width:500px;padding:6px;border:1px solid #ddd;border-radius:4px;margin-bottom:16px;">
+
+        <?php if ($hasDisplayOrder) : ?>
+            <label style="display:block;margin-bottom:8px;font-weight:bold;">表示順序</label>
+            <input type="number" name="sort_order" value="<?php echo e((string)$form['sort_order']); ?>" placeholder="100" min="0" max="9999" style="width:120px;padding:6px;border:1px solid #ddd;border-radius:4px;margin-bottom:16px;">
+        <?php endif; ?>
+
+        <?php if ($hasIsEnabled) : ?>
+            <label style="display:block;margin-bottom:16px;">
+                <input type="checkbox" name="is_enabled" value="1" <?php echo ($form['is_enabled'] === '1') ? 'checked' : ''; ?>>
+                有効にする
+            </label>
+        <?php endif; ?>
+
+        <div style="margin-top:16px;">
+            <button type="submit" style="padding:8px 16px;background:#2271b1;color:#fff;border:none;border-radius:4px;cursor:pointer;">
+                <?php echo $isCreate ? '追加' : '更新'; ?>
+            </button>
+            <?php if (!$isCreate) : ?>
+                <a href="<?php echo e(admin_url('links.php')); ?>" style="margin-left:8px;padding:8px 16px;text-decoration:none;color:#666;">キャンセル</a>
             <?php endif; ?>
         </div>
-    <?php endif; ?>
-    <?php
+    </form>
+</div>
+
+<?php if ($hasTable) : ?>
+    <div class="admin-card">
+        <h2>登録済み相互リンク (<?php echo e((string)count($rows)); ?>件)</h2>
+        <?php if (count($rows) > 0) : ?>
+            <table style="width:100%;border-collapse:collapse;margin-top:12px;">
+                <thead>
+                    <tr style="background:#f5f5f5;">
+                        <th style="border:1px solid #ddd;padding:8px;text-align:left;">ID</th>
+                        <th style="border:1px solid #ddd;padding:8px;text-align:left;">サイト名</th>
+                        <th style="border:1px solid #ddd;padding:8px;text-align:left;">URL</th>
+                        <?php if ($hasDisplayOrder) : ?>
+                            <th style="border:1px solid #ddd;padding:8px;text-align:center;width:80px;">順序</th>
+                        <?php endif; ?>
+                        <?php if ($hasIsEnabled) : ?>
+                            <th style="border:1px solid #ddd;padding:8px;text-align:center;width:80px;">状態</th>
+                        <?php endif; ?>
+                        <th style="border:1px solid #ddd;padding:8px;text-align:center;width:120px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($rows as $row) : ?>
+                        <tr>
+                            <td style="border:1px solid #ddd;padding:8px;"><?php echo e((string)$row['id']); ?></td>
+                            <td style="border:1px solid #ddd;padding:8px;"><?php echo e((string)($row['site_name'] ?? '')); ?></td>
+                            <td style="border:1px solid #ddd;padding:8px;">
+                                <?php
+                                $url = (string)($row['site_url'] ?? '');
+                                $displayUrl = mb_strlen($url) > 50 ? mb_substr($url, 0, 47) . '...' : $url;
+                                ?>
+                                <a href="<?php echo e($url); ?>" target="_blank" rel="noopener noreferrer" style="color:#2271b1;text-decoration:none;">
+                                    <?php echo e($displayUrl); ?>
+                                </a>
+                            </td>
+                            <?php if ($hasDisplayOrder) : ?>
+                                <td style="border:1px solid #ddd;padding:8px;text-align:center;"><?php echo e((string)($row['display_order'] ?? '100')); ?></td>
+                            <?php endif; ?>
+                            <?php if ($hasIsEnabled) : ?>
+                                <td style="border:1px solid #ddd;padding:8px;text-align:center;">
+                                    <?php echo ((int)($row['is_enabled'] ?? 1) === 1) ? '有効' : '無効'; ?>
+                                </td>
+                            <?php endif; ?>
+                            <td style="border:1px solid #ddd;padding:8px;text-align:center;">
+                                <a href="<?php echo e(admin_url('links.php?edit=' . (string)$row['id'])); ?>" style="color:#2271b1;text-decoration:none;margin-right:8px;">編集</a>
+                                <form method="post" style="display:inline;" onsubmit="return confirm('本当に削除しますか？');">
+                                    <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="id" value="<?php echo e((string)$row['id']); ?>">
+                                    <button type="submit" style="background:none;border:none;color:#d63638;cursor:pointer;padding:0;text-decoration:underline;">削除</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php else : ?>
+            <p>相互リンクはまだありません。上のフォームから新規作成してください。</p>
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
+<?php
+$main = (string)ob_get_clean();
+require_once __DIR__ . '/_page.php';
+admin_render($pageTitle, static function () use ($main): void {
+    echo $main;
 });
