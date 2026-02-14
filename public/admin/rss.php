@@ -56,6 +56,8 @@ ob_start();
 <?php if ($sources === []) : ?><tr><td colspan="8">RSSソースがありません。</td></tr><?php endif; ?>
 </tbody></table></div>
 <div class="admin-card"><h2>キャッシュ済み記事</h2><table class="admin-table"><thead><tr><th>日時</th><th>ソース</th><th>タイトル</th></tr></thead><tbody><?php foreach($items as $i): ?><tr><td><?php echo e((string)$i['published_at']); ?></td><td><?php echo e((string)$i['source_name']); ?></td><td><a href="<?php echo e((string)$i['url']); ?>" target="_blank" rel="noopener"><?php echo e((string)$i['title']); ?></a></td></tr><?php endforeach; ?><?php if($items===[]): ?><tr><td colspan="3">記事はありません。</td></tr><?php endif; ?></tbody></table></div>
-<?php $content=(string)ob_get_clean();
-admin_trace_push('page:content:ready'); admin_trace_push('page:render:layout');
-include __DIR__.'/../partials/admin_layout.php';
+<?php $main = (string)ob_get_clean();
+require_once __DIR__ . '/_page.php';
+admin_render($pageTitle, static function () use ($main): void {
+    echo $main;
+});

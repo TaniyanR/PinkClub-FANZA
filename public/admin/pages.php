@@ -49,6 +49,8 @@ $pageTitle='固定ページ編集'; ob_start(); ?>
 <?php endif; ?>
 
 <div class="admin-card"><table class="admin-table"><thead><tr><th>ID</th><th>slug</th><th>タイトル</th><th>公開</th><th>公開URL</th><th></th></tr></thead><tbody><?php foreach($rows as $r): ?><tr><td><?php echo e((string)$r['id']); ?></td><td><?php echo e((string)$r['slug']); ?></td><td><?php echo e((string)$r['title']); ?></td><td><?php echo ((int)$r['is_published']===1)?'ON':'OFF'; ?></td><td><?php $url = base_url().'/page.php?slug='.(string)$r['slug']; ?><a href="<?php echo e($url); ?>" target="_blank" rel="noopener"><?php echo e($url); ?></a></td><td><a href="<?php echo e(admin_url('pages.php?edit='.(string)$r['id'])); ?>">編集</a><form method="post" style="display:inline"><input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?php echo e((string)$r['id']); ?>"><button>削除</button></form></td></tr><?php endforeach; ?><?php if($rows===[]): ?><tr><td colspan="6">固定ページなし</td></tr><?php endif; ?></tbody></table></div>
-<?php $content=(string)ob_get_clean();
-admin_trace_push('page:content:ready'); admin_trace_push('page:render:layout');
-include __DIR__.'/../partials/admin_layout.php';
+<?php $main = (string)ob_get_clean();
+require_once __DIR__ . '/_page.php';
+admin_render($pageTitle, static function () use ($main): void {
+    echo $main;
+});

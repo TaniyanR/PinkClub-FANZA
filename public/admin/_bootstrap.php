@@ -276,13 +276,25 @@ register_shutdown_function(static function (): void {
     if (trim($buf) === '') {
         admin_trace_push('shutdown:empty-output');
         $isDev = admin_is_dev_environment();
+        $headersNotSent = headers_sent() === false;
+        if ($headersNotSent) {
+            $lastErrorText = $lastError !== null ? json_encode($lastError, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : 'null';
+            $line = sprintf(
+                '[admin-empty-output] REQUEST_URI=%s SCRIPT_FILENAME=%s last_error=%s',
+                (string)($_SERVER['REQUEST_URI'] ?? ''),
+                (string)($_SERVER['SCRIPT_FILENAME'] ?? ''),
+                (string)$lastErrorText
+            );
+            @file_put_contents(dirname(__DIR__, 2) . '/logs/app.log', $line . PHP_EOL, FILE_APPEND);
+        }
+
         try {
             admin_log_trace('管理画面：無出力終了');
         } catch (Throwable) {
             error_log('[admin] Empty output trace logging failed.');
         }
 
-        if (headers_sent() === false) {
+        if ($headersNotSent) {
             http_response_code(500);
             header('Content-Type: text/html; charset=UTF-8');
         }

@@ -39,20 +39,28 @@ try {
 ?>
 <div class="admin-shell">
     <?php
-    try {
-        if (function_exists('admin_trace_push')) {
-            admin_trace_push('include:sidebar:before');
+    $sidebarPath = __DIR__ . '/admin_sidebar.php';
+    if (function_exists('admin_trace_push')) {
+        admin_trace_push('include:sidebar:before');
+    }
+
+    if (is_file($sidebarPath)) {
+        try {
+            include $sidebarPath;
+            if (function_exists('admin_trace_push')) {
+                admin_trace_push('include:sidebar:after');
+            }
+        } catch (Throwable $exception) {
+            if (function_exists('admin_trace_push')) {
+                admin_trace_push('include:sidebar:failed');
+            }
+            echo '<aside class="admin-sidebar" aria-label="管理メニュー"><nav><p>sidebar unavailable</p></nav></aside>';
         }
-        include __DIR__ . '/admin_sidebar.php';
+    } else {
         if (function_exists('admin_trace_push')) {
-            admin_trace_push('include:sidebar:after');
+            admin_trace_push('include:sidebar:missing');
         }
-    } catch (Throwable $exception) {
-        if (function_exists('admin_trace_push')) {
-            admin_trace_push('include:sidebar:failed');
-        }
-        admin_render_plain_error_page('管理画面エラー', 'サイドバーの読み込みに失敗しました。', $exception);
-        return;
+        echo '<aside class="admin-sidebar" aria-label="管理メニュー"><nav><p>sidebar missing</p></nav></aside>';
     }
     ?>
     <main class="admin-main">
@@ -62,8 +70,8 @@ try {
         }
         if (isset($content) && is_callable($content)) {
             $content();
-        } elseif (isset($content) && is_string($content)) {
-            echo $content;
+        } else {
+            echo '<div class="admin-card"><p>ページ本文が未設定です。</p></div>';
         }
         ?>
     </main>
