@@ -13,18 +13,13 @@ $sidebarSeries = fetch_series(8, 0);
 
 $adHtml = function_exists('app_setting_get') ? (string)app_setting_get('sidebar_ad_html', '') : '';
 
-$scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
-$isHome = isset($is_home) ? (bool)$is_home : ($scriptName === 'index.php');
-
 $mutualLinks = [];
-if ($isHome) {
-    try {
-        $sql = "SELECT id, site_name, site_url FROM mutual_links WHERE status='approved' AND is_enabled=1 ORDER BY display_order ASC, id ASC LIMIT 50";
-        $stmt = db()->query($sql);
-        $mutualLinks = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
-    } catch (Throwable $e) {
-        $mutualLinks = [];
-    }
+try {
+    $sql = "SELECT id, site_name, site_url FROM mutual_links WHERE status='approved' AND is_enabled=1 ORDER BY display_order ASC, id ASC LIMIT 50";
+    $stmt = db()->query($sql);
+    $mutualLinks = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+} catch (Throwable $e) {
+    $mutualLinks = [];
 }
 
 ?>

@@ -5,14 +5,9 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/db.php';
 require_once __DIR__ . '/partials/_helpers.php';
 
-$from = (int)($_GET['from'] ?? 0);
-if ($from > 0) {
-    $ipHash = hash('sha256', ((string)($_SERVER['REMOTE_ADDR'] ?? '')) . (string)config_get('security.ip_hash_salt', 'pinkclub-default-salt'));
-    db()->prepare('INSERT INTO access_events(event_type,event_at,path,referrer,link_id,ip_hash) VALUES("link_in",NOW(),:p,:r,:id,:ip)')
-        ->execute([':p' => (string)($_SERVER['REQUEST_URI'] ?? '/links.php'), ':r' => (string)($_SERVER['HTTP_REFERER'] ?? ''), ':id' => $from, ':ip' => $ipHash]);
-}
+$rows = db()->query("SELECT id, site_name, site_url FROM mutual_links WHERE status='approved' AND is_enabled=1 ORDER BY display_order ASC, id ASC")
+    ->fetchAll(PDO::FETCH_ASSOC);
 
-$rows = db()->query("SELECT * FROM mutual_links WHERE status='approved' ORDER BY updated_at DESC")->fetchAll(PDO::FETCH_ASSOC);
 $pageTitle = 'リンク集';
 include __DIR__ . '/partials/header.php';
 include __DIR__ . '/partials/nav_search.php';

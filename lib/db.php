@@ -106,6 +106,33 @@ function db_sql_split_statements(string $sql): array
     return $statements;
 }
 
+
+function db_run_migration_sql(PDO $pdo, string $sql): void
+{
+    try {
+        $pdo->exec($sql);
+    } catch (PDOException $e) {
+        $errorInfo = $e->errorInfo;
+        $mysqlCode = is_array($errorInfo) && isset($errorInfo[1]) ? (int)$errorInfo[1] : 0;
+        if (in_array($mysqlCode, [1060, 1061], true)) {
+            return;
+        }
+        throw $e;
+    }
+}
+
+function db_run_migration_file_if_exists(PDO $pdo, string $path): void
+{
+    if (!is_file($path)) {
+        return;
+    }
+
+    $migrationSql = (string)file_get_contents($path);
+    foreach (db_sql_split_statements($migrationSql) as $sql) {
+        db_run_migration_sql($pdo, $sql);
+    }
+}
+
 function db_seed_default_admin_user(PDO $pdo): void
 {
     $stmt = $pdo->prepare("SHOW TABLES LIKE 'admin_users'");
@@ -172,6 +199,7 @@ function db_ensure_initialized(PDO $pdo): void
     $stmt->execute();
     $hasAdminUsers = $stmt->fetchColumn() !== false;
     if ($hasAdminUsers) {
+        db_run_migration_file_if_exists($pdo, __DIR__ . '/../sql/migrations/003_mutual_links.sql');
         db_seed_default_admin_user($pdo);
         return;
     }
