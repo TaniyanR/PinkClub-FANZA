@@ -266,7 +266,8 @@ admin_render($pageTitle, static function () use ($ok, $error, $hasTable, $rows, 
                                 <?php endif; ?>
                                 <td style="padding: 10px; text-align: center;">
                                     <a href="<?php echo e(admin_url('links.php?edit=' . (string)$row['id'])); ?>" style="padding: 4px 12px; background: #ffc107; color: #000; text-decoration: none; border-radius: 3px; display: inline-block; margin-right: 4px; font-size: 13px;">編集</a>
-                                    <form method="post" style="display: inline;" onsubmit="return confirm(<?php echo json_encode('「' . ((string)($row['site_name'] ?? '')) . '」を削除してもよろしいですか？', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);">
+                                    <?php $deleteMsg = '「' . (string)($row['site_name'] ?? '') . '」を削除してもよろしいですか？'; ?>
+                                    <form method="post" style="display: inline;" onsubmit="return confirm(<?php echo json_encode($deleteMsg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);">
                                         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="id" value="<?php echo e((string)$row['id']); ?>">
