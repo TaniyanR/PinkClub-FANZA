@@ -7,48 +7,80 @@ require_once __DIR__ . '/../../lib/site_settings.php';
 const DESIGN_UPLOAD_MAX_BYTES = 5 * 1024 * 1024; // 5MB
 
 /**
- * @return array{0:string,1:string}
+ * @return array<string,string>
  */
-function design_redirect_with_message(string $type, string $message): array
+function design_message_catalog(): array
 {
-    $key = $type === 'err' ? 'err' : 'msg';
-    return [$key, $message];
+    return [
+        'logo_saved' => 'ロゴ画像を保存しました。',
+        'ogp_saved' => 'OGP画像を保存しました。',
+        'logo_deleted' => 'ロゴ画像を削除しました。',
+        'ogp_deleted' => 'OGP画像を削除しました。',
+        'csrf_invalid' => 'CSRFトークンが無効です。',
+        'invalid_action' => '不正な操作です。',
+        'file_required' => 'ファイルを選択してください。',
+        'upload_failed' => 'アップロードに失敗しました。',
+        'invalid_upload' => '不正なアップロードです。',
+        'invalid_size' => 'ファイルサイズは5MB以下にしてください。',
+        'invalid_extension' => '対応していない拡張子です。',
+        'mime_check_failed' => 'ファイル形式の判定に失敗しました。',
+        'invalid_type' => '画像ファイルのみアップロードできます。',
+        'mkdir_failed' => 'アップロード先ディレクトリを作成できませんでした。',
+        'save_failed' => 'ファイル保存に失敗しました。',
+        'setting_save_failed' => '設定の保存に失敗しました。',
+        'setting_delete_failed' => '設定の削除に失敗しました。',
+    ];
 }
 
-/**
- * 設定に保存されたURL（/uploads/...）から実ファイルパスを推測して削除する
- */
+function design_message(string $code, string $default = 'エラーが発生しました。'): string
+{
+    $catalog = design_message_catalog();
+    return $catalog[$code] ?? $default;
+}
+
 function design_delete_uploaded_file(string $url): void
 {
     $url = trim($url);
-    if ($url === '') {
+    if ($url === '' || !str_starts_with($url, '/uploads/design/')) {
         return;
     }
 
-    // 例: /uploads/design/xxx.png のみ削除対象（安全寄り）
-    if (!str_starts_with($url, '/uploads/')) {
-        return;
-    }
-
-    $fullPath = dirname(__DIR__) . $url; // admin/.. + /uploads/...
+    $fullPath = dirname(__DIR__) . $url;
     if (is_file($fullPath)) {
         @unlink($fullPath);
     }
 }
 
+function design_prepare_upload_dir(string $uploadDir): bool
+{
+    if (!is_dir($uploadDir) && !mkdir($uploadDir, 0775, true) && !is_dir($uploadDir)) {
+        return false;
+    }
+
+    $htaccessPath = $uploadDir . '/.htaccess';
+    if (!is_file($htaccessPath)) {
+        @file_put_contents($htaccessPath, "Options -Indexes\n<FilesMatch \"\\.(php|phtml|phar)$\">\n  Require all denied\n</FilesMatch>\n");
+    }
+
+    return true;
+}
+
 /**
- * @return array{ok:bool,message:string,url?:string}
+ * @return array{ok:bool,code:string,url?:string}
  */
-function design_handle_upload(string $inputName, string $prefix): array
+function design_handle_upload(string $inputName, string $targetBaseName): array
 {
     $file = $_FILES[$inputName] ?? null;
     if (!is_array($file)) {
-        return ['ok' => false, 'message' => 'ファイルが選択されていません。'];
+        return ['ok' => false, 'code' => 'file_required'];
     }
 
     $errorCode = (int)($file['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($errorCode === UPLOAD_ERR_NO_FILE) {
+        return ['ok' => false, 'code' => 'file_required'];
+    }
     if ($errorCode !== UPLOAD_ERR_OK) {
-        return ['ok' => false, 'message' => 'アップロードに失敗しました。'];
+        return ['ok' => false, 'code' => 'upload_failed'];
     }
 
     $tmpName = (string)($file['tmp_name'] ?? '');
@@ -56,56 +88,55 @@ function design_handle_upload(string $inputName, string $prefix): array
     $size = (int)($file['size'] ?? 0);
 
     if ($tmpName === '' || !is_uploaded_file($tmpName)) {
-        return ['ok' => false, 'message' => '不正なアップロードです。'];
+        return ['ok' => false, 'code' => 'invalid_upload'];
     }
-
     if ($size <= 0 || $size > DESIGN_UPLOAD_MAX_BYTES) {
-        return ['ok' => false, 'message' => 'ファイルサイズは5MB以下にしてください。'];
+        return ['ok' => false, 'code' => 'invalid_size'];
     }
 
     $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
     $allowedExt = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
     if (!in_array($extension, $allowedExt, true)) {
-        return ['ok' => false, 'message' => '対応していない拡張子です。'];
+        return ['ok' => false, 'code' => 'invalid_extension'];
     }
 
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
     if ($finfo === false) {
-        return ['ok' => false, 'message' => 'ファイル形式の判定に失敗しました。'];
+        return ['ok' => false, 'code' => 'mime_check_failed'];
     }
     $mime = (string)finfo_file($finfo, $tmpName);
     finfo_close($finfo);
 
     $allowedMime = [
         'image/jpeg' => 'jpg',
-        'image/png'  => 'png',
-        'image/gif'  => 'gif',
+        'image/png' => 'png',
+        'image/gif' => 'gif',
         'image/webp' => 'webp',
     ];
     if (!isset($allowedMime[$mime])) {
-        return ['ok' => false, 'message' => '画像ファイルのみアップロードできます。'];
+        return ['ok' => false, 'code' => 'invalid_type'];
     }
 
     $targetExt = $allowedMime[$mime];
-    if ($targetExt === 'jpg') {
-        // jpeg表記はjpgに統一
-        $targetExt = 'jpg';
-    }
-
     $uploadDir = dirname(__DIR__) . '/uploads/design';
-    if (!is_dir($uploadDir) && !mkdir($uploadDir, 0775, true) && !is_dir($uploadDir)) {
-        return ['ok' => false, 'message' => 'アップロード先ディレクトリを作成できませんでした。'];
+    if (!design_prepare_upload_dir($uploadDir)) {
+        return ['ok' => false, 'code' => 'mkdir_failed'];
     }
 
-    $fileName = sprintf('%s_%s_%s.%s', $prefix, date('YmdHis'), bin2hex(random_bytes(4)), $targetExt);
+    foreach (['jpg', 'png', 'gif', 'webp'] as $ext) {
+        $oldPath = $uploadDir . '/' . $targetBaseName . '.' . $ext;
+        if (is_file($oldPath)) {
+            @unlink($oldPath);
+        }
+    }
+
+    $fileName = $targetBaseName . '.' . $targetExt;
     $destinationPath = $uploadDir . '/' . $fileName;
-
     if (!move_uploaded_file($tmpName, $destinationPath)) {
-        return ['ok' => false, 'message' => 'ファイル保存に失敗しました。'];
+        return ['ok' => false, 'code' => 'save_failed'];
     }
 
-    $relative = '/uploads/design/' . $fileName;
-    return ['ok' => true, 'message' => '画像を保存しました。', 'url' => $relative];
+    return ['ok' => true, 'code' => 'saved', 'url' => '/uploads/design/' . $fileName];
 }
 
 $pageTitle = 'デザイン設定';
@@ -113,64 +144,72 @@ $error = '';
 
 try {
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+        $redirect = ['err' => 'invalid_action'];
+
         if (!admin_post_csrf_valid()) {
-            throw new RuntimeException('CSRFトークンが無効です。');
-        }
+            $redirect = ['err' => 'csrf_invalid'];
+        } else {
+            $action = (string)($_POST['action'] ?? '');
+            switch ($action) {
+                case 'upload_logo': {
+                    $upload = design_handle_upload('logo_file', 'logo');
+                    if ($upload['ok'] === false) {
+                        $redirect = ['err' => $upload['code']];
+                        break;
+                    }
 
-        $action = (string)($_POST['action'] ?? '');
-        [$redirectKey, $redirectMessage] = design_redirect_with_message('err', '不正な操作です。');
-
-        switch ($action) {
-            case 'upload_logo': {
-                $upload = design_handle_upload('logo_file', 'logo');
-                if ($upload['ok'] === false) {
-                    [$redirectKey, $redirectMessage] = design_redirect_with_message('err', $upload['message']);
+                    try {
+                        setting_set('design.logo_url', (string)($upload['url'] ?? ''));
+                        $redirect = ['ok' => 'logo_saved'];
+                    } catch (Throwable) {
+                        $redirect = ['err' => 'setting_save_failed'];
+                    }
                     break;
                 }
 
-                // 上書き前に旧ファイル削除
-                $old = (string)(setting_get('design.logo_url', '') ?? '');
-                design_delete_uploaded_file($old);
-
-                setting_set('design.logo_url', (string)($upload['url'] ?? ''));
-                [$redirectKey, $redirectMessage] = design_redirect_with_message('msg', 'ロゴ画像を保存しました。');
-                break;
-            }
-
-            case 'delete_logo': {
-                $old = (string)(setting_get('design.logo_url', '') ?? '');
-                design_delete_uploaded_file($old);
-                setting_delete('design.logo_url');
-                [$redirectKey, $redirectMessage] = design_redirect_with_message('msg', 'ロゴ画像を削除しました。');
-                break;
-            }
-
-            case 'upload_ogp': {
-                $upload = design_handle_upload('ogp_file', 'ogp');
-                if ($upload['ok'] === false) {
-                    [$redirectKey, $redirectMessage] = design_redirect_with_message('err', $upload['message']);
+                case 'delete_logo': {
+                    $old = (string)(setting_get('design.logo_url', '') ?? '');
+                    design_delete_uploaded_file($old);
+                    try {
+                        setting_delete('design.logo_url');
+                        $redirect = ['ok' => 'logo_deleted'];
+                    } catch (Throwable) {
+                        $redirect = ['err' => 'setting_delete_failed'];
+                    }
                     break;
                 }
 
-                // 上書き前に旧ファイル削除
-                $old = (string)(setting_get('design.ogp_image_url', '') ?? '');
-                design_delete_uploaded_file($old);
+                case 'upload_ogp': {
+                    $upload = design_handle_upload('ogp_file', 'ogp');
+                    if ($upload['ok'] === false) {
+                        $redirect = ['err' => $upload['code']];
+                        break;
+                    }
 
-                setting_set('design.ogp_image_url', (string)($upload['url'] ?? ''));
-                [$redirectKey, $redirectMessage] = design_redirect_with_message('msg', 'OGP画像を保存しました。');
-                break;
-            }
+                    try {
+                        setting_set('design.ogp_image_url', (string)($upload['url'] ?? ''));
+                        $redirect = ['ok' => 'ogp_saved'];
+                    } catch (Throwable) {
+                        $redirect = ['err' => 'setting_save_failed'];
+                    }
+                    break;
+                }
 
-            case 'delete_ogp': {
-                $old = (string)(setting_get('design.ogp_image_url', '') ?? '');
-                design_delete_uploaded_file($old);
-                setting_delete('design.ogp_image_url');
-                [$redirectKey, $redirectMessage] = design_redirect_with_message('msg', 'OGP画像を削除しました。');
-                break;
+                case 'delete_ogp': {
+                    $old = (string)(setting_get('design.ogp_image_url', '') ?? '');
+                    design_delete_uploaded_file($old);
+                    try {
+                        setting_delete('design.ogp_image_url');
+                        $redirect = ['ok' => 'ogp_deleted'];
+                    } catch (Throwable) {
+                        $redirect = ['err' => 'setting_delete_failed'];
+                    }
+                    break;
+                }
             }
         }
 
-        $location = admin_url('design.php?' . http_build_query([$redirectKey => $redirectMessage]));
+        $location = admin_url('design.php?' . http_build_query($redirect));
         header('Location: ' . $location);
         exit;
     }
@@ -179,10 +218,12 @@ try {
 }
 
 $logoUrl = (string)(setting_get('design.logo_url', '') ?? '');
-$ogpUrl  = (string)(setting_get('design.ogp_image_url', '') ?? '');
+$ogpUrl = (string)(setting_get('design.ogp_image_url', '') ?? '');
 
-$msg = trim((string)($_GET['msg'] ?? ''));
-$err = trim((string)($_GET['err'] ?? ''));
+$okCode = trim((string)($_GET['ok'] ?? ''));
+$errCode = trim((string)($_GET['err'] ?? ''));
+$msg = $okCode !== '' ? design_message($okCode, '') : '';
+$err = $errCode !== '' ? design_message($errCode, 'エラーが発生しました。') : '';
 if ($error !== '' && $err === '') {
     $err = $error;
 }
