@@ -232,7 +232,7 @@ ob_start();
 <?php endif; ?>
 <?php
 $main = (string)ob_get_clean();
-require_once __DIR__ . '/_page.php';
-admin_render($pageTitle, static function () use ($main): void {
+$content = static function () use ($main): void {
     echo $main;
-});
+};
+include __DIR__ . '/../partials/admin_layout.php';
