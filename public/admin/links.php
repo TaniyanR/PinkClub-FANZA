@@ -32,7 +32,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!admin_post_csrf_valid()) {
         $error = 'CSRFトークンが無効です。';
     } elseif (!$hasTable) {
-        $error = 'mutual_links テーブルが未作成のため保存できません。';
+        $error = 'mutual_links テーブルが未作成��ため保存できません。';
     } else {
         $action = (string)($_POST['action'] ?? 'create');
         $title = trim((string)($_POST['title'] ?? ''));
