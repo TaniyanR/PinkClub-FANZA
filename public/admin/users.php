@@ -26,14 +26,33 @@ function send_verification_mail(int $userId, string $email): void
         ]);
 }
 
-$error = '';
-$currentUserId = admin_current_user_id();
-$currentUser = [];
-if ($currentUserId !== null) {
+function users_current_admin(): array
+{
+    $sessionUser = admin_current_user();
+    $currentUserId = is_array($sessionUser) ? (int)($sessionUser['id'] ?? 0) : 0;
+    if ($currentUserId <= 0) {
+        return [];
+    }
+
     $stmt = db()->prepare('SELECT * FROM admin_users WHERE id=:id LIMIT 1');
     $stmt->execute([':id' => $currentUserId]);
-    $currentUser = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return is_array($row) ? $row : [];
 }
+
+function users_set_session(array $user): void
+{
+    $_SESSION['admin_user'] = [
+        'id' => (int)$user['id'],
+        'username' => (string)$user['username'],
+        'email' => isset($user['email']) && is_string($user['email']) ? $user['email'] : null,
+        'login_mode' => isset($user['login_mode']) && is_string($user['login_mode']) ? $user['login_mode'] : 'username',
+        'password_hash' => isset($user['password_hash']) && is_string($user['password_hash']) ? $user['password_hash'] : '',
+    ];
+}
+
+$error = '';
+$currentUser = users_current_admin();
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!admin_post_csrf_valid()) {
@@ -41,84 +60,139 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     } elseif ($currentUser === []) {
         $error = 'ログイン中ユーザーが見つかりません。';
     } else {
-        $username = trim((string)($_POST['username'] ?? ''));
-        $displayName = trim((string)($_POST['display_name'] ?? ''));
-        $password = (string)($_POST['new_password'] ?? '');
-        $email = trim((string)($_POST['email'] ?? ''));
-        if ($username === '') {
-            $error = 'ユーザー名は必須です。';
-        } elseif ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $error = 'メールアドレス形式が正しくありません。';
-        } else {
-            $verified = !empty($currentUser['email_verified_at']) && !empty($currentUser['email']);
-            $loginMode = (string)($currentUser['login_mode'] ?? 'username');
-            if ($username !== (string)$currentUser['username'] && $verified) {
-                $loginMode = 'email_only';
-            }
+        $action = (string)($_POST['action'] ?? '');
 
-            db()->prepare('UPDATE admin_users SET username=:username, display_name=:display_name, login_mode=:mode, pending_email=:pending_email, updated_at=NOW() WHERE id=:id')
-                ->execute([
-                    ':username' => $username,
-                    ':display_name' => $displayName,
-                    ':mode' => $loginMode,
-                    ':pending_email' => $email !== '' ? $email : null,
-                    ':id' => (int)$currentUser['id'],
-                ]);
+        if ($action === 'update_email') {
+            $email = trim((string)($_POST['email'] ?? ''));
+            if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $error = 'メールアドレス形式が正しくありません。';
+            } else {
+                if ($email === '') {
+                    db()->prepare('UPDATE admin_users SET email=NULL, pending_email=NULL, email_verified_at=NULL, login_mode="username", updated_at=NOW() WHERE id=:id')
+                        ->execute([':id' => (int)$currentUser['id']]);
+                    header('Location: ' . admin_url('users.php?ok=email_updated'));
+                    exit;
+                }
 
-            if ($email !== '' && $email !== (string)($currentUser['email'] ?? '') && $email !== (string)($currentUser['pending_email'] ?? '')) {
+                if (
+                    $email === (string)($currentUser['email'] ?? '')
+                    && (string)($currentUser['pending_email'] ?? '') === ''
+                ) {
+                    header('Location: ' . admin_url('users.php?ok=email_updated'));
+                    exit;
+                }
+
+                db()->prepare('UPDATE admin_users SET pending_email=:pending_email, updated_at=NOW() WHERE id=:id')
+                    ->execute([':pending_email' => $email, ':id' => (int)$currentUser['id']]);
                 send_verification_mail((int)$currentUser['id'], $email);
+                header('Location: ' . admin_url('users.php?ok=email_updated'));
+                exit;
             }
+        } elseif ($action === 'update_password') {
+            $currentPassword = (string)($_POST['current_password'] ?? '');
+            $newPassword = (string)($_POST['new_password'] ?? '');
+            $confirmPassword = (string)($_POST['new_password_confirm'] ?? '');
 
-            if ($password !== '') {
-                if (strlen($password) < 8) {
-                    $error = 'パスワードは8文字以上で入力してください。';
-                } else {
-                    db()->prepare('UPDATE admin_users SET password_hash=:hash, updated_at=NOW() WHERE id=:id')
-                        ->execute([':hash' => password_hash($password, PASSWORD_DEFAULT), ':id' => (int)$currentUser['id']]);
-                    $_SESSION['admin_default_password'] = false;
+            if ($currentPassword === '' || $newPassword === '' || $confirmPassword === '') {
+                $error = 'パスワード変更に必要な項目を入力してください。';
+            } elseif (!password_verify($currentPassword, (string)($currentUser['password_hash'] ?? ''))) {
+                $error = '現在のパスワードが正しくありません。';
+            } elseif (strlen($newPassword) < 8) {
+                $error = '新しいパスワードは8文字以上で入力してください。';
+            } elseif ($newPassword !== $confirmPassword) {
+                $error = '新しいパスワードが一致しません。';
+            } else {
+                $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
+                db()->prepare('UPDATE admin_users SET password_hash=:hash, updated_at=NOW() WHERE id=:id')
+                    ->execute([':hash' => $passwordHash, ':id' => (int)$currentUser['id']]);
+                $_SESSION['admin_default_password'] = false;
+                header('Location: ' . admin_url('users.php?ok=pass_updated'));
+                exit;
+            }
+        } elseif ($action === 'update_username') {
+            $username = trim((string)($_POST['username'] ?? ''));
+            if (preg_match('/^[A-Za-z0-9_-]{3,30}$/', $username) !== 1) {
+                $error = 'ユーザー名は3〜30文字の英数字・アンダースコア・ハイフンで入力してください。';
+            } elseif ($username !== (string)$currentUser['username']) {
+                $stmt = db()->prepare('SELECT id FROM admin_users WHERE username=:username AND id<>:id LIMIT 1');
+                $stmt->execute([':username' => $username, ':id' => (int)$currentUser['id']]);
+                if ($stmt->fetchColumn() !== false) {
+                    $error = 'そのユーザー名は既に使用されています。';
                 }
             }
 
             if ($error === '') {
-                $_SESSION['admin_user'] = $username;
-                admin_flash_set('ok', 'アカウント設定を保存しました。メール変更時は確認リンクを開いてください。');
-                header('Location: ' . admin_url('users.php'));
+                db()->prepare('UPDATE admin_users SET username=:username, updated_at=NOW() WHERE id=:id')
+                    ->execute([':username' => $username, ':id' => (int)$currentUser['id']]);
+                $currentUser['username'] = $username;
+                users_set_session($currentUser);
+                header('Location: ' . admin_url('users.php?ok=username_updated'));
                 exit;
             }
+        } else {
+            $error = '不明な操作です。';
         }
     }
 }
 
-if ($currentUserId !== null) {
-    $stmt = db()->prepare('SELECT * FROM admin_users WHERE id=:id LIMIT 1');
-    $stmt->execute([':id' => $currentUserId]);
-    $currentUser = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+$currentUser = users_current_admin();
+$ok = (string)($_GET['ok'] ?? '');
+$okMessage = '';
+if ($ok === 'email_updated') {
+    $okMessage = 'メール設定を更新しました。メール変更時は確認リンクを開いてください。';
+} elseif ($ok === 'pass_updated') {
+    $okMessage = 'パスワードを更新しました。';
+} elseif ($ok === 'username_updated') {
+    $okMessage = 'ユーザー名を更新しました。';
 }
-$ok = admin_flash_get('ok');
+
 $pageTitle = 'アカウント設定';
 ob_start();
 ?>
 <h1>アカウント設定</h1>
-<?php if ($ok !== '') : ?><div class="admin-card"><p><?php echo e($ok); ?></p></div><?php endif; ?>
+<?php if ($okMessage !== '') : ?><div class="admin-card"><p><?php echo e($okMessage); ?></p></div><?php endif; ?>
 <?php if ($error !== '') : ?><div class="admin-card"><p><?php echo e($error); ?></p></div><?php endif; ?>
+
 <div class="admin-card">
+    <h2>現在の情報</h2>
+    <p><strong>username:</strong> <?php echo e((string)($currentUser['username'] ?? '')); ?></p>
+    <p><strong>email:</strong> <?php echo e((string)($currentUser['email'] ?? '')); ?></p>
+</div>
+
+<div class="admin-card">
+    <h2>メール更新</h2>
     <form method="post">
         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+        <input type="hidden" name="action" value="update_email">
+        <label>メールアドレス</label>
+        <input type="email" name="email" value="<?php echo e((string)($currentUser['pending_email'] ?? $currentUser['email'] ?? '')); ?>" placeholder="example@domain.com">
+        <button type="submit">メールを更新</button>
+    </form>
+</div>
 
-        <label>ユーザー名</label>
+<div class="admin-card">
+    <h2>パスワード変更</h2>
+    <form method="post">
+        <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+        <input type="hidden" name="action" value="update_password">
+        <label>現在のパスワード</label>
+        <input type="password" name="current_password" autocomplete="current-password" required>
+        <label>新しいパスワード（8文字以上）</label>
+        <input type="password" name="new_password" autocomplete="new-password" minlength="8" required>
+        <label>新しいパスワード（確認）</label>
+        <input type="password" name="new_password_confirm" autocomplete="new-password" minlength="8" required>
+        <button type="submit">パスワードを更新</button>
+    </form>
+</div>
+
+<div class="admin-card">
+    <h2>username変更</h2>
+    <form method="post">
+        <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+        <input type="hidden" name="action" value="update_username">
+        <label>新しいusername（3〜30文字, 英数字/ _ / - ）</label>
         <input type="text" name="username" value="<?php echo e((string)($currentUser['username'] ?? '')); ?>" required>
-
-        <label>表示名</label>
-        <input type="text" name="display_name" value="<?php echo e((string)($currentUser['display_name'] ?? '')); ?>">
-
-        <label>メールアドレス（保存後に確認メール送信）</label>
-        <input type="email" name="email" value="<?php echo e((string)($currentUser['pending_email'] ?? $currentUser['email'] ?? '')); ?>">
-        <p>現在のログイン方式: <?php echo e((string)($currentUser['login_mode'] ?? 'username')); ?></p>
-
-        <label>パスワード変更（任意）</label>
-        <input type="password" name="new_password" minlength="8" placeholder="変更する場合のみ入力">
-
-        <button type="submit">保存</button>
+        <button type="submit">usernameを更新</button>
     </form>
 </div>
 <?php
