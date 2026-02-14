@@ -35,13 +35,6 @@ if ($showLinks) {
     $mutualLinks = db()->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 }
 
-$rssLatest = [];
-try {
-    $stmt = db()->query('SELECT title,url,image_url FROM rss_items WHERE image_url IS NOT NULL AND image_url<>"" ORDER BY published_at DESC, id DESC LIMIT 5');
-    $rssLatest = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
-} catch (Throwable $e) {
-    $rssLatest = [];
-}
 ?>
 <aside class="sidebar" style="--links-box-max-height:420px;">
     <div class="sidebar-block">
@@ -71,9 +64,7 @@ try {
     <div class="sidebar-block"><h3>メーカー</h3><ul><?php foreach ($sidebarMakers as $maker) : ?><li><a href="/maker.php?id=<?php echo urlencode((string)$maker['id']); ?>"><?php echo e((string)$maker['name']); ?></a></li><?php endforeach; ?></ul></div>
     <div class="sidebar-block"><h3>シリーズ</h3><ul><?php foreach ($sidebarSeries as $series) : ?><li><a href="/series_one.php?id=<?php echo urlencode((string)$series['id']); ?>"><?php echo e((string)$series['name']); ?></a></li><?php endforeach; ?></ul></div>
 
-    <?php if ($rssLatest !== []) : ?>
-        <div class="sidebar-block"><h3>画像RSS</h3><ul><?php foreach ($rssLatest as $rss) : ?><li><img src="<?php echo e((string)$rss['image_url']); ?>" alt="" style="max-width:100%;height:auto"><a href="<?php echo e((string)$rss['url']); ?>" target="_blank" rel="noopener noreferrer"><?php echo e((string)$rss['title']); ?></a></li><?php endforeach; ?></ul></div>
-    <?php endif; ?>
+    <div class="sidebar-block"><h3>画像RSS</h3><?php include __DIR__ . '/rss_image_widget.php'; ?></div>
 
     <?php
     $canUseNewAd = function_exists('should_show_ad') && function_exists('render_ad') && function_exists('ad_current_page_type');

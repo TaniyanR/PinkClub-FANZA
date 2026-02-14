@@ -10,6 +10,9 @@ $footerText = (string)app_setting_get('footer_text', '');
 $bodyEndCode = (string)app_setting_get('body_end_injection_code', '');
 ?>
 </div>
+<div class="rss-sp-only">
+    <?php include __DIR__ . '/rss_text_widget.php'; ?>
+</div>
 <?php render_ad('sp_footer_above', ad_current_page_type(), 'sp'); ?>
 <footer class="site-footer">
     <div class="site-footer__inner">

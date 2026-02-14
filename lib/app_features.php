@@ -224,3 +224,100 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
     $pdo->prepare('UPDATE rss_sources SET last_fetched_at=NOW() WHERE id=:id')->execute([':id' => $sourceId]);
     return ['ok' => true, 'message' => 'updated'];
 }
+
+
+function rss_pick_display_items(int $limit, bool $requireImage = false, int $days = 14): array
+{
+    if ($limit <= 0) {
+        return [];
+    }
+
+    $days = max(1, $days);
+    $pdo = db();
+    $stmt = $pdo->prepare(
+        'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.published_at, ri.image_url
+'
+        . 'FROM rss_items ri
+'
+        . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id
+'
+        . 'WHERE rs.is_enabled = 1 AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY)
+'
+        . 'ORDER BY ri.published_at DESC, ri.id DESC'
+    );
+    $stmt->bindValue(':days', $days, PDO::PARAM_INT);
+    $stmt->execute();
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (!is_array($rows) || $rows === []) {
+        return [];
+    }
+
+    $seedBase = crc32((string)date('Y-m-d'));
+    $sourceBuckets = [];
+    foreach ($rows as $row) {
+        $sourceId = (int)($row['source_id'] ?? 0);
+        if ($sourceId <= 0) {
+            continue;
+        }
+        $imageUrl = trim((string)($row['image_url'] ?? ''));
+        if ($requireImage && $imageUrl === '') {
+            continue;
+        }
+        if (!isset($sourceBuckets[$sourceId])) {
+            $sourceBuckets[$sourceId] = [];
+        }
+        $sourceBuckets[$sourceId][] = [
+            'title' => (string)($row['title'] ?? ''),
+            'link' => (string)($row['url'] ?? ''),
+            'published_at' => (string)($row['published_at'] ?? ''),
+            'image_url' => $imageUrl,
+            'source_id' => $sourceId,
+            'source_name' => (string)($row['source_name'] ?? ''),
+        ];
+    }
+
+    if ($sourceBuckets === []) {
+        return [];
+    }
+
+    $stableShuffle = static function (array $items, int $seed): array {
+        usort($items, static function (array $a, array $b) use ($seed): int {
+            $ka = crc32(json_encode($a, JSON_UNESCAPED_UNICODE) . '|' . $seed);
+            $kb = crc32(json_encode($b, JSON_UNESCAPED_UNICODE) . '|' . $seed);
+            return $ka <=> $kb;
+        });
+        return $items;
+    };
+
+    $sourceOrder = array_keys($sourceBuckets);
+    usort($sourceOrder, static function (int $a, int $b) use ($seedBase): int {
+        return crc32((string)$a . '|' . $seedBase) <=> crc32((string)$b . '|' . $seedBase);
+    });
+
+    foreach ($sourceBuckets as $sourceId => $items) {
+        $sourceBuckets[$sourceId] = $stableShuffle($items, $seedBase ^ $sourceId);
+    }
+
+    $picked = [];
+    while (count($picked) < $limit) {
+        $addedInLoop = false;
+        foreach ($sourceOrder as $sourceId) {
+            if (count($picked) >= $limit) {
+                break;
+            }
+            if (!isset($sourceBuckets[$sourceId]) || $sourceBuckets[$sourceId] === []) {
+                continue;
+            }
+            $item = array_shift($sourceBuckets[$sourceId]);
+            if (is_array($item)) {
+                $picked[] = $item;
+                $addedInLoop = true;
+            }
+        }
+        if (!$addedInLoop) {
+            break;
+        }
+    }
+
+    return $picked;
+}
