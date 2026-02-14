@@ -120,7 +120,7 @@ include __DIR__ . '/partials/nav_search.php';
         <?php render_ad('content_top', 'page', 'pc'); ?>
         <section class="block">
             <h1 class="section-title"><?php echo e((string)$p['title']); ?></h1>
-            <?php echo (string)$p['body']; ?>
+            <?php echo nl2br(e((string)$p['body'])); ?>
         </section>
 
         <?php if ($slug === 'contact') : ?>
