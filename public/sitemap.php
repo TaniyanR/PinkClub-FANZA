@@ -30,6 +30,8 @@ $urls = [
     ['loc' => $base . '/posts.php', 'lastmod' => null],
 ];
 
+// 固定ページ（fixed_pages）は仕様により sitemap に含めない。
+
 $stmt = db()->query('SELECT content_id, updated_at, created_at FROM items ORDER BY id DESC');
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 foreach ($rows as $row) {
