@@ -107,7 +107,8 @@ ob_start();
     </form>
 </div>
 <?php
-$content = (string)ob_get_clean();
-admin_trace_push('page:content:ready');
-admin_trace_push('page:render:layout');
-include __DIR__ . '/../partials/admin_layout.php';
+$main = (string)ob_get_clean();
+require_once __DIR__ . '/_page.php';
+admin_render($pageTitle, static function () use ($main): void {
+    echo $main;
+});
