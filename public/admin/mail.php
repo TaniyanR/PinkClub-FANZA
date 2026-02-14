@@ -19,6 +19,8 @@ function admin_mail_log(string $to, string $subject, string $body, bool $ok, ?st
 }
 
 $error = '';
+$okCode = (string)($_GET['ok'] ?? '');
+$errCode = (string)($_GET['err'] ?? '');
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!admin_post_csrf_valid()) {
         $error = 'CSRFトークンが無効です。';
@@ -36,8 +38,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'mail.notify_email' => $notify,
                     'mail.from_email' => $from,
                 ]);
-                admin_flash_set('ok', 'メール設定を保存しました。');
-                header('Location: ' . admin_url('mail.php'));
+                header('Location: ' . admin_url('mail.php?ok=saved'));
                 exit;
             }
         } elseif ($action === 'send_test') {
@@ -56,11 +57,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $lastError = error_get_last();
                 admin_mail_log($to, $subject, $body, $ok, $ok ? null : (($lastError['message'] ?? 'mail() failed')));
                 if ($ok) {
-                    admin_flash_set('ok', 'テストメールを送信しました。');
+                    header('Location: ' . admin_url('mail.php?ok=test_sent'));
                 } else {
-                    admin_flash_set('ng', 'テストメール送信に失敗しました。mail_logsを確認してください。');
+                    header('Location: ' . admin_url('mail.php?err=send_failed'));
                 }
-                header('Location: ' . admin_url('mail.php'));
                 exit;
             }
         }
@@ -77,10 +77,19 @@ if ($detailId > 0) {
 }
 
 $logs = db()->query('SELECT id, created_at, subject, from_email, to_email, status, last_error FROM mail_logs ORDER BY created_at DESC LIMIT 100')->fetchAll(PDO::FETCH_ASSOC);
+$recentFailedCount = (int)(db()->query("SELECT COUNT(*) FROM mail_logs WHERE status='failed' AND created_at >= (NOW() - INTERVAL 30 MINUTE)")->fetchColumn() ?: 0);
 $notifyEmail = site_setting_get('mail.notify_email', '');
 $fromEmail = site_setting_get('mail.from_email', '');
-$okMessage = admin_flash_get('ok');
-$ngMessage = admin_flash_get('ng');
+$okMessage = '';
+$ngMessage = '';
+if ($okCode === 'saved') {
+    $okMessage = 'メール設定を保存しました。';
+} elseif ($okCode === 'test_sent') {
+    $okMessage = 'テストメールを送信しました。';
+}
+if ($errCode === 'send_failed') {
+    $ngMessage = 'テストメール送信に失敗しました。mail_logsを確認してください。';
+}
 
 $pageTitle = 'メール';
 ob_start();
@@ -89,6 +98,7 @@ ob_start();
 <?php if ($okMessage !== '') : ?><div class="admin-card"><p><?php echo e($okMessage); ?></p></div><?php endif; ?>
 <?php if ($ngMessage !== '') : ?><div class="admin-card"><p style="color:#d63638"><?php echo e($ngMessage); ?></p></div><?php endif; ?>
 <?php if ($error !== '') : ?><div class="admin-card"><p style="color:#d63638"><?php echo e($error); ?></p></div><?php endif; ?>
+<?php if ($recentFailedCount > 0) : ?><div class="admin-card"><p style="color:#d63638">直近30分でメール送信失敗が<?php echo e((string)$recentFailedCount); ?>件あります。mail_logsを確認してください。</p></div><?php endif; ?>
 
 <div class="admin-card">
     <h2>通知先設定</h2>
