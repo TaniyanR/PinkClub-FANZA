@@ -155,84 +155,16 @@ if ($hasTable) {
 }
 
 $pageTitle = '相互リンク管理';
-ob_start();
-?>
-<h1>相互リンク管理</h1>
-
-<?php if ($ok !== '') : ?>
-    <div class="admin-card"><p><?php echo e('処理が完了しました: ' . $ok); ?></p></div>
-<?php endif; ?>
-<?php if ($error !== '') : ?>
-    <div class="admin-card"><p><?php echo e($error); ?></p></div>
-<?php endif; ?>
-<?php if (!$hasTable) : ?>
-    <div class="admin-card"><p>mutual_links テーブルが未作成のため、相互リンク管理は利用できません。</p></div>
-<?php else : ?>
-    <div class="admin-card">
-        <h2><?php echo $editId > 0 ? '相互リンクを編集' : '相互リンクを新規追加'; ?></h2>
-        <form method="post">
-            <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
-            <input type="hidden" name="action" value="<?php echo $editId > 0 ? 'update' : 'create'; ?>">
-            <?php if ($editId > 0) : ?>
-                <input type="hidden" name="id" value="<?php echo e((string)$form['id']); ?>">
-            <?php endif; ?>
-            <label>タイトル</label>
-            <input type="text" name="title" maxlength="200" required value="<?php echo e((string)$form['title']); ?>">
-            <label>URL</label>
-            <input type="url" name="url" required value="<?php echo e((string)$form['url']); ?>" placeholder="https://example.com/">
-            <label>並び順</label>
-            <input type="number" name="sort_order" value="<?php echo e((string)$form['sort_order']); ?>">
-            <label><input type="checkbox" name="is_enabled" value="1" <?php echo ((string)$form['is_enabled'] === '1') ? 'checked' : ''; ?>> 有効にする</label>
-            <button type="submit"><?php echo $editId > 0 ? '更新する' : '追加する'; ?></button>
-            <?php if ($editId > 0) : ?>
-                <a href="<?php echo e(admin_url('links.php')); ?>">新規追加に戻る</a>
-            <?php endif; ?>
-        </form>
-    </div>
-
-    <div class="admin-card">
-        <h2>登録済みリンク一覧</h2>
-        <?php if ($rows === []) : ?>
-            <p>リンクはまだありません。上のフォームから新規追加してください。</p>
-        <?php else : ?>
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>タイトル</th>
-                        <th>URL</th>
-                        <th>並び順</th>
-                        <th>有効</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($rows as $r) : ?>
-                        <tr>
-                            <td><?php echo e((string)$r['id']); ?></td>
-                            <td><?php echo e((string)($r['site_name'] ?? '')); ?></td>
-                            <td><a href="<?php echo e((string)($r['site_url'] ?? '')); ?>" target="_blank" rel="noopener noreferrer"><?php echo e((string)($r['site_url'] ?? '')); ?></a></td>
-                            <td><?php echo e((string)($r['display_order'] ?? '0')); ?></td>
-                            <td><?php echo ((int)($r['is_enabled'] ?? 0) === 1) ? 'ON' : 'OFF'; ?></td>
-                            <td>
-                                <a href="<?php echo e(admin_url('links.php?edit=' . (string)$r['id'])); ?>">編集</a>
-                                <form method="post" style="display:inline" onsubmit="return confirm('削除しますか？');">
-                                    <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
-                                    <input type="hidden" name="action" value="delete">
-                                    <input type="hidden" name="id" value="<?php echo e((string)$r['id']); ?>">
-                                    <button type="submit">削除</button>
-                                </form>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php endif; ?>
-    </div>
-<?php endif; ?>
-<?php
-$main = (string)ob_get_clean();
 require_once __DIR__ . '/_page.php';
-admin_trace_push('before_layout_include');
-admin_render($pageTitle, static function () use ($main): void { echo $main; });
-admin_trace_push('after_layout_include');
+admin_render($pageTitle, static function () use ($ok, $error, $hasTable, $rows): void {
+    ?>
+    <h1>相互リンク管理（最小表示）</h1>
+    <div class="admin-card">
+        <p>admin_render には到達しています。</p>
+        <?php if ($ok !== '') : ?><p><?php echo e('処理が完了しました: ' . $ok); ?></p><?php endif; ?>
+        <?php if ($error !== '') : ?><p><?php echo e($error); ?></p><?php endif; ?>
+        <p><?php echo $hasTable ? 'mutual_links テーブル: あり' : 'mutual_links テーブル: なし'; ?></p>
+        <p><?php echo e('取得件数: ' . (string)count($rows)); ?></p>
+    </div>
+    <?php
+});
