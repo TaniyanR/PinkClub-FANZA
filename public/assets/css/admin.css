@@ -184,3 +184,58 @@ body {
 .admin-table { width: 100%; border-collapse: collapse; }
 .admin-table th, .admin-table td { border-bottom: 1px solid #dcdcde; padding: 8px; text-align: left; vertical-align: top; }
 .admin-card textarea { width: 100%; max-width: 100%; padding: 8px; font-size: 14px; }
+
+.admin-notice {
+    padding: 12px 16px;
+}
+
+.admin-notice p {
+    margin: 0;
+}
+
+.admin-notice--success {
+    background: #edfaef;
+    border-color: #74c278;
+}
+
+.admin-notice--error {
+    background: #fdf0f0;
+    border-color: #d63638;
+}
+
+.design-card h2 {
+    margin: 0 0 10px;
+    font-size: 20px;
+}
+
+.design-preview {
+    margin: 0 0 12px;
+}
+
+.design-preview img {
+    display: block;
+    max-width: 320px;
+    width: 100%;
+    height: auto;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    background: #fff;
+}
+
+.design-preview-empty {
+    margin: 0 0 12px;
+    color: #646970;
+}
+
+.design-form {
+    margin-bottom: 10px;
+}
+
+.design-form-inline {
+    margin: 0;
+}
+
+.design-form-inline .button-danger {
+    background: #d63638;
+    border-color: #d63638;
+}
