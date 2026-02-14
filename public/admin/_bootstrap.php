@@ -277,6 +277,24 @@ register_shutdown_function(static function (): void {
         admin_trace_push('shutdown:empty-output');
         $isDev = admin_is_dev_environment();
         $headersNotSent = headers_sent() === false;
+        $statusCode = http_response_code();
+
+        $hasLocationHeader = false;
+        foreach (headers_list() as $headerLine) {
+            if (stripos($headerLine, 'Location:') === 0) {
+                $hasLocationHeader = true;
+                break;
+            }
+        }
+
+        $isRedirectResponse = $hasLocationHeader
+            || in_array((int)$statusCode, [301, 302, 303, 307, 308], true);
+
+        if ($isRedirectResponse) {
+            admin_trace_push('shutdown:empty-output:redirect');
+            return;
+        }
+
         if ($headersNotSent) {
             $lastErrorText = $lastError !== null ? json_encode($lastError, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : 'null';
             $line = sprintf(
