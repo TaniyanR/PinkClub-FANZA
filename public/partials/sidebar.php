@@ -6,7 +6,6 @@ require_once __DIR__ . '/../../lib/admin_auth.php';
 require_once __DIR__ . '/../../lib/csrf.php';
 require_once __DIR__ . '/../../lib/url.php';
 require_once __DIR__ . '/../../lib/app_features.php';
-require_once __DIR__ . '/../../lib/site_settings.php';
 
 $sidebarGenres = fetch_genres(8, 0);
 $sidebarMakers = fetch_makers(8, 0);
@@ -15,24 +14,17 @@ $sidebarSeries = fetch_series(8, 0);
 $adHtml = function_exists('app_setting_get') ? (string)app_setting_get('sidebar_ad_html', '') : '';
 
 $scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
-$isHome = $scriptName === 'index.php';
-$linksEnabled = site_setting_get('links_display_enabled', '1') === '1';
-$showLinks = $isHome && $linksEnabled;
+$isHome = isset($is_home) ? (bool)$is_home : ($scriptName === 'index.php');
 
 $mutualLinks = [];
-if ($showLinks) {
-    $sortMode = (string)site_setting_get('links_sort_mode', 'manual');
-    $orderBy = 'display_order ASC, id DESC';
-    if ($sortMode === 'approved_desc') {
-        $orderBy = 'approved_at DESC, id DESC';
-    } elseif ($sortMode === 'random') {
-        $orderBy = 'RAND()';
-    } elseif ($sortMode === 'in_desc') {
-        $orderBy = '(SELECT COUNT(*) FROM access_events ae WHERE ae.event_type="in" AND ae.link_id=mutual_links.id AND ae.event_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)) DESC, id DESC';
+if ($isHome) {
+    try {
+        $sql = "SELECT id, site_name, site_url FROM mutual_links WHERE status='approved' AND is_enabled=1 ORDER BY display_order ASC, id ASC LIMIT 50";
+        $stmt = db()->query($sql);
+        $mutualLinks = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    } catch (Throwable $e) {
+        $mutualLinks = [];
     }
-
-    $sql = "SELECT id,site_name,site_url FROM mutual_links WHERE status='approved' AND is_enabled=1 ORDER BY {$orderBy} LIMIT 50";
-    $mutualLinks = db()->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 }
 
 $rssLatest = [];

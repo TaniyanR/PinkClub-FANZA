@@ -22,6 +22,7 @@ include __DIR__ . '/partials/header.php';
 include __DIR__ . '/partials/nav_search.php';
 ?>
 <div class="layout">
+    <?php $is_home = true; ?>
     <?php include __DIR__ . '/partials/sidebar.php'; ?>
 
     <main class="main-content">
