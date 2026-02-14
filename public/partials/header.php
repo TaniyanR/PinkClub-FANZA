@@ -75,4 +75,7 @@ $adDevice = ad_current_device();
 </header>
 <?php render_ad('header_left_728x90', $adPageType, 'pc'); ?>
 <?php render_ad('sp_header_below', $adPageType, 'sp'); ?>
+<div class="rss-sp-only">
+    <?php include __DIR__ . '/rss_text_widget.php'; ?>
+</div>
 <div class="site-body">

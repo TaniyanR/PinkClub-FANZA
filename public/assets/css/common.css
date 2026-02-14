@@ -621,3 +621,50 @@ img {
         gap: 6px;
     }
 }
+
+
+.rss-box {
+    height: 250px;
+    overflow: auto;
+}
+
+.rss-list,
+.rss-image-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+}
+
+.rss-list__item,
+.rss-image-list__item {
+    display: grid;
+    gap: 4px;
+}
+
+.rss-image-list__item img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+
+.rss-sp-only {
+    display: none;
+}
+
+.rss-pc-only {
+    display: block;
+}
+
+
+@media (max-width: 768px) {
+    .rss-sp-only {
+        display: block;
+        margin: 16px 16px 0;
+    }
+
+    .rss-pc-only {
+        display: none;
+    }
+}
