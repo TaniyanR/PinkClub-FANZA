@@ -155,82 +155,73 @@ if ($hasTable) {
 }
 
 $pageTitle = '相互リンク管理';
-require_once __DIR__ . '/_page.php';
-admin_render($pageTitle, static function () use ($ok, $error, $hasTable, $hasDisplayOrder, $hasIsEnabled, $rows, $form): void {
-    ?>
-    <h1>相互リンク管理</h1>
-
-    <?php if ($ok !== '') : ?>
-        <div class="admin-card" style="background:#e7f5e7;padding:12px;margin-bottom:16px;">
-            <p style="margin:0;">
-                <?php
-                if ($ok === 'created') {
-                    echo '✓ リンクを追加しました。';
-                } elseif ($ok === 'updated') {
-                    echo '✓ リンクを更新しました。';
-                } elseif ($ok === 'deleted') {
-                    echo '✓ リンクを削除しました。';
-                } else {
-                    echo '✓ 処理が完了しました。';
-                }
-                ?>
-            </p>
-        </div>
-    <?php endif; ?>
-
-    <?php if ($error !== '') : ?>
-        <div class="admin-card" style="background:#ffe7e7;padding:12px;margin-bottom:16px;">
-            <p style="margin:0;color:#c00;">✗ <?php echo e($error); ?></p>
-        </div>
-    <?php endif; ?>
-
-    <?php if (!$hasTable) : ?>
-        <div class="admin-card" style="background:#fff3cd;padding:12px;margin-bottom:16px;">
-            <p style="margin:0;">⚠ mutual_linksテーブルが未作成です。データベース初期化を実行してください。</p>
-        </div>
-    <?php endif; ?>
-
-    <div class="admin-card" style="margin-bottom:24px;">
-        <h2><?php echo (int)$form['id'] > 0 ? 'リンク編集' : 'リンク追加'; ?></h2>
-        <form method="post" style="max-width:600px;">
-            <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
-            <input type="hidden" name="action" value="<?php echo (int)$form['id'] > 0 ? 'update' : 'create'; ?>">
-            <?php if ((int)$form['id'] > 0) : ?>
-                <input type="hidden" name="id" value="<?php echo e($form['id']); ?>">
-            <?php endif; ?>
-
-            <label style="display:block;margin-bottom:8px;font-weight:bold;">サイト名 <span style="color:#c00;">*</span></label>
-            <input type="text" name="title" value="<?php echo e($form['title']); ?>" required style="width:100%;max-width:500px;padding:6px;border:1px solid #ddd;border-radius:4px;margin-bottom:16px;">
-
-            <label style="display:block;margin-bottom:8px;font-weight:bold;">URL <span style="color:#c00;">*</span></label>
-            <input type="url" name="url" value="<?php echo e($form['url']); ?>" required placeholder="https://example.com" style="width:100%;max-width:500px;padding:6px;border:1px solid #ddd;border-radius:4px;margin-bottom:16px;">
-
-            <?php if ($hasDisplayOrder) : ?>
-                <label style="display:block;margin-bottom:8px;font-weight:bold;">表示順序</label>
-                <input type="number" name="sort_order" value="<?php echo e($form['sort_order']); ?>" min="0" max="9999" style="width:120px;padding:6px;border:1px solid #ddd;border-radius:4px;margin-bottom:16px;">
-            <?php endif; ?>
-
-            <?php if ($hasIsEnabled) : ?>
-                <label style="display:block;margin-bottom:16px;">
-                    <input type="checkbox" name="is_enabled" value="1" <?php echo $form['is_enabled'] === '1' ? 'checked' : ''; ?>>
-                    有効にする
-                </label>
-            <?php endif; ?>
-
-            <div style="margin-top:16px;">
-                <button type="submit" class="admin-button" style="padding:8px 16px;background:#2271b1;color:#fff;border:none;border-radius:4px;cursor:pointer;">
-                    <?php echo (int)$form['id'] > 0 ? '更新' : '追加'; ?>
-                </button>
-                <?php if ((int)$form['id'] > 0) : ?>
-                    <a href="<?php echo e(admin_url('links.php')); ?>" style="margin-left:8px;padding:8px 16px;text-decoration:none;color:#666;">キャンセル</a>
-                <?php endif; ?>
-            </div>
-        </form>
+$okMessageMap = [
+    'created' => '相互リンクを作成しました。',
+    'updated' => '相互リンクを更新しました。',
+    'deleted' => '相互リンクを削除しました。',
+];
+$okMessage = $okMessageMap[$ok] ?? '';
+$isCreate = (int)$form['id'] === 0;
+ob_start();
+?>
+<h1>相互リンク管理</h1>
+<?php if ($okMessage !== '') : ?>
+    <div class="admin-card" style="background:#e7f5e7;padding:12px;margin-bottom:16px;">
+        <p style="margin:0;">✓ <?php echo e($okMessage); ?></p>
     </div>
+<?php endif; ?>
+<?php if ($error !== '') : ?>
+    <div class="admin-card" style="background:#ffe7e7;padding:12px;margin-bottom:16px;">
+        <p style="margin:0;color:#c00;">✗ <?php echo e($error); ?></p>
+    </div>
+<?php endif; ?>
 
-    <?php if ($hasTable && count($rows) > 0) : ?>
-        <div class="admin-card">
-            <h2>登録済みリンク (<?php echo e((string)count($rows)); ?>件)</h2>
+<?php if (!$hasTable) : ?>
+    <div class="admin-card" style="background:#fff3cd;padding:12px;margin-bottom:16px;">
+        <p style="margin:0;">⚠ mutual_linksテーブルが未作成です。データベース初期化を実行してください。</p>
+    </div>
+<?php endif; ?>
+
+<div class="admin-card" style="margin-bottom:24px;">
+    <h2><?php echo $isCreate ? '相互リンク新規作成' : '相互リンク編集'; ?></h2>
+    <form method="post" style="max-width:600px;">
+        <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+        <input type="hidden" name="action" value="<?php echo $isCreate ? 'create' : 'update'; ?>">
+        <input type="hidden" name="id" value="<?php echo e((string)$form['id']); ?>">
+
+        <label style="display:block;margin-bottom:8px;font-weight:bold;">サイト名 <span style="color:#c00;">*</span></label>
+        <input type="text" name="title" value="<?php echo e((string)$form['title']); ?>" required placeholder="例：PinkClub" style="width:100%;max-width:500px;padding:6px;border:1px solid #ddd;border-radius:4px;margin-bottom:16px;">
+
+        <label style="display:block;margin-bottom:8px;font-weight:bold;">URL <span style="color:#c00;">*</span></label>
+        <input type="url" name="url" value="<?php echo e((string)$form['url']); ?>" required placeholder="https://example.com" style="width:100%;max-width:500px;padding:6px;border:1px solid #ddd;border-radius:4px;margin-bottom:16px;">
+
+        <?php if ($hasDisplayOrder) : ?>
+            <label style="display:block;margin-bottom:8px;font-weight:bold;">表示順序</label>
+            <input type="number" name="sort_order" value="<?php echo e((string)$form['sort_order']); ?>" placeholder="100" min="0" max="9999" style="width:120px;padding:6px;border:1px solid #ddd;border-radius:4px;margin-bottom:16px;">
+        <?php endif; ?>
+
+        <?php if ($hasIsEnabled) : ?>
+            <label style="display:block;margin-bottom:16px;">
+                <input type="checkbox" name="is_enabled" value="1" <?php echo ($form['is_enabled'] === '1') ? 'checked' : ''; ?>>
+                有効にする
+            </label>
+        <?php endif; ?>
+
+        <div style="margin-top:16px;">
+            <button type="submit" style="padding:8px 16px;background:#2271b1;color:#fff;border:none;border-radius:4px;cursor:pointer;">
+                <?php echo $isCreate ? '追加' : '更新'; ?>
+            </button>
+            <?php if (!$isCreate) : ?>
+                <a href="<?php echo e(admin_url('links.php')); ?>" style="margin-left:8px;padding:8px 16px;text-decoration:none;color:#666;">キャンセル</a>
+            <?php endif; ?>
+        </div>
+    </form>
+</div>
+
+<?php if ($hasTable) : ?>
+    <div class="admin-card">
+        <h2>登録済み相互リンク (<?php echo e((string)count($rows)); ?>件)</h2>
+        <?php if (count($rows) > 0) : ?>
             <table style="width:100%;border-collapse:collapse;margin-top:12px;">
                 <thead>
                     <tr style="background:#f5f5f5;">
@@ -281,11 +272,14 @@ admin_render($pageTitle, static function () use ($ok, $error, $hasTable, $hasDis
                     <?php endforeach; ?>
                 </tbody>
             </table>
-        </div>
-    <?php elseif ($hasTable) : ?>
-        <div class="admin-card">
-            <p>登録済みリンクはありません。上のフォームから追加してください。</p>
-        </div>
-    <?php endif; ?>
-    <?php
+        <?php else : ?>
+            <p>相互リンクはまだありません。上のフォームから新規作成してください。</p>
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
+<?php
+$main = (string)ob_get_clean();
+require_once __DIR__ . '/_page.php';
+admin_render($pageTitle, static function () use ($main): void {
+    echo $main;
 });
