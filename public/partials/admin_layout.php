@@ -3,9 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_helpers.php';
 
-if (function_exists('admin_trace_push')) {
-    admin_trace_push('layout:begin');
-}
+admin_trace_push('layout:begin');
 
 $siteTitle = (string)config_get('site.title', 'PinkClub-FANZA');
 $rawPageTitle = isset($pageTitle) && $pageTitle !== '' ? (string)$pageTitle : '管理画面';
@@ -80,4 +78,4 @@ try {
 </div>
 </body>
 </html>
-<?php if (function_exists('admin_trace_push')) { admin_trace_push('layout:end'); } ?>
+<?php admin_trace_push('layout:end'); ?>
