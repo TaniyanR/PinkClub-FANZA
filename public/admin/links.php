@@ -3,84 +3,233 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_common.php';
 admin_trace_push('page:start:links.php');
-require_once __DIR__ . '/../../lib/site_settings.php';
+
+function links_column_exists(string $table, string $column): bool
+{
+    $stmt = db()->prepare('SHOW COLUMNS FROM `' . $table . '` LIKE :column');
+    $stmt->execute([':column' => $column]);
+    return $stmt->fetch(PDO::FETCH_ASSOC) !== false;
+}
+
+function links_validate_url(string $url): bool
+{
+    if (!filter_var($url, FILTER_VALIDATE_URL)) {
+        return false;
+    }
+    $scheme = strtolower((string)parse_url($url, PHP_URL_SCHEME));
+    return in_array($scheme, ['http', 'https'], true);
+}
 
 $error = '';
+$ok = (string)($_GET['ok'] ?? '');
+$hasTable = admin_table_exists('mutual_links');
+$hasDisplayOrder = $hasTable && links_column_exists('mutual_links', 'display_order');
+$hasIsEnabled = $hasTable && links_column_exists('mutual_links', 'is_enabled');
+$hasStatus = $hasTable && links_column_exists('mutual_links', 'status');
+$editId = max(0, (int)($_GET['edit'] ?? 0));
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!admin_post_csrf_valid()) {
         $error = 'CSRFトークンが無効です。';
+    } elseif (!$hasTable) {
+        $error = 'mutual_links テーブルが未作成のため保存できません。';
     } else {
-        $action = (string)($_POST['action'] ?? 'update_link');
-        if ($action === 'save_sort_mode') {
-            $mode = (string)($_POST['links_sort_mode'] ?? 'manual');
-            if (!in_array($mode, ['manual', 'approved_desc', 'in_desc', 'random'], true)) {
-                $mode = 'manual';
-            }
-            $enabled = isset($_POST['links_display_enabled']) ? '1' : '0';
-            site_setting_set_many([
-                'links_sort_mode' => $mode,
-                'links_display_enabled' => $enabled,
-            ]);
-            admin_flash_set('ok', '表示設定を保存しました。');
-        } else {
-            $id = (int)($_POST['id'] ?? 0);
-            $status = (string)($_POST['status'] ?? 'pending');
-            $displayOrder = (int)($_POST['display_order'] ?? 0);
-            $isEnabled = isset($_POST['is_enabled']) ? 1 : 0;
-            if ($id > 0 && in_array($status, ['pending', 'approved', 'rejected', 'hold'], true)) {
-                db()->prepare('UPDATE mutual_links SET status=:status, is_enabled=:is_enabled, display_order=:display_order, approved_at=CASE WHEN :status="approved" AND approved_at IS NULL THEN NOW() ELSE approved_at END, updated_at=NOW() WHERE id=:id')
-                    ->execute([':status' => $status, ':is_enabled' => $isEnabled, ':display_order' => $displayOrder, ':id' => $id]);
+        $action = (string)($_POST['action'] ?? 'create');
+        $title = trim((string)($_POST['title'] ?? ''));
+        $url = trim((string)($_POST['url'] ?? ''));
+        $sortOrder = filter_var($_POST['sort_order'] ?? '100', FILTER_VALIDATE_INT);
+        $sortOrder = ($sortOrder === false) ? 100 : (int)$sortOrder;
+        $isEnabled = isset($_POST['is_enabled']) ? 1 : 0;
 
-                if ($status === 'approved') {
-                    $link = db()->prepare('SELECT site_name,rss_url FROM mutual_links WHERE id=:id LIMIT 1');
-                    $link->execute([':id' => $id]);
-                    $row = $link->fetch(PDO::FETCH_ASSOC);
-                    if (is_array($row) && (string)($row['rss_url'] ?? '') !== '') {
-                        db()->prepare('INSERT INTO rss_sources(name,feed_url,is_enabled,last_fetched_at,created_at,updated_at) VALUES(:name,:url,1,NULL,NOW(),NOW()) ON DUPLICATE KEY UPDATE updated_at=NOW()')
-                            ->execute([':name' => (string)$row['site_name'], ':url' => (string)$row['rss_url']]);
+        if ($action === 'delete') {
+            $id = (int)($_POST['id'] ?? 0);
+            if ($id > 0) {
+                db()->prepare('DELETE FROM mutual_links WHERE id=:id')->execute([':id' => $id]);
+                header('Location: ' . admin_url('links.php?ok=deleted'));
+                exit;
+            }
+            $error = '削除対象が不正です。';
+        } elseif (in_array($action, ['create', 'update'], true)) {
+            if ($title === '' || mb_strlen($title) > 200) {
+                $error = 'タイトルは1〜200文字で入力してください。';
+            } elseif (!links_validate_url($url)) {
+                $error = 'URLは http(s):// 形式で入力してください。';
+            } else {
+                if ($action === 'create') {
+                    $columns = ['site_name', 'site_url', 'link_url', 'created_at', 'updated_at'];
+                    $placeholders = [':site_name', ':site_url', ':link_url', 'NOW()', 'NOW()'];
+                    $params = [
+                        ':site_name' => $title,
+                        ':site_url' => $url,
+                        ':link_url' => $url,
+                    ];
+                    if ($hasDisplayOrder) {
+                        $columns[] = 'display_order';
+                        $placeholders[] = ':display_order';
+                        $params[':display_order'] = $sortOrder;
                     }
+                    if ($hasIsEnabled) {
+                        $columns[] = 'is_enabled';
+                        $placeholders[] = ':is_enabled';
+                        $params[':is_enabled'] = $isEnabled;
+                    }
+                    if ($hasStatus) {
+                        $columns[] = 'status';
+                        $placeholders[] = "'approved'";
+                    }
+                    $sql = 'INSERT INTO mutual_links (' . implode(', ', $columns) . ') VALUES (' . implode(', ', $placeholders) . ')';
+                    db()->prepare($sql)->execute($params);
+                    header('Location: ' . admin_url('links.php?ok=created'));
+                    exit;
                 }
-                admin_flash_set('ok', '相互リンクを更新しました。');
+
+                $id = (int)($_POST['id'] ?? 0);
+                if ($id <= 0) {
+                    $error = '更新対象が不正です。';
+                } else {
+                    $sets = [
+                        'site_name=:site_name',
+                        'site_url=:site_url',
+                        'link_url=:link_url',
+                        'updated_at=NOW()',
+                    ];
+                    $params = [
+                        ':id' => $id,
+                        ':site_name' => $title,
+                        ':site_url' => $url,
+                        ':link_url' => $url,
+                    ];
+                    if ($hasDisplayOrder) {
+                        $sets[] = 'display_order=:display_order';
+                        $params[':display_order'] = $sortOrder;
+                    }
+                    if ($hasIsEnabled) {
+                        $sets[] = 'is_enabled=:is_enabled';
+                        $params[':is_enabled'] = $isEnabled;
+                    }
+                    if ($hasStatus) {
+                        $sets[] = "status='approved'";
+                    }
+                    $sql = 'UPDATE mutual_links SET ' . implode(', ', $sets) . ' WHERE id=:id';
+                    db()->prepare($sql)->execute($params);
+                    header('Location: ' . admin_url('links.php?ok=updated'));
+                    exit;
+                }
             }
         }
-        header('Location: ' . admin_url('links.php'));
-        exit;
     }
 }
 
-$rows = db()->query('SELECT * FROM mutual_links ORDER BY created_at DESC LIMIT 200')->fetchAll(PDO::FETCH_ASSOC);
-$ok = admin_flash_get('ok');
-$sortMode = site_setting_get('links_sort_mode', 'manual');
-$linksDisplayEnabled = site_setting_get('links_display_enabled', '1') === '1';
+$rows = [];
+$form = [
+    'id' => 0,
+    'title' => '',
+    'url' => '',
+    'sort_order' => '100',
+    'is_enabled' => '1',
+];
+
+if ($hasTable) {
+    try {
+        $orderBy = $hasDisplayOrder ? 'display_order ASC, id ASC' : 'id ASC';
+        $rows = db()->query('SELECT * FROM mutual_links ORDER BY ' . $orderBy . ' LIMIT 500')->fetchAll(PDO::FETCH_ASSOC);
+
+        if ($editId > 0) {
+            $stmt = db()->prepare('SELECT * FROM mutual_links WHERE id=:id LIMIT 1');
+            $stmt->execute([':id' => $editId]);
+            $editRow = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (is_array($editRow)) {
+                $form = [
+                    'id' => (string)$editRow['id'],
+                    'title' => (string)($editRow['site_name'] ?? ''),
+                    'url' => (string)($editRow['site_url'] ?? ''),
+                    'sort_order' => (string)($editRow['display_order'] ?? '100'),
+                    'is_enabled' => ((int)($editRow['is_enabled'] ?? 1) === 1) ? '1' : '0',
+                ];
+            }
+        }
+    } catch (Throwable $e) {
+        $error = '相互リンクデータの読み込みに失敗しました。';
+        $rows = [];
+    }
+}
+
 $pageTitle = '相互リンク管理';
 ob_start();
 ?>
 <h1>相互リンク管理</h1>
-<?php if ($ok !== '') : ?><div class="admin-card"><p><?php echo e($ok); ?></p></div><?php endif; ?>
-<?php if ($error !== '') : ?><div class="admin-card"><p><?php echo e($error); ?></p></div><?php endif; ?>
-<div class="admin-card">
-    <form method="post">
-        <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
-        <input type="hidden" name="action" value="save_sort_mode">
-        <label>フロント表示順</label>
-        <select name="links_sort_mode">
-            <option value="manual" <?php echo $sortMode === 'manual' ? 'selected' : ''; ?>>手動（display_order）</option>
-            <option value="approved_desc" <?php echo $sortMode === 'approved_desc' ? 'selected' : ''; ?>>承認日（新しい順）</option>
-            <option value="in_desc" <?php echo $sortMode === 'in_desc' ? 'selected' : ''; ?>>IN多い順</option>
-            <option value="random" <?php echo $sortMode === 'random' ? 'selected' : ''; ?>>ランダム</option>
-        </select>
-        <label><input type="checkbox" name="links_display_enabled" value="1" <?php echo $linksDisplayEnabled ? 'checked' : ''; ?>> トップページに相互リンクを表示する</label>
-        <button type="submit">保存</button>
-    </form>
-    <p>外部申請フォームは <a href="<?php echo e(base_url() . '/link_apply.php'); ?>" target="_blank" rel="noopener">こちら</a>。</p>
-</div>
-<div class="admin-card"><table class="admin-table"><thead><tr><th>ID</th><th>サイト名</th><th>URL</th><th>申請情報</th><th>表示順</th><th>有効</th><th>ステータス</th><th>操作</th></tr></thead><tbody>
-<?php foreach ($rows as $r) : ?>
-<tr><td><?php echo e((string)$r['id']); ?></td><td><?php echo e((string)$r['site_name']); ?></td><td><a href="<?php echo e((string)$r['site_url']); ?>" target="_blank" rel="noopener"><?php echo e((string)$r['site_url']); ?></a></td><td><small><?php echo e((string)($r['apply_type'] ?? '-')); ?><br><?php echo e((string)($r['contact_email'] ?? '-')); ?></small></td><td>
-<form method="post"><input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>"><input type="hidden" name="id" value="<?php echo e((string)$r['id']); ?>"><input type="number" name="display_order" value="<?php echo e((string)($r['display_order'] ?? 0)); ?>" style="width:90px"></td><td><label><input type="checkbox" name="is_enabled" value="1" <?php echo ((int)($r['is_enabled'] ?? 0) === 1) ? 'checked' : ''; ?>>ON</label></td><td><select name="status"><?php foreach (['pending' => '保留', 'approved' => '承認', 'hold' => '保留', 'rejected' => '却下'] as $v => $lbl) : ?><option value="<?php echo e($v); ?>" <?php echo ((string)$r['status'] === $v) ? 'selected' : ''; ?>><?php echo e($lbl); ?></option><?php endforeach; ?></select></td><td><button type="submit">更新</button></form></td></tr>
-<?php endforeach; ?>
-<?php if ($rows === []) : ?><tr><td colspan="8">申請はまだありません。</td></tr><?php endif; ?>
-</tbody></table></div>
+
+<?php if ($ok !== '') : ?>
+    <div class="admin-card"><p><?php echo e('処理が完了しました: ' . $ok); ?></p></div>
+<?php endif; ?>
+<?php if ($error !== '') : ?>
+    <div class="admin-card"><p><?php echo e($error); ?></p></div>
+<?php endif; ?>
+<?php if (!$hasTable) : ?>
+    <div class="admin-card"><p>mutual_links テーブルが未作成のため、相互リンク管理は利用できません。</p></div>
+<?php else : ?>
+    <div class="admin-card">
+        <h2><?php echo $editId > 0 ? '相互リンクを編集' : '相互リンクを新規追加'; ?></h2>
+        <form method="post">
+            <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+            <input type="hidden" name="action" value="<?php echo $editId > 0 ? 'update' : 'create'; ?>">
+            <?php if ($editId > 0) : ?>
+                <input type="hidden" name="id" value="<?php echo e((string)$form['id']); ?>">
+            <?php endif; ?>
+            <label>タイトル</label>
+            <input type="text" name="title" maxlength="200" required value="<?php echo e((string)$form['title']); ?>">
+            <label>URL</label>
+            <input type="url" name="url" required value="<?php echo e((string)$form['url']); ?>" placeholder="https://example.com/">
+            <label>並び順</label>
+            <input type="number" name="sort_order" value="<?php echo e((string)$form['sort_order']); ?>">
+            <label><input type="checkbox" name="is_enabled" value="1" <?php echo ((string)$form['is_enabled'] === '1') ? 'checked' : ''; ?>> 有効にする</label>
+            <button type="submit"><?php echo $editId > 0 ? '更新する' : '追加する'; ?></button>
+            <?php if ($editId > 0) : ?>
+                <a href="<?php echo e(admin_url('links.php')); ?>">新規追加に戻る</a>
+            <?php endif; ?>
+        </form>
+    </div>
+
+    <div class="admin-card">
+        <h2>登録済みリンク一覧</h2>
+        <?php if ($rows === []) : ?>
+            <p>リンクはまだありません。上のフォームから新規追加してください。</p>
+        <?php else : ?>
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>タイトル</th>
+                        <th>URL</th>
+                        <th>並び順</th>
+                        <th>有効</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($rows as $r) : ?>
+                        <tr>
+                            <td><?php echo e((string)$r['id']); ?></td>
+                            <td><?php echo e((string)($r['site_name'] ?? '')); ?></td>
+                            <td><a href="<?php echo e((string)($r['site_url'] ?? '')); ?>" target="_blank" rel="noopener noreferrer"><?php echo e((string)($r['site_url'] ?? '')); ?></a></td>
+                            <td><?php echo e((string)($r['display_order'] ?? '0')); ?></td>
+                            <td><?php echo ((int)($r['is_enabled'] ?? 0) === 1) ? 'ON' : 'OFF'; ?></td>
+                            <td>
+                                <a href="<?php echo e(admin_url('links.php?edit=' . (string)$r['id'])); ?>">編集</a>
+                                <form method="post" style="display:inline" onsubmit="return confirm('削除しますか？');">
+                                    <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="id" value="<?php echo e((string)$r['id']); ?>">
+                                    <button type="submit">削除</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
 <?php
 $main = (string)ob_get_clean();
 require_once __DIR__ . '/_page.php';
