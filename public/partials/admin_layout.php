@@ -68,6 +68,8 @@ try {
         }
         if (isset($content) && is_callable($content)) {
             $content();
+        } elseif (isset($content) && is_string($content)) {
+            echo $content;
         } else {
             echo '<div class="admin-card"><p>ページ本文が未設定です。</p></div>';
         }
