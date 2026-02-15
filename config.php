@@ -43,6 +43,8 @@ return [
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             // MySQL向け：本物のプリペアを使用
             PDO::ATTR_EMULATE_PREPARES => false,
+            // PDO 2014 対策: 未バッファクエリ起因の競合を防ぐ
+            PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
         ],
     ],
 

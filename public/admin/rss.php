@@ -96,7 +96,7 @@ admin_render('RSS管理', static function (): void {
     <?php endif; ?>
 
     <?php if (!$hasSources) : ?>
-        <div class="admin-card" style="background:#fff3cd;padding:12px;margin-bottom:16px;"><p style="margin:0;">⚠ rss_sourcesテーブルが未作成です。`db/schema.sql` を適用してください。</p></div>
+        <div class="admin-card" style="background:#fff3cd;padding:12px;margin-bottom:16px;"><p style="margin:0;">⚠ rss_sourcesテーブルが未作成です。`sql/schema.sql` を適用してください。</p></div>
     <?php endif; ?>
 
     <div class="admin-card" style="margin-bottom:20px;">
