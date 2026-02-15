@@ -276,6 +276,53 @@ function db_create_database(PDO $pdo, array $connectionInfo): void
     $pdo->exec($sql);
 }
 
+
+function db_table_exists(PDO $pdo, string $table): bool
+{
+    $stmt = $pdo->prepare('SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table LIMIT 1');
+    $stmt->execute([':table' => $table]);
+    return $stmt->fetchColumn() !== false;
+}
+
+function db_column_exists(PDO $pdo, string $table, string $column): bool
+{
+    $stmt = $pdo->prepare('SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND COLUMN_NAME = :column LIMIT 1');
+    $stmt->execute([':table' => $table, ':column' => $column]);
+    return $stmt->fetchColumn() !== false;
+}
+
+function db_index_exists(PDO $pdo, string $table, string $index): bool
+{
+    $stmt = $pdo->prepare('SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND INDEX_NAME = :index LIMIT 1');
+    $stmt->execute([':table' => $table, ':index' => $index]);
+    return $stmt->fetchColumn() !== false;
+}
+
+function db_repair_schema(PDO $pdo): void
+{
+    if (db_table_exists($pdo, 'items') && !db_column_exists($pdo, 'items', 'view_count')) {
+        db_exec_statement($pdo, 'ALTER TABLE items ADD COLUMN view_count INT DEFAULT 0');
+    }
+    if (db_table_exists($pdo, 'items') && !db_index_exists($pdo, 'items', 'idx_items_view_count')) {
+        db_exec_statement($pdo, 'CREATE INDEX idx_items_view_count ON items(view_count)');
+    }
+
+    if (db_table_exists($pdo, 'mutual_links')) {
+        if (!db_column_exists($pdo, 'mutual_links', 'is_enabled')) {
+            db_exec_statement($pdo, 'ALTER TABLE mutual_links ADD COLUMN is_enabled TINYINT(1) NOT NULL DEFAULT 1');
+        }
+        if (!db_column_exists($pdo, 'mutual_links', 'display_order')) {
+            db_exec_statement($pdo, 'ALTER TABLE mutual_links ADD COLUMN display_order INT NOT NULL DEFAULT 100');
+        }
+        if (!db_column_exists($pdo, 'mutual_links', 'approved_at')) {
+            db_exec_statement($pdo, 'ALTER TABLE mutual_links ADD COLUMN approved_at DATETIME NULL');
+        }
+        if (!db_index_exists($pdo, 'mutual_links', 'idx_mutual_links_status_enabled_order')) {
+            db_exec_statement($pdo, 'CREATE INDEX idx_mutual_links_status_enabled_order ON mutual_links(status, is_enabled, display_order, id)');
+        }
+    }
+}
+
 function db_ensure_schema_migrations_table(PDO $pdo): void
 {
     $pdo->exec(
@@ -340,19 +387,14 @@ function db_ensure_initialized(PDO $pdo): void
     $checked = true;
 
     db_apply_sql_file($pdo, db_schema_file_path());
+    db_repair_schema($pdo);
     db_apply_migrations($pdo);
+    db_repair_schema($pdo);
     db_seed_default_admin_user($pdo);
 }
 
-function db(): PDO
+function db_connect_and_initialize(array $db): PDO
 {
-    static $pdo = null;
-    if ($pdo instanceof PDO) {
-        return $pdo;
-    }
-
-    $db = config_get('db', []);
-
     $user = (string)($db['user'] ?? 'root');
     $password = (string)($db['password'] ?? ($db['pass'] ?? ''));
 
@@ -387,6 +429,19 @@ function db(): PDO
     } catch (Throwable $e) {
         throw new RuntimeException(db_build_init_error_message('schema/migration適用', $connectionInfo, $e), (int)$e->getCode(), $e);
     }
+
+    return $pdo;
+}
+
+function db(): PDO
+{
+    static $pdo = null;
+    if ($pdo instanceof PDO) {
+        return $pdo;
+    }
+
+    $db = config_get('db', []);
+    $pdo = db_connect_and_initialize(is_array($db) ? $db : []);
 
     return $pdo;
 }
