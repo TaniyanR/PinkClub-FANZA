@@ -34,6 +34,7 @@ return [
         // XAMPPローカル向けデフォルト（必要なら config.local.php で上書き）
         'host' => 'localhost',
         'name' => 'pinkclub_fanza',
+        'dsn' => 'mysql:host=localhost;dbname=pinkclub_fanza;charset=utf8mb4',
         'user' => 'root',
         'password' => '',
         'charset' => 'utf8mb4',

@@ -230,3 +230,31 @@ The system is ready for production deployment.
 **実装者 / Implementer**: GitHub Copilot
 **レビュー状況 / Review Status**: ✅ Complete
 **セキュリティ評価 / Security Assessment**: ✅ Pass
+
+---
+
+## 2026-02-15 DB自動初期化・冪等化対応（Codex）
+
+### 変更ファイル一覧と理由
+
+- `lib/db.php`
+  - `db_connect_and_initialize()` を追加し、**DB接続 → 1049捕捉時のDB作成 → 再接続 → schema/migration適用** を1箇所に集約。
+  - `db_table_exists()` / `db_column_exists()` / `db_index_exists()` を追加し、`INFORMATION_SCHEMA` ベースで存在確認。
+  - `db_repair_schema()` を追加し、壊れた/途中状態のDBでも desired schema へ収束させる補修処理を実装（`items.view_count`、`idx_items_view_count`、`mutual_links` 追加列・複合INDEX）。
+  - `db_ensure_initialized()` で schema 適用前後に repair を実行して冪等性を強化。
+  - 既存の `schema_migrations` 記録方式は維持し、未適用 migration のみ実行。
+
+- `config.php`
+  - XAMPP前提のデフォルトDSNを明示 (`mysql:host=localhost;dbname=pinkclub_fanza;charset=utf8mb4`)。
+  - 既存デフォルト (`host=localhost`, `name=pinkclub_fanza`, `user=root`, `password=''`, `charset=utf8mb4`) と合わせて、未設定状態で起動可能に固定。
+
+### Duplicate key name エラーの原因と防止策
+
+- 想定原因:
+  - migration/repairの再実行時に、同名INDEXや既存カラムを無条件で `ADD` していた環境差分。
+  - `schema_migrations` 未記録や途中失敗後の再実行で、同じDDLが重複実行されるケース。
+
+- 防止策:
+  - `INFORMATION_SCHEMA.STATISTICS` / `INFORMATION_SCHEMA.COLUMNS` で存在確認してから `CREATE INDEX` / `ALTER TABLE ADD COLUMN` を実行。
+  - `CREATE TABLE IF NOT EXISTS` と `schema_migrations` の併用で二重適用を抑止。
+  - 途中破損DB向けに `db_repair_schema()` で差分補修し、最終的に desired schema に収束させる。
