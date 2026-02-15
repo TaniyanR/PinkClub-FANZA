@@ -230,10 +230,41 @@ function db(): PDO
 
     try {
         $pdo = new PDO($dsn, $user, $password, $options);
-        db_ensure_initialized($pdo);
     } catch (PDOException $e) {
-        throw new RuntimeException('Database connection failed: ' . $e->getMessage(), (int)$e->getCode(), $e);
+        $errorInfo = $e->errorInfo;
+        $mysqlCode = is_array($errorInfo) && isset($errorInfo[1]) ? (int)$errorInfo[1] : 0;
+        $isUnknownDatabase = $mysqlCode === 1049
+            || strpos($e->getMessage(), '1049') !== false
+            || stripos($e->getMessage(), 'Unknown database') !== false;
+
+        if (!$isUnknownDatabase) {
+            throw new RuntimeException('Database connection failed: ' . $e->getMessage(), (int)$e->getCode(), $e);
+        }
+
+        $dbName = 'pinkclub_fanza';
+        if (preg_match('/(?:^|;)dbname=([^;]+)/i', $dsn, $matches) === 1 && $matches[1] !== '') {
+            $dbName = $matches[1];
+        }
+
+        $baseDsn = preg_replace('/;?dbname=[^;]*/i', '', $dsn);
+        if (!is_string($baseDsn)) {
+            $baseDsn = $dsn;
+        }
+
+        try {
+            $bootstrapPdo = new PDO($baseDsn, $user, $password, $options);
+            $sql = sprintf(
+                'CREATE DATABASE IF NOT EXISTS `%s` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci',
+                str_replace('`', '``', $dbName)
+            );
+            $bootstrapPdo->exec($sql);
+            $pdo = new PDO($dsn, $user, $password, $options);
+        } catch (PDOException $inner) {
+            throw new RuntimeException('Database auto-creation failed: ' . $inner->getMessage(), (int)$inner->getCode(), $inner);
+        }
     }
+
+    db_ensure_initialized($pdo);
 
     return $pdo;
 }
