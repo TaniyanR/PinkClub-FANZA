@@ -31,11 +31,12 @@ return [
     ],
 
     'db' => [
-        // DSN方式（PDOでそのまま使える）
-        // ※ 本番の認証情報は config.local.php で上書き推奨
-        'dsn' => 'mysql:host=localhost;dbname=pinkclub_fanza;charset=utf8mb4',
+        // XAMPPローカル向けデフォルト（必要なら config.local.php で上書き）
+        'host' => 'localhost',
+        'name' => 'pinkclub_fanza',
         'user' => 'root',
         'password' => '',
+        'charset' => 'utf8mb4',
         'options' => [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
