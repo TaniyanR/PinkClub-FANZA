@@ -300,19 +300,22 @@ function db_exec_statement(PDO $pdo, string $sql): void
     }
 
     try {
-        if (db_statement_starts_with($statement, ['SELECT', 'SHOW', 'DESCRIBE', 'EXPLAIN'])) {
-            $stmt = $pdo->query($statement);
-            if ($stmt instanceof PDOStatement) {
-                try {
-                    $stmt->fetchAll(PDO::FETCH_ASSOC);
-                } finally {
-                    $stmt->closeCursor();
-                }
-            }
+        $stmt = $pdo->prepare($statement);
+        if (!$stmt instanceof PDOStatement) {
             return;
         }
 
-        $pdo->exec($statement);
+        try {
+            $stmt->execute();
+
+            do {
+                if ($stmt->columnCount() > 0) {
+                    $stmt->fetchAll(PDO::FETCH_ASSOC);
+                }
+            } while ($stmt->nextRowset());
+        } finally {
+            $stmt->closeCursor();
+        }
     } catch (PDOException $e) {
         if (db_should_ignore_statement_error($e, $statement)) {
             return;
