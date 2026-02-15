@@ -1,9 +1,39 @@
 -- Migration: Add tables and columns for incomplete features
 -- Run this migration on existing databases to add new tables and columns
 
--- Add view_count column to items table if not exists
-ALTER TABLE items ADD COLUMN IF NOT EXISTS view_count INT DEFAULT 0;
-ALTER TABLE items ADD INDEX IF NOT EXISTS idx_items_view_count (view_count);
+SET @items_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.TABLES
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'items'
+);
+
+SET @sql := IF(
+    @items_exists = 0,
+    'SELECT 1',
+    IF(
+        EXISTS(
+            SELECT 1 FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'items' AND COLUMN_NAME = 'view_count'
+        ),
+        'SELECT 1',
+        'ALTER TABLE items ADD COLUMN view_count INT DEFAULT 0'
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := IF(
+    @items_exists = 0,
+    'SELECT 1',
+    IF(
+        EXISTS(
+            SELECT 1 FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'items' AND INDEX_NAME = 'idx_items_view_count'
+        ),
+        'SELECT 1',
+        'CREATE INDEX idx_items_view_count ON items(view_count)'
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Create api_logs table
 CREATE TABLE IF NOT EXISTS api_logs (

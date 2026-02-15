@@ -8,3 +8,5 @@ vendor/
 
 !public/assets/vendor/
 !public/assets/vendor/**
+
+config.local.php

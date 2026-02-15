@@ -215,14 +215,15 @@ function render_setup_needed(?Throwable $exception = null): never
         <h1>PinkClub-FANZA のセットアップが必要です</h1>
         <p>データベース接続または初期化に失敗したため、フロント画面を表示できませんでした。</p>
         <ul>
-            <li><code>config.local.php</code> にDB設定を追加してください。</li>
-            <li><a href="<?php echo e(base_url() . '/admin/db_init.php'); ?>">/public/admin/db_init.php</a> でテーブルを作成してください。</li>
-            <li><a href="<?php echo e(base_url() . '/admin/settings.php'); ?>">/public/admin/settings.php</a> でAPI設定を確認してください。</li>
+            <li><code>config.local.php</code> が無い場合はデフォルト設定（localhost / root / 空パスワード / pinkclub_fanza）で自動初期化します。</li>
+            <li><code>config.local.php</code> を使う場合は <code>config.local.php.example</code> をコピーして設定してください。</li>
             <li>管理ログインは <a href="<?php echo e(base_url() . '/login0718.php'); ?>">/public/login0718.php</a> です。</li>
         </ul>
-        <?php if ($isDevelopment && $exception !== null) : ?>
-            <h2>開発向けエラー詳細</h2>
+        <?php if ($exception !== null) : ?>
+            <h2>DB初期化エラー詳細</h2>
             <pre><?php echo e($exception->getMessage()); ?></pre>
+        <?php elseif ($isDevelopment) : ?>
+            <p>詳細情報が取得できませんでした。</p>
         <?php endif; ?>
     </section>
 </div>
