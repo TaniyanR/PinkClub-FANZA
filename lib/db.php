@@ -230,6 +230,52 @@ function db_build_init_error_message(string $stage, array $info, Throwable $e): 
         . 'エラー: ' . $e->getMessage();
 }
 
+function db_mysql_driver_error_code(Throwable $e): int
+{
+    if ($e instanceof PDOException && isset($e->errorInfo[1])) {
+        return (int)$e->errorInfo[1];
+    }
+
+    return (int)$e->getCode();
+}
+
+function db_should_ignore_statement_error(PDOException $e): bool
+{
+    $ignoreCodes = [1050, 1060, 1061, 1062, 1091];
+    return in_array(db_mysql_driver_error_code($e), $ignoreCodes, true);
+}
+
+function db_exec_statement(PDO $pdo, string $sql): void
+{
+    try {
+        $pdo->exec($sql);
+    } catch (PDOException $e) {
+        if (db_should_ignore_statement_error($e)) {
+            return;
+        }
+
+        throw $e;
+    }
+}
+
+function db_create_database(PDO $pdo, array $connectionInfo): void
+{
+    $dbName = str_replace('`', '``', (string)($connectionInfo['db_name'] ?? ''));
+    $charset = (string)($connectionInfo['charset'] ?? 'utf8mb4');
+    if (!preg_match('/^[a-zA-Z0-9_]+$/', $charset)) {
+        $charset = 'utf8mb4';
+    }
+
+    $sql = sprintf(
+        'CREATE DATABASE IF NOT EXISTS `%s` DEFAULT CHARACTER SET %s COLLATE %s_unicode_ci',
+        $dbName,
+        $charset,
+        $charset
+    );
+
+    $pdo->exec($sql);
+}
+
 function db_ensure_schema_migrations_table(PDO $pdo): void
 {
     $pdo->exec(
@@ -246,7 +292,7 @@ function db_apply_sql_file(PDO $pdo, string $filePath): void
 {
     $sql = (string)file_get_contents($filePath);
     foreach (db_sql_split_statements($sql) as $statement) {
-        $pdo->exec($statement);
+        db_exec_statement($pdo, $statement);
     }
 }
 
@@ -319,20 +365,19 @@ function db(): PDO
     $connectionInfo = db_build_connection_info(is_array($db) ? $db : []);
 
     try {
-        $bootstrapPdo = new PDO($connectionInfo['server_dsn'], $user, $password, $options);
-        $sql = sprintf(
-            'CREATE DATABASE IF NOT EXISTS `%s` DEFAULT CHARACTER SET %s COLLATE %s_unicode_ci',
-            str_replace('`', '``', $connectionInfo['db_name']),
-            $connectionInfo['charset'],
-            $connectionInfo['charset']
-        );
-        $bootstrapPdo->exec($sql);
-    } catch (Throwable $e) {
-        throw new RuntimeException(db_build_init_error_message('データベース作成', $connectionInfo, $e), (int)$e->getCode(), $e);
-    }
-
-    try {
         $pdo = new PDO($connectionInfo['dsn'], $user, $password, $options);
+    } catch (PDOException $e) {
+        if (db_mysql_driver_error_code($e) !== 1049) {
+            throw new RuntimeException(db_build_init_error_message('データベース接続', $connectionInfo, $e), (int)$e->getCode(), $e);
+        }
+
+        try {
+            $bootstrapPdo = new PDO($connectionInfo['server_dsn'], $user, $password, $options);
+            db_create_database($bootstrapPdo, $connectionInfo);
+            $pdo = new PDO($connectionInfo['dsn'], $user, $password, $options);
+        } catch (Throwable $bootstrapError) {
+            throw new RuntimeException(db_build_init_error_message('データベース作成', $connectionInfo, $bootstrapError), (int)$bootstrapError->getCode(), $bootstrapError);
+        }
     } catch (Throwable $e) {
         throw new RuntimeException(db_build_init_error_message('データベース接続', $connectionInfo, $e), (int)$e->getCode(), $e);
     }

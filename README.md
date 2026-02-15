@@ -41,7 +41,7 @@
 
 - `config.local.php` が無い場合でもデフォルト設定（`localhost` / `root` / 空パスワード / `pinkclub_fanza`）で動きます。
 - `config.local.php` が空、`return` 無し、配列以外を返す場合は無視してデフォルト設定で動きます。
-- 環境に合わせる場合は `config.local.php.example` をコピーして `config.local.php` を作成してください。
+- 環境に合わせる場合は `config.local.php` を新規作成して設定を上書きしてください。
 
 ## 自己テスト手順
 
