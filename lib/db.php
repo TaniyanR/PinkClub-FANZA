@@ -168,22 +168,12 @@ function db_ensure_initialized(PDO $pdo): void
 
     $checked = true;
 
-    $stmt = $pdo->prepare("SHOW TABLES LIKE 'admin_users'");
-    $stmt->execute();
-    $hasAdminUsers = $stmt->fetchColumn() !== false;
-    if ($hasAdminUsers) {
-        db_seed_default_admin_user($pdo);
-        return;
-    }
+    $runMigrations = static function () use ($pdo): void {
+        $migrationFiles = glob(__DIR__ . '/../sql/migrations/*.sql');
+        if (!is_array($migrationFiles)) {
+            return;
+        }
 
-    $schemaPath = db_schema_file_path();
-    $schemaSql = (string)file_get_contents($schemaPath);
-    foreach (db_sql_split_statements($schemaSql) as $sql) {
-        $pdo->exec($sql);
-    }
-
-    $migrationFiles = glob(__DIR__ . '/../sql/migrations/*.sql');
-    if (is_array($migrationFiles)) {
         sort($migrationFiles, SORT_STRING);
         foreach ($migrationFiles as $file) {
             $migrationSql = (string)file_get_contents($file);
@@ -191,7 +181,21 @@ function db_ensure_initialized(PDO $pdo): void
                 $pdo->exec($sql);
             }
         }
+    };
+
+    $stmt = $pdo->prepare("SHOW TABLES LIKE 'admin_users'");
+    $stmt->execute();
+    $hasAdminUsers = $stmt->fetchColumn() !== false;
+
+    if (!$hasAdminUsers) {
+        $schemaPath = db_schema_file_path();
+        $schemaSql = (string)file_get_contents($schemaPath);
+        foreach (db_sql_split_statements($schemaSql) as $sql) {
+            $pdo->exec($sql);
+        }
     }
+
+    $runMigrations();
 
     db_seed_default_admin_user($pdo);
 }
