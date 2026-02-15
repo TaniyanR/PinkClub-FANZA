@@ -139,7 +139,7 @@
 ## スコープ
 - `config.php` + `config.local.php` 優先ルールの確認/統一
 - 直書き秘密情報の除去
-- `config.local.php.example` 整備
+- `config.local.php` を任意作成で上書きできるよう整理
 
 ## 受け入れ基準
 - 本番/開発の切替がファイル差分のみで可能

@@ -5,18 +5,31 @@ require_once __DIR__ . '/config.php';
 
 function db_schema_file_path(): string
 {
-    $candidates = [
-        __DIR__ . '/../db/schema.sql',
-        __DIR__ . '/../sql/schema.sql',
-    ];
-
-    foreach ($candidates as $path) {
-        if (is_file($path)) {
-            return $path;
-        }
+    $path = __DIR__ . '/../sql/schema.sql';
+    if (is_file($path)) {
+        return $path;
     }
 
     throw new RuntimeException('schema.sql が見つかりません。');
+}
+
+function db_stmt_fetch_one(PDOStatement $stmt): mixed
+{
+    try {
+        return $stmt->fetchColumn();
+    } finally {
+        $stmt->closeCursor();
+    }
+}
+
+function db_stmt_fetch_all(PDOStatement $stmt, int $mode = PDO::FETCH_ASSOC): array
+{
+    try {
+        $rows = $stmt->fetchAll($mode);
+        return is_array($rows) ? $rows : [];
+    } finally {
+        $stmt->closeCursor();
+    }
 }
 
 function db_sql_split_statements(string $sql): array
@@ -110,18 +123,18 @@ function db_seed_default_admin_user(PDO $pdo): void
 {
     $stmt = $pdo->prepare("SHOW TABLES LIKE 'admin_users'");
     $stmt->execute();
-    if ($stmt->fetchColumn() === false) {
+    if (db_stmt_fetch_one($stmt) === false) {
         return;
     }
 
     $exists = $pdo->prepare('SELECT id FROM admin_users WHERE username = :username LIMIT 1');
     $exists->execute([':username' => 'admin']);
-    if ($exists->fetchColumn() !== false) {
+    if (db_stmt_fetch_one($exists) !== false) {
         return;
     }
 
     $columnsStmt = $pdo->query('SHOW COLUMNS FROM admin_users');
-    $columns = $columnsStmt ? $columnsStmt->fetchAll(PDO::FETCH_COLUMN) : [];
+    $columns = $columnsStmt ? db_stmt_fetch_all($columnsStmt, PDO::FETCH_COLUMN) : [];
     if (!is_array($columns) || $columns === []) {
         return;
     }
@@ -281,21 +294,21 @@ function db_table_exists(PDO $pdo, string $table): bool
 {
     $stmt = $pdo->prepare('SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table LIMIT 1');
     $stmt->execute([':table' => $table]);
-    return $stmt->fetchColumn() !== false;
+    return db_stmt_fetch_one($stmt) !== false;
 }
 
 function db_column_exists(PDO $pdo, string $table, string $column): bool
 {
     $stmt = $pdo->prepare('SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND COLUMN_NAME = :column LIMIT 1');
     $stmt->execute([':table' => $table, ':column' => $column]);
-    return $stmt->fetchColumn() !== false;
+    return db_stmt_fetch_one($stmt) !== false;
 }
 
 function db_index_exists(PDO $pdo, string $table, string $index): bool
 {
     $stmt = $pdo->prepare('SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND INDEX_NAME = :index LIMIT 1');
     $stmt->execute([':table' => $table, ':index' => $index]);
-    return $stmt->fetchColumn() !== false;
+    return db_stmt_fetch_one($stmt) !== false;
 }
 
 function db_repair_schema(PDO $pdo): void
@@ -355,7 +368,7 @@ function db_apply_migrations(PDO $pdo): void
     sort($migrationFiles, SORT_STRING);
 
     $appliedRows = $pdo->query('SELECT migration_name FROM schema_migrations');
-    $appliedNames = $appliedRows ? $appliedRows->fetchAll(PDO::FETCH_COLUMN) : [];
+    $appliedNames = $appliedRows ? db_stmt_fetch_all($appliedRows, PDO::FETCH_COLUMN) : [];
     $appliedMap = [];
     foreach ($appliedNames as $name) {
         if (is_string($name) && $name !== '') {
@@ -398,11 +411,15 @@ function db_connect_and_initialize(array $db): PDO
     $user = (string)($db['user'] ?? 'root');
     $password = (string)($db['password'] ?? ($db['pass'] ?? ''));
 
-    $options = $db['options'] ?? [
+    $defaultOptions = [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
+        PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
     ];
+    $configOptions = isset($db['options']) && is_array($db['options']) ? $db['options'] : [];
+    $options = array_replace($defaultOptions, $configOptions);
+    $options[PDO::MYSQL_ATTR_USE_BUFFERED_QUERY] = true;
 
     $connectionInfo = db_build_connection_info(is_array($db) ? $db : []);
 
