@@ -36,7 +36,16 @@ function admin_flash_get(string $key): string
 
 function admin_table_exists(string $table): bool
 {
-    $stmt = db()->prepare('SHOW TABLES LIKE :table');
-    $stmt->execute([':table' => $table]);
-    return $stmt->fetchColumn() !== false;
+    try {
+        $stmt = db()->prepare(
+            'SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table LIMIT 1'
+        );
+        $stmt->execute([':table' => $table]);
+        return $stmt->fetchColumn() !== false;
+    } catch (Throwable $exception) {
+        if (function_exists('admin_log_error')) {
+            admin_log_error('admin_table_exists failed for ' . $table, $exception);
+        }
+        return false;
+    }
 }
