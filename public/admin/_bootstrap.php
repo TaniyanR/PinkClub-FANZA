@@ -371,6 +371,16 @@ if (headers_sent() === false) {
 admin_session_start();
 admin_trace_push('bootstrap:session:start');
 
+try {
+    db();
+    admin_trace_push('bootstrap:db:ready');
+} catch (Throwable $exception) {
+    admin_trace_push('bootstrap:db:failed');
+    admin_log_error('DB initialization failed', $exception);
+    admin_render_error_page('DB初期化に失敗しました', $exception->getMessage(), $exception);
+    exit;
+}
+
 $script = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $isLogin = $script === 'login.php';
 $isLogout = $script === 'logout.php';

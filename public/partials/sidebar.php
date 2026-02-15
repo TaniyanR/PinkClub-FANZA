@@ -17,6 +17,7 @@ $scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $isHome = isset($is_home) ? (bool)$is_home : ($scriptName === 'index.php');
 
 $mutualLinks = [];
+$mutualLinksDebug = null;
 if ($isHome) {
     try {
         $hasIsEnabled = false;
@@ -49,6 +50,15 @@ if ($isHome) {
     }
 }
 
+if ($isHome) {
+    try {
+        $mutualLinksDebugStmt = db()->query("SELECT DATABASE() AS db_name, COUNT(*) AS approved_enabled_count FROM mutual_links WHERE status='approved' AND is_enabled=1");
+        $mutualLinksDebug = $mutualLinksDebugStmt ? $mutualLinksDebugStmt->fetch(PDO::FETCH_ASSOC) : null;
+    } catch (Throwable $e) {
+        $mutualLinksDebug = ['db_name' => '(unknown)', 'approved_enabled_count' => 'error: ' . $e->getMessage()];
+    }
+}
+
 ?>
 <aside class="sidebar" style="--links-box-max-height:420px;">
     <div class="sidebar-block">
@@ -60,6 +70,16 @@ if ($isHome) {
             <li><a href="/links.php">リンク集</a></li>
         </ul>
     </div>
+
+    <?php if ((string)($_GET['debug'] ?? '') === '1' && $isHome) : ?>
+        <div class="sidebar-block">
+            <h3>Debug</h3>
+            <ul>
+                <li>DB: <?php echo e((string)($mutualLinksDebug['db_name'] ?? '(unknown)')); ?></li>
+                <li>mutual_links(approved &amp; enabled): <?php echo e((string)($mutualLinksDebug['approved_enabled_count'] ?? '0')); ?></li>
+            </ul>
+        </div>
+    <?php endif; ?>
 
     <?php if ($mutualLinks !== []) : ?>
         <div class="sidebar-block">

@@ -28,13 +28,20 @@
 - XSS対策（`e()`）
 - Clickjacking対策（`X-Frame-Options: SAMEORIGIN`）
 
-## セットアップ
+## セットアップ（ZIP展開だけで自動初期化）
 
-1. `config.local.php` を作成（DB接続）
-2. `public/login0718.php` でログイン（`admin / password`）
-3. `public/admin/db_init.php` で初期化
-4. `public/admin/settings.php` でAPI設定
-5. `public/admin/import_items.php` 実行
+1. GitHubからZIPをダウンロードして、XAMPPの `htdocs` に配置
+2. `http://localhost/<配置フォルダ名>/public/` にアクセス
+   - DBが無ければ `pinkclub_fanza` を自動作成
+   - `sql/schema.sql` → `sql/migrations/*.sql` の順で自動適用
+   - `schema_migrations` に適用履歴を保存（再アクセス時は未適用のみ実行）
+3. 管理画面は `http://localhost/<配置フォルダ名>/public/admin/links.php` などにアクセス（初期 `admin / password`）
+
+### ローカル設定ファイル
+
+- `config.local.php` が無い場合でもデフォルト設定（`localhost` / `root` / 空パスワード / `pinkclub_fanza`）で動きます。
+- `config.local.php` が空、`return` 無し、配列以外を返す場合は無視してデフォルト設定で動きます。
+- 環境に合わせる場合は `config.local.php.example` をコピーして `config.local.php` を作成してください。
 
 ## 自己テスト手順
 

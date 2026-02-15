@@ -34,6 +34,8 @@ admin_render('相互リンク管理', static function (): void {
 
     $error = '';
     $ok = (string)($_GET['ok'] ?? '');
+    $isDebug = (string)($_GET['debug'] ?? '') === '1';
+    $debugInfo = ['db_name' => '', 'approved_enabled_count' => '0', 'error' => ''];
 
     $hasTable = admin_table_exists('mutual_links');
     $hasStatus = $hasTable && links_column_exists('mutual_links', 'status');
@@ -42,6 +44,19 @@ admin_render('相互リンク管理', static function (): void {
     $hasApprovedAt = $hasTable && links_column_exists('mutual_links', 'approved_at');
     $hasCreatedAt = $hasTable && links_column_exists('mutual_links', 'created_at');
     $hasUpdatedAt = $hasTable && links_column_exists('mutual_links', 'updated_at');
+
+    if ($isDebug) {
+        try {
+            $debugStmt = db()->query("SELECT DATABASE() AS db_name, COUNT(*) AS approved_enabled_count FROM mutual_links WHERE status='approved' AND is_enabled=1");
+            $debugRow = $debugStmt ? $debugStmt->fetch(PDO::FETCH_ASSOC) : null;
+            if (is_array($debugRow)) {
+                $debugInfo['db_name'] = (string)($debugRow['db_name'] ?? '');
+                $debugInfo['approved_enabled_count'] = (string)($debugRow['approved_enabled_count'] ?? '0');
+            }
+        } catch (Throwable $e) {
+            $debugInfo['error'] = $e->getMessage();
+        }
+    }
 
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if (!admin_post_csrf_valid()) {
@@ -198,6 +213,17 @@ admin_render('相互リンク管理', static function (): void {
 
     <?php if ($error !== '') : ?>
         <div class="admin-card" style="background:#ffe7e7;padding:12px;margin-bottom:16px;"><p style="margin:0;color:#c00;">✗ <?php echo e($error); ?></p></div>
+    <?php endif; ?>
+
+    <?php if ($isDebug) : ?>
+        <div class="admin-card" style="background:#eef6ff;padding:12px;margin-bottom:16px;">
+            <p style="margin:0 0 6px;"><strong>Debug</strong></p>
+            <p style="margin:0;">接続DB: <?php echo e($debugInfo['db_name']); ?></p>
+            <p style="margin:0;">mutual_links (status='approved' AND is_enabled=1): <?php echo e($debugInfo['approved_enabled_count']); ?></p>
+            <?php if ($debugInfo['error'] !== '') : ?>
+                <p style="margin:6px 0 0;color:#b71c1c;">エラー: <?php echo e($debugInfo['error']); ?></p>
+            <?php endif; ?>
+        </div>
     <?php endif; ?>
 
     <?php if (!$hasTable) : ?>

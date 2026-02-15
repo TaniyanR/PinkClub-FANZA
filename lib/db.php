@@ -159,6 +159,131 @@ function db_seed_default_admin_user(PDO $pdo): void
     $insert->execute($params);
 }
 
+function db_extract_name_from_dsn(string $dsn): string
+{
+    if (preg_match('/(?:^|;)dbname=([^;]+)/i', $dsn, $matches) === 1 && $matches[1] !== '') {
+        return trim($matches[1]);
+    }
+
+    return '';
+}
+
+function db_remove_dbname_from_dsn(string $dsn): string
+{
+    $base = preg_replace('/;?dbname=[^;]*/i', '', $dsn);
+    if (!is_string($base) || $base === '') {
+        return $dsn;
+    }
+
+    return $base;
+}
+
+function db_build_connection_info(array $db): array
+{
+    $charset = (string)($db['charset'] ?? 'utf8mb4');
+    $host = (string)($db['host'] ?? 'localhost');
+    $name = (string)($db['name'] ?? 'pinkclub_fanza');
+    $dsn = (string)($db['dsn'] ?? '');
+
+    if ($dsn === '') {
+        $dsn = sprintf('mysql:host=%s;dbname=%s;charset=%s', $host, $name, $charset);
+    } else {
+        if (stripos($dsn, 'mysql:') !== 0) {
+            throw new RuntimeException('MySQL以外のDSNはサポートしていません。DSN: ' . $dsn);
+        }
+
+        $parsedName = db_extract_name_from_dsn($dsn);
+        if ($parsedName !== '') {
+            $name = $parsedName;
+        }
+
+        if (preg_match('/(?:^|;)host=([^;]+)/i', $dsn, $hostMatches) === 1 && $hostMatches[1] !== '') {
+            $host = trim($hostMatches[1]);
+        }
+    }
+
+    $serverDsn = db_remove_dbname_from_dsn($dsn);
+    if (stripos($serverDsn, 'charset=') === false) {
+        $serverDsn .= ';charset=' . $charset;
+    }
+
+    return [
+        'dsn' => $dsn,
+        'server_dsn' => $serverDsn,
+        'db_name' => $name,
+        'host' => $host,
+        'charset' => $charset,
+    ];
+}
+
+function db_build_init_error_message(string $stage, array $info, Throwable $e): string
+{
+    $host = (string)($info['host'] ?? '(unknown)');
+    $dbName = (string)($info['db_name'] ?? '(unknown)');
+    $dsn = (string)($info['dsn'] ?? '(unknown)');
+
+    return "DB初期化に失敗しました。\n"
+        . '段階: ' . $stage . "\n"
+        . '接続先(host): ' . $host . "\n"
+        . 'DB名: ' . $dbName . "\n"
+        . 'DSN: ' . $dsn . "\n"
+        . 'エラー: ' . $e->getMessage();
+}
+
+function db_ensure_schema_migrations_table(PDO $pdo): void
+{
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS schema_migrations ('
+        . 'id INT AUTO_INCREMENT PRIMARY KEY,'
+        . 'migration_name VARCHAR(255) NOT NULL,'
+        . 'applied_at DATETIME NOT NULL,'
+        . 'UNIQUE KEY uq_schema_migrations_name (migration_name)'
+        . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+}
+
+function db_apply_sql_file(PDO $pdo, string $filePath): void
+{
+    $sql = (string)file_get_contents($filePath);
+    foreach (db_sql_split_statements($sql) as $statement) {
+        $pdo->exec($statement);
+    }
+}
+
+function db_apply_migrations(PDO $pdo): void
+{
+    db_ensure_schema_migrations_table($pdo);
+
+    $migrationFiles = glob(__DIR__ . '/../sql/migrations/*.sql');
+    if (!is_array($migrationFiles) || $migrationFiles === []) {
+        return;
+    }
+
+    sort($migrationFiles, SORT_STRING);
+
+    $appliedRows = $pdo->query('SELECT migration_name FROM schema_migrations');
+    $appliedNames = $appliedRows ? $appliedRows->fetchAll(PDO::FETCH_COLUMN) : [];
+    $appliedMap = [];
+    foreach ($appliedNames as $name) {
+        if (is_string($name) && $name !== '') {
+            $appliedMap[$name] = true;
+        }
+    }
+
+    $insert = $pdo->prepare('INSERT INTO schema_migrations (migration_name, applied_at) VALUES (:name, NOW())');
+
+    foreach ($migrationFiles as $filePath) {
+        $migrationName = basename($filePath);
+        if (isset($appliedMap[$migrationName])) {
+            continue;
+        }
+
+        db_apply_sql_file($pdo, $filePath);
+        $insert->execute([':name' => $migrationName]);
+        $appliedMap[$migrationName] = true;
+    }
+}
+
 function db_ensure_initialized(PDO $pdo): void
 {
     static $checked = false;
@@ -168,35 +293,8 @@ function db_ensure_initialized(PDO $pdo): void
 
     $checked = true;
 
-    $runMigrations = static function () use ($pdo): void {
-        $migrationFiles = glob(__DIR__ . '/../sql/migrations/*.sql');
-        if (!is_array($migrationFiles)) {
-            return;
-        }
-
-        sort($migrationFiles, SORT_STRING);
-        foreach ($migrationFiles as $file) {
-            $migrationSql = (string)file_get_contents($file);
-            foreach (db_sql_split_statements($migrationSql) as $sql) {
-                $pdo->exec($sql);
-            }
-        }
-    };
-
-    $stmt = $pdo->prepare("SHOW TABLES LIKE 'admin_users'");
-    $stmt->execute();
-    $hasAdminUsers = $stmt->fetchColumn() !== false;
-
-    if (!$hasAdminUsers) {
-        $schemaPath = db_schema_file_path();
-        $schemaSql = (string)file_get_contents($schemaPath);
-        foreach (db_sql_split_statements($schemaSql) as $sql) {
-            $pdo->exec($sql);
-        }
-    }
-
-    $runMigrations();
-
+    db_apply_sql_file($pdo, db_schema_file_path());
+    db_apply_migrations($pdo);
     db_seed_default_admin_user($pdo);
 }
 
@@ -209,62 +307,41 @@ function db(): PDO
 
     $db = config_get('db', []);
 
-    // DSN優先。無ければ host/name/charset から生成（MySQL想定）
-    $dsn = (string)($db['dsn'] ?? '');
-    if ($dsn === '') {
-        $host = (string)($db['host'] ?? '127.0.0.1');
-        $name = (string)($db['name'] ?? '');
-        $charset = (string)($db['charset'] ?? 'utf8mb4');
-        $dsn = sprintf('mysql:host=%s;dbname=%s;charset=%s', $host, $name, $charset);
-    }
-
-    $user = (string)($db['user'] ?? '');
+    $user = (string)($db['user'] ?? 'root');
     $password = (string)($db['password'] ?? ($db['pass'] ?? ''));
 
     $options = $db['options'] ?? [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        // MySQL向け：本物のプリペアを有効にしてインジェクション耐性を上げる
         PDO::ATTR_EMULATE_PREPARES => false,
     ];
 
+    $connectionInfo = db_build_connection_info(is_array($db) ? $db : []);
+
     try {
-        $pdo = new PDO($dsn, $user, $password, $options);
-    } catch (PDOException $e) {
-        $errorInfo = $e->errorInfo;
-        $mysqlCode = is_array($errorInfo) && isset($errorInfo[1]) ? (int)$errorInfo[1] : 0;
-        $isUnknownDatabase = $mysqlCode === 1049
-            || strpos($e->getMessage(), '1049') !== false
-            || stripos($e->getMessage(), 'Unknown database') !== false;
-
-        if (!$isUnknownDatabase) {
-            throw new RuntimeException('Database connection failed: ' . $e->getMessage(), (int)$e->getCode(), $e);
-        }
-
-        $dbName = 'pinkclub_fanza';
-        if (preg_match('/(?:^|;)dbname=([^;]+)/i', $dsn, $matches) === 1 && $matches[1] !== '') {
-            $dbName = $matches[1];
-        }
-
-        $baseDsn = preg_replace('/;?dbname=[^;]*/i', '', $dsn);
-        if (!is_string($baseDsn)) {
-            $baseDsn = $dsn;
-        }
-
-        try {
-            $bootstrapPdo = new PDO($baseDsn, $user, $password, $options);
-            $sql = sprintf(
-                'CREATE DATABASE IF NOT EXISTS `%s` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci',
-                str_replace('`', '``', $dbName)
-            );
-            $bootstrapPdo->exec($sql);
-            $pdo = new PDO($dsn, $user, $password, $options);
-        } catch (PDOException $inner) {
-            throw new RuntimeException('Database auto-creation failed: ' . $inner->getMessage(), (int)$inner->getCode(), $inner);
-        }
+        $bootstrapPdo = new PDO($connectionInfo['server_dsn'], $user, $password, $options);
+        $sql = sprintf(
+            'CREATE DATABASE IF NOT EXISTS `%s` DEFAULT CHARACTER SET %s COLLATE %s_unicode_ci',
+            str_replace('`', '``', $connectionInfo['db_name']),
+            $connectionInfo['charset'],
+            $connectionInfo['charset']
+        );
+        $bootstrapPdo->exec($sql);
+    } catch (Throwable $e) {
+        throw new RuntimeException(db_build_init_error_message('データベース作成', $connectionInfo, $e), (int)$e->getCode(), $e);
     }
 
-    db_ensure_initialized($pdo);
+    try {
+        $pdo = new PDO($connectionInfo['dsn'], $user, $password, $options);
+    } catch (Throwable $e) {
+        throw new RuntimeException(db_build_init_error_message('データベース接続', $connectionInfo, $e), (int)$e->getCode(), $e);
+    }
+
+    try {
+        db_ensure_initialized($pdo);
+    } catch (Throwable $e) {
+        throw new RuntimeException(db_build_init_error_message('schema/migration適用', $connectionInfo, $e), (int)$e->getCode(), $e);
+    }
 
     return $pdo;
 }
