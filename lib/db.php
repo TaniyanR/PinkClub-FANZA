@@ -195,7 +195,10 @@ function db_build_connection_info(array $db): array
 {
     $charset = (string)($db['charset'] ?? 'utf8mb4');
     $host = (string)($db['host'] ?? 'localhost');
-    $name = (string)($db['name'] ?? 'pinkclub_fanza');
+    $name = trim((string)($db['name'] ?? 'pinkclub_fanza'));
+    if ($name === '') {
+        $name = 'pinkclub_fanza';
+    }
     $dsn = (string)($db['dsn'] ?? '');
 
     if ($dsn === '') {
@@ -205,13 +208,19 @@ function db_build_connection_info(array $db): array
             throw new RuntimeException('MySQL以外のDSNはサポートしていません。DSN: ' . $dsn);
         }
 
-        $parsedName = db_extract_name_from_dsn($dsn);
-        if ($parsedName !== '') {
+        $parsedName = trim(db_extract_name_from_dsn($dsn));
+        if ($parsedName !== '' && !isset($db['name'])) {
             $name = $parsedName;
         }
 
         if (preg_match('/(?:^|;)host=([^;]+)/i', $dsn, $hostMatches) === 1 && $hostMatches[1] !== '') {
             $host = trim($hostMatches[1]);
+        }
+
+        $dsnWithoutDb = db_remove_dbname_from_dsn($dsn);
+        $dsn = rtrim($dsnWithoutDb, ';') . ';dbname=' . $name;
+        if (stripos($dsn, 'charset=') === false) {
+            $dsn .= ';charset=' . $charset;
         }
     }
 
@@ -252,18 +261,60 @@ function db_mysql_driver_error_code(Throwable $e): int
     return (int)$e->getCode();
 }
 
-function db_should_ignore_statement_error(PDOException $e): bool
+function db_statement_starts_with(string $sql, array $keywords): bool
+{
+    $trimmed = ltrim($sql);
+    if ($trimmed === '') {
+        return false;
+    }
+
+    foreach ($keywords as $keyword) {
+        if (preg_match('/^' . preg_quote($keyword, '/') . '\\b/i', $trimmed) === 1) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function db_should_ignore_statement_error(PDOException $e, string $sql = ''): bool
 {
     $ignoreCodes = [1050, 1060, 1061, 1062, 1091];
-    return in_array(db_mysql_driver_error_code($e), $ignoreCodes, true);
+    $errno = db_mysql_driver_error_code($e);
+    if (in_array($errno, $ignoreCodes, true)) {
+        return true;
+    }
+
+    if ($errno === 1146 && db_statement_starts_with($sql, ['DROP', 'ALTER'])) {
+        return true;
+    }
+
+    return false;
 }
 
 function db_exec_statement(PDO $pdo, string $sql): void
 {
+    $statement = trim($sql);
+    if ($statement === '') {
+        return;
+    }
+
     try {
-        $pdo->exec($sql);
+        if (db_statement_starts_with($statement, ['SELECT', 'SHOW', 'DESCRIBE', 'EXPLAIN'])) {
+            $stmt = $pdo->query($statement);
+            if ($stmt instanceof PDOStatement) {
+                try {
+                    $stmt->fetchAll(PDO::FETCH_ASSOC);
+                } finally {
+                    $stmt->closeCursor();
+                }
+            }
+            return;
+        }
+
+        $pdo->exec($statement);
     } catch (PDOException $e) {
-        if (db_should_ignore_statement_error($e)) {
+        if (db_should_ignore_statement_error($e, $statement)) {
             return;
         }
 
@@ -416,10 +467,12 @@ function db_connect_and_initialize(array $db): PDO
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
         PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
+        PDO::MYSQL_ATTR_MULTI_STATEMENTS => false,
     ];
     $configOptions = isset($db['options']) && is_array($db['options']) ? $db['options'] : [];
     $options = array_replace($defaultOptions, $configOptions);
     $options[PDO::MYSQL_ATTR_USE_BUFFERED_QUERY] = true;
+    $options[PDO::MYSQL_ATTR_MULTI_STATEMENTS] = false;
 
     $connectionInfo = db_build_connection_info(is_array($db) ? $db : []);
 
