@@ -267,7 +267,7 @@ function db_create_database(PDO $pdo, array $connectionInfo): void
     }
 
     $sql = sprintf(
-        'CREATE DATABASE IF NOT EXISTS `%s` DEFAULT CHARACTER SET %s COLLATE %s_unicode_ci',
+        'CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET %s COLLATE %s_unicode_ci',
         $dbName,
         $charset,
         $charset
@@ -403,6 +403,14 @@ function db_connect_and_initialize(array $db): PDO
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
     ];
+
+    if (!is_array($options)) {
+        $options = [];
+    }
+
+    $options[PDO::ATTR_ERRMODE] = PDO::ERRMODE_EXCEPTION;
+    $options[PDO::ATTR_DEFAULT_FETCH_MODE] = PDO::FETCH_ASSOC;
+    $options[PDO::MYSQL_ATTR_USE_BUFFERED_QUERY] = true;
 
     $connectionInfo = db_build_connection_info(is_array($db) ? $db : []);
 

@@ -28,6 +28,13 @@
 - XSS対策（`e()`）
 - Clickjacking対策（`X-Frame-Options: SAMEORIGIN`）
 
+## XAMPPでの最短起動手順（DB自動作成・初期ログイン）
+
+1. ZIPを解凍して `C:/xampp/htdocs/pinkclub-fanza` に配置し、Apache と MySQL を起動。
+2. `http://localhost/pinkclub-fanza/public/admin/` を開く（初回は DB `pinkclub_fanza` を自動作成）。
+3. `sql/schema.sql` と `sql/migrations/*.sql` が自動適用され、初期管理者 `admin / password` でログイン可能。
+4. `config.local.php` は不要（必要な場合のみ手動作成で設定上書き）。
+
 ## セットアップ（ZIP展開だけで自動初期化）
 
 1. GitHubからZIPをダウンロードして、XAMPPの `htdocs` に配置

@@ -41,6 +41,7 @@ return [
         'options' => [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
             // MySQL向け：本物のプリペアを使用
             PDO::ATTR_EMULATE_PREPARES => false,
         ],
@@ -57,7 +58,5 @@ return [
 
     'admin' => [
         'username' => 'admin',
-        // password
-        'password_hash' => '$2y$12$SS2ptXwc56Bwj.VaTsErye.Dmyde0fi/XefAYSy7v0KQPf7w2dUqG',
     ],
 ];
