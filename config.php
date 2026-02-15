@@ -33,7 +33,7 @@ return [
     'db' => [
         // DSN方式（PDOでそのまま使える）
         // ※ 本番の認証情報は config.local.php で上書き推奨
-        'dsn' => 'mysql:host=127.0.0.1;dbname=pinkclub_f;charset=utf8mb4',
+        'dsn' => 'mysql:host=127.0.0.1;dbname=pinkclub_fanza;charset=utf8mb4',
         'user' => 'root',
         'password' => '',
         'options' => [

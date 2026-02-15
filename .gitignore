@@ -1,5 +1,4 @@
 # Local config (secrets)
-/config.local.php
 /cache/
 /logs/
 /logs/*.log
