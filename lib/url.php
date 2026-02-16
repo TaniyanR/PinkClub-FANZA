@@ -10,8 +10,18 @@ function normalize_base_url(string $value): string
         return '';
     }
 
-    // Misconfigured values such as .../index.php or .../login0718.php break redirect destinations.
-    $normalized = preg_replace('#/(index\.php|login\.php|login0718\.php|admin/index\.php)$#i', '', $normalized);
+    $normalized = preg_replace('/[?#].*$/', '', $normalized);
+    if (!is_string($normalized)) {
+        return '';
+    }
+
+    // Misconfigured values such as .../index.php or .../admin/settings.php break redirect destinations.
+    $normalized = preg_replace('#/(index\.php|login\.php|login0718\.php)$#i', '', $normalized);
+    if (!is_string($normalized)) {
+        return '';
+    }
+
+    $normalized = preg_replace('#/admin(?:/[^/]+\.php)?$#i', '', $normalized);
     if (!is_string($normalized)) {
         return '';
     }
