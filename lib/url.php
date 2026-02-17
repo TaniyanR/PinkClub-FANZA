@@ -5,13 +5,13 @@ require_once __DIR__ . '/site_settings.php';
 
 function normalize_base_url(string $value): string
 {
-    $normalized = trim($value);
+    $normalized = rtrim(trim($value), '/');
     if ($normalized === '') {
         return '';
     }
 
     // Misconfigured values such as .../index.php, .../login0718.php, or .../admin break redirect destinations.
-    $normalized = preg_replace('#/(index\.php|login\.php|login0718\.php|admin(?:/index\.php)?)$#i', '', $normalized);
+    $normalized = preg_replace('#/(index\.php|login\.php|login0718\.php|admin(?:/index\.php)?)/*$#i', '', $normalized);
     if (!is_string($normalized)) {
         return '';
     }
