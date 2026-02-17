@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/polyfills.php';
+
 function config_base(): array
 {
     static $base = null;
