@@ -75,7 +75,7 @@ function detect_base_url(): string
         if ($dir === '/' || $dir === '.') {
             $dir = '';
         }
-        if (str_ends_with($dir, '/admin')) {
+        if (substr($dir, -6) === '/admin') {
             $dir = substr($dir, 0, -6);
         }
         $root = rtrim($dir, '/');
