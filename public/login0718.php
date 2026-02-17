@@ -9,6 +9,24 @@ require_once __DIR__ . '/partials/_helpers.php';
 
 admin_session_start();
 
+function redirect_to(string $url, int $status = 302): never
+{
+    if (!headers_sent()) {
+        header('Location: ' . $url, true, $status);
+        exit;
+    }
+
+    $safeUrl = e($url);
+    http_response_code($status);
+    echo '<!doctype html><html lang="ja"><head><meta charset="UTF-8">';
+    echo '<meta http-equiv="refresh" content="0;url=' . $safeUrl . '">';
+    echo '<title>Redirecting...</title></head><body>';
+    echo '<p>画面を移動します。自動で移動しない場合は <a href="' . $safeUrl . '">こちら</a> をクリックしてください。</p>';
+    echo '<script>location.replace(' . json_encode($url, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . ');</script>';
+    echo '</body></html>';
+    exit;
+}
+
 function normalize_return_to(mixed $value): string
 {
     if (!is_string($value)) {
@@ -35,12 +53,10 @@ $returnTo = normalize_return_to($_GET['return_to'] ?? '');
 
 if (admin_is_logged_in()) {
     if ($returnTo !== '') {
-        header('Location: ' . base_url() . $returnTo);
-        exit;
+        redirect_to(base_url() . $returnTo);
     }
 
-    header('Location: ' . admin_url('index.php'));
-    exit;
+    redirect_to(admin_url('index.php'));
 }
 
 $error = '';
@@ -74,12 +90,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
         if (($attempt['success'] ?? false) === true) {
             if ($returnTo !== '') {
-                header('Location: ' . base_url() . $returnTo, true, 303);
-                exit;
+                redirect_to(base_url() . $returnTo, 303);
             }
 
-            header('Location: ' . admin_url('index.php'), true, 303);
-            exit;
+            redirect_to(admin_url('index.php'), 303);
         }
 
         if (admin_is_dev_env()) {
