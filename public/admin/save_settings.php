@@ -27,6 +27,19 @@ $timeout = filter_var($_POST['timeout'] ?? null, FILTER_VALIDATE_INT, [
     'options' => ['min_range' => 5, 'max_range' => 60],
 ]);
 
+$local = local_config_load();
+$currentApi = $local['dmm_api'] ?? [];
+if (!is_array($currentApi)) {
+    $currentApi = [];
+}
+
+if ($apiId === '') {
+    $apiId = trim((string)($currentApi['api_id'] ?? ''));
+}
+if ($affiliateId === '') {
+    $affiliateId = trim((string)($currentApi['affiliate_id'] ?? ''));
+}
+
 if ($apiId === '' || $affiliateId === '') {
     header('Location: ' . admin_url('settings.php') . '?error=missing_required');
     exit;
@@ -51,8 +64,6 @@ if ($connectTimeout === false) {
 if ($timeout === false) {
     $timeout = 20;
 }
-
-$local = local_config_load();
 
 $local['dmm_api'] = [
     'api_id' => $apiId,
