@@ -10,6 +10,11 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 
 $apiConfig = config_get('dmm_api', []);
 
+$currentApiId = (string)(is_array($apiConfig) ? ($apiConfig['api_id'] ?? '') : '');
+$currentAffiliateId = (string)(is_array($apiConfig) ? ($apiConfig['affiliate_id'] ?? '') : '');
+$hasApiId = trim($currentApiId) !== '';
+$hasAffiliateId = trim($currentAffiliateId) !== '';
+
 // 選択肢（UI用）
 $siteOptions = ['FANZA', 'DMM'];
 $serviceOptions = ['digital'];
@@ -100,10 +105,10 @@ ob_start();
         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
 
         <label>API ID</label>
-        <input type="text" name="api_id" value="<?php echo e((string)(is_array($apiConfig) ? ($apiConfig['api_id'] ?? '') : '')); ?>">
+        <input type="password" name="api_id" value="" placeholder="<?php echo $hasApiId ? '設定済み（変更時のみ入力）' : 'API IDを入力'; ?>" autocomplete="new-password">
 
         <label>Affiliate ID</label>
-        <input type="text" name="affiliate_id" value="<?php echo e((string)(is_array($apiConfig) ? ($apiConfig['affiliate_id'] ?? '') : '')); ?>">
+        <input type="password" name="affiliate_id" value="" placeholder="<?php echo $hasAffiliateId ? '設定済み（変更時のみ入力）' : 'Affiliate IDを入力'; ?>" autocomplete="new-password">
 
         <label>Site</label>
         <select name="site">

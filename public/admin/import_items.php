@@ -97,10 +97,13 @@ function normalize_taxonomy_payload(array $taxonomy): array
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $missing = validate_api_config($apiConfig);
-    if ($missing) {
-        $errorLog[] = 'DMM API設定が不足しています: ' . implode(', ', $missing);
+    if (!admin_post_csrf_valid()) {
+        $errorLog[] = '不正なリクエストです。';
     } else {
+        $missing = validate_api_config($apiConfig);
+        if ($missing) {
+            $errorLog[] = 'DMM API設定が不足しています: ' . implode(', ', $missing);
+        } else {
         $hits        = (int)($_POST['hits'] ?? 100);
         $startOffset = (int)($_POST['offset'] ?? 1);
         $maxPages    = (int)($_POST['pages'] ?? 1);
@@ -326,7 +329,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        $resultLog[] = sprintf('追加 %d件 / 更新 %d件', $inserted, $updated);
+            $resultLog[] = sprintf('追加 %d件 / 更新 %d件', $inserted, $updated);
+        }
     }
 }
 

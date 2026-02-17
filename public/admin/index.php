@@ -89,13 +89,14 @@ $tableStatus = '未実施';
 if (!$dbConnected) {
     $tableStatus = '未実施';
 } elseif ($missingTables === []) {
-    $tableStatus = '実施';
+    $tableStatus = '実施済み';
 } else {
     $tableStatus = '未実施（不足: ' . implode(', ', $missingTables) . '）';
 }
 
-$apiKey = trim(site_setting_get('api_key', ''));
-$affiliateId = trim(site_setting_get('api_affiliate_id', ''));
+$apiConfig = config_get('dmm_api', []);
+$apiKey = trim((string)(is_array($apiConfig) ? ($apiConfig['api_id'] ?? '') : ''));
+$affiliateId = trim((string)(is_array($apiConfig) ? ($apiConfig['affiliate_id'] ?? '') : ''));
 $apiStatus = ($apiKey !== '' && $affiliateId !== '') ? '設定済' : '未設定';
 
 $itemsCountLabel = '未取得';
@@ -167,7 +168,7 @@ ob_start();
 <div class="admin-card">
     <h2>次にやること</h2>
     <p>
-        <a class="button" href="<?php echo e(admin_url('db_init.php')); ?>">DB初期化</a>
+        <a class="button" href="<?php echo e(admin_url('db_init.php')); ?>">テーブル初期化</a>
         <a class="button" href="<?php echo e(admin_url('settings.php')); ?>">API設定</a>
         <a class="button" href="<?php echo e(admin_url('import_items.php')); ?>">インポート</a>
     </p>
