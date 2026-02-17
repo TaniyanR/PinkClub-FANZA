@@ -73,14 +73,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
 
         if (($attempt['success'] ?? false) === true) {
-            session_regenerate_id(true);
-
             if ($returnTo !== '') {
-                header('Location: ' . base_url() . $returnTo);
+                header('Location: ' . base_url() . $returnTo, true, 303);
                 exit;
             }
 
-            header('Location: ' . admin_url('index.php'));
+            header('Location: ' . admin_url('index.php'), true, 303);
             exit;
         }
 
