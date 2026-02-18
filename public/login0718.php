@@ -53,10 +53,10 @@ $returnTo = normalize_return_to($_GET['return_to'] ?? '');
 
 if (admin_is_logged_in()) {
     if ($returnTo !== '') {
-        redirect_to(base_url() . $returnTo);
+        redirect_to(base_path() . $returnTo);
     }
 
-    redirect_to(admin_url('index.php'));
+    redirect_to(admin_path('index.php'));
 }
 
 $error = '';
@@ -90,10 +90,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
         if (($attempt['success'] ?? false) === true) {
             if ($returnTo !== '') {
-                redirect_to(base_url() . $returnTo, 303);
+                redirect_to(base_path() . $returnTo, 303);
             }
 
-            redirect_to(admin_url('index.php'), 303);
+            redirect_to(admin_path('index.php'), 303);
         }
 
         if (admin_is_dev_env()) {
@@ -133,7 +133,7 @@ include __DIR__ . '/partials/login_header.php';
             <?php if ($devDiagnostic !== '') : ?>
                 <p class="login-diagnostic"><?php echo e($devDiagnostic); ?></p>
             <?php endif; ?>
-            <form method="post" action="<?php echo e(login_url()); ?>">
+            <form method="post" action="<?php echo e(login_path()); ?>">
                 <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
                 <?php if ($returnTo !== '') : ?>
                     <input type="hidden" name="return_to" value="<?php echo e($returnTo); ?>">

@@ -223,7 +223,7 @@ function admin_require_login(): void
         return;
     }
 
-    header('Location: ' . login_url());
+    header('Location: ' . login_path());
     exit;
 }
 
