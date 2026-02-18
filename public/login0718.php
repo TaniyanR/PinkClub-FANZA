@@ -52,10 +52,6 @@ function normalize_return_to(mixed $value): string
 $returnTo = normalize_return_to($_GET['return_to'] ?? '');
 
 if (admin_is_logged_in()) {
-    if ($returnTo !== '') {
-        redirect_to(base_path() . $returnTo);
-    }
-
     redirect_to(admin_path('index.php'));
 }
 
@@ -80,8 +76,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     } else {
         $identifier = trim((string)($_POST['identifier'] ?? ''));
         $password = (string)($_POST['password'] ?? '');
-        $returnTo = normalize_return_to($_POST['return_to'] ?? '');
-
         $attempt = admin_attempt_login($identifier, $password);
         $usedDbAuth = (($attempt['auth_source'] ?? '') === 'db');
         if (admin_is_dev_env()) {
@@ -89,10 +83,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
 
         if (($attempt['success'] ?? false) === true) {
-            if ($returnTo !== '') {
-                redirect_to(base_path() . $returnTo, 303);
-            }
-
             redirect_to(admin_path('index.php'), 303);
         }
 
