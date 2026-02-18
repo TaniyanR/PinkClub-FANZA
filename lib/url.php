@@ -44,6 +44,41 @@ function base_url(): string
     return normalize_base_url(detect_base_url());
 }
 
+function base_path(): string
+{
+    $scriptName = (string)($_SERVER['SCRIPT_NAME'] ?? '');
+    if ($scriptName === '') {
+        return '';
+    }
+
+    $scriptName = str_replace('\\', '/', $scriptName);
+    $publicPos = strripos($scriptName, '/public/');
+    if ($publicPos !== false) {
+        return rtrim(substr($scriptName, 0, $publicPos + 7), '/');
+    }
+
+    $dir = str_replace('\\', '/', dirname($scriptName));
+    if ($dir === '/' || $dir === '.') {
+        return '';
+    }
+
+    if (substr($dir, -6) === '/admin') {
+        $dir = substr($dir, 0, -6);
+    }
+
+    return rtrim($dir, '/');
+}
+
+function admin_path(string $path = ''): string
+{
+    return base_path() . '/admin/' . ltrim($path, '/');
+}
+
+function login_path(): string
+{
+    return base_path() . '/login0718.php';
+}
+
 function admin_url(string $path = ''): string
 {
     return base_url() . '/admin/' . ltrim($path, '/');
