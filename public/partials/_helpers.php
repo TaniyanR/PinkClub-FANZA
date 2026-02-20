@@ -252,8 +252,16 @@ if (!function_exists('ad_snippet_rows')) {
         if (is_array($cache)) {
             return $cache;
         }
-        $stmt = db()->query('SELECT slot_key,snippet_html,is_enabled FROM code_snippets');
-        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        try {
+            $stmt = db()->query('SELECT slot_key,snippet_html,is_enabled FROM code_snippets');
+            $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        } catch (Throwable $e) {
+            if (function_exists('app_log_error')) {
+                app_log_error('ad_snippet_rows failed', $e);
+            }
+            $cache = [];
+            return $cache;
+        }
         $cache = [];
         foreach ($rows as $row) {
             $slotKey = (string)($row['slot_key'] ?? '');

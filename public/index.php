@@ -6,17 +6,30 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/partials/_helpers.php';
 require_once __DIR__ . '/../lib/repository.php';
 
-$pageStyles = ['/assets/css/home.css', '/assets/css/front.css'];
+$pageStyles = ['/assets/home.css', '/assets/css/front.css'];
 $pageTitle = 'トップ';
 $pageDescription = '新着作品、注目作品、女優・シリーズ・メーカー・ジャンルを実データで表示します。';
 $canonicalUrl = canonical_url('/index.php');
 
-$newItems = fetch_items('date_published_desc', 10, 0);
-$pickupItems = fetch_items('popularity_desc', 10, 0); // Now using popularity order
-$actresses = fetch_actresses(12, 0);
-$series = fetch_series(12, 0);
-$makers = fetch_makers(12, 0);
-$genres = fetch_genres(12, 0);
+$frontErrors = [];
+
+$frontSafeFetch = static function (callable $fetcher, string $context, mixed $fallback) use (&$frontErrors) {
+    try {
+        $result = $fetcher();
+        return $result ?? $fallback;
+    } catch (Throwable $e) {
+        app_log_error('front fetch failed: ' . $context, $e);
+        $frontErrors[$context] = true;
+        return $fallback;
+    }
+};
+
+$newItems = $frontSafeFetch(static fn(): array => fetch_items('date_published_desc', 10, 0), 'new_items', []);
+$pickupItems = $frontSafeFetch(static fn(): array => fetch_items('popularity_desc', 10, 0), 'pickup_items', []);
+$actresses = $frontSafeFetch(static fn(): array => fetch_actresses(12, 0), 'actresses', []);
+$series = $frontSafeFetch(static fn(): array => fetch_series(12, 0), 'series', []);
+$makers = $frontSafeFetch(static fn(): array => fetch_makers(12, 0), 'makers', []);
+$genres = $frontSafeFetch(static fn(): array => fetch_genres(12, 0), 'genres', []);
 $ogImage = isset($newItems[0]['image_large']) ? (string)$newItems[0]['image_large'] : '';
 
 include __DIR__ . '/partials/header.php';
@@ -30,6 +43,9 @@ include __DIR__ . '/partials/nav_search.php';
         <div class="rss-pc-only">
             <?php include __DIR__ . '/partials/rss_text_widget.php'; ?>
         </div>
+        <?php if (!front_db_available() || $frontErrors !== []) : ?>
+            <p class="front-alert"><?php echo e(front_generic_error_message()); ?></p>
+        <?php endif; ?>
         <?php render_ad('content_top', 'home', 'pc'); ?>
         <section class="block">
             <div class="section-head">
@@ -81,6 +97,9 @@ include __DIR__ . '/partials/nav_search.php';
 
         <section class="block">
             <div class="section-head"><h2 class="section-title">女優</h2></div>
+            <?php if ($actresses === []) : ?>
+                <p class="front-empty">現在、表示できるデータがありません。</p>
+            <?php else : ?>
             <div class="actress-grid">
                 <?php foreach ($actresses as $actress) : ?>
                     <article class="actress-card">
@@ -91,10 +110,14 @@ include __DIR__ . '/partials/nav_search.php';
                     </article>
                 <?php endforeach; ?>
             </div>
+            <?php endif; ?>
         </section>
 
         <section class="block">
             <div class="section-head"><h2 class="section-title">シリーズ</h2></div>
+            <?php if ($series === []) : ?>
+                <p class="front-empty">現在、表示できるデータがありません。</p>
+            <?php else : ?>
             <div class="taxonomy-grid">
                 <?php foreach ($series as $entry) : ?>
                     <a class="taxonomy-card" href="/series_one.php?id=<?php echo urlencode((string)$entry['id']); ?>">
@@ -103,10 +126,14 @@ include __DIR__ . '/partials/nav_search.php';
                     </a>
                 <?php endforeach; ?>
             </div>
+            <?php endif; ?>
         </section>
 
         <section class="block">
             <div class="section-head"><h2 class="section-title">メーカー</h2></div>
+            <?php if ($makers === []) : ?>
+                <p class="front-empty">現在、表示できるデータがありません。</p>
+            <?php else : ?>
             <div class="taxonomy-grid">
                 <?php foreach ($makers as $entry) : ?>
                     <a class="taxonomy-card" href="/maker.php?id=<?php echo urlencode((string)$entry['id']); ?>">
@@ -115,10 +142,14 @@ include __DIR__ . '/partials/nav_search.php';
                     </a>
                 <?php endforeach; ?>
             </div>
+            <?php endif; ?>
         </section>
 
         <section class="block">
             <div class="section-head"><h2 class="section-title">ジャンル</h2></div>
+            <?php if ($genres === []) : ?>
+                <p class="front-empty">現在、表示できるデータがありません。</p>
+            <?php else : ?>
             <div class="taxonomy-grid">
                 <?php foreach ($genres as $entry) : ?>
                     <a class="taxonomy-card" href="/genre.php?id=<?php echo urlencode((string)$entry['id']); ?>">
@@ -127,6 +158,7 @@ include __DIR__ . '/partials/nav_search.php';
                     </a>
                 <?php endforeach; ?>
             </div>
+            <?php endif; ?>
         </section>
         <?php render_ad('content_bottom', 'home', 'pc'); ?>
         <div class="rss-pc-only">
