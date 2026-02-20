@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+// 開発時のみ有効化: 白画面(Fatal)切り分け用
+ini_set('display_errors', '1');
+error_reporting(E_ALL);
+
 $GLOBALS['__admin_trace'] = [];
 
 function admin_h(string $value): string
@@ -217,6 +221,7 @@ try {
     require_once __DIR__ . '/../../lib/config.php';
     require_once __DIR__ . '/../../lib/db.php';
     require_once __DIR__ . '/../../lib/admin_auth.php';
+    require_once __DIR__ . '/../../lib/admin_auth_simple.php';
     require_once __DIR__ . '/../../lib/csrf.php';
     require_once __DIR__ . '/../../lib/url.php';
     require_once __DIR__ . '/../../lib/scheduler.php';
@@ -233,17 +238,17 @@ if (headers_sent() === false) {
     header('X-Robots-Tag: noindex, nofollow');
 }
 
-admin_session_start();
+admin_simple_session_start();
 admin_trace_push('bootstrap:session:start');
 
+$GLOBALS['admin_db_ready'] = false;
 try {
     db();
+    $GLOBALS['admin_db_ready'] = true;
     admin_trace_push('bootstrap:db:ready');
 } catch (Throwable $exception) {
     admin_trace_push('bootstrap:db:failed');
-    admin_log_error('DB initialization failed', $exception);
-    admin_render_error_page('DB初期化に失敗しました', $exception->getMessage(), $exception);
-    exit;
+    admin_log_error('DB initialization failed (non-blocking for minimal login)', $exception);
 }
 
 $script = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
@@ -253,13 +258,15 @@ $isEmailVerify = $script === 'verify_email.php';
 
 if (!$isLogin && !$isLogout && !$isEmailVerify) {
     admin_trace_push('bootstrap:auth:check');
-    admin_require_login();
+    admin_simple_require_login();
 }
 
-try {
-    maybe_run_scheduled_jobs();
-} catch (Throwable $exception) {
-    admin_log_error('Scheduled job failed (non-blocking)', $exception);
+if (($GLOBALS['admin_db_ready'] ?? false) === true) {
+    try {
+        maybe_run_scheduled_jobs();
+    } catch (Throwable $exception) {
+        admin_log_error('Scheduled job failed (non-blocking)', $exception);
+    }
 }
 
 admin_trace_push('bootstrap:end');
