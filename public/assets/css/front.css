@@ -1,0 +1,65 @@
+.site-header {
+    border-bottom: 1px solid #e4e6eb;
+    background: #fff;
+}
+
+.main-content {
+    padding-bottom: 40px;
+}
+
+.block {
+    background: #fff;
+    border: 1px solid #e6e8ee;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.section-sub {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.product-card,
+.actress-card,
+.taxonomy-card {
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.taxonomy-card {
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+}
+
+.front-empty {
+    margin: 0;
+    padding: 14px;
+    border: 1px dashed #c6ced9;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #475569;
+}
+
+.site-footer {
+    margin-top: 24px;
+}
+
+@media (max-width: 640px) {
+    .block {
+        padding: 12px;
+    }
+
+    .section-title {
+        font-size: 18px;
+    }
+}

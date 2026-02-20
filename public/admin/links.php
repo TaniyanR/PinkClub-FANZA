@@ -204,6 +204,12 @@ admin_render('相互リンク管理', static function (): void {
         'order' => '表示順を保存しました。',
     ];
     $okMessage = $okMessageMap[$ok] ?? '';
+    $statusLabels = [
+        'pending' => '承認待ち',
+        'approved' => '承認済み',
+        'rejected' => '却下',
+        'disabled' => '無効',
+    ];
     ?>
     <h1>相互リンク管理</h1>
 
@@ -261,14 +267,14 @@ admin_render('相互リンク管理', static function (): void {
                         <tr style="background:#f5f5f5;">
                             <th style="border:1px solid #ddd;padding:8px;text-align:left;">ID</th>
                             <th style="border:1px solid #ddd;padding:8px;text-align:left;">サイト名</th>
-                            <th style="border:1px solid #ddd;padding:8px;text-align:left;">site_url</th>
-                            <th style="border:1px solid #ddd;padding:8px;text-align:left;">link_url</th>
-                            <?php if ($hasStatus) : ?><th style="border:1px solid #ddd;padding:8px;text-align:left;">status</th><?php endif; ?>
-                            <?php if ($hasIsEnabled) : ?><th style="border:1px solid #ddd;padding:8px;text-align:center;">is_enabled</th><?php endif; ?>
-                            <?php if ($hasDisplayOrder) : ?><th style="border:1px solid #ddd;padding:8px;text-align:center;">display_order</th><?php endif; ?>
-                            <?php if ($hasApprovedAt) : ?><th style="border:1px solid #ddd;padding:8px;text-align:left;">approved_at</th><?php endif; ?>
-                            <?php if ($hasCreatedAt) : ?><th style="border:1px solid #ddd;padding:8px;text-align:left;">created_at</th><?php endif; ?>
-                            <?php if ($hasUpdatedAt) : ?><th style="border:1px solid #ddd;padding:8px;text-align:left;">updated_at</th><?php endif; ?>
+                            <th style="border:1px solid #ddd;padding:8px;text-align:left;">自サイトURL</th>
+                            <th style="border:1px solid #ddd;padding:8px;text-align:left;">相手URL</th>
+                            <?php if ($hasStatus) : ?><th style="border:1px solid #ddd;padding:8px;text-align:left;">状態</th><?php endif; ?>
+                            <?php if ($hasIsEnabled) : ?><th style="border:1px solid #ddd;padding:8px;text-align:center;">有効</th><?php endif; ?>
+                            <?php if ($hasDisplayOrder) : ?><th style="border:1px solid #ddd;padding:8px;text-align:center;">表示順</th><?php endif; ?>
+                            <?php if ($hasApprovedAt) : ?><th style="border:1px solid #ddd;padding:8px;text-align:left;">承認日時</th><?php endif; ?>
+                            <?php if ($hasCreatedAt) : ?><th style="border:1px solid #ddd;padding:8px;text-align:left;">作成日時</th><?php endif; ?>
+                            <?php if ($hasUpdatedAt) : ?><th style="border:1px solid #ddd;padding:8px;text-align:left;">更新日時</th><?php endif; ?>
                             <th style="border:1px solid #ddd;padding:8px;text-align:center;">操作</th>
                         </tr>
                         </thead>
@@ -277,6 +283,7 @@ admin_render('相互リンク管理', static function (): void {
                             <?php
                             $id = (int)($row['id'] ?? 0);
                             $status = (string)($row['status'] ?? 'pending');
+                            $statusLabel = $statusLabels[$status] ?? $status;
                             $enabled = (int)($row['is_enabled'] ?? 1) === 1;
                             ?>
                             <tr>
@@ -284,8 +291,8 @@ admin_render('相互リンク管理', static function (): void {
                                 <td style="border:1px solid #ddd;padding:8px;"><?php echo e((string)($row['site_name'] ?? '')); ?></td>
                                 <td style="border:1px solid #ddd;padding:8px;"><?php echo e((string)($row['site_url'] ?? '')); ?></td>
                                 <td style="border:1px solid #ddd;padding:8px;"><?php echo e((string)($row['link_url'] ?? '')); ?></td>
-                                <?php if ($hasStatus) : ?><td style="border:1px solid #ddd;padding:8px;"><?php echo e($status); ?></td><?php endif; ?>
-                                <?php if ($hasIsEnabled) : ?><td style="border:1px solid #ddd;padding:8px;text-align:center;"><?php echo $enabled ? '1' : '0'; ?></td><?php endif; ?>
+                                <?php if ($hasStatus) : ?><td style="border:1px solid #ddd;padding:8px;"><?php echo e($statusLabel); ?></td><?php endif; ?>
+                                <?php if ($hasIsEnabled) : ?><td style="border:1px solid #ddd;padding:8px;text-align:center;"><?php echo $enabled ? '有効' : '無効'; ?></td><?php endif; ?>
                                 <?php if ($hasDisplayOrder) : ?>
                                     <td style="border:1px solid #ddd;padding:8px;text-align:center;">
                                         <input type="number" name="display_order[<?php echo e((string)$id); ?>]" value="<?php echo e((string)($row['display_order'] ?? 100)); ?>" style="width:90px;">

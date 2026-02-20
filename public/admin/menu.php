@@ -13,7 +13,7 @@ function admin_menu_groups(): array
         [
             'heading' => '設定',
             'items' => [
-                ['file' => 'settings_site.php', 'label' => 'サイト設定'],
+                ['file' => 'settings.php?tab=site', 'label' => 'サイト設定'],
                 ['file' => 'design.php', 'label' => 'デザイン設定'],
             ],
         ],
@@ -21,7 +21,8 @@ function admin_menu_groups(): array
             'heading' => 'リンク設定',
             'items' => [
                 ['file' => 'links.php', 'label' => '相互リンク管理'],
-                ['file' => 'rss.php', 'label' => 'RSS管理'],
+                // RSSは rss_sources/rss_items の独自管理機能があるためメニューを維持。
+                ['file' => 'rss.php', 'label' => 'RSS取得状況'],
             ],
         ],
         [
@@ -33,7 +34,7 @@ function admin_menu_groups(): array
         [
             'heading' => 'アフィリエイト設定',
             'items' => [
-                ['file' => 'settings.php', 'label' => 'API設定'],
+                ['file' => 'settings.php?tab=api', 'label' => 'API設定'],
                 ['file' => 'ads.php', 'label' => '広告コード'],
             ],
         ],

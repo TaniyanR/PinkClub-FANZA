@@ -142,26 +142,29 @@ body {
 }
 
 .admin-sidebar__heading {
-    margin: 16px 0 8px;
+    margin: 18px 0 10px;
     padding: 0 18px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
-    color: #9ea3a8;
+    color: #b7bcc1;
     letter-spacing: 0.04em;
 }
 
 
 .admin-menu__link--emphasis {
-    font-size: 17px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #f4f6f8;
 }
 
 .admin-sidebar__heading--emphasis {
     font-weight: 800;
-    font-size: 13px;
+    font-size: 15px;
+    color: #d7dce1;
 }
 
 .admin-sidebar ul {
-    padding: 0 0 8px;
+    padding: 0 0 10px;
 }
 
 .admin-menu__disabled {

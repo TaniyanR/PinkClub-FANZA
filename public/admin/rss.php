@@ -20,7 +20,7 @@ function rss_admin_redirect(string $query = ''): void
     exit;
 }
 
-admin_render('RSS管理', static function (): void {
+admin_render('RSS取得状況', static function (): void {
     admin_trace_push('page:start:rss.php');
 
     $error = '';
@@ -85,7 +85,7 @@ admin_render('RSS管理', static function (): void {
     ];
     $okMessage = $okMessageMap[$ok] ?? '';
     ?>
-    <h1>RSS管理</h1>
+    <h1>RSS取得状況</h1>
 
     <?php if ($okMessage !== '') : ?>
         <div class="admin-card" style="background:#e7f5e7;padding:12px;margin-bottom:16px;"><p style="margin:0;">✓ <?php echo e($okMessage); ?></p></div>

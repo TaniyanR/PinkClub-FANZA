@@ -47,7 +47,13 @@ try {
                     $file = (string)($item['file'] ?? '');
                     $label = (string)($item['label'] ?? '');
                     $href = $file !== '' ? admin_url($file) : '#';
-                    $isActive = $file !== '' && ($currentScript === basename($file));
+                    $menuPath = $file !== '' ? (string)parse_url($file, PHP_URL_PATH) : '';
+                    $menuScript = $menuPath !== '' ? basename($menuPath) : '';
+                    $menuTab = $file !== '' ? (string)parse_url($file, PHP_URL_QUERY) : '';
+                    parse_str($menuTab, $menuQuery);
+                    $currentTab = (string)($_GET['tab'] ?? '');
+                    $itemTab = isset($menuQuery['tab']) ? (string)$menuQuery['tab'] : '';
+                    $isActive = $file !== '' && $currentScript === $menuScript && ($itemTab === '' || $itemTab === $currentTab);
                     ?>
                     <li class="admin-sidebar__item">
                         <a class="admin-menu__link <?php echo $isEmphasisGroup ? 'admin-menu__link--emphasis' : ''; ?> <?php echo $isActive ? 'is-active' : ''; ?>"
