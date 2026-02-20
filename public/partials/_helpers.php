@@ -89,6 +89,23 @@ if (!function_exists('canonical_url')) {
     }
 }
 
+if (!function_exists('front_asset_url')) {
+    function front_asset_url(string $path): string
+    {
+        $normalizedPath = '/' . ltrim($path, '/');
+        $basePath = rtrim(base_path(), '/');
+
+        if ($basePath !== '') {
+            $asset = $basePath . $normalizedPath;
+        } else {
+            $requestPath = (string)parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+            $asset = str_starts_with($requestPath, '/public/') ? ('/public' . $normalizedPath) : $normalizedPath;
+        }
+
+        return preg_replace('#^/public/public/#', '/public/', $asset) ?: $asset;
+    }
+}
+
 if (!function_exists('format_date')) {
     function format_date(?string $value): string
     {

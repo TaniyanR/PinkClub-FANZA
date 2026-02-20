@@ -61,9 +61,9 @@ if (!$headerRendered) : ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo e($pageTitle); ?></title>
-    <link rel="stylesheet" href="<?php echo e(rtrim(base_path(), '/') . '/assets/css/site.css'); ?>">
-    <link rel="stylesheet" href="<?php echo e(rtrim(base_path(), '/') . '/assets/css/common.css'); ?>">
-    <link rel="stylesheet" href="<?php echo e(rtrim(base_path(), '/') . '/assets/css/front.css'); ?>">
+    <link rel="stylesheet" href="<?php echo e(front_asset_url('/assets/css/site.css')); ?>">
+    <link rel="stylesheet" href="<?php echo e(front_asset_url('/assets/css/common.css')); ?>">
+    <link rel="stylesheet" href="<?php echo e(front_asset_url('/assets/css/front.css')); ?>">
 </head>
 <body>
 <header class="site-header"><div class="site-header__inner"><a class="site-header__title" href="/">サイト名未設定</a></div></header>
