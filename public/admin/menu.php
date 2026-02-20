@@ -21,8 +21,6 @@ function admin_menu_groups(): array
             'heading' => 'リンク設定',
             'items' => [
                 ['file' => 'links.php', 'label' => '相互リンク管理'],
-                // RSSは rss_sources/rss_items の独自管理機能があるためメニューを維持。
-                ['file' => 'rss.php', 'label' => 'RSS取得状況'],
             ],
         ],
         [
