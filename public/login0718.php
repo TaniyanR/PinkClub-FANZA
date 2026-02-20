@@ -7,7 +7,7 @@ require_once __DIR__ . '/../lib/csrf.php';
 require_once __DIR__ . '/../lib/url.php';
 require_once __DIR__ . '/partials/_helpers.php';
 
-admin_session_start();
+start_admin_session();
 
 function redirect_to(string $url, int $status = 302): never
 {
@@ -27,29 +27,7 @@ function redirect_to(string $url, int $status = 302): never
     exit;
 }
 
-function normalize_return_to(mixed $value): string
-{
-    if (!is_string($value)) {
-        return '';
-    }
-
-    $path = trim(mb_substr($value, 0, 255));
-    if ($path === '') {
-        return '';
-    }
-
-    if ($path[0] !== '/') {
-        return '';
-    }
-
-    if (preg_match('/^\/admin\/[A-Za-z0-9_\/.\-]*$/', $path) !== 1) {
-        return '';
-    }
-
-    return $path;
-}
-
-$returnTo = normalize_return_to($_GET['return_to'] ?? '');
+$returnTo = normalize_admin_redirect_target((string)($_GET['return_to'] ?? ''));
 
 if (admin_is_logged_in()) {
     redirect_to(admin_path('index.php'));
@@ -76,7 +54,23 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     } else {
         $identifier = trim((string)($_POST['identifier'] ?? ''));
         $password = (string)($_POST['password'] ?? '');
-        $attempt = admin_attempt_login($identifier, $password);
+
+        try {
+            $attempt = admin_attempt_login($identifier, $password);
+        } catch (Throwable $e) {
+            error_log('[admin_login] exception in admin_attempt_login: ' . $e->getMessage());
+            if (admin_is_dev_env()) {
+                $devDiagnostic = '診断: 例外が発生しました。error_log を確認してください。';
+            }
+            $error = 'ログイン処理でエラーが発生しました。';
+            $attempt = [
+                'success' => false,
+                'auth_source' => 'unknown',
+                'admin_users_table_available' => false,
+                'failure_reason' => 'exception',
+            ];
+        }
+
         $usedDbAuth = (($attempt['auth_source'] ?? '') === 'db');
         if (admin_is_dev_env()) {
             $devDiagnostic = $usedDbAuth ? '診断: DB認証を使いました。' : '診断: Config認証を使いました。';
@@ -93,7 +87,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             log_message(sprintf('[admin_login] auth failed | admin_users_table_available=%s | username_length=%d | reason=%s', $tableAvailable, $identifierLength, $reason));
         }
 
-        $error = 'ユーザー名またはパスワードが違います。';
+        if ($error === '') {
+            $error = 'ユーザー名またはパスワードが違います。';
+        }
     }
 }
 
