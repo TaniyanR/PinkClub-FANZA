@@ -68,20 +68,24 @@ function track_page_view(?string $itemCid = null): void
     $uaHash = hash('sha256', $ua);
     $sidHash = hash('sha256', session_id());
 
-    $pdo = db();
-    $stmt = $pdo->prepare('INSERT INTO page_views (viewed_at,path,referrer,ip_hash,ua_hash,session_id_hash,item_cid,user_id) VALUES (NOW(),:path,:ref,:ip,:ua,:sid,:cid,:uid)');
-    $stmt->execute([
-        ':path' => mb_substr($path !== '' ? $path : '/', 0, 255),
-        ':ref' => $ref !== '' ? mb_substr($ref, 0, 500) : null,
-        ':ip' => $ipHash,
-        ':ua' => $uaHash,
-        ':sid' => $sidHash,
-        ':cid' => $itemCid,
-        ':uid' => user_current_id(),
-    ]);
+    try {
+        $pdo = db();
+        $stmt = $pdo->prepare('INSERT INTO page_views (viewed_at,path,referrer,ip_hash,ua_hash,session_id_hash,item_cid,user_id) VALUES (NOW(),:path,:ref,:ip,:ua,:sid,:cid,:uid)');
+        $stmt->execute([
+            ':path' => mb_substr($path !== '' ? $path : '/', 0, 255),
+            ':ref' => $ref !== '' ? mb_substr($ref, 0, 500) : null,
+            ':ip' => $ipHash,
+            ':ua' => $uaHash,
+            ':sid' => $sidHash,
+            ':cid' => $itemCid,
+            ':uid' => user_current_id(),
+        ]);
 
-    if ((int)date('i') % 10 === 0) {
-        refresh_daily_stats(date('Y-m-d'));
+        if ((int)date('i') % 10 === 0) {
+            refresh_daily_stats(date('Y-m-d'));
+        }
+    } catch (Throwable $e) {
+        error_log('[front] track_page_view skipped: ' . $e->getMessage());
     }
 }
 

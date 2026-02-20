@@ -6,56 +6,10 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/partials/_helpers.php';
 require_once __DIR__ . '/../lib/repository.php';
 
-/**
- * @return array<int, array<string, mixed>>
- */
-function front_safe_fetch_list(callable $callback, string $context): array
-{
-    try {
-        $rows = $callback();
-        return is_array($rows) ? $rows : [];
-    } catch (Throwable $e) {
-        app_log_error('Front fetch failed: ' . $context, $e);
-        return [];
-    }
-}
-
-function front_safe_include(string $path, string $context): bool
-{
-    if (!is_file($path)) {
-        app_log_error('Front include file missing: ' . $context . ' (' . $path . ')');
-        return false;
-    }
-
-    ob_start();
-    try {
-        include $path;
-        $rendered = (string)ob_get_clean();
-        echo $rendered;
-        return true;
-    } catch (Throwable $e) {
-        if (ob_get_level() > 0) {
-            ob_end_clean();
-        }
-        app_log_error('Front include failed: ' . $context, $e);
-        return false;
-    }
-}
-
-$pageStyles = ['/assets/css/home.css', '/assets/css/front.css'];
 $pageTitle = 'トップ';
 $pageDescription = '新着作品、注目作品、女優・シリーズ・メーカー・ジャンルを実データで表示します。';
 $canonicalUrl = canonical_url('/index.php');
 
-$isDbAvailable = (bool)($GLOBALS['front_db_available'] ?? false);
-$frontNotice = $isDbAvailable ? '' : '現在、一部データの取得に失敗しています。時間をおいて再度お試しください。';
-
-$newItems = front_safe_fetch_list(static fn(): array => fetch_items('date_published_desc', 10, 0), 'home.new_items');
-$pickupItems = front_safe_fetch_list(static fn(): array => fetch_items('popularity_desc', 10, 0), 'home.pickup_items');
-$actresses = front_safe_fetch_list(static fn(): array => fetch_actresses(12, 0), 'home.actresses');
-$series = front_safe_fetch_list(static fn(): array => fetch_series(12, 0), 'home.series');
-$makers = front_safe_fetch_list(static fn(): array => fetch_makers(12, 0), 'home.makers');
-$genres = front_safe_fetch_list(static fn(): array => fetch_genres(12, 0), 'home.genres');
 $ogImage = isset($newItems[0]['image_large']) ? (string)$newItems[0]['image_large'] : '';
 
 $headerRendered = front_safe_include(__DIR__ . '/partials/header.php', 'header');
@@ -90,7 +44,7 @@ if (!$headerRendered) : ?>
                 <div class="block"><p class="front-empty">現在、RSSデータを表示できません。</p></div>
             <?php endif; ?>
         </div>
-        <?php if ($isDbAvailable) { render_ad('content_top', 'home', 'pc'); } ?>
+      
         <section class="block">
             <div class="section-head">
                 <h1 class="section-title">新着作品</h1>
@@ -141,67 +95,25 @@ if (!$headerRendered) : ?>
 
         <section class="block">
             <div class="section-head"><h2 class="section-title">女優</h2></div>
-            <?php if ($actresses !== []) : ?>
-                <div class="actress-grid">
-                    <?php foreach ($actresses as $actress) : ?>
-                        <article class="actress-card">
-                            <a class="actress-card__media" href="/actress.php?id=<?php echo urlencode((string)$actress['id']); ?>">
-                                <img src="<?php echo e((string)($actress['image_small'] ?: $actress['image_large'])); ?>" alt="<?php echo e((string)$actress['name']); ?>">
-                            </a>
-                            <a class="actress-card__name" href="/actress.php?id=<?php echo urlencode((string)$actress['id']); ?>"><?php echo e((string)$actress['name']); ?></a>
-                        </article>
-                    <?php endforeach; ?>
-                </div>
-            <?php else : ?>
-                <p class="front-empty">現在、表示できる女優データがありません。</p>
+
             <?php endif; ?>
         </section>
 
         <section class="block">
             <div class="section-head"><h2 class="section-title">シリーズ</h2></div>
-            <?php if ($series !== []) : ?>
-                <div class="taxonomy-grid">
-                    <?php foreach ($series as $entry) : ?>
-                        <a class="taxonomy-card" href="/series_one.php?id=<?php echo urlencode((string)$entry['id']); ?>">
-                            <div class="taxonomy-card__media">#<?php echo e((string)$entry['id']); ?></div>
-                            <div class="taxonomy-card__name"><?php echo e((string)$entry['name']); ?></div>
-                        </a>
-                    <?php endforeach; ?>
-                </div>
-            <?php else : ?>
-                <p class="front-empty">現在、表示できるシリーズデータがありません。</p>
+
             <?php endif; ?>
         </section>
 
         <section class="block">
             <div class="section-head"><h2 class="section-title">メーカー</h2></div>
-            <?php if ($makers !== []) : ?>
-                <div class="taxonomy-grid">
-                    <?php foreach ($makers as $entry) : ?>
-                        <a class="taxonomy-card" href="/maker.php?id=<?php echo urlencode((string)$entry['id']); ?>">
-                            <div class="taxonomy-card__media">#<?php echo e((string)$entry['id']); ?></div>
-                            <div class="taxonomy-card__name"><?php echo e((string)$entry['name']); ?></div>
-                        </a>
-                    <?php endforeach; ?>
-                </div>
-            <?php else : ?>
-                <p class="front-empty">現在、表示できるメーカーデータがありません。</p>
+
             <?php endif; ?>
         </section>
 
         <section class="block">
             <div class="section-head"><h2 class="section-title">ジャンル</h2></div>
-            <?php if ($genres !== []) : ?>
-                <div class="taxonomy-grid">
-                    <?php foreach ($genres as $entry) : ?>
-                        <a class="taxonomy-card" href="/genre.php?id=<?php echo urlencode((string)$entry['id']); ?>">
-                            <div class="taxonomy-card__media">#<?php echo e((string)$entry['id']); ?></div>
-                            <div class="taxonomy-card__name"><?php echo e((string)$entry['name']); ?></div>
-                        </a>
-                    <?php endforeach; ?>
-                </div>
-            <?php else : ?>
-                <p class="front-empty">現在、表示できるジャンルデータがありません。</p>
+
             <?php endif; ?>
         </section>
         <?php if ($isDbAvailable) { render_ad('content_bottom', 'home', 'pc'); } ?>

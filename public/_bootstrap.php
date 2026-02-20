@@ -185,7 +185,33 @@ try {
     require_once __DIR__ . '/partials/_helpers.php';
 } catch (Throwable $e) {
     app_log_error('Require failed in front bootstrap', $e);
-    render_fatal_error_page('システムの初期化に失敗しました。', $e);
+
+    if (!function_exists('config_get')) {
+        function config_get(string $key, mixed $default = null): mixed
+        {
+            return $default;
+        }
+    }
+
+    if (!function_exists('base_url')) {
+        function base_url(): string
+        {
+            return '';
+        }
+    }
+
+    if (!function_exists('db')) {
+        function db(): PDO
+        {
+            throw new RuntimeException('DBは現在利用できません。');
+        }
+    }
+
+    if (!function_exists('maybe_run_scheduled_jobs')) {
+        function maybe_run_scheduled_jobs(): void
+        {
+        }
+    }
 }
 
 function render_setup_needed(?Throwable $exception = null): never
@@ -212,7 +238,7 @@ function render_setup_needed(?Throwable $exception = null): never
 <body>
 <div class="wrap">
     <section class="card">
-        <h1>PinkClub-FANZA のセットアップが必要です</h1>
+        <h1>サイトのセットアップが必要です</h1>
         <p>データベース接続または初期化に失敗したため、フロント画面を表示できませんでした。</p>
         <ul>
             <li><code>config.local.php</code> が無い場合はデフォルト設定（localhost / root / 空パスワード / pinkclub_fanza）で自動初期化します。</li>
@@ -242,12 +268,12 @@ if (!headers_sent()) {
 
 ini_set('display_errors', app_is_development() ? '1' : '0');
 
+global $frontDbAvailable;
+$frontDbAvailable = true;
 try {
     db();
     $GLOBALS['front_db_available'] = true;
 } catch (Throwable $e) {
-    $GLOBALS['front_db_available'] = false;
-    app_log_error('Front DB is unavailable. Continue with degraded rendering.', $e);
 }
 
 if (($GLOBALS['front_db_available'] ?? false) === true) {
