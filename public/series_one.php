@@ -21,6 +21,7 @@ $limit = 12;
 $offset = ($page - 1) * $limit;
 [$items, $hasNext] = paginate_items(fetch_items_by_series((int)$series['id'], $limit + 1, $offset), $limit);
 
+$pageStyles = ['/assets/css/series.css'];
 $pageTitle = sprintf('%s | シリーズ', (string)$series['name']);
 $pageDescription = sprintf('%s の作品一覧。', (string)$series['name']);
 $canonicalUrl = canonical_url('/series_one.php', ['id' => (string)$series['id'], 'page' => $page > 1 ? (string)$page : null]);

@@ -24,6 +24,7 @@ $offset = ($page - 1) * $limit;
 $relatedSeries = fetch_related_series_by_actress((int)$actress['id']);
 $relatedMakers = fetch_related_makers_by_actress((int)$actress['id']);
 
+$pageStyles = ['/assets/css/actresses.css'];
 $pageTitle = sprintf('%s | 女優詳細', (string)$actress['name']);
 $pageDescription = sprintf('%s の出演作品一覧。', (string)$actress['name']);
 $canonicalUrl = canonical_url('/actress.php', ['id' => (string)$actress['id'], 'page' => $page > 1 ? (string)$page : null]);
