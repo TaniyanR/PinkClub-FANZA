@@ -317,3 +317,16 @@ if (!function_exists('render_ad')) {
         echo $html;
     }
 }
+
+if (!function_exists('front_safe_text_setting')) {
+    function front_safe_text_setting(string $key, string $default = ''): string
+    {
+        try {
+            $value = site_setting_get($key, $default);
+            return is_string($value) ? $value : $default;
+        } catch (Throwable $e) {
+            app_log_error('front_safe_text_setting failed: ' . $key, $e);
+            return $default;
+        }
+    }
+}

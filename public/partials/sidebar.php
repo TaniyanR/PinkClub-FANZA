@@ -7,9 +7,19 @@ require_once __DIR__ . '/../../lib/csrf.php';
 require_once __DIR__ . '/../../lib/url.php';
 require_once __DIR__ . '/../../lib/app_features.php';
 
-$sidebarGenres = fetch_genres(8, 0);
-$sidebarMakers = fetch_makers(8, 0);
-$sidebarSeries = fetch_series(8, 0);
+$sidebarSafeFetch = static function (callable $callback, string $context): array {
+    try {
+        $rows = $callback();
+        return is_array($rows) ? $rows : [];
+    } catch (Throwable $e) {
+        app_log_error('Sidebar fetch failed: ' . $context, $e);
+        return [];
+    }
+};
+
+$sidebarGenres = $sidebarSafeFetch(static fn(): array => fetch_genres(8, 0), 'genres');
+$sidebarMakers = $sidebarSafeFetch(static fn(): array => fetch_makers(8, 0), 'makers');
+$sidebarSeries = $sidebarSafeFetch(static fn(): array => fetch_series(8, 0), 'series');
 
 $adHtml = function_exists('app_setting_get') ? (string)app_setting_get('sidebar_ad_html', '') : '';
 
@@ -94,9 +104,9 @@ if ($isHome) {
         </div>
     <?php endif; ?>
 
-    <div class="sidebar-block"><h3>ジャンル</h3><ul><?php foreach ($sidebarGenres as $genre) : ?><li><a href="/genre.php?id=<?php echo urlencode((string)$genre['id']); ?>"><?php echo e((string)$genre['name']); ?></a></li><?php endforeach; ?></ul></div>
-    <div class="sidebar-block"><h3>メーカー</h3><ul><?php foreach ($sidebarMakers as $maker) : ?><li><a href="/maker.php?id=<?php echo urlencode((string)$maker['id']); ?>"><?php echo e((string)$maker['name']); ?></a></li><?php endforeach; ?></ul></div>
-    <div class="sidebar-block"><h3>シリーズ</h3><ul><?php foreach ($sidebarSeries as $series) : ?><li><a href="/series_one.php?id=<?php echo urlencode((string)$series['id']); ?>"><?php echo e((string)$series['name']); ?></a></li><?php endforeach; ?></ul></div>
+    <div class="sidebar-block"><h3>ジャンル</h3><ul><?php if ($sidebarGenres !== []) : ?><?php foreach ($sidebarGenres as $genre) : ?><li><a href="/genre.php?id=<?php echo urlencode((string)$genre['id']); ?>"><?php echo e((string)$genre['name']); ?></a></li><?php endforeach; ?><?php else : ?><li>データがありません。</li><?php endif; ?></ul></div>
+    <div class="sidebar-block"><h3>メーカー</h3><ul><?php if ($sidebarMakers !== []) : ?><?php foreach ($sidebarMakers as $maker) : ?><li><a href="/maker.php?id=<?php echo urlencode((string)$maker['id']); ?>"><?php echo e((string)$maker['name']); ?></a></li><?php endforeach; ?><?php else : ?><li>データがありません。</li><?php endif; ?></ul></div>
+    <div class="sidebar-block"><h3>シリーズ</h3><ul><?php if ($sidebarSeries !== []) : ?><?php foreach ($sidebarSeries as $series) : ?><li><a href="/series_one.php?id=<?php echo urlencode((string)$series['id']); ?>"><?php echo e((string)$series['name']); ?></a></li><?php endforeach; ?><?php else : ?><li>データがありません。</li><?php endif; ?></ul></div>
 
     <div class="sidebar-block"><h3>画像RSS</h3><?php include __DIR__ . '/rss_image_widget.php'; ?></div>
 

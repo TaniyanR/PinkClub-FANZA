@@ -244,14 +244,17 @@ ini_set('display_errors', app_is_development() ? '1' : '0');
 
 try {
     db();
+    $GLOBALS['front_db_available'] = true;
 } catch (Throwable $e) {
-    app_log_error('Setup needed', $e);
-    render_setup_needed($e);
+    $GLOBALS['front_db_available'] = false;
+    app_log_error('Front DB is unavailable. Continue with degraded rendering.', $e);
 }
 
-maybe_run_scheduled_jobs();
+if (($GLOBALS['front_db_available'] ?? false) === true) {
+    maybe_run_scheduled_jobs();
+}
 
-if (isset($_GET['from']) && preg_match('/^\d+$/', (string)$_GET['from']) === 1) {
+if (($GLOBALS['front_db_available'] ?? false) === true && isset($_GET['from']) && preg_match('/^\d+$/', (string)$_GET['from']) === 1) {
     try {
         db()->prepare('INSERT INTO access_events(event_type,event_at,path,referrer,link_id,ip_hash) VALUES("in",NOW(),:path,:ref,:link_id,:ip_hash)')
             ->execute([

@@ -7,6 +7,16 @@
     padding-bottom: 40px;
 }
 
+.front-alert {
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid #f2c6cc;
+    background: #fff5f6;
+    color: #9f1239;
+    font-size: 14px;
+}
+
 .block {
     background: #fff;
     border: 1px solid #e6e8ee;
