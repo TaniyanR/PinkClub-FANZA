@@ -40,7 +40,8 @@ try {
             $isEmphasisGroup = in_array($heading, $emphasisGroups, true);
             ?>
             <?php if (!((bool)($group['standalone'] ?? false))) : ?>
-                <p class="admin-sidebar__heading <?php echo $isEmphasisGroup ? 'admin-sidebar__heading--emphasis' : ''; ?>"><?php echo e($heading); ?></p>
+                <?php $headingLabel = $isEmphasisGroup ? ('▶ ' . $heading) : $heading; ?>
+                <p class="admin-sidebar__heading <?php echo $isEmphasisGroup ? 'admin-sidebar__heading--emphasis' : ''; ?>"><?php echo e($headingLabel); ?></p>
             <?php endif; ?>
             <ul class="admin-sidebar__list">
                 <?php foreach ((array)($group['items'] ?? []) as $item) :

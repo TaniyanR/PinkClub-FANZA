@@ -43,11 +43,5 @@ function admin_menu_groups(): array
                 ['file' => 'pages.php', 'label' => '編集'],
             ],
         ],
-        [
-            'standalone' => true,
-            'items' => [
-                ['file' => 'mail.php', 'label' => 'メール'],
-            ],
-        ],
     ];
 }

@@ -32,6 +32,7 @@ if ($isDbAvailable) {
 }
 
 $pageTitle = 'トップ';
+$pageStyles = ['/assets/css/front.css'];
 $pageDescription = '新着作品、注目作品、女優・シリーズ・メーカー・ジャンルを実データで表示します。';
 $canonicalUrl = canonical_url('/index.php');
 $ogImage = isset($newItems[0]['image_large']) ? (string)$newItems[0]['image_large'] : '';
@@ -46,7 +47,13 @@ $includePartialSafe = static function (string $path, string $label): bool {
     }
 };
 
-$headerRendered = $includePartialSafe(__DIR__ . '/partials/header.php', 'header');
+$headerRendered = true;
+try {
+    include __DIR__ . '/partials/header.php';
+} catch (Throwable $e) {
+    app_log_error('front partial include failed: header', $e);
+    $headerRendered = false;
+}
 if (!$headerRendered) : ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -54,9 +61,9 @@ if (!$headerRendered) : ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo e($pageTitle); ?></title>
-    <link rel="stylesheet" href="/assets/css/site.css">
-    <link rel="stylesheet" href="/assets/css/common.css">
-    <link rel="stylesheet" href="/assets/css/front.css">
+    <link rel="stylesheet" href="<?php echo e(rtrim(base_path(), '/') . '/assets/css/site.css'); ?>">
+    <link rel="stylesheet" href="<?php echo e(rtrim(base_path(), '/') . '/assets/css/common.css'); ?>">
+    <link rel="stylesheet" href="<?php echo e(rtrim(base_path(), '/') . '/assets/css/front.css'); ?>">
 </head>
 <body>
 <header class="site-header"><div class="site-header__inner"><a class="site-header__title" href="/">サイト名未設定</a></div></header>
