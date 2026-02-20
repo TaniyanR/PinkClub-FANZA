@@ -6,7 +6,7 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/partials/_helpers.php';
 require_once __DIR__ . '/../lib/repository.php';
 
-$pageStyles = ['/assets/css/home.css'];
+$pageStyles = ['/assets/css/home.css', '/assets/css/front.css'];
 $pageTitle = 'トップ';
 $pageDescription = '新着作品、注目作品、女優・シリーズ・メーカー・ジャンルを実データで表示します。';
 $canonicalUrl = canonical_url('/index.php');
@@ -36,6 +36,7 @@ include __DIR__ . '/partials/nav_search.php';
                 <h1 class="section-title">新着作品</h1>
                 <span class="section-sub">最新配信順</span>
             </div>
+            <?php if ($newItems !== []) : ?>
             <div class="product-grid product-grid--4">
                 <?php foreach ($newItems as $item) : ?>
                     <article class="product-card">
@@ -49,6 +50,9 @@ include __DIR__ . '/partials/nav_search.php';
                     </article>
                 <?php endforeach; ?>
             </div>
+            <?php else : ?>
+                <p class="front-empty">現在、表示できる作品がありません。</p>
+            <?php endif; ?>
         </section>
 
         <section class="block">
@@ -56,6 +60,7 @@ include __DIR__ . '/partials/nav_search.php';
                 <h2 class="section-title">ピックアップ</h2>
                 <span class="section-sub">人気順</span>
             </div>
+            <?php if ($pickupItems !== []) : ?>
             <div class="product-grid product-grid--4">
                 <?php foreach ($pickupItems as $item) : ?>
                     <article class="product-card">
@@ -69,6 +74,9 @@ include __DIR__ . '/partials/nav_search.php';
                     </article>
                 <?php endforeach; ?>
             </div>
+            <?php else : ?>
+                <p class="front-empty">現在、表示できる作品がありません。</p>
+            <?php endif; ?>
         </section>
 
         <section class="block">

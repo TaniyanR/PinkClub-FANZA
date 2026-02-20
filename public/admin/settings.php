@@ -2,11 +2,55 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_common.php';
+require_once __DIR__ . '/../../lib/site_settings.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
+$tab = (string)($_GET['tab'] ?? 'api');
+if (!in_array($tab, ['site', 'api'], true)) {
+    $tab = 'api';
+}
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $tab === 'site') {
+    if (!admin_post_csrf_valid()) {
+        header('Location: ' . admin_url('settings.php?tab=site&err=csrf_invalid'));
+        exit;
+    }
+
+    $siteName = trim((string)($_POST['site_name'] ?? ''));
+    $siteUrl = trim((string)($_POST['site_url'] ?? ''));
+    $adminEmail = trim((string)($_POST['admin_email'] ?? ''));
+
+    if ($siteName === '' || $siteUrl === '' || $adminEmail === '') {
+        header('Location: ' . admin_url('settings.php?tab=site&err=required'));
+        exit;
+    }
+
+    if (filter_var($siteUrl, FILTER_VALIDATE_URL) === false) {
+        header('Location: ' . admin_url('settings.php?tab=site&err=invalid_url'));
+        exit;
+    }
+
+    if (filter_var($adminEmail, FILTER_VALIDATE_EMAIL) === false) {
+        header('Location: ' . admin_url('settings.php?tab=site&err=invalid_email'));
+        exit;
+    }
+
+    try {
+        site_setting_set_many([
+            'site.name' => $siteName,
+            'site.url' => $siteUrl,
+            'site.admin_email' => $adminEmail,
+        ]);
+        header('Location: ' . admin_url('settings.php?tab=site&saved=1'));
+        exit;
+    } catch (Throwable) {
+        header('Location: ' . admin_url('settings.php?tab=site&err=save_failed'));
+        exit;
+    }
+}
 
 $apiConfig = config_get('dmm_api', []);
 
@@ -76,7 +120,73 @@ $errorMessages = [
 $pageTitle = '管理設定';
 ob_start();
 ?>
-    <h1>API設定</h1>
+    <h1><?php echo $tab === 'site' ? 'サイト設定' : 'API設定'; ?></h1>
+
+    <div class="admin-card" style="margin-bottom:16px;">
+        <a href="<?php echo e(admin_url('settings.php?tab=site')); ?>">サイト設定</a>
+        <span style="margin:0 8px;color:#b4b9be;">|</span>
+        <a href="<?php echo e(admin_url('settings.php?tab=api')); ?>">API設定</a>
+    </div>
+
+<?php if ($tab === 'site') : ?>
+    <?php
+    $siteName = site_setting_get('site.name', (string)config_get('site.title', 'PinkClub-FANZA'));
+    $siteUrl = site_setting_get('site.url', detect_base_url());
+    $adminEmail = site_setting_get('site.admin_email', '');
+    $errorCode = (string)($_GET['err'] ?? '');
+    $siteMessages = [
+        'csrf_invalid' => 'CSRFトークンが無効です。再度お試しください。',
+        'required' => 'すべての項目を入力してください。',
+        'invalid_url' => 'サイトURLの形式が正しくありません。',
+        'invalid_email' => '管理者メールアドレスの形式が正しくありません。',
+        'save_failed' => '設定の保存に失敗しました。時間をおいて再度お試しください。',
+    ];
+    ?>
+
+    <?php if (($_GET['saved'] ?? '') === '1') : ?>
+        <div class="admin-card admin-notice admin-notice--success"><p>サイト設定を保存しました。</p></div>
+    <?php endif; ?>
+
+    <?php if ($errorCode !== '' && isset($siteMessages[$errorCode])) : ?>
+        <div class="admin-card admin-notice admin-notice--error"><p><?php echo e($siteMessages[$errorCode]); ?></p></div>
+    <?php endif; ?>
+
+    <?php if (($_GET['password_changed'] ?? '') === '1') : ?>
+        <div class="admin-card admin-notice admin-notice--success"><p>パスワードを変更しました。</p></div>
+    <?php endif; ?>
+
+    <form method="post" class="admin-card" action="<?php echo e(admin_url('settings.php?tab=site')); ?>">
+        <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+
+        <label for="site_name">サイト名</label>
+        <input id="site_name" type="text" name="site_name" value="<?php echo e($siteName); ?>" required>
+
+        <label for="site_url">サイトURL</label>
+        <input id="site_url" type="url" name="site_url" value="<?php echo e($siteUrl); ?>" required>
+
+        <label for="admin_email">管理者メールアドレス</label>
+        <input id="admin_email" type="email" name="admin_email" value="<?php echo e($adminEmail); ?>" required>
+
+        <button type="submit">保存</button>
+    </form>
+
+    <form class="admin-card" method="post" action="<?php echo e(admin_url('change_password.php')); ?>">
+        <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+
+        <h2>管理者パスワード変更</h2>
+
+        <label>現在のパスワード</label>
+        <input type="password" name="current_password" autocomplete="current-password" required>
+
+        <label>新しいパスワード</label>
+        <input type="password" name="password" autocomplete="new-password" minlength="8" required>
+
+        <label>確認</label>
+        <input type="password" name="password_confirm" autocomplete="new-password" minlength="8" required>
+
+        <button type="submit">パスワードを変更</button>
+    </form>
+<?php else : ?>
     <p class="admin-form-note">APIが一時的に失敗した場合、最大60分以内のキャッシュを表示します（空になりにくい）</p>
 
 
@@ -107,10 +217,10 @@ ob_start();
         <label>API ID</label>
         <input type="password" name="api_id" value="" placeholder="<?php echo $hasApiId ? '設定済み（変更時のみ入力）' : 'API IDを入力'; ?>" autocomplete="new-password">
 
-        <label>Affiliate ID</label>
-        <input type="password" name="affiliate_id" value="" placeholder="<?php echo $hasAffiliateId ? '設定済み（変更時のみ入力）' : 'Affiliate IDを入力'; ?>" autocomplete="new-password">
+        <label>アフィリエイトID</label>
+        <input type="password" name="affiliate_id" value="" placeholder="<?php echo $hasAffiliateId ? '設定済み（変更時のみ入力）' : 'アフィリエイトIDを入力'; ?>" autocomplete="new-password">
 
-        <label>Site</label>
+        <label>サイト</label>
         <select name="site">
             <?php foreach ($siteOptions as $option) : ?>
                 <option value="<?php echo e($option); ?>"<?php echo $option === $currentSite ? ' selected' : ''; ?>>
@@ -119,7 +229,7 @@ ob_start();
             <?php endforeach; ?>
         </select>
 
-        <label>Service</label>
+        <label>サービス</label>
         <select name="service">
             <?php foreach ($serviceOptions as $option) : ?>
                 <option value="<?php echo e($option); ?>"<?php echo $option === $currentService ? ' selected' : ''; ?>>
@@ -128,7 +238,7 @@ ob_start();
             <?php endforeach; ?>
         </select>
 
-        <label>Floor</label>
+        <label>フロア</label>
         <select name="floor">
             <?php foreach ($floorOptions as $option) : ?>
                 <option value="<?php echo e($option); ?>"<?php echo $option === $currentFloor ? ' selected' : ''; ?>>
@@ -137,16 +247,19 @@ ob_start();
             <?php endforeach; ?>
         </select>
 
-        <label>接続タイムアウト秒</label>
+        <label>接続タイムアウト</label>
         <input type="number" name="connect_timeout" min="1" max="30" step="1" value="<?php echo e((string)$connectTimeout); ?>">
         <p class="admin-form-note">接続開始から確立までの最大秒数</p>
 
-        <label>全体タイムアウト秒</label>
+        <label>全体タイムアウト</label>
         <input type="number" name="timeout" min="5" max="60" step="1" value="<?php echo e((string)$timeout); ?>">
         <p class="admin-form-note">接続後、レスポンス完了までの最大秒数</p>
 
+        <p class="admin-form-note">接続テストは APIログ から確認できます。</p>
+
         <button type="submit">保存</button>
     </form>
+<?php endif; ?>
 <?php
 $main = (string)ob_get_clean();
 require_once __DIR__ . '/_page.php';

@@ -5,13 +5,13 @@ require_once __DIR__ . '/_common.php';
 require_once __DIR__ . '/../../lib/local_config_writer.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-    header('Location: ' . admin_url('settings.php'));
+    header('Location: ' . admin_url('settings.php?tab=api'));
     exit;
 }
 
 $token = $_POST['_token'] ?? null;
 if (!csrf_verify(is_string($token) ? $token : null)) {
-    header('Location: ' . admin_url('settings.php') . '?error=csrf_failed');
+    header('Location: ' . admin_url('settings.php?tab=api&error=csrf_failed'));
     exit;
 }
 
@@ -41,7 +41,7 @@ if ($affiliateId === '') {
 }
 
 if ($apiId === '' || $affiliateId === '') {
-    header('Location: ' . admin_url('settings.php') . '?error=missing_required');
+    header('Location: ' . admin_url('settings.php?tab=api&error=missing_required'));
     exit;
 }
 
@@ -79,9 +79,9 @@ try {
     local_config_write($local);
 } catch (Throwable $e) {
     error_log('save_settings failed: ' . $e->getMessage());
-    header('Location: ' . admin_url('settings.php') . '?error=write_failed');
+    header('Location: ' . admin_url('settings.php?tab=api&error=write_failed'));
     exit;
 }
 
-header('Location: ' . admin_url('settings.php') . '?saved=1');
+header('Location: ' . admin_url('settings.php?tab=api&saved=1'));
 exit;

@@ -49,7 +49,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 }
 
                 if ($updated) {
-                    header('Location: ' . admin_url('settings.php') . '?password_changed=1');
+                    header('Location: ' . admin_url('settings.php?tab=site&password_changed=1'));
                     exit;
                 }
             } catch (Throwable $e) {
