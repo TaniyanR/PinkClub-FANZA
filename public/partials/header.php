@@ -5,11 +5,14 @@ require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/app_features.php';
 require_once __DIR__ . '/../../lib/site_settings.php';
 
-$siteTitle = site_setting_get('site.name', '');
+$siteTitle = trim(site_setting_get('site.name', ''));
 if ($siteTitle === '') {
-    $siteTitle = (string)config_get('site.title', 'PinkClub-FANZA');
+    $siteTitle = trim((string)config_get('site.title', ''));
 }
-$defaultDescription = (string)config_get('site.description', 'FANZA作品を実データで紹介するPinkClub-FANZA。');
+if ($siteTitle === '' || $siteTitle === 'PinkClub-FANZA') {
+    $siteTitle = 'サイトタイトル未設定';
+}
+$defaultDescription = (string)config_get('site.description', '作品紹介サイトです。');
 
 $rawPageTitle = isset($pageTitle) && $pageTitle !== '' ? (string)$pageTitle : null;
 $pageDescription = isset($pageDescription) && $pageDescription !== '' ? (string)$pageDescription : $defaultDescription;
@@ -25,7 +28,11 @@ $ga4Id = (string)app_setting_get('ga4_measurement_id', '');
 $scMeta = (string)app_setting_get('search_console_verification', '');
 $themeColor = (string)app_setting_get('theme_color', '');
 $headCode = (string)app_setting_get('head_injection_code', '');
-track_page_view($itemCid ?? null);
+try {
+    track_page_view($itemCid ?? null);
+} catch (Throwable $e) {
+    app_log_error('track_page_view failed', $e);
+}
 $adPageType = ad_current_page_type();
 $adDevice = ad_current_device();
 ?>
