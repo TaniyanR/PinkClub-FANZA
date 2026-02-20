@@ -81,6 +81,10 @@ include __DIR__ . '/partials/login_header.php';
                 <input type="password" name="password" autocomplete="current-password" required>
 
                 <button type="submit">ログイン</button>
+
+                <div class="login-help">
+                    <a href="<?php echo e(base_url() . '/forgot_password.php'); ?>">パスワードを忘れた方はコチラ</a>
+                </div>
             </form>
 
             <!-- TODO(next): CSRF対応 / Remember me / パスワード再発行 / 監査ログを段階的に戻す -->
