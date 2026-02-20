@@ -268,19 +268,26 @@ if (!headers_sent()) {
 
 ini_set('display_errors', app_is_development() ? '1' : '0');
 
-global $frontDbAvailable;
-$frontDbAvailable = true;
+if (!function_exists('front_db_available')) {
+    function front_db_available(): bool
+    {
+        return ($GLOBALS['front_db_available'] ?? false) === true;
+    }
+}
+
+$GLOBALS['front_db_available'] = false;
 try {
     db();
     $GLOBALS['front_db_available'] = true;
 } catch (Throwable $e) {
+    app_log_error('front DB connection unavailable', $e);
 }
 
-if (($GLOBALS['front_db_available'] ?? false) === true) {
+if (front_db_available()) {
     maybe_run_scheduled_jobs();
 }
 
-if (($GLOBALS['front_db_available'] ?? false) === true && isset($_GET['from']) && preg_match('/^\d+$/', (string)$_GET['from']) === 1) {
+if (front_db_available() && isset($_GET['from']) && preg_match('/^\d+$/', (string)$_GET['from']) === 1) {
     try {
         db()->prepare('INSERT INTO access_events(event_type,event_at,path,referrer,link_id,ip_hash) VALUES("in",NOW(),:path,:ref,:link_id,:ip_hash)')
             ->execute([
