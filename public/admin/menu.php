@@ -33,7 +33,7 @@ function admin_menu_groups(): array
         [
             'heading' => 'アフィリエイト設定',
             'items' => [
-                ['file' => 'api_settings.php', 'label' => 'API設定'],
+                ['file' => 'settings.php', 'label' => 'API設定'],
                 ['file' => 'ads.php', 'label' => '広告コード'],
             ],
         ],

@@ -44,6 +44,7 @@ $adDevice = ad_current_device();
     <meta property="og:description" content="<?php echo e($pageDescription); ?>">
     <meta property="og:url" content="<?php echo e($canonicalUrl); ?>">
     <?php if ($ogImage !== '') : ?><meta property="og:image" content="<?php echo e($ogImage); ?>"><?php endif; ?>
+    <link rel="stylesheet" href="/assets/css/site.css">
     <link rel="stylesheet" href="/assets/css/common.css">
     <?php if ($themeColor !== '') : ?><style>:root{--theme-accent:<?php echo e($themeColor); ?>;}</style><?php endif; ?>
     <?php if ($headCode !== '') : ?><?php echo $headCode; ?><?php endif; ?>

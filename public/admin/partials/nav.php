@@ -5,9 +5,8 @@ declare(strict_types=1);
     <div class="nav-search__inner">
         <div class="nav-search__menu">
             <ul>
-                <li><a class="nav-link" href="<?php echo e(admin_url('settings.php')); ?>">管理設定</a></li>
+                <li><a class="nav-link" href="<?php echo e(admin_url('settings.php')); ?>">API設定</a></li>
                 <li><a class="nav-link" href="<?php echo e(admin_url('db_init.php')); ?>">DB初期化</a></li>
-                <li><a class="nav-link" href="<?php echo e(admin_url('import_items.php')); ?>">インポート</a></li>
                 <li><a class="nav-link" href="<?php echo e(admin_url('change_password.php')); ?>">パスワード変更</a></li>
             </ul>
         </div>

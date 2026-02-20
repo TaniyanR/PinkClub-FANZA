@@ -34,8 +34,13 @@ try {
             <p class="admin-sidebar__heading">メニューを表示できませんでした。</p>
         <?php endif; ?>
         <?php foreach ($groups as $group) : ?>
+            <?php
+            $heading = (string)($group['heading'] ?? '');
+            $emphasisGroups = ['設定', 'リンク設定', 'アフィリエイト設定', '固定ページ'];
+            $isEmphasisGroup = in_array($heading, $emphasisGroups, true);
+            ?>
             <?php if (!((bool)($group['standalone'] ?? false))) : ?>
-                <p class="admin-sidebar__heading"><?php echo e((string)($group['heading'] ?? '')); ?></p>
+                <p class="admin-sidebar__heading <?php echo $isEmphasisGroup ? 'admin-sidebar__heading--emphasis' : ''; ?>"><?php echo e($heading); ?></p>
             <?php endif; ?>
             <ul class="admin-sidebar__list">
                 <?php foreach ((array)($group['items'] ?? []) as $item) :
@@ -45,7 +50,7 @@ try {
                     $isActive = $file !== '' && ($currentScript === basename($file));
                     ?>
                     <li class="admin-sidebar__item">
-                        <a class="admin-menu__link <?php echo $isActive ? 'is-active' : ''; ?>"
+                        <a class="admin-menu__link <?php echo $isEmphasisGroup ? 'admin-menu__link--emphasis' : ''; ?> <?php echo $isActive ? 'is-active' : ''; ?>"
                            href="<?php echo e($href); ?>">
                             <?php echo e($label); ?>
                         </a>
