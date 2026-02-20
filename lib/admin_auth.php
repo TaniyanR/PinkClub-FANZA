@@ -8,16 +8,86 @@ require_once __DIR__ . '/db.php';
 const ADMIN_DEFAULT_USERNAME = 'admin';
 const ADMIN_DEFAULT_PASSWORD = 'password';
 
+/**
+ * 開発環境でのみエラー表示を有効化する。
+ */
+function admin_enable_debug_if_dev(): void
+{
+    if (!admin_is_dev_env()) {
+        return;
+    }
+
+    ini_set('display_errors', '1');
+    ini_set('display_startup_errors', '1');
+    error_reporting(E_ALL);
+}
+
+/**
+ * 管理画面向けのリダイレクト先を正規化する。
+ */
+function normalize_admin_redirect_target(string $target): string
+{
+    $fallback = admin_path('index.php');
+    $trimmed = trim(str_replace(["\r", "\n"], '', $target));
+    if ($trimmed === '') {
+        return $fallback;
+    }
+
+    if (preg_match('#^https?://#i', $trimmed) === 1) {
+        return $fallback;
+    }
+
+    $parsed = parse_url($trimmed);
+    if (!is_array($parsed)) {
+        return $fallback;
+    }
+
+    $path = (string)($parsed['path'] ?? '');
+    if ($path === '') {
+        return $fallback;
+    }
+
+    if ($path[0] !== '/') {
+        $path = admin_path($path);
+    }
+
+    $adminBase = rtrim(admin_path(''), '/');
+    if ($path !== $adminBase && !str_starts_with($path, $adminBase . '/')) {
+        return $fallback;
+    }
+
+    if (preg_match('#^[A-Za-z0-9_./\-]+$#', str_replace($adminBase, '', $path)) !== 1) {
+        return $fallback;
+    }
+
+    $query = isset($parsed['query']) && is_string($parsed['query']) ? $parsed['query'] : '';
+    $fragment = isset($parsed['fragment']) && is_string($parsed['fragment']) ? $parsed['fragment'] : '';
+
+    return $path
+        . ($query !== '' ? '?' . $query : '')
+        . ($fragment !== '' ? '#' . $fragment : '');
+}
+
 function admin_is_dev_env(): bool
 {
     return strtolower((string)config_get('app.env', '')) === 'dev';
 }
 
-function admin_session_start(): void
+/**
+ * 管理画面セッションを開始する。
+ */
+function start_admin_session(): void
 {
+    admin_enable_debug_if_dev();
+
     if (session_status() !== PHP_SESSION_ACTIVE) {
         session_start();
     }
+}
+
+function admin_session_start(): void
+{
+    start_admin_session();
 }
 
 function admin_users_table_available(): bool
@@ -26,6 +96,7 @@ function admin_users_table_available(): bool
         $stmt = db()->query("SHOW TABLES LIKE 'admin_users'");
         return $stmt !== false && $stmt->fetchColumn() !== false;
     } catch (Throwable $e) {
+        error_log('[admin_auth] admin_users_table_available failed: ' . $e->getMessage());
         return false;
     }
 }
@@ -52,7 +123,7 @@ function admin_ensure_default_user(): void
 
 function admin_current_user(): ?array
 {
-    admin_session_start();
+    start_admin_session();
 
     $current = $_SESSION['admin_user'] ?? null;
     if (!is_array($current)) {
@@ -122,9 +193,12 @@ function admin_config_authenticate(string $identifier, string $password): ?array
     ];
 }
 
+/**
+ * 管理者ログインを試行し、結果メタ情報を返す。
+ */
 function admin_attempt_login(string $username_or_email, string $password): array
 {
-    admin_session_start();
+    start_admin_session();
 
     $identifier = trim($username_or_email);
     if ($identifier === '') {
@@ -142,6 +216,7 @@ function admin_attempt_login(string $username_or_email, string $password): array
 
         $admin = admin_find_user_by_identifier($identifier);
         if (!is_array($admin)) {
+            error_log('[admin_auth] login failed: user not found');
             return [
                 'success' => false,
                 'auth_source' => 'db',
@@ -152,6 +227,7 @@ function admin_attempt_login(string $username_or_email, string $password): array
 
         $passwordHash = (string)($admin['password_hash'] ?? '');
         if ($passwordHash === '' || !password_verify($password, $passwordHash)) {
+            error_log('[admin_auth] login failed: password mismatch');
             return [
                 'success' => false,
                 'auth_source' => 'db',
@@ -179,6 +255,7 @@ function admin_attempt_login(string $username_or_email, string $password): array
 
     $admin = admin_config_authenticate($identifier, $password);
     if (!is_array($admin)) {
+        error_log('[admin_auth] login failed: config auth failed');
         return [
             'success' => false,
             'auth_source' => 'config',
@@ -204,27 +281,48 @@ function admin_attempt_login(string $username_or_email, string $password): array
     ];
 }
 
+/**
+ * 管理者ログインの成否のみを返す。
+ */
 function admin_login(string $username_or_email, string $password): bool
 {
     $attempt = admin_attempt_login($username_or_email, $password);
+    if (($attempt['success'] ?? false) !== true) {
+        error_log('[admin_auth] admin_login failed');
+    }
+
     return ($attempt['success'] ?? false) === true;
 }
 
+/**
+ * 管理者セッションを破棄する。
+ */
 function admin_logout(): void
 {
-    admin_session_start();
+    start_admin_session();
     $_SESSION = [];
     session_destroy();
 }
 
-function admin_require_login(): void
+/**
+ * 未ログイン時にログインページへ遷移させる。
+ */
+function require_admin_auth(): void
 {
     if (admin_is_logged_in()) {
         return;
     }
 
-    header('Location: ' . login_path());
+    $requestUri = (string)($_SERVER['REQUEST_URI'] ?? '');
+    $target = normalize_admin_redirect_target($requestUri);
+    $location = login_path() . '?return_to=' . rawurlencode($target);
+    header('Location: ' . $location);
     exit;
+}
+
+function admin_require_login(): void
+{
+    require_admin_auth();
 }
 
 function admin_is_default_password(array $admin): bool
