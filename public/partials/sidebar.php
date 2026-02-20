@@ -7,12 +7,7 @@ require_once __DIR__ . '/../../lib/csrf.php';
 require_once __DIR__ . '/../../lib/url.php';
 require_once __DIR__ . '/../../lib/app_features.php';
 
-$sidebarSafeFetch = static function (callable $fetcher, string $context): array {
-    try {
-        $rows = $fetcher();
-        return is_array($rows) ? $rows : [];
-    } catch (Throwable $e) {
-        app_log_error('sidebar fetch failed: ' . $context, $e);
+
         return [];
     }
 };
@@ -103,10 +98,6 @@ if ($isHome) {
             </ul>
         </div>
     <?php endif; ?>
-
-    <div class="sidebar-block"><h3>ジャンル</h3><ul><?php if ($sidebarGenres === []) : ?><li class="sidebar-empty">データがありません。</li><?php else : foreach ($sidebarGenres as $genre) : ?><li><a href="/genre.php?id=<?php echo urlencode((string)$genre['id']); ?>"><?php echo e((string)$genre['name']); ?></a></li><?php endforeach; endif; ?></ul></div>
-    <div class="sidebar-block"><h3>メーカー</h3><ul><?php if ($sidebarMakers === []) : ?><li class="sidebar-empty">データがありません。</li><?php else : foreach ($sidebarMakers as $maker) : ?><li><a href="/maker.php?id=<?php echo urlencode((string)$maker['id']); ?>"><?php echo e((string)$maker['name']); ?></a></li><?php endforeach; endif; ?></ul></div>
-    <div class="sidebar-block"><h3>シリーズ</h3><ul><?php if ($sidebarSeries === []) : ?><li class="sidebar-empty">データがありません。</li><?php else : foreach ($sidebarSeries as $series) : ?><li><a href="/series_one.php?id=<?php echo urlencode((string)$series['id']); ?>"><?php echo e((string)$series['name']); ?></a></li><?php endforeach; endif; ?></ul></div>
 
     <div class="sidebar-block"><h3>画像RSS</h3><?php include __DIR__ . '/rss_image_widget.php'; ?></div>
 

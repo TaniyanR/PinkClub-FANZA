@@ -272,24 +272,15 @@ global $frontDbAvailable;
 $frontDbAvailable = true;
 try {
     db();
+    $GLOBALS['front_db_available'] = true;
 } catch (Throwable $e) {
-    $frontDbAvailable = false;
-    app_log_error('Front DB unavailable (continue rendering)', $e);
 }
 
-function front_db_available(): bool
-{
-    return isset($GLOBALS['frontDbAvailable']) ? (bool)$GLOBALS['frontDbAvailable'] : false;
+if (($GLOBALS['front_db_available'] ?? false) === true) {
+    maybe_run_scheduled_jobs();
 }
 
-function front_generic_error_message(): string
-{
-    return '現在一部のデータを表示できません。時間をおいて再度お試しください。';
-}
-
-maybe_run_scheduled_jobs();
-
-if (isset($_GET['from']) && preg_match('/^\d+$/', (string)$_GET['from']) === 1) {
+if (($GLOBALS['front_db_available'] ?? false) === true && isset($_GET['from']) && preg_match('/^\d+$/', (string)$_GET['from']) === 1) {
     try {
         db()->prepare('INSERT INTO access_events(event_type,event_at,path,referrer,link_id,ip_hash) VALUES("in",NOW(),:path,:ref,:link_id,:ip_hash)')
             ->execute([
