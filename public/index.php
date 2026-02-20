@@ -6,6 +6,7 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/partials/_helpers.php';
 require_once __DIR__ . '/../lib/repository.php';
 
+$pageStyles = ['/assets/css/home.css'];
 $pageTitle = 'トップ';
 $pageDescription = '新着作品、注目作品、女優・シリーズ・メーカー・ジャンルを実データで表示します。';
 $canonicalUrl = canonical_url('/index.php');

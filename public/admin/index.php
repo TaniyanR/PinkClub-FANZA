@@ -6,6 +6,7 @@ require_once __DIR__ . '/_common.php';
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/admin_auth.php';
 require_once __DIR__ . '/../../lib/site_settings.php';
+require_once __DIR__ . '/../../lib/dmm_api.php';
 
 function admin_table_map(PDO $pdo): array
 {
@@ -46,6 +47,7 @@ function admin_table_has_column(PDO $pdo, string $table, string $column): bool
 }
 
 $dbStatus = 'NG';
+$apiConnectionStatus = 'NG';
 $dbConnected = false;
 $pdo = null;
 
@@ -99,6 +101,28 @@ $apiKey = trim((string)(is_array($apiConfig) ? ($apiConfig['api_id'] ?? '') : ''
 $affiliateId = trim((string)(is_array($apiConfig) ? ($apiConfig['affiliate_id'] ?? '') : ''));
 $apiStatus = ($apiKey !== '' && $affiliateId !== '') ? '設定済' : '未設定';
 
+
+try {
+        $apiConnectionStatus = 'NG';
+        if ($apiKey !== '' && $affiliateId !== '') {
+            $params = [
+                'api_id' => $apiKey,
+                'affiliate_id' => $affiliateId,
+                'site' => 'FANZA',
+                'service' => 'digital',
+                'floor' => 'videoa',
+                'hits' => 1,
+                'sort' => 'rank',
+                'output' => 'json',
+            ];
+            $apiResponse = dmm_api_request('ItemList', $params);
+            $apiConnectionStatus = (!empty($apiResponse['ok']) || !empty($apiResponse['is_cached'])) ? 'OK' : 'NG';
+        }
+    } catch (Throwable $e) {
+        admin_log_error('Dashboard API connection check failed', $e);
+        $apiConnectionStatus = 'NG';
+    }
+
 $itemsCountLabel = '未取得';
 if ($dbConnected && isset($existingTables['items']) && $pdo instanceof PDO) {
     try {
@@ -140,7 +164,9 @@ if ($dbConnected && $pdo instanceof PDO) {
         if (is_array($sch) && (int)($sch['fail_count'] ?? 0) >= 5) {
             $scheduleWarning = '内部タイマーが連続失敗しています: ' . (string)($sch['last_error'] ?? '');
         }
-    } catch (Throwable $e) {}
+    } catch (Throwable $e) {
+        admin_log_error('Dashboard schedule warning check failed', $e);
+    }
 }
 
 $pageTitle = 'ダッシュボード';
@@ -158,11 +184,12 @@ ob_start();
 <?php if ($scheduleWarning !== '') : ?><div class="admin-card admin-note"><p><?php echo e($scheduleWarning); ?></p></div><?php endif; ?>
 
 <div class="admin-status-grid">
+    <section class="admin-card admin-status-card"><strong>API接続</strong><p><?php echo e($apiConnectionStatus); ?></p></section>
     <section class="admin-card admin-status-card"><strong>DB接続</strong><p><?php echo e($dbStatus); ?></p></section>
     <section class="admin-card admin-status-card"><strong>テーブル初期化</strong><p><?php echo e($tableStatus); ?></p></section>
     <section class="admin-card admin-status-card"><strong>API設定</strong><p><?php echo e($apiStatus); ?></p><?php if ($apiStatus === '未設定') : ?><a href="<?php echo e(admin_url('settings.php')); ?>">設定する</a><?php endif; ?></section>
     <section class="admin-card admin-status-card"><strong>作品件数</strong><p><?php echo e($itemsCountLabel); ?></p></section>
-    <section class="admin-card admin-status-card"><strong>最終インポート</strong><p><?php echo e($lastImportLabel); ?></p><?php if ($lastImportLabel === '未実施') : ?><a href="<?php echo e(admin_url('import_items.php')); ?>">インポートを実行</a><?php endif; ?></section>
+    <section class="admin-card admin-status-card"><strong>最終インポート</strong><p><?php echo e($lastImportLabel); ?></p></section>
 </div>
 
 <div class="admin-card">
@@ -170,7 +197,6 @@ ob_start();
     <p>
         <a class="button" href="<?php echo e(admin_url('db_init.php')); ?>">テーブル初期化</a>
         <a class="button" href="<?php echo e(admin_url('settings.php')); ?>">API設定</a>
-        <a class="button" href="<?php echo e(admin_url('import_items.php')); ?>">インポート</a>
     </p>
 </div>
 <?php

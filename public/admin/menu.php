@@ -5,12 +5,16 @@ function admin_menu_groups(): array
 {
     return [
         [
+            'standalone' => true,
+            'items' => [
+                ['file' => 'index.php', 'label' => 'ダッシュボード'],
+            ],
+        ],
+        [
             'heading' => '設定',
             'items' => [
                 ['file' => 'settings_site.php', 'label' => 'サイト設定'],
-                ['file' => 'users.php', 'label' => 'アカウント設定'],
                 ['file' => 'design.php', 'label' => 'デザイン設定'],
-                ['file' => 'settings_import_export.php', 'label' => 'インポート、エクスポート'],
             ],
         ],
         [

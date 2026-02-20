@@ -21,6 +21,7 @@ $limit = 12;
 $offset = ($page - 1) * $limit;
 [$items, $hasNext] = paginate_items(fetch_items_by_genre((int)$genre['id'], $limit + 1, $offset), $limit);
 
+$pageStyles = ['/assets/css/genres.css'];
 $pageTitle = sprintf('%s | ジャンル', (string)$genre['name']);
 $pageDescription = sprintf('%s の作品一覧。', (string)$genre['name']);
 $canonicalUrl = canonical_url('/genre.php', ['id' => (string)$genre['id'], 'page' => $page > 1 ? (string)$page : null]);
