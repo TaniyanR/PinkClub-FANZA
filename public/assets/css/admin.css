@@ -150,6 +150,16 @@ body {
     letter-spacing: 0.04em;
 }
 
+
+.admin-menu__link--emphasis {
+    font-size: 17px;
+}
+
+.admin-sidebar__heading--emphasis {
+    font-weight: 800;
+    font-size: 13px;
+}
+
 .admin-sidebar ul {
     padding: 0 0 8px;
 }
