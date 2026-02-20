@@ -1,40 +1,80 @@
+body {
+    background: #f3f4f6;
+    color: #1f2937;
+    font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+}
+
+a {
+    color: #1d4ed8;
+    text-decoration: none;
+}
+
+a:hover {
+    color: #1e40af;
+    text-decoration: underline;
+}
+
+h1,
+h2,
+h3 {
+    margin: 0 0 10px;
+    line-height: 1.4;
+}
+
 .site-header {
-    border-bottom: 1px solid #e4e6eb;
+    border-bottom: 1px solid #dbe1ea;
     background: #fff;
 }
 
+.site-body {
+    padding-top: 16px;
+}
+
 .layout {
-    width: min(1200px, 100% - 24px);
+    width: min(1180px, 100% - 24px);
     margin: 0 auto;
+    gap: 20px;
+}
+
+.nav-search,
+.sidebar,
+.main-content,
+.block {
+    border-color: #e5e7eb;
+}
+
+.sidebar {
+    border: 1px solid #e5e7eb;
+    box-shadow: none;
+}
+
+.sidebar h3 {
+    font-weight: 700;
+}
+
+.nav-search__form {
+    align-items: center;
+}
+
+.nav-search__form input,
+.nav-search__form button {
+    height: 42px;
 }
 
 .main-content {
     padding-bottom: 40px;
 }
 
-.front-alert {
-    margin: 0 0 16px;
-    padding: 12px 14px;
-    border-radius: 10px;
-    border: 1px solid #f2c6cc;
-    background: #fff5f6;
-    color: #9f1239;
-    font-size: 14px;
-}
-
 .block {
     background: #fff;
-    border: 1px solid #e6e8ee;
+    border: 1px solid #e5e7eb;
     border-radius: 12px;
+    box-shadow: none;
     padding: 16px;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
 }
 
 .section-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 8px;
     margin-bottom: 12px;
 }
 
@@ -47,47 +87,47 @@
     color: #6b7280;
 }
 
-.product-card,
-.actress-card,
-.taxonomy-card {
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
-}
-
-.taxonomy-card {
-    padding: 12px;
+.front-alert {
+    margin: 0 0 16px;
+    padding: 12px 14px;
     border-radius: 10px;
-    border: 1px solid #e5e7eb;
-    background: #fff;
+    border: 1px solid #f2c6cc;
+    background: #fff5f6;
+    color: #9f1239;
+    font-size: 14px;
 }
 
 .front-empty,
 .sidebar-empty {
     margin: 0;
-    padding: 14px;
-    border: 1px dashed #c6ced9;
-    border-radius: 10px;
+    padding: 12px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
     background: #f8fafc;
-    color: #475569;
+    color: #64748b;
     list-style: none;
-}
-
-.front-alert {
-    margin: 0 0 16px;
-    padding: 12px 14px;
-    border: 1px solid #f5c2c7;
-    background: #fff1f2;
-    color: #9f1239;
-    border-radius: 10px;
-    font-size: 14px;
 }
 
 .site-footer {
     margin-top: 24px;
 }
 
+@media (max-width: 900px) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 640px) {
     .layout {
         width: calc(100% - 16px);
+    }
+
+    .site-header__inner,
+    .nav-search__inner,
+    .site-body {
+        padding-left: 12px;
+        padding-right: 12px;
     }
 
     .block {
@@ -96,5 +136,14 @@
 
     .section-title {
         font-size: 18px;
+    }
+
+    .nav-search__form {
+        flex-wrap: wrap;
+    }
+
+    .nav-search__form input,
+    .nav-search__form button {
+        width: 100%;
     }
 }
