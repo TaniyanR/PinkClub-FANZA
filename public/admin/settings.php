@@ -122,15 +122,9 @@ ob_start();
 ?>
     <h1><?php echo $tab === 'site' ? 'サイト設定' : 'API設定'; ?></h1>
 
-    <div class="admin-card" style="margin-bottom:16px;">
-        <a href="<?php echo e(admin_url('settings.php?tab=site')); ?>">サイト設定</a>
-        <span style="margin:0 8px;color:#b4b9be;">|</span>
-        <a href="<?php echo e(admin_url('settings.php?tab=api')); ?>">API設定</a>
-    </div>
-
 <?php if ($tab === 'site') : ?>
     <?php
-    $siteName = site_setting_get('site.name', (string)config_get('site.title', 'PinkClub-FANZA'));
+    $siteName = site_setting_get('site.name', '');
     $siteUrl = site_setting_get('site.url', detect_base_url());
     $adminEmail = site_setting_get('site.admin_email', '');
     $errorCode = (string)($_GET['err'] ?? '');
@@ -159,7 +153,7 @@ ob_start();
         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
 
         <label for="site_name">サイト名</label>
-        <input id="site_name" type="text" name="site_name" value="<?php echo e($siteName); ?>" required>
+        <input id="site_name" type="text" name="site_name" value="<?php echo e($siteName); ?>" placeholder="サイト名を入力" required>
 
         <label for="site_url">サイトURL</label>
         <input id="site_url" type="url" name="site_url" value="<?php echo e($siteUrl); ?>" required>
