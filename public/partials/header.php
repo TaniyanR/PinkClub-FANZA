@@ -5,8 +5,7 @@ require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/app_features.php';
 require_once __DIR__ . '/../../lib/site_settings.php';
 
-
-}
+$siteTitle = front_safe_text_setting('site_name', (string)config_get('site.title', 'PinkClub-FANZA'));
 if ($siteTitle === '' || $siteTitle === 'PinkClub-FANZA') {
     $siteTitle = 'サイトタイトル未設定';
 }
@@ -26,6 +25,7 @@ $ga4Id = (string)app_setting_get('ga4_measurement_id', '');
 $scMeta = (string)app_setting_get('search_console_verification', '');
 $themeColor = (string)app_setting_get('theme_color', '');
 $headCode = (string)app_setting_get('head_injection_code', '');
+$assetBasePath = rtrim(base_path(), '/');
 try {
     track_page_view($itemCid ?? null);
 } catch (Throwable $e) {
@@ -49,16 +49,21 @@ $adDevice = ad_current_device();
     <meta property="og:description" content="<?php echo e($pageDescription); ?>">
     <meta property="og:url" content="<?php echo e($canonicalUrl); ?>">
     <?php if ($ogImage !== '') : ?><meta property="og:image" content="<?php echo e($ogImage); ?>"><?php endif; ?>
-    <link rel="stylesheet" href="/assets/css/site.css">
-    <link rel="stylesheet" href="/assets/css/common.css">
+    <link rel="stylesheet" href="<?php echo e($assetBasePath . '/assets/css/site.css'); ?>">
+    <link rel="stylesheet" href="<?php echo e($assetBasePath . '/assets/css/common.css'); ?>">
     <?php if ($themeColor !== '') : ?><style>:root{--theme-accent:<?php echo e($themeColor); ?>;}</style><?php endif; ?>
     <?php if ($headCode !== '') : ?><?php echo $headCode; ?><?php endif; ?>
     <?php if ($ga4Id !== '') : ?>
         <script async src="https://www.googletagmanager.com/gtag/js?id=<?php echo e($ga4Id); ?>"></script>
         <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','<?php echo e($ga4Id); ?>');</script>
     <?php endif; ?>
-    <?php if (isset($pageStyles) && is_array($pageStyles)) : foreach ($pageStyles as $stylePath) : ?>
-        <link rel="stylesheet" href="<?php echo e((string)$stylePath); ?>">
+    <?php if (isset($pageStyles) && is_array($pageStyles)) : foreach ($pageStyles as $stylePath) :
+        $styleHref = (string)$stylePath;
+        if ($styleHref !== '' && str_starts_with($styleHref, '/')) {
+            $styleHref = $assetBasePath . $styleHref;
+        }
+    ?>
+        <link rel="stylesheet" href="<?php echo e($styleHref); ?>">
     <?php endforeach; endif; ?>
 </head>
 <body>
@@ -67,14 +72,14 @@ $adDevice = ad_current_device();
         <div class="site-header__brand">
             <?php $logoUrl = front_safe_text_setting('design.logo_url', ''); ?>
             <?php if ($logoUrl !== '') : ?><img src="<?php echo e($logoUrl); ?>" alt="<?php echo e($siteTitle); ?>" style="height:36px;width:auto;display:block;margin-bottom:4px;"><?php endif; ?>
-            <a class="site-header__title" href="/"><?php echo e($siteTitle); ?></a>
+            <a class="site-header__title" href="<?php echo e($assetBasePath . '/'); ?>"><?php echo e($siteTitle); ?></a>
             <div class="site-header__note"><strong>当サイトはプロモーションを含みます。</strong></div>
         </div>
         <div>
             <?php if (user_current_email() !== null) : ?>
-                ログイン中: <?php echo e((string)user_current_email()); ?> <a href="/user_logout.php">ログアウト</a>
+                ログイン中: <?php echo e((string)user_current_email()); ?> <a href="<?php echo e($assetBasePath . '/user_logout.php'); ?>">ログアウト</a>
             <?php else : ?>
-                <a href="/user_login.php">会員ログイン</a>
+                <a href="<?php echo e($assetBasePath . '/user_login.php'); ?>">会員ログイン</a>
             <?php endif; ?>
         </div>
     </div>
