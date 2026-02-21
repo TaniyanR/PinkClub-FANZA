@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/url.php';
 require_once __DIR__ . '/db.php';
 
@@ -127,17 +128,6 @@ function admin_current_user(): ?array
     start_admin_session();
 
     $current = $_SESSION['admin_user'] ?? null;
-    if (!is_array($current) && (($_SESSION['admin_logged_in'] ?? false) === true)) {
-        $legacyUsername = (string)($_SESSION['admin_username'] ?? ADMIN_DEFAULT_USERNAME);
-        $current = [
-            'id' => 0,
-            'username' => $legacyUsername !== '' ? $legacyUsername : ADMIN_DEFAULT_USERNAME,
-            'email' => null,
-            'login_mode' => 'legacy',
-            'password_hash' => '',
-        ];
-        $_SESSION['admin_user'] = $current;
-    }
 
     if (!is_array($current)) {
         return null;
@@ -249,14 +239,13 @@ function admin_attempt_login(string $username_or_email, string $password): array
             ];
         }
 
-        session_regenerate_id(true);
-        $_SESSION['admin_user'] = [
+        admin_login_store_session([
             'id' => (int)$admin['id'],
             'username' => (string)$admin['username'],
             'email' => isset($admin['email']) && is_string($admin['email']) ? $admin['email'] : null,
             'login_mode' => isset($admin['login_mode']) && is_string($admin['login_mode']) ? $admin['login_mode'] : null,
             'password_hash' => $passwordHash,
-        ];
+        ]);
 
         return [
             'success' => true,
@@ -277,14 +266,13 @@ function admin_attempt_login(string $username_or_email, string $password): array
         ];
     }
 
-    session_regenerate_id(true);
-    $_SESSION['admin_user'] = [
+    admin_login_store_session([
         'id' => 0,
         'username' => (string)$admin['username'],
         'email' => null,
         'login_mode' => 'config',
         'password_hash' => (string)$admin['password_hash'],
-    ];
+    ]);
 
     return [
         'success' => true,
@@ -305,6 +293,25 @@ function admin_login(string $username_or_email, string $password): bool
     }
 
     return ($attempt['success'] ?? false) === true;
+}
+
+function admin_login_store_session(array $adminUser): void
+{
+    start_admin_session();
+    session_regenerate_id(true);
+    $_SESSION['admin_user'] = [
+        'id' => (int)($adminUser['id'] ?? 0),
+        'username' => (string)($adminUser['username'] ?? ''),
+        'email' => isset($adminUser['email']) && is_string($adminUser['email']) ? $adminUser['email'] : null,
+        'login_mode' => isset($adminUser['login_mode']) && is_string($adminUser['login_mode']) ? $adminUser['login_mode'] : null,
+        'password_hash' => (string)($adminUser['password_hash'] ?? ''),
+    ];
+}
+
+function admin_login_success(array $adminUser, string $redirectPath): never
+{
+    admin_login_store_session($adminUser);
+    app_redirect($redirectPath);
 }
 
 /**
@@ -337,24 +344,6 @@ function admin_require_login(): void
     require_admin_auth();
 }
 
-
-function app_redirect(string $path): void
-{
-    $target = trim(str_replace(["\r", "\n"], '', $path));
-    if ($target === '') {
-        $target = admin_path('index.php');
-    }
-
-    if (!preg_match('#^https?://#i', $target)) {
-        if ($target[0] !== '/') {
-            $target = '/' . ltrim($target, '/');
-        }
-        $target = base_url() . $target;
-    }
-
-    header('Location: ' . $target);
-    exit;
-}
 
 function require_admin_login(): void
 {
