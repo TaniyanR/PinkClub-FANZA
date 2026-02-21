@@ -23,6 +23,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $tab === 'site') {
     $siteName = trim((string)($_POST['site_name'] ?? ''));
     $siteUrl = trim((string)($_POST['site_url'] ?? ''));
     $siteTagline = trim((string)($_POST['site_tagline'] ?? ''));
+    $showTagline = (string)($_POST['show_tagline'] ?? '0') === '1' ? '1' : '0';
     $adminUsername = trim((string)($_POST['admin_username'] ?? ''));
     $adminEmail = trim((string)($_POST['admin_email'] ?? ''));
 
@@ -55,6 +56,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $tab === 'site') {
             'site.tagline' => $siteTagline,
             'site.base_url' => $siteUrl,
             'site.admin_email' => $adminEmail,
+            'show_tagline' => $showTagline,
         ]);
 
         $currentAdmin = admin_current_user();
@@ -176,6 +178,7 @@ ob_start();
     $siteName = site_title_setting('');
     $siteTagline = site_setting_get('site.tagline', '');
     $siteUrl = site_setting_get('site.base_url', detect_base_url());
+    $showTagline = site_setting_get('show_tagline', '0') === '1';
     $currentAdmin = admin_current_user();
     $adminUsername = is_array($currentAdmin) ? (string)($currentAdmin['username'] ?? '') : '';
     if ($adminUsername === '') {
@@ -217,6 +220,8 @@ ob_start();
 
         <label for="site_tagline">キャッチフレーズ</label>
         <input id="site_tagline" type="text" name="site_tagline" value="<?php echo e($siteTagline); ?>" placeholder="キャッチフレーズを入力（任意）">
+
+        <label><input type="checkbox" name="show_tagline" value="1" <?php echo $showTagline ? 'checked' : ''; ?>> キャッチフレーズをヘッダーに表示する</label>
 
         <label for="site_url">サイトURL</label>
         <input id="site_url" type="url" name="site_url" value="<?php echo e($siteUrl); ?>" required>
