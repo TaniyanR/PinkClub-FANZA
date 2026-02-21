@@ -2,10 +2,6 @@
 
 declare(strict_types=1);
 
-// 開発時のみ有効化: 白画面(Fatal)切り分け用
-ini_set('display_errors', '1');
-error_reporting(E_ALL);
-
 $GLOBALS['__admin_trace'] = [];
 
 function admin_h(string $value): string
@@ -16,7 +12,7 @@ function admin_h(string $value): string
 function admin_bootstrap_is_dev_environment(): bool
 {
     $appEnv = getenv('APP_ENV');
-    if (is_string($appEnv) && $appEnv !== '' && in_array(strtolower($appEnv), ['dev', 'development', 'local'], true)) {
+    if (is_string($appEnv) && $appEnv !== '' && in_array(strtolower($appEnv), ['dev', 'development', 'local', 'staging'], true)) {
         return true;
     }
 
@@ -33,7 +29,7 @@ function admin_is_dev_environment(): bool
     if (function_exists('config_get')) {
         $configEnv = config_get('app.env', null);
         $env = is_string($configEnv) && $configEnv !== '' ? $configEnv : (getenv('APP_ENV') ?: '');
-        if (is_string($env) && in_array(strtolower($env), ['dev', 'development', 'local'], true)) {
+        if (is_string($env) && in_array(strtolower($env), ['dev', 'development', 'local', 'staging'], true)) {
             return true;
         }
     }
@@ -41,29 +37,52 @@ function admin_is_dev_environment(): bool
     return admin_bootstrap_is_dev_environment();
 }
 
+
+if (admin_is_dev_environment()) {
+    ini_set('display_errors', '1');
+    ini_set('display_startup_errors', '1');
+    error_reporting(E_ALL);
+}
+
+function admin_log_file_path(): string
+{
+    $dir = dirname(__DIR__, 2) . '/storage/logs';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+
+    return $dir . '/app.log';
+}
+
 function admin_log_error(string $message, ?Throwable $exception = null): void
 {
+    $uri = (string)($_SERVER['REQUEST_URI'] ?? '-');
+    $file = '-';
+    $lineNo = 0;
+    $errorType = 'ERROR';
+
     if ($exception instanceof Throwable) {
-        $message .= sprintf(
-            ' | %s: %s @ %s:%d',
-            get_class($exception),
-            $exception->getMessage(),
-            $exception->getFile(),
-            $exception->getLine()
-        );
+        $file = $exception->getFile();
+        $lineNo = $exception->getLine();
+        $errorType = $exception instanceof ErrorException
+            ? 'PHP_' . (string)$exception->getSeverity()
+            : get_class($exception);
+        $message .= ' | ' . $exception->getMessage();
     }
 
-    $line = '[admin] ' . $message;
+    $logLine = sprintf(
+        "[%s] [admin] [%s] %s | file=%s line=%d uri=%s
+",
+        date('Y-m-d H:i:s'),
+        $errorType,
+        $message,
+        $file,
+        $lineNo,
+        $uri
+    );
 
-    try {
-        if (function_exists('log_message')) {
-            log_message($line);
-            return;
-        }
-    } catch (Throwable) {
-    }
-
-    error_log($line);
+    @file_put_contents(admin_log_file_path(), $logLine, FILE_APPEND);
+    error_log(trim($logLine));
 }
 
 function admin_trace_push(string $stage): void
@@ -103,7 +122,7 @@ function admin_trace_lines(): array
 function admin_log_trace(string $reason): void
 {
     $line = '[admin-trace] ' . $reason . PHP_EOL . implode(PHP_EOL, admin_trace_lines()) . PHP_EOL;
-    @file_put_contents(dirname(__DIR__, 2) . '/logs/app.log', $line, FILE_APPEND);
+    @file_put_contents(admin_log_file_path(), $line, FILE_APPEND);
 }
 
 function admin_trace_html(): string
@@ -178,6 +197,14 @@ function admin_render_error_page(string $title, string $message, ?Throwable $exc
         admin_render_plain_error_page($title, $message, $exception);
     }
 }
+
+set_error_handler(static function (int $severity, string $message, string $file = '', int $line = 0): bool {
+    if (!(error_reporting() & $severity)) {
+        return false;
+    }
+
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
 
 set_exception_handler(static function (Throwable $exception): void {
     admin_trace_push('exception:handler');

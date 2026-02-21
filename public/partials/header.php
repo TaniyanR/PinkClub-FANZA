@@ -5,8 +5,8 @@ require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/app_features.php';
 require_once __DIR__ . '/../../lib/site_settings.php';
 
-$siteTitle = front_safe_text_setting('site.name', (string)config_get('site.title', 'PinkClub-FANZA'));
-if ($siteTitle === '' || $siteTitle === 'PinkClub-FANZA') {
+$siteTitle = trim(site_title_setting(''));
+if ($siteTitle === '') {
     $siteTitle = 'サイトタイトル未設定';
 }
 $siteTagline = front_safe_text_setting('site.tagline', '');

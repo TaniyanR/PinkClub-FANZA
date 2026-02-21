@@ -70,7 +70,8 @@ function normalize_admin_redirect_target(string $target): string
 
 function admin_is_dev_env(): bool
 {
-    return strtolower((string)config_get('app.env', '')) === 'dev';
+    $env = strtolower((string)config_get('app.env', ''));
+    return in_array($env, ['dev', 'development', 'local', 'staging'], true);
 }
 
 /**
@@ -316,11 +317,34 @@ function require_admin_auth(): void
     $requestUri = (string)($_SERVER['REQUEST_URI'] ?? '');
     $target = normalize_admin_redirect_target($requestUri);
     $location = login_path() . '?return_to=' . rawurlencode($target);
-    header('Location: ' . $location);
-    exit;
+    app_redirect($location);
 }
 
 function admin_require_login(): void
+{
+    require_admin_auth();
+}
+
+
+function app_redirect(string $path): void
+{
+    $target = trim(str_replace(["\r", "\n"], '', $path));
+    if ($target === '') {
+        $target = admin_path('index.php');
+    }
+
+    if (!preg_match('#^https?://#i', $target)) {
+        if ($target[0] !== '/') {
+            $target = '/' . ltrim($target, '/');
+        }
+        $target = base_url() . $target;
+    }
+
+    header('Location: ' . $target);
+    exit;
+}
+
+function require_admin_login(): void
 {
     require_admin_auth();
 }

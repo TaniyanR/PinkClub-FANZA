@@ -50,8 +50,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $tab === 'site') {
         $pdo = db();
         $pdo->beginTransaction();
 
+        site_title_setting_set($siteName);
         site_setting_set_many([
-            'site.name' => $siteName,
             'site.tagline' => $siteTagline,
             'site.base_url' => $siteUrl,
             'site.admin_email' => $adminEmail,
@@ -173,7 +173,7 @@ ob_start();
 
 <?php if ($tab === 'site') : ?>
     <?php
-    $siteName = site_setting_get('site.name', '');
+    $siteName = site_title_setting('');
     $siteTagline = site_setting_get('site.tagline', '');
     $siteUrl = site_setting_get('site.base_url', detect_base_url());
     $currentAdmin = admin_current_user();
