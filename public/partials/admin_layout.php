@@ -2,10 +2,14 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_helpers.php';
+require_once __DIR__ . '/../../lib/site_settings.php';
 
 admin_trace_push('layout:begin');
 
-$siteTitle = (string)config_get('site.title', 'PinkClub-FANZA');
+$siteTitle = trim(site_title_setting(''));
+if ($siteTitle === '') {
+    $siteTitle = 'サイトタイトル未設定';
+}
 $rawPageTitle = isset($pageTitle) && $pageTitle !== '' ? (string)$pageTitle : '管理画面';
 $fullTitle = $rawPageTitle . ' | ' . $siteTitle;
 ?>

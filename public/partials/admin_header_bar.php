@@ -2,10 +2,14 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_helpers.php';
+require_once __DIR__ . '/../../lib/site_settings.php';
 require_once __DIR__ . '/../../lib/csrf.php';
 require_once __DIR__ . '/../../lib/admin_auth.php';
 
-$siteTitle = (string)config_get('site.title', 'PinkClub-FANZA');
+$siteTitle = trim(site_title_setting(''));
+if ($siteTitle === '') {
+    $siteTitle = 'サイトタイトル未設定';
+}
 ?>
 <header class="admin-topbar">
     <div class="admin-topbar__left"><a href="<?php echo e(admin_url('index.php')); ?>"><?php echo e($siteTitle); ?> 管理</a></div>
