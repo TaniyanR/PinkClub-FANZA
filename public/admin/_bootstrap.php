@@ -51,7 +51,7 @@ function admin_log_file_path(): string
         @mkdir($dir, 0775, true);
     }
 
-    return $dir . '/app.log';
+    return $dir . '/php-error.log';
 }
 
 function admin_log_error(string $message, ?Throwable $exception = null): void
@@ -71,8 +71,7 @@ function admin_log_error(string $message, ?Throwable $exception = null): void
     }
 
     $logLine = sprintf(
-        "[%s] [admin] [%s] %s | file=%s line=%d uri=%s
-",
+        "[%s] [%s] %s | file=%s line=%d REQUEST_URI=%s\n",
         date('Y-m-d H:i:s'),
         $errorType,
         $message,

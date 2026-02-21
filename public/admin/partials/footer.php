@@ -1,8 +1,13 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/../../../lib/site_settings.php';
+
 $year = (int)date('Y');
-$siteTitle = (string)config_get('site.title', 'PinkClub-FANZA');
+$siteTitle = trim(site_title_setting(''));
+if ($siteTitle === '') {
+    $siteTitle = 'サイトタイトル未設定';
+}
 ?>
 </div>
 <footer class="site-footer">

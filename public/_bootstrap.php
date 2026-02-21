@@ -53,7 +53,7 @@ function app_log_file_path(): string
         @mkdir($dir, 0775, true);
     }
 
-    return $dir . '/app.log';
+    return $dir . '/php-error.log';
 }
 
 function app_log_error(string $message, ?Throwable $exception = null): void
@@ -73,8 +73,7 @@ function app_log_error(string $message, ?Throwable $exception = null): void
     }
 
     $logLine = sprintf(
-        "[%s] [front] [%s] %s | file=%s line=%d uri=%s
-",
+        "[%s] [%s] %s | file=%s line=%d REQUEST_URI=%s\n",
         date('Y-m-d H:i:s'),
         $errorType,
         $message,

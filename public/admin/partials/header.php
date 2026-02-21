@@ -2,11 +2,15 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../partials/_helpers.php';
+require_once __DIR__ . '/../../../lib/site_settings.php';
 require_once __DIR__ . '/../../../lib/admin_auth.php';
 require_once __DIR__ . '/../../../lib/csrf.php';
 require_once __DIR__ . '/../../../lib/url.php';
 
-$siteTitle = (string)config_get('site.title', 'PinkClub-FANZA');
+$siteTitle = trim(site_title_setting(''));
+if ($siteTitle === '') {
+    $siteTitle = 'サイトタイトル未設定';
+}
 $adminTitle = '管理画面';
 $rawPageTitle = isset($pageTitle) && $pageTitle !== '' ? (string)$pageTitle : $adminTitle;
 $fullTitle = $rawPageTitle . ' | ' . $siteTitle;

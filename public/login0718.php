@@ -1,6 +1,15 @@
 <?php
 declare(strict_types=1);
 
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
+
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
+
+require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/config.php';
 require_once __DIR__ . '/../lib/url.php';
 require_once __DIR__ . '/../lib/admin_auth.php';
@@ -21,8 +30,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $password = (string)($_POST['password'] ?? '');
 
     if (admin_login($username, $password)) {
-        $postedReturnTo = normalize_admin_redirect_target((string)($_POST['return_to'] ?? ''));
-        app_redirect($postedReturnTo !== '' ? $postedReturnTo : admin_path('index.php'));
+        session_regenerate_id(true);
+        header('Location: ' . admin_path('index.php'));
+        exit;
     }
 
     $error = 'ユーザー名またはパスワードが違います。';
@@ -34,7 +44,7 @@ include __DIR__ . '/partials/login_header.php';
 ?>
     <div class="login-page">
         <div class="login-headline" aria-label="管理画面ログイン見出し">
-            <span class="login-headline__item">PinkClub-FANZA</span>
+            <span class="login-headline__item"><?php echo e(site_title_setting('') !== '' ? site_title_setting('') : 'サイトタイトル未設定'); ?></span>
             <span class="login-headline__item">管理画面ログイン</span>
         </div>
 
