@@ -38,6 +38,31 @@ function setting_get(string $key, ?string $default = null): ?string
     return $value;
 }
 
+function setting(string $key, ?string $default = null): ?string
+{
+    return setting_get($key, $default);
+}
+
+function setting_set_many(array $pairs): void
+{
+    site_setting_set_many($pairs);
+}
+
+function setting_site_title(string $default = ''): string
+{
+    return trim((string)(setting('site.title', $default) ?? $default));
+}
+
+function setting_site_tagline(string $default = ''): string
+{
+    return trim((string)(setting('site.tagline', $default) ?? $default));
+}
+
+function setting_admin_email(string $default = ''): string
+{
+    return trim((string)(setting('site.admin_email', $default) ?? $default));
+}
+
 function setting_set(string $key, string $value): void
 {
     site_setting_set($key, $value);
@@ -57,7 +82,7 @@ function site_setting_set_many(array $pairs): void
 
 function site_title_setting(string $default = ''): string
 {
-    $siteTitle = trim(site_setting_get('site.title', ''));
+    $siteTitle = trim((string)(setting('site.title', '') ?? ''));
     if ($siteTitle !== '') {
         return $siteTitle;
     }
@@ -65,7 +90,7 @@ function site_title_setting(string $default = ''): string
     // 旧データ互換（過去キーを順に吸収）
     $legacyKeys = ['site.name', 'site_title', 'site_name'];
     foreach ($legacyKeys as $legacyKey) {
-        $legacyValue = trim(site_setting_get($legacyKey, ''));
+        $legacyValue = trim((string)(setting($legacyKey, '') ?? ''));
         if ($legacyValue !== '') {
             return $legacyValue;
         }

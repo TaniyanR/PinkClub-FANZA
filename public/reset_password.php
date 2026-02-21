@@ -38,8 +38,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 ->execute([':h' => password_hash($password, PASSWORD_DEFAULT), ':id' => (int)$reset['admin_user_id']]);
             db()->prepare('UPDATE admin_password_resets SET used_at=NOW() WHERE id=:id')->execute([':id' => (int)$reset['id']]);
             $_SESSION['forgot_password_success'] = 'パスワードを再設定しました。新しいパスワードでログインしてください。';
-            header('Location: ' . login_url());
-            exit;
+            app_redirect(login_url());
         }
     }
 }

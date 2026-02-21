@@ -5,14 +5,12 @@ require_once __DIR__ . '/_common.php';
 require_once __DIR__ . '/../../lib/local_config_writer.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-    header('Location: ' . admin_url('settings.php?tab=api'));
-    exit;
+    app_redirect(admin_url('settings.php?tab=api'));
 }
 
 $token = $_POST['_token'] ?? null;
 if (!csrf_verify(is_string($token) ? $token : null)) {
-    header('Location: ' . admin_url('settings.php?tab=api&error=csrf_failed'));
-    exit;
+    app_redirect(admin_url('settings.php?tab=api&error=csrf_failed'));
 }
 
 $apiId = trim((string)($_POST['api_id'] ?? ''));
@@ -41,8 +39,7 @@ if ($affiliateId === '') {
 }
 
 if ($apiId === '' || $affiliateId === '') {
-    header('Location: ' . admin_url('settings.php?tab=api&error=missing_required'));
-    exit;
+    app_redirect(admin_url('settings.php?tab=api&error=missing_required'));
 }
 
 $allowedSites = ['FANZA', 'DMM'];
@@ -79,9 +76,7 @@ try {
     local_config_write($local);
 } catch (Throwable $e) {
     error_log('save_settings failed: ' . $e->getMessage());
-    header('Location: ' . admin_url('settings.php?tab=api&error=write_failed'));
-    exit;
+    app_redirect(admin_url('settings.php?tab=api&error=write_failed'));
 }
 
-header('Location: ' . admin_url('settings.php?tab=api&saved=1'));
-exit;
+app_redirect(admin_url('settings.php?tab=api&saved=1'));
