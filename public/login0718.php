@@ -8,7 +8,7 @@ require_once __DIR__ . '/partials/_helpers.php';
 admin_v2_session_start();
 
 if (admin_v2_is_logged_in()) {
-    app_redirect(admin_path('index.php'));
+    app_redirect('admin/index.php');
 }
 
 $error = '';
@@ -23,7 +23,7 @@ if ($method === 'POST') {
             $identifier = trim((string)($_POST['identifier'] ?? ''));
             $password = (string)($_POST['password'] ?? '');
             if (admin_v2_login($identifier, $password)) {
-                app_redirect(admin_path('index.php'));
+                app_redirect('admin/index.php');
             }
             $error = 'ユーザー名/メールまたはパスワードが違います。';
         }
