@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_common.php';
 require_once __DIR__ . '/../../lib/site_settings.php';
+require_once __DIR__ . '/../../lib/db.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
@@ -21,9 +22,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $tab === 'site') {
 
     $siteName = trim((string)($_POST['site_name'] ?? ''));
     $siteUrl = trim((string)($_POST['site_url'] ?? ''));
+    $siteTagline = trim((string)($_POST['site_tagline'] ?? ''));
+    $adminUsername = trim((string)($_POST['admin_username'] ?? ''));
     $adminEmail = trim((string)($_POST['admin_email'] ?? ''));
 
-    if ($siteName === '' || $siteUrl === '' || $adminEmail === '') {
+    if ($siteName === '' || $siteUrl === '' || $adminUsername === '' || $adminEmail === '') {
         header('Location: ' . admin_url('settings.php?tab=site&err=required'));
         exit;
     }
@@ -38,15 +41,53 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $tab === 'site') {
         exit;
     }
 
+    if (!preg_match('/^[A-Za-z0-9_.@-]{3,100}$/', $adminUsername)) {
+        header('Location: ' . admin_url('settings.php?tab=site&err=invalid_username'));
+        exit;
+    }
+
     try {
+        $pdo = db();
+        $pdo->beginTransaction();
+
         site_setting_set_many([
             'site.name' => $siteName,
-            'site.url' => $siteUrl,
+            'site.tagline' => $siteTagline,
+            'site.base_url' => $siteUrl,
             'site.admin_email' => $adminEmail,
         ]);
+
+        $currentAdmin = admin_current_user();
+        if (is_array($currentAdmin) && isset($currentAdmin['id']) && (int)$currentAdmin['id'] > 0) {
+            $stmt = $pdo->prepare('SELECT id FROM admin_users WHERE username = :username AND id <> :id LIMIT 1');
+            $stmt->execute([
+                ':username' => $adminUsername,
+                ':id' => (int)$currentAdmin['id'],
+            ]);
+            if ($stmt->fetchColumn() !== false) {
+                $pdo->rollBack();
+                header('Location: ' . admin_url('settings.php?tab=site&err=username_taken'));
+                exit;
+            }
+
+            $update = $pdo->prepare('UPDATE admin_users SET username = :username, email = :email, updated_at = NOW() WHERE id = :id');
+            $update->execute([
+                ':username' => $adminUsername,
+                ':email' => $adminEmail,
+                ':id' => (int)$currentAdmin['id'],
+            ]);
+
+            $_SESSION['admin_user']['username'] = $adminUsername;
+            $_SESSION['admin_user']['email'] = $adminEmail;
+        }
+
+        $pdo->commit();
         header('Location: ' . admin_url('settings.php?tab=site&saved=1'));
         exit;
     } catch (Throwable) {
+        if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         header('Location: ' . admin_url('settings.php?tab=site&err=save_failed'));
         exit;
     }
@@ -63,6 +104,14 @@ $hasAffiliateId = trim($currentAffiliateId) !== '';
 $siteOptions = ['FANZA', 'DMM'];
 $serviceOptions = ['digital'];
 $floorOptions = ['videoa'];
+$serviceLabels = [
+    'digital' => 'デジタル',
+];
+$floorLabels = [
+    'videoa' => '動画（AV）',
+    'videoc' => 'ビデオ（一般）',
+    'amateur' => '素人',
+];
 
 // 現在値（表示用）
 $currentSite = 'FANZA';
@@ -125,13 +174,24 @@ ob_start();
 <?php if ($tab === 'site') : ?>
     <?php
     $siteName = site_setting_get('site.name', '');
-    $siteUrl = site_setting_get('site.url', detect_base_url());
+    $siteTagline = site_setting_get('site.tagline', '');
+    $siteUrl = site_setting_get('site.base_url', detect_base_url());
+    $currentAdmin = admin_current_user();
+    $adminUsername = is_array($currentAdmin) ? (string)($currentAdmin['username'] ?? '') : '';
+    if ($adminUsername === '') {
+        $adminUsername = 'admin';
+    }
     $adminEmail = site_setting_get('site.admin_email', '');
+    if ($adminEmail === '' && is_array($currentAdmin) && is_string($currentAdmin['email'] ?? null)) {
+        $adminEmail = (string)$currentAdmin['email'];
+    }
     $errorCode = (string)($_GET['err'] ?? '');
     $siteMessages = [
         'csrf_invalid' => 'CSRFトークンが無効です。再度お試しください。',
         'required' => 'すべての項目を入力してください。',
         'invalid_url' => 'サイトURLの形式が正しくありません。',
+        'invalid_username' => 'ユーザー名は3〜100文字の英数字・_.@-で入力してください。',
+        'username_taken' => 'そのユーザー名は既に使われています。別のユーザー名を指定してください。',
         'invalid_email' => '管理者メールアドレスの形式が正しくありません。',
         'save_failed' => '設定の保存に失敗しました。時間をおいて再度お試しください。',
     ];
@@ -155,8 +215,14 @@ ob_start();
         <label for="site_name">サイト名</label>
         <input id="site_name" type="text" name="site_name" value="<?php echo e($siteName); ?>" placeholder="サイト名を入力" required>
 
+        <label for="site_tagline">キャッチフレーズ</label>
+        <input id="site_tagline" type="text" name="site_tagline" value="<?php echo e($siteTagline); ?>" placeholder="キャッチフレーズを入力（任意）">
+
         <label for="site_url">サイトURL</label>
         <input id="site_url" type="url" name="site_url" value="<?php echo e($siteUrl); ?>" required>
+
+        <label for="admin_username">管理者ユーザー名</label>
+        <input id="admin_username" type="text" name="admin_username" value="<?php echo e($adminUsername); ?>" autocomplete="username" required>
 
         <label for="admin_email">管理者メールアドレス</label>
         <input id="admin_email" type="email" name="admin_email" value="<?php echo e($adminEmail); ?>" required>
@@ -227,7 +293,7 @@ ob_start();
         <select name="service">
             <?php foreach ($serviceOptions as $option) : ?>
                 <option value="<?php echo e($option); ?>"<?php echo $option === $currentService ? ' selected' : ''; ?>>
-                    <?php echo e($option); ?>
+                    <?php echo e($serviceLabels[$option] ?? $option); ?>
                 </option>
             <?php endforeach; ?>
         </select>
@@ -236,7 +302,7 @@ ob_start();
         <select name="floor">
             <?php foreach ($floorOptions as $option) : ?>
                 <option value="<?php echo e($option); ?>"<?php echo $option === $currentFloor ? ' selected' : ''; ?>>
-                    <?php echo e($option); ?>
+                    <?php echo e($floorLabels[$option] ?? $option); ?>
                 </option>
             <?php endforeach; ?>
         </select>

@@ -20,6 +20,12 @@ function design_message_catalog(): array
         'invalid_action' => '不正な操作です。',
         'file_required' => 'ファイルを選択してください。',
         'upload_failed' => 'アップロードに失敗しました。',
+        'upload_ini_size' => 'アップロード上限を超えています（PHP設定: upload_max_filesize / post_max_size）。',
+        'upload_form_size' => 'アップロード上限を超えています（フォーム指定サイズ超過）。',
+        'upload_partial' => 'ファイルが一部しかアップロードされませんでした。再度お試しください。',
+        'upload_no_tmp_dir' => '一時ディレクトリが見つからないためアップロードできません。',
+        'upload_cant_write' => '一時ファイルの書き込みに失敗しました。権限を確認してください。',
+        'upload_extension' => '拡張モジュールによりアップロードが停止されました。',
         'invalid_upload' => '不正なアップロードです。',
         'invalid_size' => 'ファイルサイズは5MB以下にしてください。',
         'invalid_extension' => '対応していない拡張子です。',
@@ -41,8 +47,14 @@ function design_message(string $code, string $default = 'エラーが発生し�
 function design_delete_uploaded_file(string $url): void
 {
     $url = trim($url);
-    if ($url === '' || !str_starts_with($url, '/uploads/design/')) {
+    $publicPrefix = '/uploads/design/';
+    $sitePrefix = '/public/uploads/design/';
+    if ($url === '' || (!str_starts_with($url, $publicPrefix) && !str_starts_with($url, $sitePrefix))) {
         return;
+    }
+
+    if (str_starts_with($url, $sitePrefix)) {
+        $url = substr($url, 7);
     }
 
     $fullPath = dirname(__DIR__) . $url;
@@ -80,6 +92,17 @@ function design_handle_upload(string $inputName, string $targetBaseName): array
         return ['ok' => false, 'code' => 'file_required'];
     }
     if ($errorCode !== UPLOAD_ERR_OK) {
+        $uploadErrorMap = [
+            UPLOAD_ERR_INI_SIZE => 'upload_ini_size',
+            UPLOAD_ERR_FORM_SIZE => 'upload_form_size',
+            UPLOAD_ERR_PARTIAL => 'upload_partial',
+            UPLOAD_ERR_NO_TMP_DIR => 'upload_no_tmp_dir',
+            UPLOAD_ERR_CANT_WRITE => 'upload_cant_write',
+            UPLOAD_ERR_EXTENSION => 'upload_extension',
+        ];
+        if (isset($uploadErrorMap[$errorCode])) {
+            return ['ok' => false, 'code' => $uploadErrorMap[$errorCode]];
+        }
         return ['ok' => false, 'code' => 'upload_failed'];
     }
 
@@ -219,6 +242,8 @@ try {
 
 $logoUrl = (string)(setting_get('design.logo_url', '') ?? '');
 $ogpUrl = (string)(setting_get('design.ogp_image_url', '') ?? '');
+$logoPreviewUrl = $logoUrl !== '' ? front_asset_url($logoUrl) : '';
+$ogpPreviewUrl = $ogpUrl !== '' ? front_asset_url($ogpUrl) : '';
 
 $okCode = trim((string)($_GET['ok'] ?? ''));
 $errCode = trim((string)($_GET['err'] ?? ''));
@@ -242,8 +267,8 @@ ob_start();
 
 <div class="admin-card design-card">
     <h2>ロゴ画像</h2>
-    <?php if ($logoUrl !== '') : ?>
-        <p class="design-preview"><img src="<?php echo e($logoUrl); ?>" alt="ロゴ画像のプレビュー"></p>
+    <?php if ($logoPreviewUrl !== '') : ?>
+        <p class="design-preview"><img src="<?php echo e($logoPreviewUrl); ?>" alt="ロゴ画像のプレビュー"></p>
     <?php else : ?>
         <p class="design-preview-empty">現在ロゴ画像は未設定です。</p>
     <?php endif; ?>
@@ -267,8 +292,8 @@ ob_start();
 
 <div class="admin-card design-card">
     <h2>OGP画像</h2>
-    <?php if ($ogpUrl !== '') : ?>
-        <p class="design-preview"><img src="<?php echo e($ogpUrl); ?>" alt="OGP画像のプレビュー"></p>
+    <?php if ($ogpPreviewUrl !== '') : ?>
+        <p class="design-preview"><img src="<?php echo e($ogpPreviewUrl); ?>" alt="OGP画像のプレビュー"></p>
     <?php else : ?>
         <p class="design-preview-empty">現在OGP画像は未設定です。</p>
     <?php endif; ?>

@@ -5,11 +5,12 @@ require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/app_features.php';
 require_once __DIR__ . '/../../lib/site_settings.php';
 
-$siteTitle = front_safe_text_setting('site_name', (string)config_get('site.title', 'PinkClub-FANZA'));
+$siteTitle = front_safe_text_setting('site.name', (string)config_get('site.title', 'PinkClub-FANZA'));
 if ($siteTitle === '' || $siteTitle === 'PinkClub-FANZA') {
     $siteTitle = 'サイトタイトル未設定';
 }
-$defaultDescription = (string)config_get('site.description', '作品紹介サイトです。');
+$siteTagline = front_safe_text_setting('site.tagline', '');
+$defaultDescription = $siteTagline !== '' ? $siteTagline : (string)config_get('site.description', '作品紹介サイトです。');
 
 $rawPageTitle = isset($pageTitle) && $pageTitle !== '' ? (string)$pageTitle : null;
 $pageDescription = isset($pageDescription) && $pageDescription !== '' ? (string)$pageDescription : $defaultDescription;
@@ -19,6 +20,9 @@ if ($canonicalBase !== '') {
     $canonicalUrl = rtrim($canonicalBase, '/') . current_path();
 }
 $ogImage = isset($ogImage) && $ogImage !== '' ? (string)$ogImage : front_safe_text_setting('design.ogp_image_url', '');
+if ($ogImage !== '' && str_starts_with($ogImage, '/')) {
+    $ogImage = front_asset_url($ogImage);
+}
 $ogType = isset($ogType) && $ogType !== '' ? (string)$ogType : 'website';
 $fullTitle = $rawPageTitle !== null ? ($rawPageTitle . ' | ' . $siteTitle) : $siteTitle;
 $ga4Id = (string)app_setting_get('ga4_measurement_id', '');
@@ -70,9 +74,13 @@ $adDevice = ad_current_device();
 <header class="site-header">
     <div class="site-header__inner">
         <div class="site-header__brand">
-            <?php $logoUrl = front_safe_text_setting('design.logo_url', ''); ?>
+            <?php $logoUrl = front_safe_text_setting('design.logo_url', '');
+            if ($logoUrl !== '' && str_starts_with($logoUrl, '/')) {
+                $logoUrl = front_asset_url($logoUrl);
+            } ?>
             <?php if ($logoUrl !== '') : ?><img src="<?php echo e($logoUrl); ?>" alt="<?php echo e($siteTitle); ?>" style="height:36px;width:auto;display:block;margin-bottom:4px;"><?php endif; ?>
             <a class="site-header__title" href="<?php echo e($siteRootPath); ?>"><?php echo e($siteTitle); ?></a>
+            <?php if ($siteTagline !== '') : ?><div class="site-header__tagline"><?php echo e($siteTagline); ?></div><?php endif; ?>
             <div class="site-header__note"><strong>当サイトはプロモーションを含みます。</strong></div>
         </div>
         <div>

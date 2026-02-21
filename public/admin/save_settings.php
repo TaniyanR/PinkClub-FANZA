@@ -47,7 +47,7 @@ if ($apiId === '' || $affiliateId === '') {
 
 $allowedSites = ['FANZA', 'DMM'];
 $allowedServices = ['digital'];
-$allowedFloors = ['videoa'];
+$allowedFloors = ['videoa', 'videoc', 'amateur'];
 
 if (!in_array($site, $allowedSites, true)) {
     $site = 'FANZA';
