@@ -460,6 +460,12 @@ function db_ensure_initialized(PDO $pdo): void
     db_seed_default_admin_user($pdo);
 }
 
+
+function db_connection_meta(array $db): array
+{
+    return db_build_connection_info(is_array($db) ? $db : []);
+}
+
 function db_connect_and_initialize(array $db): PDO
 {
     $user = (string)($db['user'] ?? 'root');
@@ -514,7 +520,16 @@ function db(): PDO
     }
 
     $db = config_get('db', []);
-    $pdo = db_connect_and_initialize(is_array($db) ? $db : []);
+    try {
+        $pdo = db_connect_and_initialize(is_array($db) ? $db : []);
+    } catch (Throwable $exception) {
+        if (function_exists('app_log_error')) {
+            app_log_error('DB接続に失敗しました。', $exception);
+        } else {
+            error_log('[db] connection failed: ' . $exception->getMessage());
+        }
+        throw $exception;
+    }
 
     return $pdo;
 }
