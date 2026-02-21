@@ -33,6 +33,8 @@ $prodHits = filter_var($_POST['prod_hits'] ?? null, FILTER_VALIDATE_INT, [
 ]);
 
 $oldInputPayload = [
+    'api_id' => $apiId,
+    'affiliate_id' => $affiliateId,
     'site' => $site,
     'service' => $service,
     'floor' => $floor,
@@ -105,6 +107,7 @@ try {
     setting_set('api.prod_hits', (string)$prodHits);
 } catch (Throwable $e) {
     error_log('save_settings failed: ' . $e->getMessage());
+    admin_flash_set('api_old', json_encode($oldInputPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     app_redirect(admin_url('settings.php?tab=api&error=write_failed'));
     exit;
 }
