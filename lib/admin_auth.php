@@ -1,331 +1,74 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/bootstrap.php';
-require_once __DIR__ . '/url.php';
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/admin_auth_v2.php';
 
-const ADMIN_DEFAULT_USERNAME = 'admin';
-const ADMIN_DEFAULT_PASSWORD = 'password';
+const ADMIN_DEFAULT_USERNAME = ADMIN_V2_DEFAULT_USERNAME;
+const ADMIN_DEFAULT_PASSWORD = ADMIN_V2_DEFAULT_PASSWORD;
 
 function admin_auth_log_error(string $message, ?Throwable $exception = null): void
 {
-    if ($exception !== null) {
-        error_log('[admin_auth] ' . $message . ': ' . $exception->getMessage());
-        return;
-    }
-
-    error_log('[admin_auth] ' . $message);
+    admin_v2_log($message, $exception);
 }
 
 function admin_session_cookie_secure(): bool
 {
-    $https = (string)($_SERVER['HTTPS'] ?? '');
-    if ($https === 'on' || $https === '1') {
-        return true;
-    }
-
-    $forwardedProto = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
-    return $forwardedProto === 'https';
+    return admin_v2_cookie_secure();
 }
 
 function admin_session_start(): void
 {
-    if (session_status() === PHP_SESSION_ACTIVE) {
-        return;
-    }
-
-    if (headers_sent($file, $line)) {
-        admin_auth_log_error('session_start skipped because headers already sent at ' . $file . ':' . (string)$line);
-        return;
-    }
-
-    $params = session_get_cookie_params();
-    session_set_cookie_params([
-        'lifetime' => 0,
-        'path' => $params['path'] ?? '/',
-        'domain' => $params['domain'] ?? '',
-        'secure' => admin_session_cookie_secure(),
-        'httponly' => true,
-        'samesite' => 'Lax',
-    ]);
-
-    session_start();
+    admin_v2_session_start();
 }
 
 function start_admin_session(): void
 {
-    admin_session_start();
+    admin_v2_session_start();
 }
 
 function admin_users_table_available(): bool
 {
-    try {
-        $stmt = db()->query("SHOW TABLES LIKE 'admin_users'");
-        return $stmt !== false && $stmt->fetchColumn() !== false;
-    } catch (Throwable $exception) {
-        admin_auth_log_error('admin_users_table_available failed', $exception);
-        return false;
-    }
+    return admin_v2_users_table_available();
 }
 
 function admin_ensure_default_user(): void
 {
-    if (!admin_users_table_available()) {
-        return;
-    }
-
-    try {
-        $exists = db()->prepare('SELECT id FROM admin_users WHERE username = ? LIMIT 1');
-        $exists->execute([ADMIN_DEFAULT_USERNAME]);
-        if ($exists->fetchColumn() !== false) {
-            return;
-        }
-
-        $hash = password_hash(ADMIN_DEFAULT_PASSWORD, PASSWORD_DEFAULT);
-        $insert = db()->prepare('INSERT INTO admin_users (username, password_hash, display_name, email, login_mode, role, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, NOW(), NOW())');
-        $insert->execute([ADMIN_DEFAULT_USERNAME, $hash, ADMIN_DEFAULT_USERNAME, '', 'username', 'admin']);
-    } catch (Throwable $exception) {
-        admin_auth_log_error('admin_ensure_default_user failed', $exception);
-    }
-}
-
-function admin_find_user_by_identifier(string $identifier): ?array
-{
-    if (!admin_users_table_available()) {
-        return null;
-    }
-
-    try {
-        $pdo = db();
-        $hasLegacyPassword = db_column_exists($pdo, 'admin_users', 'password');
-        $columns = ['id', 'username', 'email', 'password_hash', 'is_active'];
-        if ($hasLegacyPassword) {
-            $columns[] = 'password';
-        }
-
-        $sql = 'SELECT ' . implode(', ', $columns) . ' FROM admin_users WHERE (username = ? OR email = ?) LIMIT 1';
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$identifier, $identifier]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return is_array($row) ? $row : null;
-    } catch (Throwable $exception) {
-        admin_auth_log_error('admin_find_user_by_identifier failed', $exception);
-        return null;
-    }
-}
-
-function admin_config_authenticate(string $identifier, string $password): ?array
-{
-    $configUsername = (string)config_get('admin.username', ADMIN_DEFAULT_USERNAME);
-    if ($configUsername === '') {
-        $configUsername = ADMIN_DEFAULT_USERNAME;
-    }
-
-    if (!hash_equals($configUsername, $identifier)) {
-        return null;
-    }
-
-    $configHash = (string)config_get('admin.password_hash', '');
-    if ($configHash !== '' && password_verify($password, $configHash)) {
-        return ['id' => 1, 'username' => $configUsername, 'email' => ''];
-    }
-
-    $configPlain = (string)config_get('admin.password', ADMIN_DEFAULT_PASSWORD);
-    if ($configPlain === '') {
-        $configPlain = ADMIN_DEFAULT_PASSWORD;
-    }
-
-    if (hash_equals($configPlain, $password)) {
-        return ['id' => 1, 'username' => $configUsername, 'email' => ''];
-    }
-
-    return null;
-}
-
-function admin_verify_password(array $user, string $password): bool
-{
-    $hash = (string)($user['password_hash'] ?? '');
-    if ($hash !== '' && password_verify($password, $hash)) {
-        return true;
-    }
-
-    $legacy = (string)($user['password'] ?? '');
-    return $legacy !== '' && hash_equals($legacy, $password);
-}
-
-function admin_upgrade_password_hash_if_needed(array $user, string $plainPassword): void
-{
-    $legacy = (string)($user['password'] ?? '');
-    if ($legacy === '' || !hash_equals($legacy, $plainPassword)) {
-        return;
-    }
-
-    $id = (int)($user['id'] ?? 0);
-    if ($id <= 0) {
-        return;
-    }
-
-    try {
-        $newHash = password_hash($plainPassword, PASSWORD_DEFAULT);
-        $sql = 'UPDATE admin_users SET password_hash = ?, password = NULL, updated_at = NOW() WHERE id = ? LIMIT 1';
-        db()->prepare($sql)->execute([$newHash, $id]);
-    } catch (Throwable $exception) {
-        admin_auth_log_error('admin_upgrade_password_hash_if_needed failed', $exception);
-    }
-}
-
-function admin_login_store_session(array $user): void
-{
-    admin_session_start();
-
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        return;
-    }
-
-    session_regenerate_id(true);
-    $_SESSION['admin_user'] = [
-        'id' => (int)($user['id'] ?? 0),
-        'username' => (string)($user['username'] ?? ''),
-        'email' => (string)($user['email'] ?? ''),
-    ];
+    admin_v2_ensure_default_admin();
 }
 
 function admin_login(string $identifier, string $password): bool
 {
-    admin_session_start();
-
-    $identifier = trim($identifier);
-    if ($identifier === '' || $password === '') {
-        return false;
-    }
-
-    admin_ensure_default_user();
-
-    $user = admin_find_user_by_identifier($identifier);
-    if (is_array($user)) {
-        if ((int)($user['is_active'] ?? 0) !== 1) {
-            return false;
-        }
-
-        if (!admin_verify_password($user, $password)) {
-            return false;
-        }
-
-        admin_upgrade_password_hash_if_needed($user, $password);
-        admin_login_store_session($user);
-        return true;
-    }
-
-    $configUser = admin_config_authenticate($identifier, $password);
-    if (!is_array($configUser)) {
-        return false;
-    }
-
-    admin_login_store_session($configUser);
-    return true;
-}
-
-function admin_find_user_by_id(int $id): ?array
-{
-    if ($id <= 0 || !admin_users_table_available()) {
-        return null;
-    }
-
-    try {
-        $stmt = db()->prepare('SELECT id, username, email, password_hash, is_active FROM admin_users WHERE id = ? LIMIT 1');
-        $stmt->execute([$id]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return is_array($row) ? $row : null;
-    } catch (Throwable $exception) {
-        admin_auth_log_error('admin_find_user_by_id failed', $exception);
-        return null;
-    }
+    return admin_v2_login($identifier, $password);
 }
 
 function admin_current_user(): ?array
 {
-    admin_session_start();
-
-    $sessionUser = $_SESSION['admin_user'] ?? null;
-    if (!is_array($sessionUser)) {
-        return null;
-    }
-
-    $id = (int)($sessionUser['id'] ?? 0);
-    if ($id <= 0) {
-        return null;
-    }
-
-    $dbUser = admin_find_user_by_id($id);
-    if (is_array($dbUser)) {
-        if ((int)($dbUser['is_active'] ?? 0) !== 1) {
-            return null;
-        }
-
-        return [
-            'id' => (int)$dbUser['id'],
-            'username' => (string)($dbUser['username'] ?? ''),
-            'email' => (string)($dbUser['email'] ?? ''),
-            'password_hash' => (string)($dbUser['password_hash'] ?? ''),
-        ];
-    }
-
-    return [
-        'id' => $id,
-        'username' => (string)($sessionUser['username'] ?? ''),
-        'email' => (string)($sessionUser['email'] ?? ''),
-    ];
+    return admin_v2_current_user();
 }
 
 function admin_is_logged_in(): bool
 {
-    return admin_current_user() !== null;
+    return admin_v2_is_logged_in();
 }
 
 function admin_logout(): void
 {
-    admin_session_start();
-
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        return;
-    }
-
-    $_SESSION = [];
-
-    if (ini_get('session.use_cookies')) {
-        $params = session_get_cookie_params();
-        setcookie(session_name(), '', [
-            'expires' => time() - 42000,
-            'path' => $params['path'] ?? '/',
-            'domain' => $params['domain'] ?? '',
-            'secure' => (bool)($params['secure'] ?? false),
-            'httponly' => (bool)($params['httponly'] ?? true),
-            'samesite' => (string)($params['samesite'] ?? 'Lax'),
-        ]);
-    }
-
-    session_destroy();
+    admin_v2_logout();
 }
 
 function require_admin_login(): void
 {
-    if (admin_is_logged_in()) {
-        return;
-    }
-
-    app_redirect(login_path());
+    admin_v2_require_login();
 }
 
 function require_admin_auth(): void
 {
-    require_admin_login();
+    admin_v2_require_login();
 }
 
 function admin_require_login(): void
 {
-    require_admin_login();
+    admin_v2_require_login();
 }
 
 function admin_is_default_password(array $admin): bool

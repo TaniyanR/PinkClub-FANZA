@@ -76,7 +76,7 @@ function admin_path(string $path = ''): string
 
 function login_path(): string
 {
-    return admin_path('login.php');
+    return base_path() . '/login0718.php';
 }
 
 function admin_url(string $path = ''): string
@@ -86,5 +86,5 @@ function admin_url(string $path = ''): string
 
 function login_url(): string
 {
-    return admin_url('login.php');
+    return base_url() . '/login0718.php';
 }

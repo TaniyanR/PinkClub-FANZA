@@ -3,48 +3,37 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
-require_once __DIR__ . '/../../lib/admin_auth.php';
+require_once __DIR__ . '/../../lib/admin_auth_v2.php';
 require_once __DIR__ . '/../../lib/db.php';
-require_once __DIR__ . '/../../lib/csrf.php';
+
+admin_v2_require_login();
+admin_require_password_change_if_needed();
 
 function admin_dev_auth_bypass_enabled(): bool
 {
     return false;
 }
 
-function admin_apply_dev_auth_bypass(): void
-{
-    // Security policy: development auth bypass is intentionally disabled.
-}
-
 function admin_dev_auth_bypass_active(): bool
 {
-    return admin_dev_auth_bypass_enabled()
-        && !empty($_SESSION['admin_dev_auth_bypass_active'])
-        && isset($_SESSION['admin_user'])
-        && is_array($_SESSION['admin_user']);
+    return false;
 }
-
-admin_apply_dev_auth_bypass();
-
-require_admin_login();
-admin_require_password_change_if_needed();
 
 function admin_post_csrf_valid(): bool
 {
     $token = $_POST['_token'] ?? null;
-    return csrf_verify(is_string($token) ? $token : null);
+    return admin_v2_csrf_verify(is_string($token) ? $token : null);
 }
 
 function admin_flash_set(string $key, string $message): void
 {
-    admin_session_start();
+    admin_v2_session_start();
     $_SESSION['admin_flash'][$key] = $message;
 }
 
 function admin_flash_get(string $key): string
 {
-    admin_session_start();
+    admin_v2_session_start();
     $msg = $_SESSION['admin_flash'][$key] ?? '';
     unset($_SESSION['admin_flash'][$key]);
     return is_string($msg) ? $msg : '';
