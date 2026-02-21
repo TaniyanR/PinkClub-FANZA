@@ -98,18 +98,21 @@ function app_redirect(string $path): never
         $target = '/';
     }
 
-    if (!preg_match('#^https?://#i', $target)) {
+    if (function_exists('url')) {
+        $target = url($target);
+    } elseif (!preg_match('#^https?://#i', $target)) {
         if ($target[0] !== '/') {
             $target = '/' . ltrim($target, '/');
         }
         if (function_exists('base_url')) {
-            $target = base_url() . $target;
+            $target = rtrim(base_url(), '/') . $target;
         }
     }
 
     header('Location: ' . $target);
     exit;
 }
+
 
 function app_register_error_handlers(callable $renderFatal, string $context = 'app'): void
 {
