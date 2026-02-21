@@ -347,9 +347,9 @@ function admin_login_store_session(array $adminUser): void
     start_admin_session();
     session_regenerate_id(true);
     $_SESSION['admin_user'] = [
-        'id' => (int)($adminUser['id'] ?? 0),
-        'username' => (string)($adminUser['username'] ?? ''),
-        'email' => isset($adminUser['email']) && is_string($adminUser['email']) ? $adminUser['email'] : null,
+        'id' => (int)$adminUser['id'],
+        'username' => (string)$adminUser['username'],
+        'email' => (string)($adminUser['email'] ?? ''),
     ];
 }
 
