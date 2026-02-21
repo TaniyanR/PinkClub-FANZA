@@ -179,12 +179,13 @@ function admin_find_user_by_identifier(string $identifier): ?array
 
     $sql = 'SELECT ' . implode(', ', $selectColumns) . '
             FROM admin_users
-            WHERE (username = :identifier OR email = :identifier)
+            WHERE (username = :identifier_username OR email = :identifier_email)
             LIMIT 1';
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
-        ':identifier' => $identifier,
+        ':identifier_username' => $identifier,
+        ':identifier_email' => $identifier,
     ]);
 
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
