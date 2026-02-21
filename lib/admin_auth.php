@@ -155,35 +155,21 @@ function admin_is_logged_in(): bool
     return is_array($current) && (int)($current['id'] ?? 0) > 0;
 }
 
-function admin_find_user_by_identifier(string $usernameOrEmail): ?array
+function admin_find_user_by_identifier(string $identifier): ?array
 {
-    $hasLegacyPasswordColumn = false;
-    try {
-        $columnsStmt = db()->query('SHOW COLUMNS FROM admin_users');
-        $columns = $columnsStmt ? $columnsStmt->fetchAll(PDO::FETCH_COLUMN) : [];
-        $hasLegacyPasswordColumn = is_array($columns) && in_array('password', $columns, true);
-    } catch (Throwable $exception) {
-        error_log('[admin_auth] failed to inspect admin_users columns: ' . $exception->getMessage());
-    }
+    $pdo = db();
 
-    $selectLegacyPassword = $hasLegacyPasswordColumn ? ', password' : '';
-    $sql = <<<'SQL'
-SELECT id, username, email, login_mode, password_hash%s
-FROM admin_users
-WHERE is_active = 1
-  AND (
-    username = :identifier
-    OR (email IS NOT NULL AND email = :identifier)
-  )
-LIMIT 1
-SQL;
+    $sql = 'SELECT id, username, email, password_hash, password, is_active
+            FROM admin_users
+            WHERE (username = :identifier OR email = :identifier)
+            LIMIT 1';
 
-    $sql = sprintf($sql, $selectLegacyPassword);
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        ':identifier' => $identifier,
+    ]);
 
-    $stmt = db()->prepare($sql);
-    $stmt->execute([':identifier' => $usernameOrEmail]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
     return is_array($row) ? $row : null;
 }
 
