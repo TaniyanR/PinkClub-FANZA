@@ -36,6 +36,11 @@ admin_render('相互リンク管理', static function (): void {
     $ok = (string)($_GET['ok'] ?? '');
     $isDebug = (string)($_GET['debug'] ?? '') === '1';
     $debugInfo = ['db_name' => '', 'approved_enabled_count' => '0', 'error' => ''];
+    $formInput = [
+        'site_name' => '',
+        'site_url' => '',
+        'link_url' => '',
+    ];
 
     $hasTable = admin_table_exists('mutual_links');
     $hasStatus = $hasTable && links_column_exists('mutual_links', 'status');
@@ -65,7 +70,13 @@ admin_render('相互リンク管理', static function (): void {
             $error = 'mutual_links テーブルが見つからないため保存できません。';
         } else {
             $action = (string)($_POST['action'] ?? '');
+            $formInput = [
+                'site_name' => trim((string)($_POST['site_name'] ?? '')),
+                'site_url' => trim((string)($_POST['site_url'] ?? '')),
+                'link_url' => trim((string)($_POST['link_url'] ?? '')),
+            ];
 
+            try {
             if ($action === 'create') {
                 $siteName = trim((string)($_POST['site_name'] ?? ''));
                 $siteUrl = trim((string)($_POST['site_url'] ?? ''));
@@ -188,6 +199,13 @@ admin_render('相互リンク管理', static function (): void {
                     links_safe_redirect('ok=order');
                 }
             }
+            } catch (Throwable $e) {
+                error_log('links.php action failed: ' . $e->getMessage());
+                $error = '保存処理に失敗しました。時間をおいて再度お試しください。';
+                if ($isDebug) {
+                    $error .= ' 詳細: ' . $e->getMessage();
+                }
+            }
         }
     }
 
@@ -243,13 +261,13 @@ admin_render('相互リンク管理', static function (): void {
             <input type="hidden" name="action" value="create">
 
             <label style="display:block;margin:0 0 8px;font-weight:bold;">サイト名 *</label>
-            <input type="text" name="site_name" required style="width:100%;max-width:500px;padding:6px;border:1px solid #ddd;border-radius:4px;margin-bottom:12px;">
+            <input type="text" name="site_name" required value="<?php echo e($formInput['site_name']); ?>" style="width:100%;max-width:500px;padding:6px;border:1px solid #ddd;border-radius:4px;margin-bottom:12px;">
 
             <label style="display:block;margin:0 0 8px;font-weight:bold;">サイトURL *</label>
-            <input type="url" name="site_url" required placeholder="https://example.com" style="width:100%;max-width:500px;padding:6px;border:1px solid #ddd;border-radius:4px;margin-bottom:12px;">
+            <input type="url" name="site_url" required value="<?php echo e($formInput['site_url']); ?>" placeholder="https://example.com" style="width:100%;max-width:500px;padding:6px;border:1px solid #ddd;border-radius:4px;margin-bottom:12px;">
 
             <label style="display:block;margin:0 0 8px;font-weight:bold;">リンクURL *</label>
-            <input type="url" name="link_url" required placeholder="https://example.com" style="width:100%;max-width:500px;padding:6px;border:1px solid #ddd;border-radius:4px;margin-bottom:16px;">
+            <input type="url" name="link_url" required value="<?php echo e($formInput['link_url']); ?>" placeholder="https://example.com" style="width:100%;max-width:500px;padding:6px;border:1px solid #ddd;border-radius:4px;margin-bottom:16px;">
 
             <button type="submit" style="padding:8px 16px;background:#2271b1;color:#fff;border:none;border-radius:4px;cursor:pointer;">追加</button>
         </form>

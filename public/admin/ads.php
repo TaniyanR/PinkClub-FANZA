@@ -15,11 +15,20 @@ $slotLabels = [
 ];
 $pageTypes = ['home' => 'トップ', 'list' => '一覧', 'item' => '詳細', 'page' => '固定ページ'];
 $error = '';
+$formValues = [];
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!admin_post_csrf_valid()) {
         $error = 'CSRFトークンが無効です。';
     } else {
+        foreach (array_keys($slotLabels) as $slot) {
+            $formValues[$slot] = [
+                'snippet_html' => (string)($_POST['slot_' . $slot] ?? ''),
+                'is_enabled' => isset($_POST['enabled_' . $slot]) ? 1 : 0,
+            ];
+        }
+
+        try {
         $pdo = db();
         foreach (array_keys($slotLabels) as $slot) {
             $code = (string)($_POST['slot_' . $slot] ?? '');
@@ -44,6 +53,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         admin_flash_set('ok', '広告コードと表示設定を保存しました。');
         header('Location: ' . admin_url('ads.php'));
         exit;
+        } catch (Throwable $e) {
+            error_log('ads.php save failed: ' . $e->getMessage());
+            $error = '保存に失敗しました。時間をおいて再度お試しください。';
+        }
     }
 }
 
@@ -69,7 +82,7 @@ ob_start();
 
         <h2>1) コード入力（PC4 + SP2）</h2>
         <?php foreach ($slotLabels as $slot => $label) : ?>
-            <?php $current = $rows[$slot] ?? ['snippet_html' => '', 'is_enabled' => 1]; ?>
+            <?php $current = $formValues[$slot] ?? ($rows[$slot] ?? ['snippet_html' => '', 'is_enabled' => 1]); ?>
             <label><?php echo e($label); ?> (<?php echo e($slot); ?>)</label>
             <p style="margin:4px 0;">状態: <?php echo trim((string)$current['snippet_html']) === '' ? '未設定' : '設定済み'; ?></p>
             <label><input type="checkbox" name="enabled_<?php echo e($slot); ?>" value="1" <?php echo ((int)($current['is_enabled'] ?? 1) === 1) ? 'checked' : ''; ?>> 有効化</label>
