@@ -5,10 +5,6 @@ require_once __DIR__ . '/_common.php';
 require_once __DIR__ . '/../../lib/site_settings.php';
 require_once __DIR__ . '/../../lib/db.php';
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
-}
-
 $tab = (string)($_GET['tab'] ?? 'api');
 if (!in_array($tab, ['site', 'api'], true)) {
     $tab = 'api';

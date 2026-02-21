@@ -22,7 +22,13 @@ function admin_dev_auth_bypass_active(): bool
 function admin_post_csrf_valid(): bool
 {
     $token = $_POST['_token'] ?? null;
-    return admin_v2_csrf_verify(is_string($token) ? $token : null);
+    $value = is_string($token) ? $token : null;
+
+    if (function_exists('csrf_verify')) {
+        return csrf_verify($value);
+    }
+
+    return admin_v2_csrf_verify($value);
 }
 
 function admin_flash_set(string $key, string $message): void

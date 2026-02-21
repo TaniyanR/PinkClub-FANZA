@@ -81,10 +81,33 @@ function login_path(): string
 
 function admin_url(string $path = ''): string
 {
-    return base_url() . '/admin/' . ltrim($path, '/');
+    return url('/admin/' . ltrim($path, '/'));
 }
 
 function login_url(): string
 {
-    return base_url() . '/login0718.php';
+    return url('/login0718.php');
+}
+
+function url(string $path = ''): string
+{
+    $target = trim(str_replace(["\r", "\n"], '', $path));
+    if ($target === '') {
+        return base_url() . '/';
+    }
+
+    if (preg_match('#^https?://#i', $target) === 1) {
+        return $target;
+    }
+
+    $normalizedPath = '/' . ltrim($target, '/');
+    $basePath = rtrim(base_path(), '/');
+    if ($basePath !== '' && str_starts_with($normalizedPath, $basePath . '/')) {
+        $normalizedPath = substr($normalizedPath, strlen($basePath));
+        if ($normalizedPath === false || $normalizedPath === '') {
+            $normalizedPath = '/';
+        }
+    }
+
+    return rtrim(base_url(), '/') . $normalizedPath;
 }

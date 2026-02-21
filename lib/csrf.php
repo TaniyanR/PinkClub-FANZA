@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 function csrf_token(): string
 {
-    if (session_status() !== PHP_SESSION_ACTIVE) {
+    if (function_exists('admin_v2_session_start')) {
+        admin_v2_session_start();
+    } elseif (session_status() !== PHP_SESSION_ACTIVE) {
         session_start();
     }
 
@@ -16,7 +18,9 @@ function csrf_token(): string
 
 function csrf_verify(?string $sent): bool
 {
-    if (session_status() !== PHP_SESSION_ACTIVE) {
+    if (function_exists('admin_v2_session_start')) {
+        admin_v2_session_start();
+    } elseif (session_status() !== PHP_SESSION_ACTIVE) {
         session_start();
     }
 
