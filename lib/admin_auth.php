@@ -127,6 +127,18 @@ function admin_current_user(): ?array
     start_admin_session();
 
     $current = $_SESSION['admin_user'] ?? null;
+    if (!is_array($current) && (($_SESSION['admin_logged_in'] ?? false) === true)) {
+        $legacyUsername = (string)($_SESSION['admin_username'] ?? ADMIN_DEFAULT_USERNAME);
+        $current = [
+            'id' => 0,
+            'username' => $legacyUsername !== '' ? $legacyUsername : ADMIN_DEFAULT_USERNAME,
+            'email' => null,
+            'login_mode' => 'legacy',
+            'password_hash' => '',
+        ];
+        $_SESSION['admin_user'] = $current;
+    }
+
     if (!is_array($current)) {
         return null;
     }
