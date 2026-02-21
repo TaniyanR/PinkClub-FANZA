@@ -29,11 +29,28 @@ function links_safe_redirect(string $query = ''): void
     exit;
 }
 
+function links_store_create_old_input(array $input): void
+{
+    admin_flash_set('links_create_old', json_encode($input, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}
+
+function links_redirect_with_error(string $message, array $input = []): void
+{
+    if ($input !== []) {
+        links_store_create_old_input($input);
+    }
+    admin_flash_set('links_error', $message);
+    links_safe_redirect();
+}
+
 admin_render('相互リンク管理', static function (): void {
     admin_trace_push('page:start:links.php');
 
-    $error = '';
-    $ok = (string)($_GET['ok'] ?? '');
+    $error = admin_flash_get('links_error');
+    $ok = admin_flash_get('links_ok');
+    if ($ok === '') {
+        $ok = (string)($_GET['ok'] ?? '');
+    }
     $isDebug = (string)($_GET['debug'] ?? '') === '1';
     $debugInfo = ['db_name' => '', 'approved_enabled_count' => '0', 'error' => ''];
     $formInput = [
@@ -41,6 +58,17 @@ admin_render('相互リンク管理', static function (): void {
         'site_url' => '',
         'link_url' => '',
     ];
+    $oldJson = admin_flash_get('links_create_old');
+    if ($oldJson !== '') {
+        $decoded = json_decode($oldJson, true);
+        if (is_array($decoded)) {
+            $formInput = array_merge($formInput, [
+                'site_name' => trim((string)($decoded['site_name'] ?? '')),
+                'site_url' => trim((string)($decoded['site_url'] ?? '')),
+                'link_url' => trim((string)($decoded['link_url'] ?? '')),
+            ]);
+        }
+    }
 
     $hasTable = admin_table_exists('mutual_links');
     $hasStatus = $hasTable && links_column_exists('mutual_links', 'status');
@@ -65,9 +93,9 @@ admin_render('相互リンク管理', static function (): void {
 
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if (!admin_post_csrf_valid()) {
-            $error = 'CSRFトークンが無効です。';
+            links_redirect_with_error('CSRFトークンが無効です。', $formInput);
         } elseif (!$hasTable) {
-            $error = 'mutual_links テーブルが見つからないため保存できません。';
+            links_redirect_with_error('mutual_links テーブルが見つからないため保存できません。', $formInput);
         } else {
             $action = (string)($_POST['action'] ?? '');
             $formInput = [
@@ -83,11 +111,11 @@ admin_render('相互リンク管理', static function (): void {
                 $linkUrl = trim((string)($_POST['link_url'] ?? ''));
 
                 if ($siteName === '') {
-                    $error = 'サイト名は必須です。';
+                    links_redirect_with_error('サイト名は必須です。', $formInput);
                 } elseif (!links_validate_http_url($siteUrl)) {
-                    $error = 'サイトURLは http(s):// 形式で入力してください。';
+                    links_redirect_with_error('サイトURLは http(s):// 形式で入力してください。', $formInput);
                 } elseif (!links_validate_http_url($linkUrl)) {
-                    $error = 'リンクURLは http(s):// 形式で入力してください。';
+                    links_redirect_with_error('リンクURLは http(s):// 形式で入力してください。', $formInput);
                 } else {
                     $columns = ['site_name', 'site_url', 'link_url'];
                     $values = [':site_name', ':site_url', ':link_url'];
@@ -124,7 +152,8 @@ admin_render('相互リンク管理', static function (): void {
                         implode(', ', $values)
                     );
                     db()->prepare($sql)->execute($params);
-                    links_safe_redirect('ok=created');
+                    admin_flash_set('links_ok', 'created');
+                    links_safe_redirect();
                 }
             }
 
@@ -201,10 +230,7 @@ admin_render('相互リンク管理', static function (): void {
             }
             } catch (Throwable $e) {
                 error_log('links.php action failed: ' . $e->getMessage());
-                $error = '保存処理に失敗しました。時間をおいて再度お試しください。';
-                if ($isDebug) {
-                    $error .= ' 詳細: ' . $e->getMessage();
-                }
+                links_redirect_with_error('保存処理に失敗しました。時間をおいて再度お試しください。', $formInput);
             }
         }
     }

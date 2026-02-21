@@ -103,6 +103,8 @@ $currentApiId = (string)(is_array($apiConfig) ? ($apiConfig['api_id'] ?? '') : '
 $currentAffiliateId = (string)(is_array($apiConfig) ? ($apiConfig['affiliate_id'] ?? '') : '');
 $hasApiId = trim($currentApiId) !== '';
 $hasAffiliateId = trim($currentAffiliateId) !== '';
+$apiIdInput = '';
+$affiliateIdInput = '';
 
 // 選択肢（UI用）
 $siteOptions = ['FANZA', 'DMM'];
@@ -222,6 +224,9 @@ if ($apiOldRaw !== '') {
         if ($oldProdHits !== false) {
             $prodHits = $oldProdHits;
         }
+
+        $apiIdInput = trim((string)($decodedOld['api_id'] ?? ''));
+        $affiliateIdInput = trim((string)($decodedOld['affiliate_id'] ?? ''));
     }
 }
 
@@ -369,7 +374,7 @@ ob_start();
         <input
             type="password"
             name="api_id"
-            value=""
+            value="<?php echo e($apiIdInput); ?>"
             placeholder="<?php echo $hasApiId ? '設定済み（変更時のみ入力）' : 'API IDを入力'; ?>"
             autocomplete="new-password"
         >
@@ -378,7 +383,7 @@ ob_start();
         <input
             type="password"
             name="affiliate_id"
-            value=""
+            value="<?php echo e($affiliateIdInput); ?>"
             placeholder="<?php echo $hasAffiliateId ? '設定済み（変更時のみ入力）' : 'アフィリエイトIDを入力'; ?>"
             autocomplete="new-password"
         >
