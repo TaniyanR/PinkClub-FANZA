@@ -177,15 +177,15 @@ function admin_find_user_by_identifier(string $identifier): ?array
         $selectColumns[] = 'password';
     }
 
+    // プレースホルダは1個に統一（HY093防止）
     $sql = 'SELECT ' . implode(', ', $selectColumns) . '
             FROM admin_users
-            WHERE (username = :identifier_username OR email = :identifier_email)
+            WHERE (username = :identifier OR email = :identifier)
             LIMIT 1';
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
-        ':identifier_username' => $identifier,
-        ':identifier_email' => $identifier,
+        ':identifier' => $identifier,
     ]);
 
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
