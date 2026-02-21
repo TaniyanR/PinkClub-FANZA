@@ -35,6 +35,7 @@ function admin_menu_groups(): array
             'items' => [
                 ['file' => 'settings.php?tab=api', 'label' => 'API設定'],
                 ['file' => 'ads.php', 'label' => '広告コード'],
+                ['file' => 'api_log.php', 'label' => 'APIログ'],
             ],
         ],
         [

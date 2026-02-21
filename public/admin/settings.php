@@ -167,6 +167,13 @@ if (is_array($apiConfig)) {
 
 $localPath = __DIR__ . '/../../config.local.php';
 
+$prodHits = filter_var(setting_get('api.prod_hits', '20'), FILTER_VALIDATE_INT, [
+    'options' => ['min_range' => 1, 'max_range' => 100],
+]);
+if ($prodHits === false) {
+    $prodHits = 20;
+}
+
 $errorMessages = [
     'missing_required'  => 'API ID / アフィリエイトIDが未入力です。対象ファイル: ' . $localPath,
     'csrf_failed'       => '不正なリクエストです。対象ファイル: ' . $localPath,
@@ -289,6 +296,20 @@ ob_start();
         </div>
     <?php endif; ?>
 
+    <?php if (($_GET['tested'] ?? '') === '1' && isset($_SESSION['api_test_result']) && is_array($_SESSION['api_test_result'])) : ?>
+        <?php $apiTest = $_SESSION['api_test_result']; unset($_SESSION['api_test_result']); ?>
+        <div class="admin-card">
+            <h2>接続テスト結果（10件）</h2>
+            <p>HTTPステータス: <?php echo e((string)($apiTest['http_code'] ?? 0)); ?> / 結果: <?php echo !empty($apiTest['ok']) ? 'OK' : 'NG'; ?></p>
+            <?php if (!empty($apiTest['error'])) : ?><p>原因: <?php echo e((string)$apiTest['error']); ?></p><?php endif; ?>
+            <?php if (isset($apiTest['titles']) && is_array($apiTest['titles']) && $apiTest['titles'] !== []) : ?>
+                <ol><?php foreach ($apiTest['titles'] as $title) : ?><li><?php echo e((string)$title); ?></li><?php endforeach; ?></ol>
+            <?php else : ?>
+                <p>取得結果がありません。</p>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+
     <?php if (($_GET['error'] ?? '') !== '') : ?>
         <div class="admin-card">
             <?php
@@ -355,9 +376,14 @@ ob_start();
         <input type="number" name="timeout" min="5" max="60" step="1" value="<?php echo e((string)$timeout); ?>">
         <p class="admin-form-note">接続後、レスポンス完了までの最大秒数</p>
 
-        <p class="admin-form-note">接続テストは APIログ から確認できます。</p>
+        <label>本番取得件数（api.prod_hits）</label>
+        <input type="number" name="prod_hits" min="1" max="100" step="1" value="<?php echo e((string)$prodHits); ?>">
+        <p class="admin-form-note">仕様: トップの新着/ピックアップ表示件数として利用します。</p>
+
+        <p class="admin-form-note">接続テストは10件取得し、結果はこの画面と APIログ に表示されます。</p>
 
         <button type="submit">保存</button>
+        <button type="submit" name="connection_test" value="1">接続テスト（10件取得）</button>
     </form>
 <?php endif; ?>
 

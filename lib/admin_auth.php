@@ -136,12 +136,12 @@ function admin_current_user(): ?array
     $id = $current['id'] ?? null;
     $username = $current['username'] ?? null;
 
-    if (!is_int($id) || !is_string($username) || $username === '') {
+    if ((!is_int($id) && !ctype_digit((string)$id)) || !is_string($username) || $username === '') {
         return null;
     }
 
     return [
-        'id' => $id,
+        'id' => (int)$id,
         'username' => $username,
         'email' => is_string($current['email'] ?? null) ? (string)$current['email'] : null,
         'login_mode' => is_string($current['login_mode'] ?? null) ? (string)$current['login_mode'] : null,
@@ -151,7 +151,8 @@ function admin_current_user(): ?array
 
 function admin_is_logged_in(): bool
 {
-    return admin_current_user() !== null;
+    $current = admin_current_user();
+    return is_array($current) && (int)($current['id'] ?? 0) > 0;
 }
 
 function admin_find_user_by_identifier(string $usernameOrEmail): ?array
@@ -230,7 +231,7 @@ function admin_config_authenticate(string $identifier, string $password): ?array
     }
 
     return [
-        'id' => 0,
+        'id' => 1,
         'username' => $configUsername,
         'email' => null,
         'login_mode' => 'config',
@@ -308,7 +309,7 @@ function admin_attempt_login(string $username_or_email, string $password): array
     }
 
     admin_login_store_session([
-        'id' => 0,
+        'id' => 1,
         'username' => (string)$admin['username'],
         'email' => null,
         'login_mode' => 'config',
@@ -344,8 +345,6 @@ function admin_login_store_session(array $adminUser): void
         'id' => (int)($adminUser['id'] ?? 0),
         'username' => (string)($adminUser['username'] ?? ''),
         'email' => isset($adminUser['email']) && is_string($adminUser['email']) ? $adminUser['email'] : null,
-        'login_mode' => isset($adminUser['login_mode']) && is_string($adminUser['login_mode']) ? $adminUser['login_mode'] : null,
-        'password_hash' => (string)($adminUser['password_hash'] ?? ''),
     ];
 }
 

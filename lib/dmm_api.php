@@ -94,7 +94,9 @@ function dmm_api_request(string $endpoint, array $params): array
     foreach ($requiredKeys as $key) {
         $value = trim((string)($params[$key] ?? ''));
         if ($value === '') {
-            return dmm_api_empty_response('missing_required');
+            $response = dmm_api_empty_response('missing_required');
+            dmm_api_write_log($endpoint, 0, 'missing_required');
+            return $response;
         }
     }
 
@@ -171,11 +173,14 @@ function dmm_api_request(string $endpoint, array $params): array
 
                 if ($httpCode === 200) {
                     dmm_api_cache_write($cachePath, $lastResponse);
+                    dmm_api_write_log($endpoint, $httpCode, 'ok');
                     return $lastResponse;
                 }
+                dmm_api_write_log($endpoint, $httpCode, 'http_error');
             } else {
                 $lastResponse = dmm_api_empty_response('invalid_json');
                 $lastResponse['http_code'] = $httpCode;
+                dmm_api_write_log($endpoint, $httpCode, 'invalid_json');
             }
         }
 
@@ -190,5 +195,28 @@ function dmm_api_request(string $endpoint, array $params): array
         return $cached;
     }
 
+    dmm_api_write_log($endpoint, (int)($lastResponse['http_code'] ?? 0), (string)($lastResponse['error'] ?? 'request_failed'));
     return $lastResponse;
+}
+
+function dmm_api_log_path(): string
+{
+    return __DIR__ . '/../storage/logs/api.log';
+}
+
+function dmm_api_write_log(string $endpoint, int $statusCode, string $summary): void
+{
+    $dir = dirname(dmm_api_log_path());
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+
+    $line = sprintf(
+        "[%s] endpoint=%s status=%d summary=%s\n",
+        date('Y-m-d H:i:s'),
+        preg_replace('/[^A-Za-z0-9_\/-]/', '_', $endpoint) ?? 'unknown',
+        $statusCode,
+        preg_replace('/[^A-Za-z0-9_.:\- ]/', '_', $summary) ?? 'unknown'
+    );
+    @file_put_contents(dmm_api_log_path(), $line, FILE_APPEND);
 }

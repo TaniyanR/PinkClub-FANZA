@@ -56,8 +56,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                             $error = '現在のパスワードが正しくありません。';
                         } else {
                             $newHash = password_hash($password, PASSWORD_DEFAULT);
-                            $updated = db()->prepare('UPDATE admin_users SET password_hash=:p, updated_at=NOW() WHERE id=:id LIMIT 1')
-                                ->execute([':p' => $newHash, ':id' => (int)$row['id']]);
+                            $sql = 'UPDATE admin_users SET password_hash=:p, updated_at=NOW() WHERE id=:id LIMIT 1';
+                            if (array_key_exists('password', $row)) {
+                                $sql = 'UPDATE admin_users SET password_hash=:p, password=NULL, updated_at=NOW() WHERE id=:id LIMIT 1';
+                            }
+                            $updated = db()->prepare($sql)->execute([':p' => $newHash, ':id' => (int)$row['id']]);
                             if ($updated !== true) {
                                 $error = 'DB更新に失敗しました。';
                             }

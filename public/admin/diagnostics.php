@@ -45,6 +45,7 @@ try {
 
 $requiredTables = [
     'admin_users',
+    'settings',
     'site_settings',
     'items',
     'api_logs',
@@ -85,7 +86,7 @@ $apiChecks = [
     'timeout' => (string)($apiConfig['timeout'] ?? ''),
 ];
 
-$uploadDir = dirname(__DIR__) . '/uploads/design';
+$uploadDir = dirname(__DIR__) . '/uploads/site_assets';
 $uploadChecks = [
     'dir_exists' => is_dir($uploadDir),
     'dir_writable' => is_dir($uploadDir) ? is_writable($uploadDir) : false,
@@ -93,7 +94,10 @@ $uploadChecks = [
     'ogp_exists' => is_file($uploadDir . '/ogp.jpg') || is_file($uploadDir . '/ogp.png') || is_file($uploadDir . '/ogp.gif') || is_file($uploadDir . '/ogp.webp'),
 ];
 
+$apiLogPath = dirname(__DIR__, 2) . '/storage/logs/api.log';
 $logPath = dirname(__DIR__, 2) . '/storage/logs/php-error.log';
+$lastApiLog = 'なし';
+if (is_file($apiLogPath)) { $mtime = filemtime($apiLogPath); if ($mtime !== false) { $lastApiLog = date('Y-m-d H:i:s', $mtime);} }
 if (is_file($logPath)) {
     $mtime = filemtime($logPath);
     if ($mtime !== false) {
@@ -168,8 +172,8 @@ ob_start();
 <div class="admin-card">
     <h2>ログ</h2>
     <ul>
-        <li>エラーログ: <?php echo e($logPath); ?></li>
-        <li>最終更新時刻: <?php echo e($lastErrorLog); ?></li>
+        <li>APIログ: <?php echo e($apiLogPath); ?> / 最終更新: <?php echo e($lastApiLog); ?></li>
+        <li>PHPエラーログ: <?php echo e($logPath); ?> / 最終更新: <?php echo e($lastErrorLog); ?></li>
         <li>設定保存先: サイト設定/デザイン設定はDB(site_settings)、API設定はconfig.local.php</li>
     </ul>
 </div>

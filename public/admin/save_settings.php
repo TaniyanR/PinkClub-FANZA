@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_common.php';
 require_once __DIR__ . '/../../lib/local_config_writer.php';
+require_once __DIR__ . '/../../lib/dmm_api.php';
+require_once __DIR__ . '/../../lib/site_settings.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     app_redirect(admin_url('settings.php?tab=api'));
@@ -23,6 +25,9 @@ $connectTimeout = filter_var($_POST['connect_timeout'] ?? null, FILTER_VALIDATE_
 ]);
 $timeout = filter_var($_POST['timeout'] ?? null, FILTER_VALIDATE_INT, [
     'options' => ['min_range' => 5, 'max_range' => 60],
+]);
+$prodHits = filter_var($_POST['prod_hits'] ?? null, FILTER_VALIDATE_INT, [
+    'options' => ['min_range' => 1, 'max_range' => 100],
 ]);
 
 $local = local_config_load();
@@ -61,6 +66,9 @@ if ($connectTimeout === false) {
 if ($timeout === false) {
     $timeout = 20;
 }
+if ($prodHits === false) {
+    $prodHits = 20;
+}
 
 $local['dmm_api'] = [
     'api_id' => $apiId,
@@ -74,9 +82,44 @@ $local['dmm_api'] = [
 
 try {
     local_config_write($local);
+    setting_set('api.prod_hits', (string)$prodHits);
 } catch (Throwable $e) {
     error_log('save_settings failed: ' . $e->getMessage());
     app_redirect(admin_url('settings.php?tab=api&error=write_failed'));
+}
+
+if ((string)($_POST['connection_test'] ?? '') === '1') {
+    $response = dmm_api_request('ItemList', [
+        'api_id' => $apiId,
+        'affiliate_id' => $affiliateId,
+        'site' => $site,
+        'service' => $service,
+        'floor' => $floor,
+        'hits' => 10,
+        'sort' => 'date',
+        'output' => 'json',
+    ]);
+
+    $items = $response['data']['result']['items'] ?? [];
+    $titles = [];
+    if (is_array($items)) {
+        foreach (array_slice($items, 0, 10) as $item) {
+            if (is_array($item)) {
+                $titles[] = (string)($item['title'] ?? '(タイトルなし)');
+            }
+        }
+    }
+
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+    $_SESSION['api_test_result'] = [
+        'ok' => (bool)($response['ok'] ?? false),
+        'http_code' => (int)($response['http_code'] ?? 0),
+        'error' => (string)($response['error'] ?? ''),
+        'titles' => $titles,
+    ];
+    app_redirect(admin_url('settings.php?tab=api&tested=1'));
 }
 
 app_redirect(admin_url('settings.php?tab=api&saved=1'));
