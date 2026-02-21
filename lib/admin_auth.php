@@ -159,7 +159,25 @@ function admin_find_user_by_identifier(string $identifier): ?array
 {
     $pdo = db();
 
-    $sql = 'SELECT id, username, email, password_hash, password, is_active
+    $hasLegacyPasswordColumn = false;
+    try {
+        $hasLegacyPasswordColumn = db_column_exists($pdo, 'admin_users', 'password');
+    } catch (Throwable $e) {
+        error_log('[admin_auth] failed to inspect admin_users.password column: ' . $e->getMessage());
+    }
+
+    $selectColumns = [
+        'id',
+        'username',
+        'email',
+        'password_hash',
+        'is_active',
+    ];
+    if ($hasLegacyPasswordColumn) {
+        $selectColumns[] = 'password';
+    }
+
+    $sql = 'SELECT ' . implode(', ', $selectColumns) . '
             FROM admin_users
             WHERE (username = :identifier OR email = :identifier)
             LIMIT 1';
