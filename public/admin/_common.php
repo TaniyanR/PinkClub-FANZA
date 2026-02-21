@@ -9,36 +9,12 @@ require_once __DIR__ . '/../../lib/csrf.php';
 
 function admin_dev_auth_bypass_enabled(): bool
 {
-    $configBypass = config_get('app.dev_auth_bypass', false);
-    if (!is_bool($configBypass)) {
-        $configBypass = in_array(strtolower((string)$configBypass), ['1', 'true', 'on', 'yes'], true);
-    }
-
-    if ($configBypass !== true) {
-        return false;
-    }
-
-    $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
-    return str_contains($host, 'localhost') || str_contains($host, '127.0.0.1');
+    return false;
 }
 
 function admin_apply_dev_auth_bypass(): void
 {
-    if (!admin_dev_auth_bypass_enabled()) {
-        return;
-    }
-
-    admin_session_start();
-    if (!isset($_SESSION['admin_user']) || !is_array($_SESSION['admin_user'])) {
-        $_SESSION['admin_user'] = [
-            'id' => 1,
-            'username' => 'admin',
-            'email' => '',
-        ];
-    }
-    $_SESSION['admin_dev_auth_bypass_active'] = true;
-
-    error_log('[admin_auth] dev auth bypass enabled on ' . (string)($_SERVER['REQUEST_URI'] ?? 'unknown'));
+    // Security policy: development auth bypass is intentionally disabled.
 }
 
 function admin_dev_auth_bypass_active(): bool
