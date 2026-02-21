@@ -1,31 +1,37 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/_common.php';
+require_once __DIR__ . '/../_bootstrap.php';
+require_once __DIR__ . '/../../lib/url.php';
+require_once __DIR__ . '/../../lib/admin_auth_v2.php';
 require_once __DIR__ . '/../../lib/db.php';
 
-function auth_diag_label(bool $ok): string
+admin_v2_session_start();
+
+function diag_h(string $v): string
 {
-    return $ok ? 'OK' : 'NG';
+    return htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
 }
 
-admin_session_start();
-
-$sessionStatus = session_status();
-$sessionStarted = $sessionStatus === PHP_SESSION_ACTIVE;
-$sessionSavePath = (string)session_save_path();
-$sessionName = session_name();
-$sessionId = session_id();
-$sessionUser = $_SESSION['admin_user'] ?? null;
+function diag_bool(bool $v): string
+{
+    return $v ? 'OK' : 'NG';
+}
 
 $headersSent = headers_sent($headersFile, $headersLine);
-$headersSentLocation = $headersSent ? ($headersFile . ':' . (string)$headersLine) : '未送信';
+$headersWhere = $headersSent ? ($headersFile . ':' . (string)$headersLine) : 'not sent';
+$sessionUser = $_SESSION[ADMIN_V2_SESSION_KEY] ?? null;
+$sessionSafe = is_array($sessionUser) ? [
+    'id' => (int)($sessionUser['id'] ?? 0),
+    'username' => (string)($sessionUser['username'] ?? ''),
+    'email' => (string)($sessionUser['email'] ?? ''),
+] : null;
 
 $dbOk = false;
 $tableOk = false;
-$adminUsersCount = 0;
+$adminCount = 0;
+$adminExists = false;
 $dbError = '';
-$currentUser = null;
 
 try {
     $pdo = db();
@@ -35,59 +41,53 @@ try {
     $tableOk = $tableStmt !== false && $tableStmt->fetchColumn() !== false;
 
     if ($tableOk) {
-        $countStmt = $pdo->query('SELECT COUNT(*) FROM admin_users');
-        $adminUsersCount = (int)$countStmt->fetchColumn();
+        $adminCount = (int)$pdo->query('SELECT COUNT(*) FROM admin_users')->fetchColumn();
+        $adminExistsStmt = $pdo->prepare('SELECT id FROM admin_users WHERE username = :username LIMIT 1');
+        $adminExistsStmt->execute([':username' => 'admin']);
+        $adminExists = $adminExistsStmt->fetchColumn() !== false;
     }
 } catch (Throwable $exception) {
     $dbError = $exception->getMessage();
     error_log('[auth_diagnostics] ' . $exception->getMessage());
 }
 
-try {
-    $currentUser = admin_current_user();
-} catch (Throwable $exception) {
-    error_log('[auth_diagnostics] admin_current_user failed: ' . $exception->getMessage());
-}
-
-$adminCurrentUserOk = is_array($currentUser) && (int)($currentUser['id'] ?? 0) > 0;
-$sessionUserSafe = is_array($sessionUser)
-    ? [
-        'id' => (int)($sessionUser['id'] ?? 0),
-        'username' => (string)($sessionUser['username'] ?? ''),
-        'email' => (string)($sessionUser['email'] ?? ''),
-    ]
-    : null;
-
-$pageTitle = '認証診断';
-ob_start();
+header('Content-Type: text/html; charset=UTF-8');
 ?>
-<h1>認証診断</h1>
-<div class="admin-card">
-    <ul>
-        <li>セッション開始状態: <?php echo e(auth_diag_label($sessionStarted)); ?> (status=<?php echo e((string)$sessionStatus); ?>)</li>
-        <li>session.name: <?php echo e($sessionName !== '' ? $sessionName : '(empty)'); ?></li>
-        <li>session.id: <?php echo e($sessionId !== '' ? $sessionId : '(empty)'); ?></li>
-        <li>session.save_path: <?php echo e($sessionSavePath !== '' ? $sessionSavePath : '(empty)'); ?></li>
-        <li>headers_sent: <?php echo e($headersSent ? 'YES' : 'NO'); ?> (<?php echo e($headersSentLocation); ?>)</li>
-        <li><code>$_SESSION['admin_user']</code> の有無: <?php echo e(auth_diag_label($sessionUserSafe !== null)); ?></li>
-        <li><code>$_SESSION['admin_user']</code> (安全表示): <pre><?php echo e((string)json_encode($sessionUserSafe, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)); ?></pre></li>
-        <li>DB接続: <?php echo e(auth_diag_label($dbOk)); ?></li>
-        <li><code>admin_users</code> テーブル存在: <?php echo e(auth_diag_label($tableOk)); ?></li>
-        <li><code>admin_users</code> 件数: <?php echo e((string)$adminUsersCount); ?></li>
-        <li><code>admin_current_user()</code> 取得: <?php echo e(auth_diag_label($adminCurrentUserOk)); ?></li>
-        <li>現在ログインユーザー: <?php echo e($adminCurrentUserOk ? ('id=' . (string)$currentUser['id'] . ' / username=' . (string)$currentUser['username']) : '取得できません'); ?></li>
-        <li>localhost認証バイパス(設定): <?php echo e(admin_dev_auth_bypass_enabled() ? '有効' : '無効'); ?></li>
-        <li>localhost認証バイパス(現在セッション): <?php echo e(admin_dev_auth_bypass_active() ? '有効' : '無効'); ?></li>
-        <li>session.cookie_httponly: <?php echo e((string)ini_get('session.cookie_httponly')); ?></li>
-        <li>session.cookie_secure: <?php echo e((string)ini_get('session.cookie_secure')); ?></li>
-        <li>session.cookie_samesite: <?php echo e((string)ini_get('session.cookie_samesite')); ?></li>
-        <li>session.use_strict_mode: <?php echo e((string)ini_get('session.use_strict_mode')); ?></li>
-        <li>session.gc_maxlifetime: <?php echo e((string)ini_get('session.gc_maxlifetime')); ?></li>
-        <?php if ($dbError !== '') : ?>
-            <li>DBエラー詳細: <?php echo e($dbError); ?></li>
-        <?php endif; ?>
-    </ul>
-</div>
-<?php
-$content = (string)ob_get_clean();
-include __DIR__ . '/../partials/admin_layout.php';
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>認証診断</title>
+    <style>body{font-family:system-ui,-apple-system,sans-serif;line-height:1.5;padding:24px}code,pre{background:#f5f5f5;padding:2px 6px}pre{padding:12px}</style>
+</head>
+<body>
+<h1>認証診断 (login不要)</h1>
+<ul>
+    <li>PHP version: <?php echo diag_h(PHP_VERSION); ?></li>
+    <li>session_status(): <?php echo diag_h((string)session_status()); ?></li>
+    <li>session.save_path: <?php echo diag_h((string)session_save_path()); ?></li>
+    <li>session.name: <?php echo diag_h((string)session_name()); ?></li>
+    <li>session.cookie_httponly: <?php echo diag_h((string)ini_get('session.cookie_httponly')); ?></li>
+    <li>session.cookie_secure: <?php echo diag_h((string)ini_get('session.cookie_secure')); ?></li>
+    <li>session.cookie_samesite: <?php echo diag_h((string)ini_get('session.cookie_samesite')); ?></li>
+    <li>headers_sent(): <?php echo diag_h($headersSent ? 'YES' : 'NO'); ?> (<?php echo diag_h($headersWhere); ?>)</li>
+    <li>$_SESSION safe dump: <pre><?php echo diag_h((string)json_encode($sessionSafe, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)); ?></pre></li>
+    <li>認証セッションキー(admin_user): <?php echo diag_h(diag_bool(is_array($sessionSafe))); ?></li>
+    <li>DB接続: <?php echo diag_h(diag_bool($dbOk)); ?></li>
+    <li>admin_usersテーブル: <?php echo diag_h(diag_bool($tableOk)); ?></li>
+    <li>adminユーザー件数: <?php echo diag_h((string)$adminCount); ?></li>
+    <li>adminユーザー存在: <?php echo diag_h(diag_bool($adminExists)); ?></li>
+    <li>base_url(): <?php echo diag_h(base_url()); ?></li>
+    <li>base_path(): <?php echo diag_h(base_path()); ?></li>
+    <li>login_path(): <?php echo diag_h(login_path()); ?></li>
+    <li>HTTP_HOST: <?php echo diag_h((string)($_SERVER['HTTP_HOST'] ?? '')); ?></li>
+    <li>REQUEST_URI: <?php echo diag_h((string)($_SERVER['REQUEST_URI'] ?? '')); ?></li>
+    <li>SCRIPT_NAME: <?php echo diag_h((string)($_SERVER['SCRIPT_NAME'] ?? '')); ?></li>
+    <li>dev bypass: 無効（固定）</li>
+    <?php if ($dbError !== '') : ?>
+    <li>DB error(logged): <?php echo diag_h($dbError); ?></li>
+    <?php endif; ?>
+</ul>
+</body>
+</html>
