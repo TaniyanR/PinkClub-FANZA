@@ -9,13 +9,15 @@ require_once __DIR__ . '/../../lib/csrf.php';
 
 function admin_dev_auth_bypass_enabled(): bool
 {
-    $rawFlag = getenv('DEV_AUTH_BYPASS');
-    $flag = strtolower((string)($rawFlag === false ? '1' : $rawFlag));
-    if (in_array($flag, ['0', 'off', 'false'], true)) {
+    $configBypass = config_get('app.dev_auth_bypass', false);
+    if (!is_bool($configBypass)) {
+        $configBypass = in_array(strtolower((string)$configBypass), ['1', 'true', 'on', 'yes'], true);
+    }
+
+    if ($configBypass !== true) {
         return false;
     }
 
-    // 本番で有効化しないため、localhost / 127.0.0.1 を含むホストのみ許可する。
     $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
     return str_contains($host, 'localhost') || str_contains($host, '127.0.0.1');
 }
@@ -26,7 +28,7 @@ function admin_apply_dev_auth_bypass(): void
         return;
     }
 
-    start_admin_session();
+    admin_session_start();
     if (!isset($_SESSION['admin_user']) || !is_array($_SESSION['admin_user'])) {
         $_SESSION['admin_user'] = [
             'id' => 1,
@@ -35,6 +37,8 @@ function admin_apply_dev_auth_bypass(): void
         ];
     }
     $_SESSION['admin_dev_auth_bypass_active'] = true;
+
+    error_log('[admin_auth] dev auth bypass enabled on ' . (string)($_SERVER['REQUEST_URI'] ?? 'unknown'));
 }
 
 function admin_dev_auth_bypass_active(): bool
@@ -58,17 +62,13 @@ function admin_post_csrf_valid(): bool
 
 function admin_flash_set(string $key, string $message): void
 {
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
-    }
+    admin_session_start();
     $_SESSION['admin_flash'][$key] = $message;
 }
 
 function admin_flash_get(string $key): string
 {
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
-    }
+    admin_session_start();
     $msg = $_SESSION['admin_flash'][$key] ?? '';
     unset($_SESSION['admin_flash'][$key]);
     return is_string($msg) ? $msg : '';

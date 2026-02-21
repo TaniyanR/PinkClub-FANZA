@@ -122,7 +122,7 @@ function render_setup_needed(?Throwable $exception = null): never
         <ul>
             <li><code>config.local.php</code> が無い場合はデフォルト設定（localhost / root / 空パスワード / pinkclub_fanza）で自動初期化します。</li>
             <li><code>config.local.php</code> を使う場合は任意で新規作成して設定を上書きしてください。</li>
-            <li>管理ログインは <a href="<?php echo e(base_url() . '/login0718.php'); ?>">/public/login0718.php</a> です。</li>
+            <li>管理ログインは <a href="<?php echo e(base_url() . '/admin/login.php'); ?>">/public/admin/login.php</a> です。</li>
         </ul>
         <?php if ($exception !== null) : ?>
             <h2>DB初期化エラー詳細</h2>

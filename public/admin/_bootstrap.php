@@ -148,7 +148,6 @@ admin_trace_push('bootstrap:start');
 try {
     require_once __DIR__ . '/../../lib/db.php';
     require_once __DIR__ . '/../../lib/admin_auth.php';
-    require_once __DIR__ . '/../../lib/admin_auth_simple.php';
     require_once __DIR__ . '/../../lib/csrf.php';
     require_once __DIR__ . '/../../lib/url.php';
     require_once __DIR__ . '/../../lib/scheduler.php';
