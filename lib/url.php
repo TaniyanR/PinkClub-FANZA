@@ -11,7 +11,7 @@ function normalize_base_url(string $value): string
     }
 
     // Misconfigured values such as .../index.php, .../login0718.php, or .../admin break redirect destinations.
-    $normalized = preg_replace('#/(index\.php|login\.php|login0718\.php|admin(?:/index\.php)?)/*$#i', '', $normalized);
+    $normalized = preg_replace('#/(index\.php|login\.php|login0718\.php|admin/login\.php|admin(?:/index\.php)?)/*$#i', '', $normalized);
     if (!is_string($normalized)) {
         return '';
     }
@@ -76,7 +76,7 @@ function admin_path(string $path = ''): string
 
 function login_path(): string
 {
-    return base_path() . '/login0718.php';
+    return admin_path('login.php');
 }
 
 function admin_url(string $path = ''): string
@@ -86,5 +86,5 @@ function admin_url(string $path = ''): string
 
 function login_url(): string
 {
-    return base_url() . '/login0718.php';
+    return admin_url('login.php');
 }

@@ -142,7 +142,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 <body style="font-family:sans-serif;max-width:720px;margin:24px auto;padding:0 12px;">
 <h1>PinkClub-FANZA セットアップ</h1>
 <?php if ($done) : ?>
-<p>セットアップが完了しました。<a href="<?php echo e(base_url() . '/login0718.php'); ?>">管理ログイン</a>へ進んでください。</p>
+<p>セットアップが完了しました。<a href="<?php echo e(base_url() . '/admin/login.php'); ?>">管理ログイン</a>へ進んでください。</p>
 <?php else : ?>
 <?php if ($error !== '') : ?><p style="color:#b00020;white-space:pre-wrap;"><?php echo e($error); ?></p><?php endif; ?>
 <form method="post">

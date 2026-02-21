@@ -15,19 +15,48 @@ function admin_auth_log_error(string $message, ?Throwable $exception = null): vo
         error_log('[admin_auth] ' . $message . ': ' . $exception->getMessage());
         return;
     }
+
     error_log('[admin_auth] ' . $message);
 }
 
-function start_admin_session(): void
+function admin_session_cookie_secure(): bool
 {
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
+    $https = (string)($_SERVER['HTTPS'] ?? '');
+    if ($https === 'on' || $https === '1') {
+        return true;
     }
+
+    $forwardedProto = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
+    return $forwardedProto === 'https';
 }
 
 function admin_session_start(): void
 {
-    start_admin_session();
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        return;
+    }
+
+    if (headers_sent($file, $line)) {
+        admin_auth_log_error('session_start skipped because headers already sent at ' . $file . ':' . (string)$line);
+        return;
+    }
+
+    $params = session_get_cookie_params();
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => $params['path'] ?? '/',
+        'domain' => $params['domain'] ?? '',
+        'secure' => admin_session_cookie_secure(),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+
+    session_start();
+}
+
+function start_admin_session(): void
+{
+    admin_session_start();
 }
 
 function admin_users_table_available(): bool
@@ -87,59 +116,6 @@ function admin_find_user_by_identifier(string $identifier): ?array
     }
 }
 
-function admin_verify_password(array $user, string $password): bool
-{
-    $hash = (string)($user['password_hash'] ?? '');
-    if ($hash !== '' && password_verify($password, $hash)) {
-        return true;
-    }
-
-    if (!array_key_exists('password', $user)) {
-        return false;
-    }
-
-    $legacy = (string)($user['password'] ?? '');
-    return $legacy !== '' && hash_equals($legacy, $password);
-}
-
-function admin_password_verified_by_legacy(array $user, string $password): bool
-{
-    if (!array_key_exists('password', $user)) {
-        return false;
-    }
-
-    $hash = (string)($user['password_hash'] ?? '');
-    if ($hash !== '' && password_verify($password, $hash)) {
-        return false;
-    }
-
-    $legacy = (string)($user['password'] ?? '');
-    return $legacy !== '' && hash_equals($legacy, $password);
-}
-
-function admin_upgrade_password_hash_if_needed(array $user, string $plainPassword): void
-{
-    if (!admin_password_verified_by_legacy($user, $plainPassword)) {
-        return;
-    }
-
-    $id = (int)($user['id'] ?? 0);
-    if ($id <= 0) {
-        return;
-    }
-
-    try {
-        $newHash = password_hash($plainPassword, PASSWORD_DEFAULT);
-        $sql = 'UPDATE admin_users SET password_hash = ?, updated_at = NOW() WHERE id = ? LIMIT 1';
-        if (array_key_exists('password', $user)) {
-            $sql = 'UPDATE admin_users SET password_hash = ?, password = NULL, updated_at = NOW() WHERE id = ? LIMIT 1';
-        }
-        db()->prepare($sql)->execute([$newHash, $id]);
-    } catch (Throwable $exception) {
-        admin_auth_log_error('admin_upgrade_password_hash_if_needed failed', $exception);
-    }
-}
-
 function admin_config_authenticate(string $identifier, string $password): ?array
 {
     $configUsername = (string)config_get('admin.username', ADMIN_DEFAULT_USERNAME);
@@ -168,22 +144,71 @@ function admin_config_authenticate(string $identifier, string $password): ?array
     return null;
 }
 
+function admin_verify_password(array $user, string $password): bool
+{
+    $hash = (string)($user['password_hash'] ?? '');
+    if ($hash !== '' && password_verify($password, $hash)) {
+        return true;
+    }
+
+    $legacy = (string)($user['password'] ?? '');
+    return $legacy !== '' && hash_equals($legacy, $password);
+}
+
+function admin_upgrade_password_hash_if_needed(array $user, string $plainPassword): void
+{
+    $legacy = (string)($user['password'] ?? '');
+    if ($legacy === '' || !hash_equals($legacy, $plainPassword)) {
+        return;
+    }
+
+    $id = (int)($user['id'] ?? 0);
+    if ($id <= 0) {
+        return;
+    }
+
+    try {
+        $newHash = password_hash($plainPassword, PASSWORD_DEFAULT);
+        $sql = 'UPDATE admin_users SET password_hash = ?, password = NULL, updated_at = NOW() WHERE id = ? LIMIT 1';
+        db()->prepare($sql)->execute([$newHash, $id]);
+    } catch (Throwable $exception) {
+        admin_auth_log_error('admin_upgrade_password_hash_if_needed failed', $exception);
+    }
+}
+
+function admin_login_store_session(array $user): void
+{
+    admin_session_start();
+
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        return;
+    }
+
+    session_regenerate_id(true);
+    $_SESSION['admin_user'] = [
+        'id' => (int)($user['id'] ?? 0),
+        'username' => (string)($user['username'] ?? ''),
+        'email' => (string)($user['email'] ?? ''),
+    ];
+}
+
 function admin_login(string $identifier, string $password): bool
 {
-    start_admin_session();
+    admin_session_start();
 
     $identifier = trim($identifier);
-    if ($identifier === '') {
+    if ($identifier === '' || $password === '') {
         return false;
     }
 
     admin_ensure_default_user();
-    $user = admin_find_user_by_identifier($identifier);
 
+    $user = admin_find_user_by_identifier($identifier);
     if (is_array($user)) {
-        if ((int)($user['is_active'] ?? 1) !== 1) {
+        if ((int)($user['is_active'] ?? 0) !== 1) {
             return false;
         }
+
         if (!admin_verify_password($user, $password)) {
             return false;
         }
@@ -200,17 +225,6 @@ function admin_login(string $identifier, string $password): bool
 
     admin_login_store_session($configUser);
     return true;
-}
-
-function admin_login_store_session(array $user): void
-{
-    start_admin_session();
-    session_regenerate_id(true);
-    $_SESSION['admin_user'] = [
-        'id' => (int)($user['id'] ?? 0),
-        'username' => (string)($user['username'] ?? ''),
-        'email' => (string)($user['email'] ?? ''),
-    ];
 }
 
 function admin_find_user_by_id(int $id): ?array
@@ -232,7 +246,7 @@ function admin_find_user_by_id(int $id): ?array
 
 function admin_current_user(): ?array
 {
-    start_admin_session();
+    admin_session_start();
 
     $sessionUser = $_SESSION['admin_user'] ?? null;
     if (!is_array($sessionUser)) {
@@ -245,7 +259,11 @@ function admin_current_user(): ?array
     }
 
     $dbUser = admin_find_user_by_id($id);
-    if (is_array($dbUser) && (int)($dbUser['is_active'] ?? 0) === 1) {
+    if (is_array($dbUser)) {
+        if ((int)($dbUser['is_active'] ?? 0) !== 1) {
+            return null;
+        }
+
         return [
             'id' => (int)$dbUser['id'],
             'username' => (string)($dbUser['username'] ?? ''),
@@ -268,9 +286,36 @@ function admin_is_logged_in(): bool
 
 function admin_logout(): void
 {
-    start_admin_session();
-    unset($_SESSION['admin_user']);
-    session_regenerate_id(true);
+    admin_session_start();
+
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        return;
+    }
+
+    $_SESSION = [];
+
+    if (ini_get('session.use_cookies')) {
+        $params = session_get_cookie_params();
+        setcookie(session_name(), '', [
+            'expires' => time() - 42000,
+            'path' => $params['path'] ?? '/',
+            'domain' => $params['domain'] ?? '',
+            'secure' => (bool)($params['secure'] ?? false),
+            'httponly' => (bool)($params['httponly'] ?? true),
+            'samesite' => (string)($params['samesite'] ?? 'Lax'),
+        ]);
+    }
+
+    session_destroy();
+}
+
+function require_admin_login(): void
+{
+    if (admin_is_logged_in()) {
+        return;
+    }
+
+    app_redirect(login_path());
 }
 
 function require_admin_auth(): void
@@ -283,25 +328,12 @@ function admin_require_login(): void
     require_admin_login();
 }
 
-function require_admin_login(): void
-{
-    if (admin_is_logged_in()) {
-        return;
-    }
-    app_redirect(login_path());
-}
-
 function admin_is_default_password(array $admin): bool
 {
     $passwordHash = (string)($admin['password_hash'] ?? '');
-    if ($passwordHash === '') {
-        return false;
-    }
-
-    return password_verify(ADMIN_DEFAULT_PASSWORD, $passwordHash);
+    return $passwordHash !== '' && password_verify(ADMIN_DEFAULT_PASSWORD, $passwordHash);
 }
 
 function admin_require_password_change_if_needed(): void
 {
-    return;
 }

@@ -9,11 +9,18 @@ function auth_diag_label(bool $ok): string
     return $ok ? 'OK' : 'NG';
 }
 
-start_admin_session();
+admin_session_start();
 
-$sessionStarted = session_status() === PHP_SESSION_ACTIVE;
-$sessionUserExists = isset($_SESSION['admin_user']) && is_array($_SESSION['admin_user']);
-$sessionUserIdExists = $sessionUserExists && (int)($_SESSION['admin_user']['id'] ?? 0) > 0;
+$sessionStatus = session_status();
+$sessionStarted = $sessionStatus === PHP_SESSION_ACTIVE;
+$sessionSavePath = (string)session_save_path();
+$sessionName = session_name();
+$sessionId = session_id();
+$sessionUser = $_SESSION['admin_user'] ?? null;
+
+$headersSent = headers_sent($headersFile, $headersLine);
+$headersSentLocation = $headersSent ? ($headersFile . ':' . (string)$headersLine) : '未送信';
+
 $dbOk = false;
 $tableOk = false;
 $adminUsersCount = 0;
@@ -43,6 +50,13 @@ try {
 }
 
 $adminCurrentUserOk = is_array($currentUser) && (int)($currentUser['id'] ?? 0) > 0;
+$sessionUserSafe = is_array($sessionUser)
+    ? [
+        'id' => (int)($sessionUser['id'] ?? 0),
+        'username' => (string)($sessionUser['username'] ?? ''),
+        'email' => (string)($sessionUser['email'] ?? ''),
+    ]
+    : null;
 
 $pageTitle = '認証診断';
 ob_start();
@@ -50,15 +64,25 @@ ob_start();
 <h1>認証診断</h1>
 <div class="admin-card">
     <ul>
-        <li>セッション開始状態: <?php echo e(auth_diag_label($sessionStarted)); ?></li>
-        <li><code>$_SESSION['admin_user']</code> の有無: <?php echo e(auth_diag_label($sessionUserExists)); ?></li>
-        <li><code>admin_user.id</code> の有無: <?php echo e(auth_diag_label($sessionUserIdExists)); ?></li>
+        <li>セッション開始状態: <?php echo e(auth_diag_label($sessionStarted)); ?> (status=<?php echo e((string)$sessionStatus); ?>)</li>
+        <li>session.name: <?php echo e($sessionName !== '' ? $sessionName : '(empty)'); ?></li>
+        <li>session.id: <?php echo e($sessionId !== '' ? $sessionId : '(empty)'); ?></li>
+        <li>session.save_path: <?php echo e($sessionSavePath !== '' ? $sessionSavePath : '(empty)'); ?></li>
+        <li>headers_sent: <?php echo e($headersSent ? 'YES' : 'NO'); ?> (<?php echo e($headersSentLocation); ?>)</li>
+        <li><code>$_SESSION['admin_user']</code> の有無: <?php echo e(auth_diag_label($sessionUserSafe !== null)); ?></li>
+        <li><code>$_SESSION['admin_user']</code> (安全表示): <pre><?php echo e((string)json_encode($sessionUserSafe, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)); ?></pre></li>
         <li>DB接続: <?php echo e(auth_diag_label($dbOk)); ?></li>
         <li><code>admin_users</code> テーブル存在: <?php echo e(auth_diag_label($tableOk)); ?></li>
         <li><code>admin_users</code> 件数: <?php echo e((string)$adminUsersCount); ?></li>
         <li><code>admin_current_user()</code> 取得: <?php echo e(auth_diag_label($adminCurrentUserOk)); ?></li>
         <li>現在ログインユーザー: <?php echo e($adminCurrentUserOk ? ('id=' . (string)$currentUser['id'] . ' / username=' . (string)$currentUser['username']) : '取得できません'); ?></li>
-        <li>localhost認証バイパス: <?php echo e(function_exists('admin_dev_auth_bypass_active') && admin_dev_auth_bypass_active() ? '有効' : '無効'); ?></li>
+        <li>localhost認証バイパス(設定): <?php echo e(admin_dev_auth_bypass_enabled() ? '有効' : '無効'); ?></li>
+        <li>localhost認証バイパス(現在セッション): <?php echo e(admin_dev_auth_bypass_active() ? '有効' : '無効'); ?></li>
+        <li>session.cookie_httponly: <?php echo e((string)ini_get('session.cookie_httponly')); ?></li>
+        <li>session.cookie_secure: <?php echo e((string)ini_get('session.cookie_secure')); ?></li>
+        <li>session.cookie_samesite: <?php echo e((string)ini_get('session.cookie_samesite')); ?></li>
+        <li>session.use_strict_mode: <?php echo e((string)ini_get('session.use_strict_mode')); ?></li>
+        <li>session.gc_maxlifetime: <?php echo e((string)ini_get('session.gc_maxlifetime')); ?></li>
         <?php if ($dbError !== '') : ?>
             <li>DBエラー詳細: <?php echo e($dbError); ?></li>
         <?php endif; ?>
