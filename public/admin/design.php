@@ -47,8 +47,8 @@ function design_message(string $code, string $default = 'エラーが発生し�
 function design_delete_uploaded_file(string $url): void
 {
     $url = trim($url);
-    $publicPrefix = '/uploads/design/';
-    $sitePrefix = '/public/uploads/design/';
+    $publicPrefix = '/uploads/site_assets/';
+    $sitePrefix = '/public/uploads/site_assets/';
     if ($url === '' || (!str_starts_with($url, $publicPrefix) && !str_starts_with($url, $sitePrefix))) {
         return;
     }
@@ -141,7 +141,7 @@ function design_handle_upload(string $inputName, string $targetBaseName): array
     }
 
     $targetExt = $allowedMime[$mime];
-    $uploadDir = dirname(__DIR__) . '/uploads/design';
+    $uploadDir = dirname(__DIR__) . '/uploads/site_assets';
     if (!design_prepare_upload_dir($uploadDir)) {
         return ['ok' => false, 'code' => 'mkdir_failed'];
     }
@@ -156,10 +156,12 @@ function design_handle_upload(string $inputName, string $targetBaseName): array
     $fileName = $targetBaseName . '.' . $targetExt;
     $destinationPath = $uploadDir . '/' . $fileName;
     if (!move_uploaded_file($tmpName, $destinationPath)) {
-        return ['ok' => false, 'code' => 'save_failed'];
+        $lastError = error_get_last();
+        $detail = is_array($lastError) ? ((string)($lastError['message'] ?? '')) : '';
+        return ['ok' => false, 'code' => 'save_failed', 'detail' => $detail];
     }
 
-    return ['ok' => true, 'code' => 'saved', 'url' => '/uploads/design/' . $fileName];
+    return ['ok' => true, 'code' => 'saved', 'url' => '/uploads/site_assets/' . $fileName];
 }
 
 $pageTitle = 'デザイン設定';
@@ -178,6 +180,9 @@ try {
                     $upload = design_handle_upload('logo_file', 'logo');
                     if ($upload['ok'] === false) {
                         $redirect = ['err' => $upload['code']];
+                        if (isset($upload['detail']) && is_string($upload['detail']) && $upload['detail'] !== '') {
+                            $redirect['detail'] = $upload['detail'];
+                        }
                         break;
                     }
 
@@ -206,6 +211,9 @@ try {
                     $upload = design_handle_upload('ogp_file', 'ogp');
                     if ($upload['ok'] === false) {
                         $redirect = ['err' => $upload['code']];
+                        if (isset($upload['detail']) && is_string($upload['detail']) && $upload['detail'] !== '') {
+                            $redirect['detail'] = $upload['detail'];
+                        }
                         break;
                     }
 
@@ -249,8 +257,12 @@ $okCode = trim((string)($_GET['ok'] ?? ''));
 $errCode = trim((string)($_GET['err'] ?? ''));
 $msg = $okCode !== '' ? design_message($okCode, '') : '';
 $err = $errCode !== '' ? design_message($errCode, 'エラーが発生しました。') : '';
+$detail = trim((string)($_GET['detail'] ?? ''));
 if ($error !== '' && $err === '') {
     $err = $error;
+}
+if ($detail !== '' && $err !== '') {
+    $err .= ' 詳細: ' . $detail;
 }
 
 ob_start();

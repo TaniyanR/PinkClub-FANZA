@@ -17,8 +17,10 @@ $genres = [];
 
 if ($isDbAvailable) {
     try {
-        $newItems = fetch_items('date_published_desc', 12, 0);
-        $pickupItems = fetch_items('popularity_desc', 12, 0);
+        $prodHits = filter_var(setting_get('api.prod_hits', '20'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 100]]);
+        if ($prodHits === false) { $prodHits = 20; }
+        $newItems = fetch_items('date_published_desc', $prodHits, 0);
+        $pickupItems = fetch_items('popularity_desc', $prodHits, 0);
         $actresses = fetch_actresses(18, 0, 'name');
         $seriesList = fetch_series(18, 0, 'name');
         $makers = fetch_makers(18, 0, 'name');
