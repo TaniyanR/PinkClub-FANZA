@@ -65,7 +65,6 @@ if (!function_exists('admin_simple_require_login')) {
             $location .= '?return_to=' . rawurlencode($requestUri);
         }
 
-        header('Location: ' . $location);
-        exit;
+        app_redirect($location);
     }
 }

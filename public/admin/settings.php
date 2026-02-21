@@ -16,7 +16,7 @@ if (!in_array($tab, ['site', 'api'], true)) {
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $tab === 'site') {
     if (!admin_post_csrf_valid()) {
-        header('Location: ' . admin_url('settings.php?tab=site&err=csrf_invalid'));
+        app_redirect(admin_url('settings.php?tab=site&err=csrf_invalid'));
         exit;
     }
 
@@ -27,22 +27,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $tab === 'site') {
     $adminEmail = trim((string)($_POST['admin_email'] ?? ''));
 
     if ($siteName === '' || $siteUrl === '' || $adminUsername === '' || $adminEmail === '') {
-        header('Location: ' . admin_url('settings.php?tab=site&err=required'));
+        app_redirect(admin_url('settings.php?tab=site&err=required'));
         exit;
     }
 
     if (filter_var($siteUrl, FILTER_VALIDATE_URL) === false) {
-        header('Location: ' . admin_url('settings.php?tab=site&err=invalid_url'));
+        app_redirect(admin_url('settings.php?tab=site&err=invalid_url'));
         exit;
     }
 
     if (filter_var($adminEmail, FILTER_VALIDATE_EMAIL) === false) {
-        header('Location: ' . admin_url('settings.php?tab=site&err=invalid_email'));
+        app_redirect(admin_url('settings.php?tab=site&err=invalid_email'));
         exit;
     }
 
     if (!preg_match('/^[A-Za-z0-9_.@-]{3,100}$/', $adminUsername)) {
-        header('Location: ' . admin_url('settings.php?tab=site&err=invalid_username'));
+        app_redirect(admin_url('settings.php?tab=site&err=invalid_username'));
         exit;
     }
 
@@ -51,7 +51,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $tab === 'site') {
         $pdo->beginTransaction();
 
         site_title_setting_set($siteName);
-        site_setting_set_many([
+        setting_set_many([
             'site.tagline' => $siteTagline,
             'site.base_url' => $siteUrl,
             'site.admin_email' => $adminEmail,
@@ -66,7 +66,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $tab === 'site') {
             ]);
             if ($stmt->fetchColumn() !== false) {
                 $pdo->rollBack();
-                header('Location: ' . admin_url('settings.php?tab=site&err=username_taken'));
+                app_redirect(admin_url('settings.php?tab=site&err=username_taken'));
                 exit;
             }
 
@@ -82,13 +82,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $tab === 'site') {
         }
 
         $pdo->commit();
-        header('Location: ' . admin_url('settings.php?tab=site&saved=1'));
+        app_redirect(admin_url('settings.php?tab=site&saved=1'));
         exit;
     } catch (Throwable) {
         if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
             $pdo->rollBack();
         }
-        header('Location: ' . admin_url('settings.php?tab=site&err=save_failed'));
+        app_redirect(admin_url('settings.php?tab=site&err=save_failed'));
         exit;
     }
 }
@@ -173,15 +173,15 @@ ob_start();
 
 <?php if ($tab === 'site') : ?>
     <?php
-    $siteName = site_title_setting('');
-    $siteTagline = site_setting_get('site.tagline', '');
-    $siteUrl = site_setting_get('site.base_url', detect_base_url());
+    $siteName = setting_site_title('');
+    $siteTagline = setting_site_tagline('');
+    $siteUrl = (string)(setting('site.base_url', detect_base_url()) ?? detect_base_url());
     $currentAdmin = admin_current_user();
     $adminUsername = is_array($currentAdmin) ? (string)($currentAdmin['username'] ?? '') : '';
     if ($adminUsername === '') {
         $adminUsername = 'admin';
     }
-    $adminEmail = site_setting_get('site.admin_email', '');
+    $adminEmail = setting_admin_email('');
     if ($adminEmail === '' && is_array($currentAdmin) && is_string($currentAdmin['email'] ?? null)) {
         $adminEmail = (string)$currentAdmin['email'];
     }
