@@ -14,6 +14,9 @@ if ($siteTitle === '') {
 <header class="admin-topbar">
     <div class="admin-topbar__left"><a href="<?php echo e(admin_url('index.php')); ?>"><?php echo e($siteTitle); ?> 管理</a></div>
     <div class="admin-topbar__right">
+        <?php if (function_exists('admin_dev_auth_bypass_active') && admin_dev_auth_bypass_active()) : ?>
+            <span class="admin-bypass-badge">開発用認証バイパス有効中</span>
+        <?php endif; ?>
         <?php $currentAdmin = admin_current_user(); ?>
         <span>ログイン中: <?php echo e((string)($currentAdmin['username'] ?? '')); ?></span>
         <a href="<?php echo e(base_url() . '/index.php'); ?>" target="_blank" rel="noopener noreferrer">フロント表示</a>
