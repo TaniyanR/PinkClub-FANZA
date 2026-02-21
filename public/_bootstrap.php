@@ -39,24 +39,52 @@ function app_is_development(): bool
     return app_bootstrap_is_development();
 }
 
+
+if (app_is_development()) {
+    ini_set('display_errors', '1');
+    ini_set('display_startup_errors', '1');
+    error_reporting(E_ALL);
+}
+
+function app_log_file_path(): string
+{
+    $dir = dirname(__DIR__) . '/storage/logs';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+
+    return $dir . '/app.log';
+}
+
 function app_log_error(string $message, ?Throwable $exception = null): void
 {
+    $uri = (string)($_SERVER['REQUEST_URI'] ?? '-');
+    $file = '-';
+    $lineNo = 0;
+    $errorType = 'ERROR';
+
     if ($exception instanceof Throwable) {
-        $message .= sprintf(
-            ' | %s: %s @ %s:%d',
-            get_class($exception),
-            $exception->getMessage(),
-            $exception->getFile(),
-            $exception->getLine()
-        );
+        $file = $exception->getFile();
+        $lineNo = $exception->getLine();
+        $errorType = $exception instanceof ErrorException
+            ? 'PHP_' . (string)$exception->getSeverity()
+            : get_class($exception);
+        $message .= ' | ' . $exception->getMessage();
     }
 
-    if (function_exists('log_message')) {
-        log_message('[front] ' . $message);
-        return;
-    }
+    $logLine = sprintf(
+        "[%s] [front] [%s] %s | file=%s line=%d uri=%s
+",
+        date('Y-m-d H:i:s'),
+        $errorType,
+        $message,
+        $file,
+        $lineNo,
+        $uri
+    );
 
-    error_log('[front] ' . $message);
+    @file_put_contents(app_log_file_path(), $logLine, FILE_APPEND);
+    error_log(trim($logLine));
 }
 
 function render_fatal_error_page(string $message, ?Throwable $exception = null): never

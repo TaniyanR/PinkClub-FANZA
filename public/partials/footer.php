@@ -4,12 +4,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../lib/config.php';
 require_once __DIR__ . '/../../lib/app_features.php';
 
-$siteTitle = front_safe_text_setting('site.name', '');
+$siteTitle = trim(site_title_setting(''));
 if ($siteTitle === '') {
-    $siteTitle = (string)app_setting_get('site_name', (string)config_get('site.title', 'サイト名未設定'));
-}
-if ($siteTitle === '') {
-    $siteTitle = 'サイト名未設定';
+    $siteTitle = 'サイトタイトル未設定';
 }
 $year = (int) date('Y');
 $footerText = (string)app_setting_get('footer_text', '');

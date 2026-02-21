@@ -1,40 +1,17 @@
 <?php
 declare(strict_types=1);
 
-// 開発時のみ有効化: 白画面(Fatal)切り分け用
-ini_set('display_errors', '1');
-error_reporting(E_ALL);
-
 require_once __DIR__ . '/../lib/config.php';
 require_once __DIR__ . '/../lib/url.php';
 require_once __DIR__ . '/../lib/admin_auth.php';
-require_once __DIR__ . '/../lib/admin_auth_simple.php';
 require_once __DIR__ . '/partials/_helpers.php';
 
-admin_simple_session_start();
-
-function redirect_to(string $url, int $status = 302): never
-{
-    if (!headers_sent()) {
-        header('Location: ' . $url, true, $status);
-        exit;
-    }
-
-    $safeUrl = e($url);
-    http_response_code($status);
-    echo '<!doctype html><html lang="ja"><head><meta charset="UTF-8">';
-    echo '<meta http-equiv="refresh" content="0;url=' . $safeUrl . '">';
-    echo '<title>Redirecting...</title></head><body>';
-    echo '<p>画面を移動します。自動で移動しない場合は <a href="' . $safeUrl . '">こちら</a> をクリックしてください。</p>';
-    echo '<script>location.replace(' . json_encode($url, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . ');</script>';
-    echo '</body></html>';
-    exit;
-}
+admin_session_start();
 
 $returnTo = normalize_admin_redirect_target((string)($_GET['return_to'] ?? ''));
 
-if (admin_simple_is_logged_in()) {
-    redirect_to(admin_path('index.php'));
+if (admin_is_logged_in()) {
+    app_redirect(admin_path('index.php'));
 }
 
 $error = '';
@@ -43,10 +20,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $username = trim((string)($_POST['identifier'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
 
-    if (admin_simple_verify_credentials($username, $password)) {
-        admin_simple_login($username);
+    if (admin_login($username, $password)) {
         $postedReturnTo = normalize_admin_redirect_target((string)($_POST['return_to'] ?? ''));
-        redirect_to($postedReturnTo !== '' ? $postedReturnTo : admin_path('index.php'), 303);
+        app_redirect($postedReturnTo !== '' ? $postedReturnTo : admin_path('index.php'));
     }
 
     $error = 'ユーザー名またはパスワードが違います。';

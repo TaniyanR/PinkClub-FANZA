@@ -7,7 +7,7 @@ require_once __DIR__ . '/../../lib/admin_auth.php';
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/csrf.php';
 
-admin_require_login();
+require_admin_login();
 admin_require_password_change_if_needed();
 
 function admin_post_csrf_valid(): bool
