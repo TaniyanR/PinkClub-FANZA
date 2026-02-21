@@ -10,6 +10,7 @@ if ($siteTitle === '') {
     $siteTitle = 'サイトタイトル未設定';
 }
 $siteTagline = front_safe_text_setting('site.tagline', '');
+$showTagline = site_setting_get('show_tagline', '0') === '1';
 $defaultDescription = $siteTagline !== '' ? $siteTagline : (string)config_get('site.description', '作品紹介サイトです。');
 
 $rawPageTitle = isset($pageTitle) && $pageTitle !== '' ? (string)$pageTitle : null;
@@ -79,16 +80,9 @@ $adDevice = ad_current_device();
                 $logoUrl = front_asset_url($logoUrl);
             } ?>
             <?php if ($logoUrl !== '') : ?><img src="<?php echo e($logoUrl); ?>" alt="<?php echo e($siteTitle); ?>" style="height:36px;width:auto;display:block;margin-bottom:4px;"><?php endif; ?>
-            <a class="site-header__title" href="<?php echo e($siteRootPath); ?>"><?php echo e($siteTitle); ?></a>
-            <?php if ($siteTagline !== '') : ?><div class="site-header__tagline"><?php echo e($siteTagline); ?></div><?php endif; ?>
+            <?php if ($logoUrl === '') : ?><a class="site-header__title" href="<?php echo e($siteRootPath); ?>"><?php echo e($siteTitle); ?></a><?php endif; ?>
+            <?php if ($showTagline && $siteTagline !== '') : ?><div class="site-header__tagline"><?php echo e($siteTagline); ?></div><?php endif; ?>
             <div class="site-header__note"><strong>当サイトはプロモーションを含みます。</strong></div>
-        </div>
-        <div>
-            <?php if (user_current_email() !== null) : ?>
-                ログイン中: <?php echo e((string)user_current_email()); ?> <a href="<?php echo e(front_asset_url('/user_logout.php')); ?>">ログアウト</a>
-            <?php else : ?>
-                <a href="<?php echo e(front_asset_url('/user_login.php')); ?>">会員ログイン</a>
-            <?php endif; ?>
         </div>
     </div>
 </header>
