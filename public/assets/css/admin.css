@@ -47,6 +47,18 @@ body {
     gap: 12px;
 }
 
+.admin-bypass-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #2d1a00;
+    background: #ffdb8a;
+    border: 1px solid #ffbe46;
+}
+
 .admin-topbar form { margin: 0; }
 
 .admin-topbar button {
