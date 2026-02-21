@@ -9,17 +9,15 @@ require_once __DIR__ . '/../../lib/csrf.php';
 
 function admin_dev_auth_bypass_enabled(): bool
 {
-    $appEnv = strtolower((string)(getenv('APP_ENV') ?: config_get('app.env', '')));
-    if (in_array($appEnv, ['local', 'dev', 'development'], true)) {
-        return true;
+    $rawFlag = getenv('DEV_AUTH_BYPASS');
+    $flag = strtolower((string)($rawFlag === false ? '1' : $rawFlag));
+    if (in_array($flag, ['0', 'off', 'false'], true)) {
+        return false;
     }
 
+    // 本番で有効化しないため、localhost / 127.0.0.1 を含むホストのみ許可する。
     $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
-    if ($host !== '') {
-        $host = preg_replace('/:\\d+$/', '', $host) ?? $host;
-    }
-
-    return in_array($host, ['localhost', '127.0.0.1', '::1'], true);
+    return str_contains($host, 'localhost') || str_contains($host, '127.0.0.1');
 }
 
 function admin_apply_dev_auth_bypass(): void
@@ -29,11 +27,13 @@ function admin_apply_dev_auth_bypass(): void
     }
 
     start_admin_session();
-    $_SESSION['admin_user'] = [
-        'id' => 1,
-        'username' => 'admin',
-        'email' => '',
-    ];
+    if (!isset($_SESSION['admin_user']) || !is_array($_SESSION['admin_user'])) {
+        $_SESSION['admin_user'] = [
+            'id' => 1,
+            'username' => 'admin',
+            'email' => '',
+        ];
+    }
     $_SESSION['admin_dev_auth_bypass_active'] = true;
 }
 

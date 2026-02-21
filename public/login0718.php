@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
-require_once __DIR__ . '/../lib/admin_auth.php';
 require_once __DIR__ . '/../lib/csrf.php';
+require_once __DIR__ . '/../lib/admin_auth.php';
 require_once __DIR__ . '/partials/_helpers.php';
 
 start_admin_session();
@@ -15,21 +15,22 @@ if (admin_is_logged_in()) {
 $error = '';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    if (!csrf_verify((string)($_POST['_token'] ?? ''))) {
-        $error = 'リクエストが無効です。';
-    } else {
-        $identifier = trim((string)($_POST['identifier'] ?? ''));
-        $password = (string)($_POST['password'] ?? '');
+    try {
+        if (!csrf_verify((string)($_POST['_token'] ?? ''))) {
+            $error = 'CSRFトークンが無効です。';
+        } else {
+            $identifier = trim((string)($_POST['identifier'] ?? ''));
+            $password = (string)($_POST['password'] ?? '');
 
-        if (admin_login($identifier, $password)) {
-            $current = admin_current_user();
-            if (is_array($current)) {
-                admin_login_success($current, admin_path('index.php'));
+            if (admin_login($identifier, $password)) {
+                app_redirect(admin_path('index.php'));
             }
-            app_redirect(admin_path('index.php'));
-        }
 
-        $error = 'ユーザー名/メールまたはパスワードが違います。';
+            $error = 'ユーザー名/メールまたはパスワードが違います。';
+        }
+    } catch (Throwable $exception) {
+        error_log('[login0718] login error: ' . $exception->getMessage());
+        $error = 'ログイン処理中にエラーが発生しました。時間をおいて再度お試しください。';
     }
 }
 
