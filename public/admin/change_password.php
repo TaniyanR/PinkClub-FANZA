@@ -4,11 +4,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/_common.php';
 require_once __DIR__ . '/../../lib/db.php';
 
-
 $error = '';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $token = $_POST['_token'] ?? null;
+
     if (!csrf_verify(is_string($token) ? $token : null)) {
         $error = 'CSRFトークンが無効です。';
     } else {
@@ -26,61 +26,59 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $error = 'パスワードに空白は使用できません。';
         } else {
             try {
-                $updated = false;
+                start_admin_session();
+                $sessionAdminId = (int)($_SESSION['admin_user']['id'] ?? 0);
                 $currentAdmin = admin_current_user();
-                $adminId = is_array($currentAdmin) ? (int)($currentAdmin['id'] ?? 0) : 0;
-                if ($adminId <= 0) {
+
+                if ($sessionAdminId <= 0 && is_array($currentAdmin)) {
+                    $sessionAdminId = (int)($currentAdmin['id'] ?? 0);
+                }
+
+                if ($sessionAdminId <= 0) {
                     $error = '現在のログインユーザーを特定できません。再ログイン後にお試しください。';
                 } else {
-                    $stmt = db()->prepare('SELECT * FROM admin_users WHERE id=:id AND is_active=1 LIMIT 1');
-                    $stmt->execute([':id' => $adminId]);
+                    $stmt = db()->prepare('SELECT * FROM admin_users WHERE id = ? AND is_active = 1 LIMIT 1');
+                    $stmt->execute([$sessionAdminId]);
                     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
                     if (!is_array($row)) {
                         $error = 'ログインユーザー情報が見つかりません。再ログインしてください。';
                     } else {
-                        $verifyOk = false;
+                        $verified = false;
                         $passwordHash = (string)($row['password_hash'] ?? '');
                         if ($passwordHash !== '' && password_verify($currentPassword, $passwordHash)) {
-                            $verifyOk = true;
+                            $verified = true;
                         }
 
-                        if (!$verifyOk && array_key_exists('password', $row)) {
+                        if (!$verified && array_key_exists('password', $row)) {
                             $legacyPassword = (string)($row['password'] ?? '');
                             if ($legacyPassword !== '' && hash_equals($legacyPassword, $currentPassword)) {
-                                $verifyOk = true;
+                                $verified = true;
                             }
                         }
 
-                        if (!$verifyOk) {
+                        if (!$verified) {
                             $error = '現在のパスワードが正しくありません。';
                         } else {
                             $newHash = password_hash($password, PASSWORD_DEFAULT);
-                            $sql = 'UPDATE admin_users SET password_hash=:p, updated_at=NOW() WHERE id=:id LIMIT 1';
+                            $sql = 'UPDATE admin_users SET password_hash = ?, updated_at = NOW() WHERE id = ? LIMIT 1';
                             if (array_key_exists('password', $row)) {
-                                $sql = 'UPDATE admin_users SET password_hash=:p, password=NULL, updated_at=NOW() WHERE id=:id LIMIT 1';
+                                $sql = 'UPDATE admin_users SET password_hash = ?, password = NULL, updated_at = NOW() WHERE id = ? LIMIT 1';
                             }
-                            $updated = db()->prepare($sql)->execute([':p' => $newHash, ':id' => (int)$row['id']]);
+
+                            $updated = db()->prepare($sql)->execute([$newHash, (int)$row['id']]);
                             if ($updated !== true) {
-                                $error = 'DB更新に失敗しました。';
+                                $error = '更新に失敗しました。';
+                            } else {
+                                header('Location: ' . admin_url('settings.php?tab=site&password_changed=1'));
+                                exit;
                             }
                         }
                     }
                 }
-
-                if ($updated) {
-                    if (session_status() !== PHP_SESSION_ACTIVE) {
-                        session_start();
-                    }
-                    if (isset($_SESSION['admin_user']) && is_array($_SESSION['admin_user'])) {
-                        $_SESSION['admin_user']['password_hash'] = $newHash;
-                    }
-                    header('Location: ' . admin_url('settings.php?tab=site&password_changed=1'));
-                    exit;
-                }
-            } catch (Throwable $e) {
-                error_log('admin change_password failed: ' . $e->getMessage());
-                $error = 'パスワード更新に失敗しました。時間をおいて再度お試しください。';
+            } catch (Throwable $exception) {
+                error_log('admin change_password failed: ' . $exception->getMessage());
+                $error = '更新に失敗しました。';
             }
         }
     }

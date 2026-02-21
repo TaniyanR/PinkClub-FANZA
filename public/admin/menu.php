@@ -16,6 +16,7 @@ function admin_menu_groups(): array
                 ['file' => 'settings.php?tab=site', 'label' => 'サイト設定'],
                 ['file' => 'design.php', 'label' => 'デザイン設定'],
                 ['file' => 'diagnostics.php', 'label' => '診断'],
+                ['file' => 'auth_diagnostics.php', 'label' => '認証診断'],
             ],
         ],
         [
