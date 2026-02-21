@@ -8,11 +8,13 @@ require_once __DIR__ . '/../../lib/site_settings.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     app_redirect(admin_url('settings.php?tab=api'));
+    exit;
 }
 
 $token = $_POST['_token'] ?? null;
 if (!csrf_verify(is_string($token) ? $token : null)) {
     app_redirect(admin_url('settings.php?tab=api&error=csrf_failed'));
+    exit;
 }
 
 $apiId = trim((string)($_POST['api_id'] ?? ''));
@@ -30,6 +32,15 @@ $prodHits = filter_var($_POST['prod_hits'] ?? null, FILTER_VALIDATE_INT, [
     'options' => ['min_range' => 1, 'max_range' => 100],
 ]);
 
+$oldInputPayload = [
+    'site' => $site,
+    'service' => $service,
+    'floor' => $floor,
+    'connect_timeout' => $_POST['connect_timeout'] ?? '',
+    'timeout' => $_POST['timeout'] ?? '',
+    'prod_hits' => $_POST['prod_hits'] ?? '',
+];
+
 $local = local_config_load();
 $currentApi = $local['dmm_api'] ?? [];
 if (!is_array($currentApi)) {
@@ -44,7 +55,9 @@ if ($affiliateId === '') {
 }
 
 if ($apiId === '' || $affiliateId === '') {
+    admin_flash_set('api_old', json_encode($oldInputPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     app_redirect(admin_url('settings.php?tab=api&error=missing_required'));
+    exit;
 }
 
 $allowedSites = ['FANZA', 'DMM'];
@@ -61,14 +74,21 @@ if (!in_array($floor, $allowedFloors, true)) {
     $floor = 'videoa';
 }
 if ($connectTimeout === false) {
-    $connectTimeout = 10;
+    admin_flash_set('api_old', json_encode($oldInputPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    app_redirect(admin_url('settings.php?tab=api&error=invalid_connect_timeout'));
+    exit;
 }
 if ($timeout === false) {
-    $timeout = 20;
+    admin_flash_set('api_old', json_encode($oldInputPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    app_redirect(admin_url('settings.php?tab=api&error=invalid_timeout'));
+    exit;
 }
 if ($prodHits === false) {
-    $prodHits = 20;
+    admin_flash_set('api_old', json_encode($oldInputPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    app_redirect(admin_url('settings.php?tab=api&error=invalid_prod_hits'));
+    exit;
 }
+
 
 $local['dmm_api'] = [
     'api_id' => $apiId,
@@ -86,6 +106,7 @@ try {
 } catch (Throwable $e) {
     error_log('save_settings failed: ' . $e->getMessage());
     app_redirect(admin_url('settings.php?tab=api&error=write_failed'));
+    exit;
 }
 
 if ((string)($_POST['connection_test'] ?? '') === '1') {
@@ -120,6 +141,8 @@ if ((string)($_POST['connection_test'] ?? '') === '1') {
         'titles' => $titles,
     ];
     app_redirect(admin_url('settings.php?tab=api&tested=1'));
+    exit;
 }
 
 app_redirect(admin_url('settings.php?tab=api&saved=1'));
+exit;

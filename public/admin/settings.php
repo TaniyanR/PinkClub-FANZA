@@ -177,7 +177,53 @@ $errorMessages = [
     'not_writable_file' => '設定ファイルに書き込めません。対象ファイル: ' . $localPath . '（ファイル権限を確認してください）',
     'write_failed'      => 'config.local.php に書き込めません。対象ファイル: ' . $localPath . '（権限を確認してください）',
     'rename_failed'     => '設定ファイルの更新に失敗しました。対象ファイル: ' . $localPath . '（ディスク/権限を確認してください）',
+    'invalid_connect_timeout' => '接続タイムアウトは 1〜30 の整数で入力してください。',
+    'invalid_timeout' => '全体タイムアウトは 5〜60 の整数で入力してください。',
+    'invalid_prod_hits' => '本番取得件数は 1〜100 の整数で入力してください。',
 ];
+
+
+$apiOldRaw = admin_flash_get('api_old');
+if ($apiOldRaw !== '') {
+    $decodedOld = json_decode($apiOldRaw, true);
+    if (is_array($decodedOld)) {
+        $oldSite = (string)($decodedOld['site'] ?? '');
+        if (in_array($oldSite, $siteOptions, true)) {
+            $currentSite = $oldSite;
+        }
+
+        $oldService = (string)($decodedOld['service'] ?? '');
+        if (in_array($oldService, $serviceOptions, true)) {
+            $currentService = $oldService;
+        }
+
+        $oldFloor = (string)($decodedOld['floor'] ?? '');
+        if (in_array($oldFloor, $floorOptions, true)) {
+            $currentFloor = $oldFloor;
+        }
+
+        $oldConnectTimeout = filter_var($decodedOld['connect_timeout'] ?? null, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 30],
+        ]);
+        if ($oldConnectTimeout !== false) {
+            $connectTimeout = $oldConnectTimeout;
+        }
+
+        $oldTimeout = filter_var($decodedOld['timeout'] ?? null, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 5, 'max_range' => 60],
+        ]);
+        if ($oldTimeout !== false) {
+            $timeout = $oldTimeout;
+        }
+
+        $oldProdHits = filter_var($decodedOld['prod_hits'] ?? null, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 100],
+        ]);
+        if ($oldProdHits !== false) {
+            $prodHits = $oldProdHits;
+        }
+    }
+}
 
 $pageTitle = '管理設定';
 ob_start();
