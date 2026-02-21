@@ -156,8 +156,18 @@ function admin_is_logged_in(): bool
 
 function admin_find_user_by_identifier(string $usernameOrEmail): ?array
 {
+    $hasLegacyPasswordColumn = false;
+    try {
+        $columnsStmt = db()->query('SHOW COLUMNS FROM admin_users');
+        $columns = $columnsStmt ? $columnsStmt->fetchAll(PDO::FETCH_COLUMN) : [];
+        $hasLegacyPasswordColumn = is_array($columns) && in_array('password', $columns, true);
+    } catch (Throwable $exception) {
+        error_log('[admin_auth] failed to inspect admin_users columns: ' . $exception->getMessage());
+    }
+
+    $selectLegacyPassword = $hasLegacyPasswordColumn ? ', password' : '';
     $sql = <<<'SQL'
-SELECT id, username, email, login_mode, password_hash
+SELECT id, username, email, login_mode, password_hash%s
 FROM admin_users
 WHERE is_active = 1
   AND (
@@ -167,11 +177,43 @@ WHERE is_active = 1
 LIMIT 1
 SQL;
 
+    $sql = sprintf($sql, $selectLegacyPassword);
+
     $stmt = db()->prepare($sql);
     $stmt->execute([':identifier' => $usernameOrEmail]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
     return is_array($row) ? $row : null;
+}
+
+function admin_verify_password_with_legacy_support(array $adminUser, string $plainPassword): bool
+{
+    $passwordHash = (string)($adminUser['password_hash'] ?? '');
+    if ($passwordHash !== '' && password_verify($plainPassword, $passwordHash)) {
+        return true;
+    }
+
+    if (!array_key_exists('password', $adminUser)) {
+        return false;
+    }
+
+    $legacyPassword = (string)($adminUser['password'] ?? '');
+    if ($legacyPassword === '' || !hash_equals($legacyPassword, $plainPassword)) {
+        return false;
+    }
+
+    try {
+        $newHash = password_hash($plainPassword, PASSWORD_DEFAULT);
+        $update = db()->prepare('UPDATE admin_users SET password_hash = :password_hash, updated_at = NOW() WHERE id = :id LIMIT 1');
+        $update->execute([
+            ':password_hash' => $newHash,
+            ':id' => (int)($adminUser['id'] ?? 0),
+        ]);
+    } catch (Throwable $exception) {
+        error_log('[admin_auth] legacy password migration failed: ' . $exception->getMessage());
+    }
+
+    return true;
 }
 
 function admin_config_authenticate(string $identifier, string $password): ?array
@@ -228,8 +270,7 @@ function admin_attempt_login(string $username_or_email, string $password): array
             ];
         }
 
-        $passwordHash = (string)($admin['password_hash'] ?? '');
-        if ($passwordHash === '' || !password_verify($password, $passwordHash)) {
+        if (!admin_verify_password_with_legacy_support($admin, $password)) {
             error_log('[admin_auth] login failed: password mismatch');
             return [
                 'success' => false,
@@ -244,7 +285,7 @@ function admin_attempt_login(string $username_or_email, string $password): array
             'username' => (string)$admin['username'],
             'email' => isset($admin['email']) && is_string($admin['email']) ? $admin['email'] : null,
             'login_mode' => isset($admin['login_mode']) && is_string($admin['login_mode']) ? $admin['login_mode'] : null,
-            'password_hash' => $passwordHash,
+            'password_hash' => (string)($admin['password_hash'] ?? ''),
         ]);
 
         return [
