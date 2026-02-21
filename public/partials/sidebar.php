@@ -7,7 +7,13 @@ require_once __DIR__ . '/../../lib/csrf.php';
 require_once __DIR__ . '/../../lib/url.php';
 require_once __DIR__ . '/../../lib/app_features.php';
 
-
+$sidebarSafeFetch = static function (callable $fetcher, string $context): array {
+    try {
+        return $fetcher();
+    } catch (Throwable $e) {
+        if (function_exists('log_message')) {
+            log_message('[sidebar] ' . $context . ' fetch failed: ' . $e->getMessage());
+        }
         return [];
     }
 };
