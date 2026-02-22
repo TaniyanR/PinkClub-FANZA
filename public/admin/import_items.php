@@ -5,6 +5,7 @@ require_once __DIR__ . '/_common.php';
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/dmm_api.php';
 require_once __DIR__ . '/../../lib/repository.php';
+require_once __DIR__ . '/../../lib/site_settings.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
@@ -14,6 +15,8 @@ $apiConfig = config_get('dmm_api', []);
 
 $resultLog = [];
 $errorLog  = [];
+$flashSuccess = admin_flash_get('import_items_success');
+$flashError = admin_flash_get('import_items_error');
 
 
 function api_base_params(array $apiConfig): array
@@ -98,12 +101,18 @@ function normalize_taxonomy_payload(array $taxonomy): array
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!admin_post_csrf_valid()) {
-        $errorLog[] = '不正なリクエストです。';
+        admin_flash_set('import_items_error', '不正なリクエストです。');
+        header('Location: ' . admin_url('import_items.php'));
+        exit;
     } else {
-        $missing = validate_api_config($apiConfig);
-        if ($missing) {
-            $errorLog[] = 'DMM API設定が不足しています: ' . implode(', ', $missing);
-        } else {
+        try {
+            $missing = validate_api_config($apiConfig);
+            if ($missing) {
+                admin_flash_set('import_items_error', 'API設定が未設定です。設定画面から API ID / アフィリエイトID を設定してください。');
+                header('Location: ' . admin_url('import_items.php'));
+                exit;
+            }
+
         $hits        = (int)($_POST['hits'] ?? 100);
         $startOffset = (int)($_POST['offset'] ?? 1);
         $maxPages    = (int)($_POST['pages'] ?? 1);
@@ -168,6 +177,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             if (!($response['ok'] ?? false)) {
+                error_log('import_items api failed: ' . json_encode([
+                    'http_code' => (int)($response['http_code'] ?? 0),
+                    'error' => (string)($response['error'] ?? 'unknown'),
+                    'endpoint' => 'ItemList',
+                ], JSON_UNESCAPED_UNICODE));
                 $errorLog[] = sprintf('APIエラー: HTTP %d %s', (int)($response['http_code'] ?? 0), (string)($response['error'] ?? 'unknown'));
                 break;
             }
@@ -296,12 +310,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         replace_item_relations($contentId, $seriesIds, 'item_series', 'series_id');
                         replace_item_labels($contentId, $labels);
                         
-                        // Auto-generate tags if function is available
-                        if (function_exists('generate_item_tags')) {
-                            $title = (string)($row['title'] ?? '');
-                            $category = (string)($row['category_name'] ?? '');
-                            generate_item_tags($contentId, $title, $category);
-                        }
                     }
 
                     $pdo->commit();
@@ -330,14 +338,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
             $resultLog[] = sprintf('追加 %d件 / 更新 %d件', $inserted, $updated);
+
+            try {
+                site_setting_set('admin.api_last_run_at', date('Y-m-d H:i:s'));
+            } catch (Throwable $e) {
+                error_log('import_items save last run failed: ' . $e->getMessage());
+            }
+
+            if ($errorLog === []) {
+                admin_flash_set('import_items_success', '取得を実行しました。');
+            } else {
+                admin_flash_set('import_items_error', '取得に失敗しました。ログを確認してください。');
+            }
+        } catch (Throwable $e) {
+            error_log('import_items unexpected error: ' . $e->getMessage());
+            admin_flash_set('import_items_error', '取得に失敗しました。時間をおいて再度実行してください。');
         }
+
+        header('Location: ' . admin_url('import_items.php'));
+        exit;
     }
 }
+
+$lastRunAt = site_setting_get('admin.api_last_run_at', '');
 
 $pageTitle = 'インポート';
 ob_start();
 ?>
     <h1>作品インポート</h1>
+
+    <?php if ($flashSuccess !== '') : ?>
+        <div class="admin-card"><p><?php echo e($flashSuccess); ?></p></div>
+    <?php endif; ?>
+
+    <?php if ($flashError !== '') : ?>
+        <div class="admin-card"><p><?php echo e($flashError); ?></p></div>
+    <?php endif; ?>
+
+    <div class="admin-card">
+        <p>最終実行日時: <?php echo e($lastRunAt !== '' ? $lastRunAt : '未実行'); ?></p>
+    </div>
 
     <div class="admin-card">
         <form method="post">
