@@ -17,6 +17,7 @@ function admin_menu_groups(): array
                 ['file' => 'design.php', 'label' => 'デザイン設定'],
                 ['file' => 'diagnostics.php', 'label' => '診断'],
                 ['file' => 'auth_diagnostics.php', 'label' => '認証診断'],
+                ['file' => 'help.php', 'label' => 'ヘルプ'],
             ],
         ],
         [
