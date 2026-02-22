@@ -5,6 +5,7 @@ require_once __DIR__ . '/_common.php';
 require_once __DIR__ . '/../../lib/local_config_writer.php';
 require_once __DIR__ . '/../../lib/dmm_api.php';
 require_once __DIR__ . '/../../lib/site_settings.php';
+require_once __DIR__ . '/../../lib/fanza_api_config.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     app_redirect(admin_url('settings.php?tab=api'));
@@ -19,9 +20,7 @@ if (!csrf_verify(is_string($token) ? $token : null)) {
 
 $apiId = trim((string)($_POST['api_id'] ?? ''));
 $affiliateId = trim((string)($_POST['affiliate_id'] ?? ''));
-$site = trim((string)($_POST['site'] ?? 'FANZA'));
-$service = trim((string)($_POST['service'] ?? 'digital'));
-$floor = trim((string)($_POST['floor'] ?? 'videoa'));
+$floorPair = trim((string)($_POST['floor_pair'] ?? ''));
 $connectTimeout = filter_var($_POST['connect_timeout'] ?? null, FILTER_VALIDATE_INT, [
     'options' => ['min_range' => 1, 'max_range' => 30],
 ]);
@@ -35,9 +34,7 @@ $prodHits = filter_var($_POST['prod_hits'] ?? null, FILTER_VALIDATE_INT, [
 $oldInputPayload = [
     'api_id' => $apiId,
     'affiliate_id' => $affiliateId,
-    'site' => $site,
-    'service' => $service,
-    'floor' => $floor,
+    'floor_pair' => $floorPair,
     'connect_timeout' => $_POST['connect_timeout'] ?? '',
     'timeout' => $_POST['timeout'] ?? '',
     'prod_hits' => $_POST['prod_hits'] ?? '',
@@ -62,19 +59,6 @@ if ($apiId === '' || $affiliateId === '') {
     exit;
 }
 
-$allowedSites = ['FANZA', 'DMM'];
-$allowedServices = ['digital'];
-$allowedFloors = ['videoa', 'videoc', 'amateur'];
-
-if (!in_array($site, $allowedSites, true)) {
-    $site = 'FANZA';
-}
-if (!in_array($service, $allowedServices, true)) {
-    $service = 'digital';
-}
-if (!in_array($floor, $allowedFloors, true)) {
-    $floor = 'videoa';
-}
 if ($connectTimeout === false) {
     admin_flash_set('api_old', json_encode($oldInputPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     app_redirect(admin_url('settings.php?tab=api&error=invalid_connect_timeout'));
@@ -92,12 +76,25 @@ if ($prodHits === false) {
 }
 
 
+$resolvedFloor = fanza_resolve_floor_pair($floorPair, null, null);
+if (!($resolvedFloor['valid'] ?? false)) {
+    admin_flash_set('api_old', json_encode($oldInputPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    app_redirect(admin_url('settings.php?tab=api&error=invalid_floor'));
+    exit;
+}
+
+$site = 'FANZA';
+$service = (string)$resolvedFloor['service'];
+$floor = (string)$resolvedFloor['floor'];
+$floorPair = (string)$resolvedFloor['pair'];
+
 $local['dmm_api'] = [
     'api_id' => $apiId,
     'affiliate_id' => $affiliateId,
     'site' => $site,
     'service' => $service,
     'floor' => $floor,
+    'floor_pair' => $floorPair,
     'connect_timeout' => $connectTimeout,
     'timeout' => $timeout,
 ];

@@ -6,12 +6,13 @@ require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/dmm_api.php';
 require_once __DIR__ . '/../../lib/repository.php';
 require_once __DIR__ . '/../../lib/site_settings.php';
+require_once __DIR__ . '/../../lib/fanza_api_config.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
-$apiConfig = config_get('dmm_api', []);
+$apiConfig = fanza_normalize_api_config(config_get('dmm_api', []));
 
 $resultLog = [];
 $errorLog  = [];

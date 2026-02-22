@@ -27,9 +27,11 @@ PinkClub-FANZA は、FANZA API から商品データを取得し、管理画面�
 
 1. 管理画面にログインする
 2. サイト設定を保存する（サイト名 / サイト URL など）
-3. API 設定で以下を保存する
+3. API 設定で以下を保存する（FANZA専用）
    - API ID
    - Affiliate ID
+   - フロア（内部的に service / floor の組で管理）
+   - site は FANZA 固定（選択不要）
 4. 必要に応じてデザイン設定を保存する
 
 > API ID / Affiliate ID が未設定の場合、商品インポートは実行できません。
@@ -63,7 +65,7 @@ PinkClub-FANZA は、FANZA API から商品データを取得し、管理画面�
 ## トラブルシュート（最小）
 
 - **API 未設定メッセージが出る**
-  - API 設定で API ID / Affiliate ID が保存されているか確認
+  - API 設定で API ID / Affiliate ID / フロア が保存されているか確認
 - **画面エラー / 白画面になる**
   - `storage/logs/php-error.log` やサーバーの `error_log` を確認
 - **URL が二重連結になる（例: `/public/public/...`）**

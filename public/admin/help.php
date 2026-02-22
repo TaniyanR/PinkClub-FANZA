@@ -24,11 +24,11 @@ admin_render('運用ヘルプ', static function (): void {
         <h2>初期設定</h2>
         <ol>
             <li>サイト設定を保存する</li>
-            <li>API設定で API ID / Affiliate ID を保存する</li>
+            <li>API設定で API ID / Affiliate ID / フロアを保存する（site は FANZA 固定）</li>
             <li>必要に応じてデザイン設定を保存する</li>
         </ol>
         <p>必要テーブルは管理画面アクセス時に自動作成されます（手動のテーブル初期化は不要です）。</p>
-        <p><strong>API ID / Affiliate ID が未設定の場合、インポートは実行できません。</strong></p>
+        <p><strong>API ID / Affiliate ID / フロア が未設定の場合、インポートは実行できません。</strong></p>
     </section>
 
     <section class="admin-card">

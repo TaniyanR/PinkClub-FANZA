@@ -82,6 +82,7 @@ $apiChecks = [
     'site' => (string)($apiConfig['site'] ?? ''),
     'service' => (string)($apiConfig['service'] ?? ''),
     'floor' => (string)($apiConfig['floor'] ?? ''),
+    'floor_pair' => (string)($apiConfig['floor_pair'] ?? ''),
     'connect_timeout' => (string)($apiConfig['connect_timeout'] ?? ''),
     'timeout' => (string)($apiConfig['timeout'] ?? ''),
 ];
