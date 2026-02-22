@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/_common.php';
 require_once __DIR__ . '/../../lib/site_settings.php';
 require_once __DIR__ . '/../../lib/db.php';
+require_once __DIR__ . '/../../lib/fanza_api_config.php';
 
 $tab = (string)($_GET['tab'] ?? 'api');
 if (!in_array($tab, ['site', 'api'], true)) {
@@ -107,40 +108,26 @@ $apiIdInput = '';
 $affiliateIdInput = '';
 
 // 選択肢（UI用）
-$siteOptions = ['FANZA', 'DMM'];
-$serviceOptions = ['digital'];
-$floorOptions = ['videoa']; // 必要に応じて ['videoa', 'videoc', 'amateur'] へ拡張可
-
-$serviceLabels = [
-    'digital' => 'デジタル',
-];
-
-$floorLabels = [
-    'videoa'  => '動画（AV）',
-    'videoc'  => 'ビデオ（一般）',
-    'amateur' => '素人',
-];
+$floorDefinitions = fanza_floor_definitions();
+$floorOptions = array_keys($floorDefinitions);
 
 // 現在値（表示用）
 $currentSite = 'FANZA';
-$currentService = 'digital';
-$currentFloor = 'videoa';
+$resolvedCurrent = fanza_resolve_floor_pair(null, null, null);
+$currentFloorPair = $resolvedCurrent['pair'];
+$currentService = $resolvedCurrent['service'];
+$currentFloor = $resolvedCurrent['floor'];
 
 if (is_array($apiConfig)) {
-    $siteValue = (string)($apiConfig['site'] ?? '');
-    if (in_array($siteValue, $siteOptions, true)) {
-        $currentSite = $siteValue;
-    }
-
-    $serviceValue = (string)($apiConfig['service'] ?? '');
-    if (in_array($serviceValue, $serviceOptions, true)) {
-        $currentService = $serviceValue;
-    }
-
-    $floorValue = (string)($apiConfig['floor'] ?? '');
-    if (in_array($floorValue, $floorOptions, true)) {
-        $currentFloor = $floorValue;
-    }
+    $currentSite = 'FANZA';
+    $resolved = fanza_resolve_floor_pair(
+        (string)($apiConfig['floor_pair'] ?? ''),
+        (string)($apiConfig['service'] ?? ''),
+        (string)($apiConfig['floor'] ?? '')
+    );
+    $currentFloorPair = $resolved['pair'];
+    $currentService = $resolved['service'];
+    $currentFloor = $resolved['floor'];
 }
 
 // タイムアウト（表示用）
@@ -182,6 +169,7 @@ $errorMessages = [
     'invalid_connect_timeout' => '接続タイムアウトは 1〜30 の整数で入力してください。',
     'invalid_timeout' => '全体タイムアウトは 5〜60 の整数で入力してください。',
     'invalid_prod_hits' => '本番取得件数は 1〜100 の整数で入力してください。',
+    'invalid_floor' => 'フロアの選択値が不正です。再選択してください。',
 ];
 
 
@@ -189,20 +177,14 @@ $apiOldRaw = admin_flash_get('api_old');
 if ($apiOldRaw !== '') {
     $decodedOld = json_decode($apiOldRaw, true);
     if (is_array($decodedOld)) {
-        $oldSite = (string)($decodedOld['site'] ?? '');
-        if (in_array($oldSite, $siteOptions, true)) {
-            $currentSite = $oldSite;
-        }
-
-        $oldService = (string)($decodedOld['service'] ?? '');
-        if (in_array($oldService, $serviceOptions, true)) {
-            $currentService = $oldService;
-        }
-
-        $oldFloor = (string)($decodedOld['floor'] ?? '');
-        if (in_array($oldFloor, $floorOptions, true)) {
-            $currentFloor = $oldFloor;
-        }
+        $resolvedOld = fanza_resolve_floor_pair(
+            (string)($decodedOld['floor_pair'] ?? ''),
+            (string)($decodedOld['service'] ?? ''),
+            (string)($decodedOld['floor'] ?? '')
+        );
+        $currentFloorPair = $resolvedOld['pair'];
+        $currentService = $resolvedOld['service'];
+        $currentFloor = $resolvedOld['floor'];
 
         $oldConnectTimeout = filter_var($decodedOld['connect_timeout'] ?? null, FILTER_VALIDATE_INT, [
             'options' => ['min_range' => 1, 'max_range' => 30],
@@ -389,31 +371,18 @@ ob_start();
         >
 
         <label>サイト</label>
-        <select name="site">
-            <?php foreach ($siteOptions as $option) : ?>
-                <option value="<?php echo e($option); ?>"<?php echo $option === $currentSite ? ' selected' : ''; ?>>
-                    <?php echo e($option); ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-
-        <label>サービス</label>
-        <select name="service">
-            <?php foreach ($serviceOptions as $option) : ?>
-                <option value="<?php echo e($option); ?>"<?php echo $option === $currentService ? ' selected' : ''; ?>>
-                    <?php echo e($serviceLabels[$option] ?? $option); ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
+        <input type="text" value="FANZA（固定）" readonly>
+        <p class="admin-form-note">本ツールはFANZA専用です。siteは常にFANZAとして保存されます。</p>
 
         <label>フロア</label>
-        <select name="floor">
+        <select name="floor_pair">
             <?php foreach ($floorOptions as $option) : ?>
-                <option value="<?php echo e($option); ?>"<?php echo $option === $currentFloor ? ' selected' : ''; ?>>
-                    <?php echo e($floorLabels[$option] ?? $option); ?>
+                <option value="<?php echo e($option); ?>"<?php echo $option === $currentFloorPair ? ' selected' : ''; ?>>
+                    <?php echo e((string)$floorDefinitions[$option]['label']); ?>
                 </option>
             <?php endforeach; ?>
         </select>
+        <p class="admin-form-note">serviceはフロア選択から内部決定されます（現在: <?php echo e($currentService); ?> / <?php echo e($currentFloor); ?>）。</p>
 
         <label>接続タイムアウト</label>
         <input type="number" name="connect_timeout" min="1" max="30" step="1" value="<?php echo e((string)$connectTimeout); ?>">
