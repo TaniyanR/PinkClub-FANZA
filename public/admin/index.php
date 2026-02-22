@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/admin_auth.php';
 require_once __DIR__ . '/../../lib/site_settings.php';
 require_once __DIR__ . '/../../lib/dmm_api.php';
+require_once __DIR__ . '/../../lib/fanza_api_config.php';
 
 function admin_table_map(PDO $pdo): array
 {
@@ -71,7 +72,7 @@ if ($dbConnected && $pdo instanceof PDO) {
 
 $tableStatus = $dbConnected ? '自動初期化済み' : 'DB接続エラーのため確認不可';
 
-$apiConfig = config_get('dmm_api', []);
+$apiConfig = fanza_normalize_api_config(config_get('dmm_api', []));
 $apiKey = trim((string)(is_array($apiConfig) ? ($apiConfig['api_id'] ?? '') : ''));
 $affiliateId = trim((string)(is_array($apiConfig) ? ($apiConfig['affiliate_id'] ?? '') : ''));
 $apiStatus = ($apiKey !== '' && $affiliateId !== '') ? '設定済' : '未設定';
@@ -84,8 +85,8 @@ try {
                 'api_id' => $apiKey,
                 'affiliate_id' => $affiliateId,
                 'site' => 'FANZA',
-                'service' => 'digital',
-                'floor' => 'videoa',
+                'service' => (string)($apiConfig['service'] ?? 'digital'),
+                'floor' => (string)($apiConfig['floor'] ?? 'videoa'),
                 'hits' => 1,
                 'sort' => 'rank',
                 'output' => 'json',

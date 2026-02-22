@@ -5,6 +5,7 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/site_settings.php';
 require_once __DIR__ . '/dmm_api.php';
+require_once __DIR__ . '/fanza_api_config.php';
 require_once __DIR__ . '/repository.php';
 
 function scheduler_allowed_intervals(): array
@@ -110,8 +111,8 @@ function scheduler_run_import(int $limit): void
         throw new RuntimeException('API key または affiliate id が未設定です');
     }
 
-    $defaults = config_get('dmm_api', []);
-    $site = (string)($defaults['site'] ?? 'FANZA');
+    $defaults = fanza_normalize_api_config(config_get('dmm_api', []));
+    $site = 'FANZA';
     $service = (string)($defaults['service'] ?? 'digital');
     $floor = (string)($defaults['floor'] ?? 'videoa');
 
