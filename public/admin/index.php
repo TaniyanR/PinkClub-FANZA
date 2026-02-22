@@ -60,41 +60,16 @@ try {
 }
 
 $existingTables = [];
-$requiredCandidates = ['items', 'actresses', 'genres', 'makers', 'series', 'api_logs', 'rss_sources', 'rss_items', 'mutual_links', 'access_events', 'page_views', 'pages'];
-$requiredTables = [];
-$missingTables = [];
 
 if ($dbConnected && $pdo instanceof PDO) {
     try {
         $existingTables = admin_table_map($pdo);
-        foreach ($requiredCandidates as $table) {
-            if (isset($existingTables[$table])) {
-                $requiredTables[] = $table;
-            }
-        }
-
-        if ($requiredTables === []) {
-            $requiredTables = ['items', 'pages'];
-        }
-
-        foreach ($requiredTables as $required) {
-            if (!isset($existingTables[$required])) {
-                $missingTables[] = $required;
-            }
-        }
     } catch (Throwable $e) {
-        admin_log_error('Dashboard table check failed', $e);
+        admin_log_error('Dashboard table map load failed', $e);
     }
 }
 
-$tableStatus = '未実施';
-if (!$dbConnected) {
-    $tableStatus = '未実施';
-} elseif ($missingTables === []) {
-    $tableStatus = '実施済み';
-} else {
-    $tableStatus = '未実施（不足: ' . implode(', ', $missingTables) . '）';
-}
+$tableStatus = $dbConnected ? '自動初期化済み' : 'DB接続エラーのため確認不可';
 
 $apiConfig = config_get('dmm_api', []);
 $apiKey = trim((string)(is_array($apiConfig) ? ($apiConfig['api_id'] ?? '') : ''));
@@ -186,7 +161,7 @@ ob_start();
 <div class="admin-status-grid">
     <section class="admin-card admin-status-card"><strong>API接続</strong><p><?php echo e($apiConnectionStatus); ?></p></section>
     <section class="admin-card admin-status-card"><strong>DB接続</strong><p><?php echo e($dbStatus); ?></p></section>
-    <section class="admin-card admin-status-card"><strong>テーブル初期化</strong><p><?php echo e($tableStatus); ?></p></section>
+    <section class="admin-card admin-status-card"><strong>テーブル状態</strong><p><?php echo e($tableStatus); ?></p></section>
     <section class="admin-card admin-status-card"><strong>API設定</strong><p><?php echo e($apiStatus); ?></p><?php if ($apiStatus === '未設定') : ?><a href="<?php echo e(admin_url('settings.php')); ?>">設定する</a><?php endif; ?></section>
     <section class="admin-card admin-status-card"><strong>作品件数</strong><p><?php echo e($itemsCountLabel); ?></p></section>
     <section class="admin-card admin-status-card"><strong>最終インポート</strong><p><?php echo e($lastImportLabel); ?></p></section>
@@ -195,7 +170,6 @@ ob_start();
 <div class="admin-card">
     <h2>次にやること</h2>
     <p>
-        <a class="button" href="<?php echo e(admin_url('db_init.php')); ?>">テーブル初期化</a>
         <a class="button" href="<?php echo e(admin_url('settings.php')); ?>">API設定</a>
     </p>
 </div>

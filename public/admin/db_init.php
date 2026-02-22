@@ -40,19 +40,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             try {
                 $result = init_db();
-                $status = sprintf('テーブル初期化が完了しました。（%s使用: %dステートメント）', $result['source'], $result['count']);
+                $status = sprintf('スキーマ再適用が完了しました。（%s使用: %dステートメント）', $result['source'], $result['count']);
             } catch (Throwable $e) {
                 error_log('db_init failed: ' . $e->getMessage());
-                $error = 'テーブル初期化に失敗しました。ログを確認してください。';
+                $error = 'スキーマ再適用に失敗しました。ログを確認してください。';
             }
         }
     }
 }
 
-$pageTitle = 'テーブル初期化';
+$pageTitle = 'DBメンテナンス';
 ob_start();
 ?>
-    <h1>テーブル初期化</h1>
+    <h1>DBメンテナンス</h1>
+    <p>通常運用では必要テーブルは自動初期化されます。この画面は再適用が必要な場合の補助機能です。</p>
 
     <?php if ($status !== '') : ?>
         <div class="admin-card">
@@ -69,7 +70,7 @@ ob_start();
     <form class="admin-card" method="post" action="<?php echo e(admin_url('db_init.php')); ?>">
         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
         <input type="hidden" name="action" value="init_db">
-        <button type="submit">テーブル初期化</button>
+        <button type="submit">スキーマ再適用</button>
     </form>
 
     <?php if ($isDevEnvironment) : ?>
