@@ -597,6 +597,7 @@ ob_start();
                     <th style="border:1px solid #ddd;padding:8px;text-align:left;">更新日時</th>
                     <th style="border:1px solid #ddd;padding:8px;text-align:left;">状態</th>
                     <th style="border:1px solid #ddd;padding:8px;text-align:left;">画像</th>
+                    <th style="border:1px solid #ddd;padding:8px;text-align:left;">操作</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -617,6 +618,7 @@ ob_start();
                     if ($imageUrl === '') {
                         $imageUrl = trim((string)($row['image_list'] ?? ''));
                     }
+                    $detailUrl = admin_url('item_show.php?id=' . rawurlencode((string)$id));
                     ?>
                     <tr>
                         <td style="border:1px solid #ddd;padding:8px;"><?php echo e((string)$id); ?></td>
@@ -631,6 +633,7 @@ ob_start();
                                 なし
                             <?php endif; ?>
                         </td>
+                        <td style="border:1px solid #ddd;padding:8px;"><a href="<?php echo e($detailUrl); ?>">詳細</a></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
