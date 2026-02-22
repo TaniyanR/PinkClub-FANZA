@@ -15,6 +15,33 @@ $apiConfig = config_get('dmm_api', []);
 $resultLog = [];
 $errorLog  = [];
 
+function import_items_redirect(): void
+{
+    header('Location: ' . admin_url('import_items.php'));
+    exit;
+}
+
+
+function import_items_table_has_column(PDO $pdo, string $table, string $column): bool
+{
+    try {
+        $stmt = $pdo->query('SHOW COLUMNS FROM `' . str_replace('`', '``', $table) . '`');
+        if ($stmt === false) {
+            return false;
+        }
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            if (strtolower((string)($row['Field'] ?? '')) === strtolower($column)) {
+                return true;
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('import_items table inspection failed: ' . $e->getMessage());
+    }
+
+    return false;
+}
+
 
 function api_base_params(array $apiConfig): array
 {
@@ -330,8 +357,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
             $resultLog[] = sprintf('追加 %d件 / 更新 %d件', $inserted, $updated);
+
+            if ($resultLog !== []) {
+                admin_flash_set('import_items_ok', implode("\n", $resultLog));
+            }
+            if ($errorLog !== []) {
+                admin_flash_set('import_items_error', implode("\n", $errorLog));
+            }
+            import_items_redirect();
         }
     }
+
+    if ($errorLog !== []) {
+        admin_flash_set('import_items_error', implode("\n", $errorLog));
+        import_items_redirect();
+    }
+}
+
+$flashOkRaw = admin_flash_get('import_items_ok');
+$flashErrorRaw = admin_flash_get('import_items_error');
+$flashOk = $flashOkRaw !== '' ? explode("\n", $flashOkRaw) : [];
+$flashError = $flashErrorRaw !== '' ? explode("\n", $flashErrorRaw) : [];
+
+$recentItems = [];
+$listError = '';
+$lastImportLabel = '未実施';
+
+try {
+    $pdo = db();
+
+    $columns = ['id', 'content_id', 'product_id', 'title', 'image_small', 'image_list', 'updated_at', 'created_at'];
+    $hasStatusColumn = import_items_table_has_column($pdo, 'items', 'status');
+    if ($hasStatusColumn) {
+        $columns[] = 'status';
+    }
+
+    $stmt = $pdo->query(
+        'SELECT ' . implode(', ', $columns) . ' FROM items ORDER BY id DESC LIMIT 50'
+    );
+    if ($stmt !== false) {
+        $recentItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+} catch (Throwable $e) {
+    error_log('import_items list fetch failed: ' . $e->getMessage());
+    $listError = '一覧データの取得に失敗しました。';
+}
+
+try {
+    $pdo = db();
+
+    if (admin_table_exists('api_logs')) {
+        $stmt = $pdo->query("SELECT MAX(created_at) FROM api_logs WHERE status IN ('success', 'ok', 'SUCCESS') OR success = 1");
+        if ($stmt !== false) {
+            $value = (string)$stmt->fetchColumn();
+            if ($value !== '') {
+                $lastImportLabel = $value;
+            }
+        }
+    }
+
+    if ($lastImportLabel === '未実施') {
+        $stmt = $pdo->query('SELECT MAX(updated_at) FROM items');
+        if ($stmt !== false) {
+            $value = (string)$stmt->fetchColumn();
+            if ($value !== '') {
+                $lastImportLabel = $value;
+            }
+        }
+    }
+} catch (Throwable $e) {
+    error_log('import_items last import fetch failed: ' . $e->getMessage());
 }
 
 $pageTitle = 'インポート';
@@ -339,7 +434,30 @@ ob_start();
 ?>
     <h1>作品インポート</h1>
 
+    <?php if ($flashOk !== []) : ?>
+        <div class="admin-card" style="background:#e7f5e7;padding:12px;margin-bottom:16px;">
+            <h2 style="margin-top:0;">直近のインポート結果</h2>
+            <ul>
+                <?php foreach ($flashOk as $line) : ?>
+                    <li><?php echo e((string)$line); ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($flashError !== []) : ?>
+        <div class="admin-card" style="background:#ffe7e7;padding:12px;margin-bottom:16px;">
+            <h2 style="margin-top:0;">インポートエラー</h2>
+            <ul>
+                <?php foreach ($flashError as $line) : ?>
+                    <li><?php echo e((string)$line); ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+
     <div class="admin-card">
+        <p>最終実行日時: <?php echo e($lastImportLabel); ?></p>
         <form method="post">
             <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
 
@@ -380,6 +498,64 @@ ob_start();
             </ul>
         </div>
     <?php endif; ?>
+
+    <div class="admin-card">
+        <h2>取得済みデータ一覧（新しい順・最大50件）</h2>
+
+        <?php if ($listError !== '') : ?>
+            <p style="color:#c00;"><?php echo e($listError); ?></p>
+        <?php elseif ($recentItems === []) : ?>
+            <p>データなし</p>
+        <?php else : ?>
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                <tr style="background:#f5f5f5;">
+                    <th style="border:1px solid #ddd;padding:8px;text-align:left;">ID</th>
+                    <th style="border:1px solid #ddd;padding:8px;text-align:left;">タイトル</th>
+                    <th style="border:1px solid #ddd;padding:8px;text-align:left;">商品ID / コンテンツID</th>
+                    <th style="border:1px solid #ddd;padding:8px;text-align:left;">更新日時</th>
+                    <th style="border:1px solid #ddd;padding:8px;text-align:left;">状態</th>
+                    <th style="border:1px solid #ddd;padding:8px;text-align:left;">画像</th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($recentItems as $row) : ?>
+                    <?php
+                    $id = (int)($row['id'] ?? 0);
+                    $title = trim((string)($row['title'] ?? ''));
+                    $titleLabel = $title !== '' ? mb_strimwidth($title, 0, 80, '...') : '(タイトルなし)';
+                    $productId = trim((string)($row['product_id'] ?? ''));
+                    $contentId = trim((string)($row['content_id'] ?? ''));
+                    $productOrContentId = $productId !== '' ? $productId : ($contentId !== '' ? $contentId : '-');
+                    $updatedAt = (string)($row['updated_at'] ?? '');
+                    $createdAt = (string)($row['created_at'] ?? '');
+                    $dateLabel = $updatedAt !== '' ? $updatedAt : ($createdAt !== '' ? $createdAt : '-');
+                    $status = trim((string)($row['status'] ?? ''));
+                    $statusLabel = $status !== '' ? $status : '-';
+                    $imageUrl = trim((string)($row['image_small'] ?? ''));
+                    if ($imageUrl === '') {
+                        $imageUrl = trim((string)($row['image_list'] ?? ''));
+                    }
+                    ?>
+                    <tr>
+                        <td style="border:1px solid #ddd;padding:8px;"><?php echo e((string)$id); ?></td>
+                        <td style="border:1px solid #ddd;padding:8px;"><?php echo e($titleLabel); ?></td>
+                        <td style="border:1px solid #ddd;padding:8px;"><?php echo e($productOrContentId); ?></td>
+                        <td style="border:1px solid #ddd;padding:8px;"><?php echo e($dateLabel); ?></td>
+                        <td style="border:1px solid #ddd;padding:8px;"><?php echo e($statusLabel); ?></td>
+                        <td style="border:1px solid #ddd;padding:8px;">
+                            <?php if ($imageUrl !== '') : ?>
+                                <img src="<?php echo e($imageUrl); ?>" alt="thumb" style="max-width:60px;height:auto;display:block;">
+                            <?php else : ?>
+                                なし
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+    </div>
 <?php
 $content = (string)ob_get_clean();
 include __DIR__ . '/../partials/admin_layout.php';
