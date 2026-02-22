@@ -105,8 +105,15 @@ ob_start();
 ?>
 <h1>取得済みデータ詳細</h1>
 
-<div class="admin-card" style="margin-bottom:12px;">
+<div class="admin-card" style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <a href="<?php echo e(admin_url('import_items.php')); ?>">一覧に戻る</a>
+    <?php if ($itemId > 0) : ?>
+        <form method="post" action="<?php echo e(admin_url('item_delete.php')); ?>" onsubmit="return confirm('このデータを削除しますか？');" style="margin:0;display:inline-block;">
+            <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+            <input type="hidden" name="id" value="<?php echo e((string)$itemId); ?>">
+            <button type="submit">削除</button>
+        </form>
+    <?php endif; ?>
 </div>
 
 <?php if ($listError !== '') : ?>
