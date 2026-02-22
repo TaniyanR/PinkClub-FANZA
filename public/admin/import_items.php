@@ -391,6 +391,17 @@ $flashErrorRaw = admin_flash_get('import_items_error');
 $flashOk = $flashOkRaw !== '' ? explode("\n", $flashOkRaw) : [];
 $flashError = $flashErrorRaw !== '' ? explode("\n", $flashErrorRaw) : [];
 
+$listKeyword = trim((string)($_GET['list_keyword'] ?? ''));
+$listStatus = (string)($_GET['list_status'] ?? 'all');
+if (!in_array($listStatus, ['all', 'published', 'draft'], true)) {
+    $listStatus = 'all';
+}
+
+$listLimit = (int)($_GET['list_limit'] ?? 50);
+if (!in_array($listLimit, [10, 20, 50], true)) {
+    $listLimit = 50;
+}
+
 $recentItems = [];
 $listError = '';
 $lastImportLabel = '未実施';
@@ -404,9 +415,32 @@ try {
         $columns[] = 'status';
     }
 
-    $stmt = $pdo->query(
-        'SELECT ' . implode(', ', $columns) . ' FROM items ORDER BY id DESC LIMIT 50'
-    );
+    $where = [];
+    $bindings = [];
+
+    if ($listKeyword !== '') {
+        $where[] = '(title LIKE :keyword OR product_id LIKE :keyword OR content_id LIKE :keyword)';
+        $bindings[':keyword'] = '%' . $listKeyword . '%';
+    }
+
+    if ($hasStatusColumn && $listStatus !== 'all') {
+        $where[] = 'status = :status';
+        $bindings[':status'] = $listStatus;
+    }
+
+    $sql = 'SELECT ' . implode(', ', $columns) . ' FROM items';
+    if ($where !== []) {
+        $sql .= ' WHERE ' . implode(' AND ', $where);
+    }
+    $sql .= ' ORDER BY id DESC LIMIT :list_limit';
+
+    $stmt = $pdo->prepare($sql);
+    foreach ($bindings as $key => $value) {
+        $stmt->bindValue($key, $value, PDO::PARAM_STR);
+    }
+    $stmt->bindValue(':list_limit', $listLimit, PDO::PARAM_INT);
+    $stmt->execute();
+
     if ($stmt !== false) {
         $recentItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -518,7 +552,36 @@ ob_start();
     <?php endif; ?>
 
     <div class="admin-card">
-        <h2>取得済みデータ一覧（新しい順・最大50件）</h2>
+        <h2>取得済みデータ一覧（新しい順・最大<?php echo e((string)$listLimit); ?>件）</h2>
+
+        <form method="get" style="margin-bottom:12px;display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+            <div>
+                <label for="list_keyword">キーワード</label>
+                <input id="list_keyword" type="text" name="list_keyword" value="<?php echo app_h($listKeyword); ?>" placeholder="タイトル / 商品ID / コンテンツID">
+            </div>
+            <div>
+                <label for="list_status">状態</label>
+                <select id="list_status" name="list_status" <?php echo !$hasStatusColumn ? 'disabled' : ''; ?>>
+                    <option value="all" <?php echo $listStatus === 'all' ? 'selected' : ''; ?>>すべて</option>
+                    <option value="published" <?php echo $listStatus === 'published' ? 'selected' : ''; ?>>published</option>
+                    <option value="draft" <?php echo $listStatus === 'draft' ? 'selected' : ''; ?>>draft</option>
+                </select>
+                <?php if (!$hasStatusColumn) : ?>
+                    <small style="display:block;color:#666;">statusカラム未対応環境のため無効</small>
+                <?php endif; ?>
+            </div>
+            <div>
+                <label for="list_limit">件数</label>
+                <select id="list_limit" name="list_limit">
+                    <option value="10" <?php echo $listLimit === 10 ? 'selected' : ''; ?>>10</option>
+                    <option value="20" <?php echo $listLimit === 20 ? 'selected' : ''; ?>>20</option>
+                    <option value="50" <?php echo $listLimit === 50 ? 'selected' : ''; ?>>50</option>
+                </select>
+            </div>
+            <div>
+                <button type="submit">絞り込み</button>
+            </div>
+        </form>
 
         <?php if ($listError !== '') : ?>
             <p style="color:#c00;"><?php echo e($listError); ?></p>
