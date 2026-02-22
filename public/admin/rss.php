@@ -28,6 +28,7 @@ admin_render('RSS取得状況', static function (): void {
 
     $hasSources = admin_table_exists('rss_sources');
     $hasItems = admin_table_exists('rss_items');
+    $listError = '';
 
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if (!admin_post_csrf_valid()) {
@@ -37,45 +38,62 @@ admin_render('RSS取得状況', static function (): void {
         } else {
             $action = (string)($_POST['action'] ?? '');
 
-            if ($action === 'create_source') {
-                $name = trim((string)($_POST['name'] ?? ''));
-                $feedUrl = trim((string)($_POST['feed_url'] ?? ''));
+            try {
+                if ($action === 'create_source') {
+                    $name = trim((string)($_POST['name'] ?? ''));
+                    $feedUrl = trim((string)($_POST['feed_url'] ?? ''));
 
-                if ($name === '') {
-                    $error = 'サイト名は必須です。';
-                } elseif (!rss_admin_validate_http_url($feedUrl)) {
-                    $error = 'RSS URLは http(s):// 形式で入力してください。';
-                } else {
-                    db()->prepare('INSERT INTO rss_sources (name, feed_url, is_enabled, last_fetched_at) VALUES (:name, :feed_url, 1, NULL)')
-                        ->execute([':name' => $name, ':feed_url' => $feedUrl]);
-                    rss_admin_redirect('ok=created');
+                    if ($name === '') {
+                        $error = 'サイト名は必須です。';
+                    } elseif (!rss_admin_validate_http_url($feedUrl)) {
+                        $error = 'RSS URLは http(s):// 形式で入力してください。';
+                    } else {
+                        db()->prepare('INSERT INTO rss_sources (name, feed_url, is_enabled, last_fetched_at) VALUES (:name, :feed_url, 1, NULL)')
+                            ->execute([':name' => $name, ':feed_url' => $feedUrl]);
+                        rss_admin_redirect('ok=created');
+                    }
                 }
-            }
 
-            if ($action === 'toggle_source') {
-                $id = (int)($_POST['id'] ?? 0);
-                $enabled = (int)($_POST['enabled'] ?? 0) === 1 ? 1 : 0;
-                if ($id <= 0) {
-                    $error = '更新対象が不正です。';
-                } else {
-                    db()->prepare('UPDATE rss_sources SET is_enabled = :enabled WHERE id = :id')
-                        ->execute([':enabled' => $enabled, ':id' => $id]);
-                    rss_admin_redirect('ok=toggled');
+                if ($action === 'toggle_source') {
+                    $id = (int)($_POST['id'] ?? 0);
+                    $enabled = (int)($_POST['enabled'] ?? 0) === 1 ? 1 : 0;
+                    if ($id <= 0) {
+                        $error = '更新対象が不正です。';
+                    } else {
+                        db()->prepare('UPDATE rss_sources SET is_enabled = :enabled WHERE id = :id')
+                            ->execute([':enabled' => $enabled, ':id' => $id]);
+                        rss_admin_redirect('ok=toggled');
+                    }
                 }
+            } catch (Throwable $exception) {
+                error_log('rss.php action failed: ' . $exception->getMessage());
+                $error = '保存処理に失敗しました。';
             }
         }
     }
 
     $sources = [];
     if ($hasSources) {
-        $sources = db()->query('SELECT * FROM rss_sources ORDER BY id DESC LIMIT 500')->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            $sources = db()->query('SELECT * FROM rss_sources ORDER BY id DESC LIMIT 500')->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Throwable $exception) {
+            error_log('rss.php sources fetch failed: ' . $exception->getMessage());
+            $listError = 'データ取得に失敗しました。';
+        }
     }
 
     $itemsPerSource = [];
     if ($hasItems && $hasSources) {
-        $rows = db()->query('SELECT source_id, COUNT(*) AS cnt FROM rss_items GROUP BY source_id')->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($rows as $row) {
-            $itemsPerSource[(int)($row['source_id'] ?? 0)] = (int)($row['cnt'] ?? 0);
+        try {
+            $rows = db()->query('SELECT source_id, COUNT(*) AS cnt FROM rss_items GROUP BY source_id')->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as $row) {
+                $itemsPerSource[(int)($row['source_id'] ?? 0)] = (int)($row['cnt'] ?? 0);
+            }
+        } catch (Throwable $exception) {
+            error_log('rss.php item count fetch failed: ' . $exception->getMessage());
+            if ($listError === '') {
+                $listError = 'データ取得に失敗しました。';
+            }
         }
     }
 
@@ -93,6 +111,10 @@ admin_render('RSS取得状況', static function (): void {
 
     <?php if ($error !== '') : ?>
         <div class="admin-card" style="background:#ffe7e7;padding:12px;margin-bottom:16px;"><p style="margin:0;color:#c00;">✗ <?php echo e($error); ?></p></div>
+    <?php endif; ?>
+
+    <?php if ($listError !== '') : ?>
+        <div class="admin-card" style="background:#ffe7e7;padding:12px;margin-bottom:16px;"><p style="margin:0;color:#c00;">✗ <?php echo e($listError); ?></p></div>
     <?php endif; ?>
 
     <?php if (!$hasSources) : ?>
@@ -159,7 +181,7 @@ admin_render('RSS取得状況', static function (): void {
                     </tbody>
                 </table>
             <?php else : ?>
-                <p>RSSソースはまだありません。</p>
+                <p>データなし</p>
             <?php endif; ?>
         </div>
     <?php endif; ?>
