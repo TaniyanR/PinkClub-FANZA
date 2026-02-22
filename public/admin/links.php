@@ -5,11 +5,16 @@ require_once __DIR__ . '/_page.php';
 
 function links_column_exists(string $table, string $column): bool
 {
-    $stmt = db()->prepare(
-        'SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND COLUMN_NAME = :column LIMIT 1'
-    );
-    $stmt->execute([':table' => $table, ':column' => $column]);
-    return $stmt->fetchColumn() !== false;
+    try {
+        $stmt = db()->prepare(
+            'SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND COLUMN_NAME = :column LIMIT 1'
+        );
+        $stmt->execute([':table' => $table, ':column' => $column]);
+        return $stmt->fetchColumn() !== false;
+    } catch (Throwable $exception) {
+        error_log('links.php column check failed: ' . $exception->getMessage());
+        return false;
+    }
 }
 
 function links_validate_http_url(string $url): bool
@@ -77,6 +82,7 @@ admin_render('相互リンク管理', static function (): void {
     $hasApprovedAt = $hasTable && links_column_exists('mutual_links', 'approved_at');
     $hasCreatedAt = $hasTable && links_column_exists('mutual_links', 'created_at');
     $hasUpdatedAt = $hasTable && links_column_exists('mutual_links', 'updated_at');
+    $listError = '';
 
     if ($isDebug) {
         try {
@@ -237,8 +243,13 @@ admin_render('相互リンク管理', static function (): void {
 
     $rows = [];
     if ($hasTable) {
-        $orderBy = $hasDisplayOrder ? 'display_order ASC, id ASC' : 'id ASC';
-        $rows = db()->query('SELECT * FROM mutual_links ORDER BY ' . $orderBy . ' LIMIT 500')->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            $orderBy = $hasDisplayOrder ? 'display_order ASC, id ASC' : 'id ASC';
+            $rows = db()->query('SELECT * FROM mutual_links ORDER BY ' . $orderBy . ' LIMIT 500')->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Throwable $exception) {
+            error_log('links.php list fetch failed: ' . $exception->getMessage());
+            $listError = 'データ取得に失敗しました。';
+        }
     }
 
     $okMessageMap = [
@@ -263,6 +274,10 @@ admin_render('相互リンク管理', static function (): void {
 
     <?php if ($error !== '') : ?>
         <div class="admin-card" style="background:#ffe7e7;padding:12px;margin-bottom:16px;"><p style="margin:0;color:#c00;">✗ <?php echo e($error); ?></p></div>
+    <?php endif; ?>
+
+    <?php if ($listError !== '') : ?>
+        <div class="admin-card" style="background:#ffe7e7;padding:12px;margin-bottom:16px;"><p style="margin:0;color:#c00;">✗ <?php echo e($listError); ?></p></div>
     <?php endif; ?>
 
     <?php if ($isDebug) : ?>
@@ -383,7 +398,7 @@ admin_render('相互リンク管理', static function (): void {
                     <?php endif; ?>
                 </form>
             <?php else : ?>
-                <p>相互リンクはまだありません。</p>
+                <p>データなし</p>
             <?php endif; ?>
         </div>
     <?php endif; ?>

@@ -13,7 +13,7 @@ try {
         ->fetchAll(PDO::FETCH_ASSOC);
 } catch (Throwable $exception) {
     error_log('[admin/pages] list fetch failed: ' . $exception->getMessage());
-    $flashErr = '固定ページ一覧の取得に失敗しました。';
+    $flashErr = 'データ取得に失敗しました。';
 }
 
 $pageTitle = '固定ページ一覧';
@@ -36,10 +36,10 @@ ob_start();
         <tbody>
         <?php foreach ($rows as $row) : ?>
             <tr>
-                <td><?php echo e((string)$row['id']); ?></td>
-                <td><?php echo e((string)$row['title']); ?></td>
-                <td><?php echo e((string)$row['slug']); ?></td>
-                <td><?php echo ((int)$row['is_published'] === 1) ? 'published' : 'draft'; ?></td>
+                <td><?php echo e((string)($row['id'] ?? '')); ?></td>
+                <td><?php echo e((string)($row['title'] ?? '')); ?></td>
+                <td><?php echo e((string)($row['slug'] ?? '')); ?></td>
+                <td><?php echo ((int)($row['is_published'] ?? 0) === 1) ? '公開' : '非公開'; ?></td>
                 <td><?php echo e((string)($row['updated_at'] ?? '')); ?></td>
                 <td>
                     <a href="<?php echo e(admin_url('page_edit.php?id=' . (string)$row['id'])); ?>">編集</a>
