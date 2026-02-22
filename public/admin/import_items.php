@@ -619,6 +619,7 @@ ob_start();
                         $imageUrl = trim((string)($row['image_list'] ?? ''));
                     }
                     $detailUrl = admin_url('item_show.php?id=' . rawurlencode((string)$id));
+                    $deleteActionUrl = admin_url('item_delete.php');
                     ?>
                     <tr>
                         <td style="border:1px solid #ddd;padding:8px;"><?php echo e((string)$id); ?></td>
@@ -633,7 +634,14 @@ ob_start();
                                 なし
                             <?php endif; ?>
                         </td>
-                        <td style="border:1px solid #ddd;padding:8px;"><a href="<?php echo e($detailUrl); ?>">詳細</a></td>
+                        <td style="border:1px solid #ddd;padding:8px;">
+                            <a href="<?php echo e($detailUrl); ?>">詳細</a>
+                            <form method="post" action="<?php echo e($deleteActionUrl); ?>" style="display:inline-block;margin-left:8px;" onsubmit="return confirm('このデータを削除しますか？');">
+                                <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+                                <input type="hidden" name="id" value="<?php echo e((string)$id); ?>">
+                                <button type="submit">削除</button>
+                            </form>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
