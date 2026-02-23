@@ -76,17 +76,17 @@ if ($prodHits === false) {
 }
 
 
-$resolvedFloor = fanza_resolve_floor_pair($floorPair, null, null);
-if (!($resolvedFloor['valid'] ?? false)) {
+$parsedFloor = fanza_parse_floor_pair($floorPair);
+if (!is_array($parsedFloor)) {
     admin_flash_set('api_old', json_encode($oldInputPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     app_redirect(admin_url('settings.php?tab=api&error=invalid_floor'));
     exit;
 }
 
 $site = 'FANZA';
-$service = (string)$resolvedFloor['service'];
-$floor = (string)$resolvedFloor['floor'];
-$floorPair = (string)$resolvedFloor['pair'];
+$service = (string)$parsedFloor['service'];
+$floor = (string)$parsedFloor['floor'];
+$floorPair = (string)$parsedFloor['pair'];
 
 $local['dmm_api'] = [
     'api_id' => $apiId,

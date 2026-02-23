@@ -31,6 +31,9 @@ function fanza_floor_definitions(): array
 
         // PCゲーム
         'pcgame:pcgame' => ['label' => 'FANZA（アダルト）- PCゲーム - アダルトPCゲーム', 'service' => 'pcgame', 'floor' => 'pcgame'],
+
+        // TODO: 追加フロアは service/floor の正確なコードが確認できた時点でここに追加する
+        // （表示・復元・保存バリデーションがすべてこの定義を正本として参照する）
     ];
 }
 
@@ -47,10 +50,16 @@ function fanza_find_floor_pair_by_service_floor(string $service, string $floor):
         return null;
     }
 
-    $pair = $service . ':' . $floor;
-    $definitions = fanza_floor_definitions();
+    foreach (fanza_floor_definitions() as $pair => $definition) {
+        if (
+            (string)($definition['service'] ?? '') === $service
+            && (string)($definition['floor'] ?? '') === $floor
+        ) {
+            return (string)$pair;
+        }
+    }
 
-    return isset($definitions[$pair]) ? $pair : null;
+    return null;
 }
 
 function fanza_parse_floor_pair(string $pair): ?array
@@ -70,6 +79,16 @@ function fanza_parse_floor_pair(string $pair): ?array
         'service' => $definitions[$pair]['service'],
         'floor' => $definitions[$pair]['floor'],
     ];
+}
+
+function fanza_floor_options_for_select(): array
+{
+    $options = [];
+    foreach (fanza_floor_definitions() as $pair => $definition) {
+        $options[(string)$pair] = (string)($definition['label'] ?? $pair);
+    }
+
+    return $options;
 }
 
 function fanza_resolve_floor_pair(?string $pairValue, ?string $serviceValue, ?string $floorValue): array
