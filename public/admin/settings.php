@@ -108,7 +108,6 @@ $apiIdInput = '';
 $affiliateIdInput = '';
 
 // 選択肢（UI用）
-$floorDefinitions = fanza_floor_definitions();
 $floorSelectOptions = fanza_floor_options_for_select();
 
 // 現在値（表示用）
