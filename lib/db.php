@@ -512,6 +512,21 @@ function db_connect_and_initialize(array $db): PDO
     return $pdo;
 }
 
+
+function db_sanitize_connection_context(array $db): array
+{
+    $host = (string)($db['host'] ?? '127.0.0.1');
+    $name = trim((string)($db['name'] ?? 'pinkclub_fanza'));
+    $user = (string)($db['user'] ?? 'root');
+    $port = (string)($db['port'] ?? '3306');
+    return [
+        'host' => $host,
+        'dbname' => $name !== '' ? $name : 'pinkclub_fanza',
+        'port' => $port !== '' ? $port : '3306',
+        'user' => $user,
+    ];
+}
+
 function db(): PDO
 {
     static $pdo = null;
@@ -520,15 +535,32 @@ function db(): PDO
     }
 
     $db = config_get('db', []);
+    $dbArray = is_array($db) ? $db : [];
+    $context = db_sanitize_connection_context($dbArray);
+
+    if (trim((string)($dbArray['name'] ?? '')) === '' || trim((string)($dbArray['user'] ?? '')) === '') {
+        $message = sprintf('DB設定が不足しています。host=%s port=%s dbname=%s user=%s', $context['host'], $context['port'], $context['dbname'], $context['user']);
+        error_log('[db] ' . $message);
+        throw new RuntimeException('DB接続に失敗しました（設定を確認してください）。');
+    }
+
     try {
-        $pdo = db_connect_and_initialize(is_array($db) ? $db : []);
+        $pdo = db_connect_and_initialize($dbArray);
     } catch (Throwable $exception) {
+        $detail = sprintf(
+            'DB接続に失敗しました。host=%s port=%s dbname=%s user=%s error=%s',
+            $context['host'],
+            $context['port'],
+            $context['dbname'],
+            $context['user'],
+            $exception->getMessage()
+        );
         if (function_exists('app_log_error')) {
-            app_log_error('DB接続に失敗しました。', $exception);
+            app_log_error($detail, $exception);
         } else {
-            error_log('[db] connection failed: ' . $exception->getMessage());
+            error_log('[db] connection failed: ' . $detail);
         }
-        throw $exception;
+        throw new RuntimeException('DB接続に失敗しました（設定を確認してください）。', 0, $exception);
     }
 
     return $pdo;

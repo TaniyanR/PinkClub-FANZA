@@ -374,6 +374,35 @@ ob_start();
         </div>
     <?php endif; ?>
 
+
+    <?php if (($_GET['synced'] ?? '') === '1' && isset($_SESSION['api_sync_result']) && is_array($_SESSION['api_sync_result'])) : ?>
+        <?php
+        $sync = $_SESSION['api_sync_result'];
+        unset($_SESSION['api_sync_result']);
+        $syncService = (string)($sync['service'] ?? $currentService);
+        $syncFloor = (string)($sync['floor'] ?? $currentFloor);
+        $syncLabel = (string)($sync['target_floor_label'] ?? ($syncService . ':' . $syncFloor));
+        ?>
+        <div class="admin-card">
+            <h2>同期結果（DB保存）</h2>
+            <p>対象フロア: <?php echo e($syncLabel); ?>（<?php echo e($syncService); ?> / <?php echo e($syncFloor); ?>）</p>
+            <p>HTTPステータス: <?php echo e((string)($sync['http_status'] ?? 0)); ?></p>
+            <p>結果: <?php echo !empty($sync['sync_ok']) ? '成功' : '失敗'; ?></p>
+            <p>取得件数: <?php echo e((string)($sync['fetched_items_count'] ?? 0)); ?> / 保存件数(items): <?php echo e((string)($sync['saved_items_count'] ?? 0)); ?></p>
+            <p>保存件数(actresses): <?php echo e((string)($sync['saved_actresses_count'] ?? 0)); ?> / makers: <?php echo e((string)($sync['saved_makers_count'] ?? 0)); ?> / genres: <?php echo e((string)($sync['saved_genres_count'] ?? 0)); ?></p>
+            <?php if (!empty($sync['reason'])) : ?><p>原因: <?php echo e((string)$sync['reason']); ?></p><?php endif; ?>
+            <?php if (!empty($sync['error_type'])) : ?><p>エラー種別: <?php echo e((string)$sync['error_type']); ?></p><?php endif; ?>
+            <?php if (!empty($sync['warnings']) && is_array($sync['warnings'])) : ?>
+                <ul>
+                    <?php foreach ($sync['warnings'] as $warning) : ?>
+                        <li><?php echo e((string)$warning); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+            <p class="admin-form-note">※同期ログは api_logs に記録されます（テーブルが存在する場合）。</p>
+        </div>
+    <?php endif; ?>
+
     <?php if (($_GET['error'] ?? '') !== '') : ?>
         <div class="admin-card">
             <?php
@@ -434,9 +463,11 @@ ob_start();
         <p class="admin-form-note">仕様: トップの新着/ピックアップ表示件数として利用します。</p>
 
         <p class="admin-form-note">接続テスト（認証）はFloorListで確認し、商品取得テストは現在フロアで10件取得を確認します。</p>
+        <p class="admin-form-note">XAMPPローカル既定値: host=127.0.0.1 / port=3306 / dbname=pinkclub_fanza / user=root / password=空欄</p>
 
         <button type="submit">保存</button>
         <button type="submit" name="connection_test" value="1">接続テスト実行（認証 + 商品取得）</button>
+        <button type="submit" name="sync_execute" value="1">同期実行（DB保存）</button>
     </form>
 <?php endif; ?>
 

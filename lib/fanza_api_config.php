@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/repository.php';
+
 function fanza_floor_definitions(): array
 {
     return [
@@ -329,4 +332,288 @@ function fanza_test_item_fetch(string $apiId, string $affiliateId, string $servi
         'floor' => $floor,
         'item_count' => count($items),
     ];
+}
+
+function fanza_normalize_iteminfo_list(mixed $value): array
+{
+    if (!is_array($value)) {
+        return [];
+    }
+
+    if (isset($value[0]) && is_array($value[0])) {
+        return $value;
+    }
+
+    return [$value];
+}
+
+function fanza_extract_items_from_itemlist_result(array $result): array
+{
+    $items = $result['items'] ?? null;
+    if (!is_array($items)) {
+        return [];
+    }
+
+    if (isset($items['item']) && is_array($items['item'])) {
+        return isset($items['item'][0]) ? $items['item'] : [$items['item']];
+    }
+
+    return isset($items[0]) ? $items : [];
+}
+
+function fanza_fetch_itemlist_for_sync(string $apiId, string $affiliateId, string $service, string $floor, int $connectTimeout, int $timeout, int $hits = 10): array
+{
+    $response = fanza_api_http_request('ItemList', [
+        'api_id' => $apiId,
+        'affiliate_id' => $affiliateId,
+        'site' => 'FANZA',
+        'service' => $service,
+        'floor' => $floor,
+        'hits' => max(1, min(100, $hits)),
+        'sort' => 'date',
+        'output' => 'json',
+    ], $connectTimeout, $timeout);
+
+    if (!($response['ok'] ?? false)) {
+        return [
+            'ok' => false,
+            'error_type' => (string)($response['error_type'] ?? 'http_error'),
+            'reason' => (string)($response['message'] ?? 'APIリクエストに失敗しました。'),
+            'http_status' => (int)($response['http_code'] ?? 0),
+            'body_excerpt' => '',
+            'items' => [],
+        ];
+    }
+
+    $result = $response['data']['result'] ?? null;
+    $status = is_array($result) ? ($result['status'] ?? null) : null;
+    if ((string)$status !== '200') {
+        return [
+            'ok' => false,
+            'error_type' => 'api_response_error',
+            'reason' => 'ItemList result.status が200ではありません。',
+            'http_status' => (int)($response['http_code'] ?? 200),
+            'body_excerpt' => fanza_api_json_snippet((string)json_encode($response['data'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
+            'items' => [],
+        ];
+    }
+
+    $items = fanza_extract_items_from_itemlist_result(is_array($result) ? $result : []);
+    return [
+        'ok' => true,
+        'error_type' => '',
+        'reason' => '',
+        'http_status' => (int)($response['http_code'] ?? 200),
+        'body_excerpt' => '',
+        'items' => $items,
+    ];
+}
+
+function fanza_log_sync_result(array $params, array $summary): void
+{
+    try {
+        if (!db_table_exists(db(), 'api_logs')) {
+            return;
+        }
+        $stmt = db()->prepare(
+            'INSERT INTO api_logs (created_at, endpoint, params_json, status, http_code, item_count, error_message, success)
+             VALUES (NOW(), :endpoint, :params_json, :status, :http_code, :item_count, :error_message, :success)'
+        );
+        $stmt->execute([
+            ':endpoint' => 'ItemList(sync)',
+            ':params_json' => json_encode($params, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ':status' => !empty($summary['sync_ok']) ? 'success' : 'error',
+            ':http_code' => (int)($summary['http_status'] ?? 0),
+            ':item_count' => (int)($summary['fetched_items_count'] ?? 0),
+            ':error_message' => !empty($summary['sync_ok']) ? null : (string)($summary['reason'] ?? 'unknown error'),
+            ':success' => !empty($summary['sync_ok']) ? 1 : 0,
+        ]);
+    } catch (Throwable $e) {
+        error_log('fanza_log_sync_result failed: ' . $e->getMessage());
+    }
+}
+
+function fanza_sync_items_to_db(array $apiConfig, int $hits = 10): array
+{
+    $apiId = trim((string)($apiConfig['api_id'] ?? ''));
+    $affiliateId = trim((string)($apiConfig['affiliate_id'] ?? ''));
+    $resolvedFloor = fanza_resolve_floor_pair((string)($apiConfig['floor_pair'] ?? ''), (string)($apiConfig['service'] ?? ''), (string)($apiConfig['floor'] ?? ''));
+    $service = (string)$resolvedFloor['service'];
+    $floor = (string)$resolvedFloor['floor'];
+
+    $summary = [
+        'sync_ok' => false,
+        'target_floor_label' => (string)(fanza_floor_options_for_select()[$resolvedFloor['pair']] ?? ($service . ':' . $floor)),
+        'service' => $service,
+        'floor' => $floor,
+        'http_status' => 0,
+        'fetched_items_count' => 0,
+        'saved_items_count' => 0,
+        'saved_actresses_count' => 0,
+        'saved_makers_count' => 0,
+        'saved_genres_count' => 0,
+        'warnings' => [],
+        'error_type' => '',
+        'reason' => '',
+    ];
+
+    if ($apiId === '' || $affiliateId === '') {
+        $summary['error_type'] = 'config_error';
+        $summary['reason'] = 'API ID または アフィリエイトID が未設定です。';
+        return $summary;
+    }
+
+    $timeouts = fanza_api_timeout_config($apiConfig);
+    $fetchResult = fanza_fetch_itemlist_for_sync($apiId, $affiliateId, $service, $floor, $timeouts['connect_timeout'], $timeouts['timeout'], $hits);
+    $summary['http_status'] = (int)($fetchResult['http_status'] ?? 0);
+
+    if (!($fetchResult['ok'] ?? false)) {
+        $summary['error_type'] = (string)($fetchResult['error_type'] ?? 'api_error');
+        $summary['reason'] = (string)($fetchResult['reason'] ?? 'APIレスポンスの検証に失敗しました。');
+        if (($fetchResult['body_excerpt'] ?? '') !== '') {
+            $summary['warnings'][] = '応答抜粋: ' . (string)$fetchResult['body_excerpt'];
+        }
+        fanza_log_sync_result(['service' => $service, 'floor' => $floor, 'hits' => $hits], $summary);
+        return $summary;
+    }
+
+    $items = is_array($fetchResult['items'] ?? null) ? $fetchResult['items'] : [];
+    $summary['fetched_items_count'] = count($items);
+
+    $savedActresses = [];
+    $savedMakers = [];
+    $savedGenres = [];
+
+    try {
+        $pdo = db();
+        $pdo->beginTransaction();
+
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $contentId = trim((string)($item['content_id'] ?? $item['product_id'] ?? ''));
+            if ($contentId === '') {
+                continue;
+            }
+
+            $price = $item['prices']['price'] ?? ($item['price'] ?? null);
+            $datePublished = isset($item['date']) ? (string)$item['date'] : null;
+            if (is_string($datePublished) && strlen($datePublished) === 10) {
+                $datePublished .= ' 00:00:00';
+            }
+
+            $result = upsert_item([
+                'content_id' => $contentId,
+                'product_id' => (string)($item['product_id'] ?? ''),
+                'title' => (string)($item['title'] ?? ''),
+                'url' => (string)($item['URL'] ?? ''),
+                'affiliate_url' => (string)($item['affiliateURL'] ?? ''),
+                'image_list' => (string)($item['imageURL']['list'] ?? ''),
+                'image_small' => (string)($item['imageURL']['small'] ?? ''),
+                'image_large' => (string)($item['imageURL']['large'] ?? ''),
+                'date_published' => $datePublished,
+                'service_code' => (string)($item['service_code'] ?? $service),
+                'floor_code' => (string)($item['floor_code'] ?? $floor),
+                'category_name' => (string)($item['category_name'] ?? ''),
+                'price_min' => is_numeric($price) ? (int)$price : null,
+            ]);
+            if (($result['status'] ?? '') === 'inserted' || ($result['status'] ?? '') === 'updated') {
+                $summary['saved_items_count']++;
+            }
+
+            $itemInfo = is_array($item['iteminfo'] ?? null) ? $item['iteminfo'] : [];
+
+            $actressIds = [];
+            foreach (fanza_normalize_iteminfo_list($itemInfo['actress'] ?? []) as $actress) {
+                if (!is_array($actress)) { continue; }
+                $actressId = (int)($actress['id'] ?? 0);
+                $name = trim((string)($actress['name'] ?? ''));
+                if ($actressId <= 0 || $name === '') { continue; }
+                upsert_actress([
+                    'id' => $actressId,
+                    'name' => $name,
+                    'ruby' => $actress['ruby'] ?? null,
+                    'image_small' => $actress['imageURL']['small'] ?? null,
+                    'image_large' => $actress['imageURL']['large'] ?? null,
+                    'listurl_digital' => $actress['listURL']['digital'] ?? null,
+                    'listurl_monthly' => $actress['listURL']['monthly'] ?? null,
+                    'listurl_mono' => $actress['listURL']['mono'] ?? null,
+                ]);
+                $actressIds[] = $actressId;
+                $savedActresses[$actressId] = true;
+            }
+            replace_item_relations($contentId, $actressIds, 'item_actresses', 'actress_id');
+
+            $makerIds = [];
+            foreach (fanza_normalize_iteminfo_list($itemInfo['maker'] ?? []) as $maker) {
+                if (!is_array($maker)) { continue; }
+                $makerId = (int)($maker['id'] ?? 0);
+                $name = trim((string)($maker['name'] ?? ''));
+                if ($makerId <= 0 || $name === '') { continue; }
+                upsert_taxonomy('makers', 'id', [
+                    'id' => $makerId,
+                    'name' => $name,
+                    'ruby' => $maker['ruby'] ?? null,
+                    'list_url' => $maker['list_url'] ?? null,
+                    'site_code' => $maker['site_code'] ?? null,
+                    'service_code' => $maker['service_code'] ?? $service,
+                    'floor_id' => $maker['floor_id'] ?? null,
+                    'floor_code' => $maker['floor_code'] ?? $floor,
+                ]);
+                $makerIds[] = $makerId;
+                $savedMakers[$makerId] = true;
+            }
+            replace_item_relations($contentId, $makerIds, 'item_makers', 'maker_id');
+
+            $genreIds = [];
+            foreach (fanza_normalize_iteminfo_list($itemInfo['genre'] ?? []) as $genre) {
+                if (!is_array($genre)) { continue; }
+                $genreId = (int)($genre['id'] ?? 0);
+                $name = trim((string)($genre['name'] ?? ''));
+                if ($genreId <= 0 || $name === '') { continue; }
+                upsert_taxonomy('genres', 'id', [
+                    'id' => $genreId,
+                    'name' => $name,
+                    'ruby' => $genre['ruby'] ?? null,
+                    'list_url' => $genre['list_url'] ?? null,
+                    'site_code' => $genre['site_code'] ?? null,
+                    'service_code' => $genre['service_code'] ?? $service,
+                    'floor_id' => $genre['floor_id'] ?? null,
+                    'floor_code' => $genre['floor_code'] ?? $floor,
+                ]);
+                $genreIds[] = $genreId;
+                $savedGenres[$genreId] = true;
+            }
+            replace_item_relations($contentId, $genreIds, 'item_genres', 'genre_id');
+
+            if (db_table_exists($pdo, 'item_labels')) {
+                $labels = [];
+                foreach (fanza_normalize_iteminfo_list($itemInfo['label'] ?? []) as $label) {
+                    if (!is_array($label)) { continue; }
+                    $labelName = trim((string)($label['name'] ?? ''));
+                    if ($labelName === '') { continue; }
+                    $labels[] = ['id' => is_numeric($label['id'] ?? null) ? (int)$label['id'] : null, 'name' => $labelName, 'ruby' => $label['ruby'] ?? null];
+                }
+                replace_item_labels($contentId, $labels);
+            }
+        }
+
+        $summary['saved_actresses_count'] = count($savedActresses);
+        $summary['saved_makers_count'] = count($savedMakers);
+        $summary['saved_genres_count'] = count($savedGenres);
+
+        $pdo->commit();
+        $summary['sync_ok'] = true;
+    } catch (Throwable $e) {
+        if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        $summary['error_type'] = 'db_save_error';
+        $summary['reason'] = $e->getMessage();
+    }
+
+    fanza_log_sync_result(['service' => $service, 'floor' => $floor, 'hits' => $hits], $summary);
+    return $summary;
 }

@@ -25,12 +25,16 @@ if ($isDbAvailable) {
         $seriesList = fetch_series(18, 0, 'name');
         $makers = fetch_makers(18, 0, 'name');
         $genres = fetch_genres(18, 0, 'name');
+
+        if ($newItems === [] && $actresses === [] && $makers === [] && $genres === []) {
+            $frontNotice = 'データはまだ同期されていません。管理画面 > API設定 > 同期実行 を行ってください。';
+        }
     } catch (Throwable $e) {
         app_log_error('index data fetch failed', $e);
         $frontNotice = '一部データの取得に失敗したため、表示を縮小しています。';
     }
 } else {
-    $frontNotice = '現在DBに接続できないため、一部コンテンツを表示できません。';
+    $frontNotice = 'DB接続に失敗しました（設定を確認してください）。';
 }
 
 $pageTitle = 'トップ';
