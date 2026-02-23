@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_common.php';
 require_once __DIR__ . '/../../lib/local_config_writer.php';
-require_once __DIR__ . '/../../lib/dmm_api.php';
 require_once __DIR__ . '/../../lib/site_settings.php';
 require_once __DIR__ . '/../../lib/fanza_api_config.php';
 
@@ -109,38 +108,32 @@ try {
     exit;
 }
 
-if ((string)($_POST['connection_test'] ?? '') === '1') {
-    $response = dmm_api_request('ItemList', [
-        'api_id' => $apiId,
-        'affiliate_id' => $affiliateId,
-        'site' => $site,
-        'service' => $service,
-        'floor' => $floor,
-        'hits' => 10,
-        'sort' => 'date',
-        'output' => 'json',
-    ]);
-
-    $items = $response['data']['result']['items'] ?? [];
-    $titles = [];
-    if (is_array($items)) {
-        foreach (array_slice($items, 0, 10) as $item) {
-            if (is_array($item)) {
-                $titles[] = (string)($item['title'] ?? '(タイトルなし)');
-            }
-        }
-    }
+if ((string)($_POST['connection_test'] ?? '') === '1' || (string)($_POST['item_test'] ?? '') === '1') {
+    $timeouts = fanza_api_timeout_config($local['dmm_api'] ?? null);
+    $authResult = fanza_test_api_credentials($apiId, $affiliateId, $timeouts['connect_timeout'], $timeouts['timeout']);
+    $itemResult = fanza_test_item_fetch($apiId, $affiliateId, $service, $floor, $timeouts['connect_timeout'], $timeouts['timeout']);
 
     if (session_status() !== PHP_SESSION_ACTIVE) {
         session_start();
     }
     $_SESSION['api_test_result'] = [
-        'ok' => (bool)($response['ok'] ?? false),
-        'http_code' => (int)($response['http_code'] ?? 0),
-        'error' => (string)($response['error'] ?? ''),
-        'titles' => $titles,
+        'auth' => [
+            'ok' => (bool)($authResult['ok'] ?? false),
+            'http_code' => (int)($authResult['http_code'] ?? 0),
+            'error_type' => (string)($authResult['error_type'] ?? ''),
+            'message' => (string)($authResult['message'] ?? ''),
+        ],
+        'items' => [
+            'ok' => (bool)($itemResult['ok'] ?? false),
+            'http_code' => (int)($itemResult['http_code'] ?? 0),
+            'error_type' => (string)($itemResult['error_type'] ?? ''),
+            'message' => (string)($itemResult['message'] ?? ''),
+            'service' => $service,
+            'floor' => $floor,
+            'item_count' => (int)($itemResult['item_count'] ?? 0),
+        ],
     ];
-    app_redirect(admin_url('settings.php?tab=api&tested=1'));
+    app_redirect(admin_url('settings.php?tab=api&tested=1&tested_auth=1&tested_items=1'));
     exit;
 }
 
