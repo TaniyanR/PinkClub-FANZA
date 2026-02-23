@@ -109,7 +109,7 @@ $affiliateIdInput = '';
 
 // 選択肢（UI用）
 $floorDefinitions = fanza_floor_definitions();
-$floorOptions = array_keys($floorDefinitions);
+$floorSelectOptions = fanza_floor_options_for_select();
 
 // 現在値（表示用）
 $currentSite = 'FANZA';
@@ -376,9 +376,9 @@ ob_start();
 
         <label>フロア</label>
         <select name="floor_pair">
-            <?php foreach ($floorOptions as $option) : ?>
+            <?php foreach ($floorSelectOptions as $option => $label) : ?>
                 <option value="<?php echo e($option); ?>"<?php echo $option === $currentFloorPair ? ' selected' : ''; ?>>
-                    <?php echo e((string)$floorDefinitions[$option]['label']); ?>
+                    <?php echo e($label); ?>
                 </option>
             <?php endforeach; ?>
         </select>
