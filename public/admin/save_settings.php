@@ -137,5 +137,18 @@ if ((string)($_POST['connection_test'] ?? '') === '1' || (string)($_POST['item_t
     exit;
 }
 
+
+if ((string)($_POST['sync_execute'] ?? '') === '1') {
+    $syncResult = fanza_sync_items_to_db($local['dmm_api'] ?? [], 10);
+
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+
+    $_SESSION['api_sync_result'] = $syncResult;
+    app_redirect(admin_url('settings.php?tab=api&synced=1'));
+    exit;
+}
+
 app_redirect(admin_url('settings.php?tab=api&saved=1'));
 exit;
