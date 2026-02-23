@@ -325,16 +325,34 @@ ob_start();
     <?php endif; ?>
 
     <?php if (($_GET['tested'] ?? '') === '1' && isset($_SESSION['api_test_result']) && is_array($_SESSION['api_test_result'])) : ?>
-        <?php $apiTest = $_SESSION['api_test_result']; unset($_SESSION['api_test_result']); ?>
+        <?php
+        $apiTest = $_SESSION['api_test_result'];
+        unset($_SESSION['api_test_result']);
+        $authTest = is_array($apiTest['auth'] ?? null) ? $apiTest['auth'] : [];
+        $itemTest = is_array($apiTest['items'] ?? null) ? $apiTest['items'] : [];
+        $itemService = (string)($itemTest['service'] ?? $currentService);
+        $itemFloor = (string)($itemTest['floor'] ?? $currentFloor);
+        $itemPair = fanza_find_floor_pair_by_service_floor($itemService, $itemFloor);
+        $itemLabel = $itemPair !== null ? ($floorSelectOptions[$itemPair] ?? ($itemService . ':' . $itemFloor)) : ($itemService . ':' . $itemFloor);
+        ?>
         <div class="admin-card">
-            <h2>接続テスト結果（10件）</h2>
-            <p>HTTPステータス: <?php echo e((string)($apiTest['http_code'] ?? 0)); ?> / 結果: <?php echo !empty($apiTest['ok']) ? 'OK' : 'NG'; ?></p>
-            <?php if (!empty($apiTest['error'])) : ?><p>原因: <?php echo e((string)$apiTest['error']); ?></p><?php endif; ?>
-            <?php if (isset($apiTest['titles']) && is_array($apiTest['titles']) && $apiTest['titles'] !== []) : ?>
-                <ol><?php foreach ($apiTest['titles'] as $title) : ?><li><?php echo e((string)$title); ?></li><?php endforeach; ?></ol>
-            <?php else : ?>
-                <p>取得結果がありません。</p>
+            <h2>接続テスト（認証）</h2>
+            <p>HTTPステータス: <?php echo e((string)($authTest['http_code'] ?? 0)); ?> / 結果: <?php echo !empty($authTest['ok']) ? 'OK' : 'NG'; ?></p>
+            <p><?php echo !empty($authTest['ok']) ? '接続OK（FloorList取得成功）' : '接続NG（FloorList取得失敗）'; ?></p>
+            <?php if (!empty($authTest['message'])) : ?><p>原因: <?php echo e((string)$authTest['message']); ?></p><?php endif; ?>
+            <?php if (!empty($authTest['error_type'])) : ?><p>エラー種別: <?php echo e((string)$authTest['error_type']); ?></p><?php endif; ?>
+        </div>
+
+        <div class="admin-card">
+            <h2>商品取得テスト（現在のフロア）</h2>
+            <p>対象フロア: <?php echo e($itemLabel); ?>（<?php echo e($itemService); ?> / <?php echo e($itemFloor); ?>）</p>
+            <p>HTTPステータス: <?php echo e((string)($itemTest['http_code'] ?? 0)); ?> / 結果: <?php echo !empty($itemTest['ok']) ? 'OK' : 'NG'; ?></p>
+            <?php if (!empty($itemTest['ok'])) : ?>
+                <?php $count = (int)($itemTest['item_count'] ?? 0); ?>
+                <p><?php echo $count > 0 ? '商品取得OK（' . e((string)$count) . '件）' : '接続OK / 商品0件（条件に一致なし）'; ?></p>
             <?php endif; ?>
+            <?php if (!empty($itemTest['message'])) : ?><p>原因: <?php echo e((string)$itemTest['message']); ?></p><?php endif; ?>
+            <?php if (!empty($itemTest['error_type'])) : ?><p>エラー種別: <?php echo e((string)$itemTest['error_type']); ?></p><?php endif; ?>
         </div>
     <?php endif; ?>
 
@@ -359,6 +377,7 @@ ob_start();
             placeholder="<?php echo $hasApiId ? '設定済み（変更時のみ入力）' : 'API IDを入力'; ?>"
             autocomplete="new-password"
         >
+        <p class="admin-form-note">※変更しない場合は空欄のままでOK</p>
 
         <label>アフィリエイトID</label>
         <input
@@ -368,6 +387,7 @@ ob_start();
             placeholder="<?php echo $hasAffiliateId ? '設定済み（変更時のみ入力）' : 'アフィリエイトIDを入力'; ?>"
             autocomplete="new-password"
         >
+        <p class="admin-form-note">※変更しない場合は空欄のままでOK</p>
 
         <label>サイト</label>
         <input type="text" value="FANZA（固定）" readonly>
@@ -395,10 +415,10 @@ ob_start();
         <input type="number" name="prod_hits" min="1" max="100" step="1" value="<?php echo e((string)$prodHits); ?>">
         <p class="admin-form-note">仕様: トップの新着/ピックアップ表示件数として利用します。</p>
 
-        <p class="admin-form-note">接続テストは10件取得し、結果はこの画面と APIログ に表示されます。</p>
+        <p class="admin-form-note">接続テスト（認証）はFloorListで確認し、商品取得テストは現在フロアで10件取得を確認します。</p>
 
         <button type="submit">保存</button>
-        <button type="submit" name="connection_test" value="1">接続テスト（10件取得）</button>
+        <button type="submit" name="connection_test" value="1">接続テスト実行（認証 + 商品取得）</button>
     </form>
 <?php endif; ?>
 
