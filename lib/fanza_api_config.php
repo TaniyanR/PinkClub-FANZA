@@ -50,7 +50,8 @@ function fanza_find_floor_pair_by_service_floor(string $service, string $floor):
         return null;
     }
 
-    foreach (fanza_floor_definitions() as $pair => $definition) {
+    $definitions = fanza_floor_definitions();
+    foreach ($definitions as $pair => $definition) {
         if (
             (string)($definition['service'] ?? '') === $service
             && (string)($definition['floor'] ?? '') === $floor
