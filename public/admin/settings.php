@@ -151,6 +151,9 @@ if (is_array($apiConfig)) {
 
 $localPath = __DIR__ . '/../../config.local.php';
 
+$frontTopUrl = url('/');
+$frontPreviewUrl = url('/?preview_ts=' . rawurlencode((string)time()));
+
 $prodHits = filter_var(setting_get('api.prod_hits', '20'), FILTER_VALIDATE_INT, [
     'options' => ['min_range' => 1, 'max_range' => 100],
 ]);
@@ -353,6 +356,21 @@ ob_start();
             <?php endif; ?>
             <?php if (!empty($itemTest['message'])) : ?><p>原因: <?php echo e((string)$itemTest['message']); ?></p><?php endif; ?>
             <?php if (!empty($itemTest['error_type'])) : ?><p>エラー種別: <?php echo e((string)$itemTest['error_type']); ?></p><?php endif; ?>
+        </div>
+
+        <div class="admin-card">
+            <h2>フロント確認</h2>
+            <p>現在の設定でフロント表示を確認できます。表示が変わらない場合は、キャッシュ回避付きURLで再読み込みしてください。</p>
+            <p>
+                <a class="button" href="<?php echo e($frontPreviewUrl); ?>" target="_blank" rel="noopener noreferrer">フロントURLを新しいタブで開く</a>
+            </p>
+            <p>フロントURL: <a href="<?php echo e($frontTopUrl); ?>" target="_blank" rel="noopener noreferrer"><?php echo e($frontTopUrl); ?></a></p>
+            <iframe
+                src="<?php echo e($frontPreviewUrl); ?>"
+                title="フロント表示プレビュー"
+                loading="lazy"
+                style="width:100%;height:600px;border:1px solid #ddd;border-radius:8px;background:#fff;"
+            ></iframe>
         </div>
     <?php endif; ?>
 
