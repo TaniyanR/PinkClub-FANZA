@@ -1,43 +1,6 @@
-<?php
-declare(strict_types=1);
-
-require_once __DIR__ . '/_bootstrap.php';
-
-require_once __DIR__ . '/partials/_helpers.php';
-require_once __DIR__ . '/../lib/repository.php';
-
-$page = safe_int($_GET['page'] ?? 1, 1, 1, 100000);
-$limit = 24;
-$offset = ($page - 1) * $limit;
-[$actresses, $hasNext] = paginate_items(fetch_actresses($limit + 1, $offset), $limit);
-
-$pageStyles = ['/assets/css/actresses.css'];
-$pageTitle = '女優一覧';
-$pageDescription = '登録済み女優の一覧ページです。';
-$canonicalUrl = canonical_url('/actresses.php', ['page' => $page > 1 ? $page : null]);
-
-include __DIR__ . '/partials/header.php';
-include __DIR__ . '/partials/nav_search.php';
-?>
-<div class="layout">
-    <?php include __DIR__ . '/partials/sidebar.php'; ?>
-    <main class="main-content">
-        <section class="block">
-            <div class="section-head"><h1 class="section-title">女優一覧</h1><span class="section-sub">実データ表示</span></div>
-            <div class="actress-grid">
-                <?php foreach ($actresses as $actress) : ?>
-                    <article class="actress-card">
-                        <a class="actress-card__media" href="/actress.php?id=<?php echo urlencode((string)$actress['id']); ?>"><img src="<?php echo e((string)($actress['image_small'] ?: $actress['image_large'])); ?>" alt="<?php echo e((string)$actress['name']); ?>"></a>
-                        <a class="actress-card__name" href="/actress.php?id=<?php echo urlencode((string)$actress['id']); ?>"><?php echo e((string)$actress['name']); ?></a>
-                    </article>
-                <?php endforeach; ?>
-            </div>
-        </section>
-        <nav class="pagination">
-            <?php if ($page > 1) : ?><a class="page-btn" href="/actresses.php?page=<?php echo e((string)($page - 1)); ?>">前へ</a><?php else : ?><span class="page-btn">前へ</span><?php endif; ?>
-            <span class="page-btn is-current"><?php echo e((string)$page); ?></span>
-            <?php if ($hasNext) : ?><a class="page-btn" href="/actresses.php?page=<?php echo e((string)($page + 1)); ?>">次へ</a><?php else : ?><span class="page-btn">次へ</span><?php endif; ?>
-        </nav>
-    </main>
-</div>
-<?php include __DIR__ . '/partials/footer.php'; ?>
+<?php declare(strict_types=1); require_once __DIR__ . '/_bootstrap.php';
+$page=max(1,(int)get('page',1));$per=20;$total=(int)db()->query('SELECT COUNT(*) FROM actresses')->fetchColumn();$pg=paginate($total,$page,$per);
+$s=db()->prepare('SELECT * FROM actresses ORDER BY name LIMIT :l OFFSET :o');$s->bindValue(':l',$pg['perPage'],PDO::PARAM_INT);$s->bindValue(':o',$pg['offset'],PDO::PARAM_INT);$s->execute();$rows=$s->fetchAll();
+$title='女優一覧'; require __DIR__ . '/partials/header.php'; ?>
+<h2>女優一覧</h2><ul><?php foreach($rows as $r):?><li><a href="<?=e(app_url('public/actress.php?id='.$r['id']))?>"><?=e($r['name'])?></a></li><?php endforeach;?></ul>
+<?php require __DIR__ . '/partials/footer.php'; ?>

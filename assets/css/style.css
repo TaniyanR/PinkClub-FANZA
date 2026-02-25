@@ -1,0 +1,8 @@
+body{font-family:Arial,sans-serif;max-width:1100px;margin:0 auto;padding:16px;line-height:1.5}
+header nav a{margin-right:10px}
+table{width:100%;border-collapse:collapse;margin:12px 0}
+th,td{border:1px solid #ccc;padding:6px}
+.flash{padding:8px;margin:10px 0}.flash.success{background:#e5ffe5}.flash.error{background:#ffe5e5}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.card{border:1px solid #ddd;padding:10px}
+img.thumb{max-width:120px;height:auto}
+form.inline{display:inline}
