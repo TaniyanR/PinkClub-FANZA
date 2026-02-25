@@ -5,30 +5,81 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 
 if (auth_user()) {
-    app_redirect('admin/index.php');
+    app_redirect(ADMIN_HOME_PATH);
 }
 
+$schemaReady = db_table_exists('admins');
 $error = null;
+$setupMessage = null;
+
+if (!$schemaReady) {
+    $setupMessage = 'DB未初期化です。schema.sql → seed.sql を実行してください。';
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate_or_fail(post('_csrf'));
-    $username = trim((string) post('username', ''));
-    $password = (string) post('password', '');
-    if (auth_attempt($username, $password)) {
-        flash_set('success', 'ログインしました。');
-        app_redirect('admin/index.php');
+
+    if (!$schemaReady) {
+        $setupMessage = 'DB未初期化のためログインできません。schema.sql → seed.sql を実行してください。';
+    } else {
+        $username = trim((string) post('username', ''));
+        $password = (string) post('password', '');
+
+        if (auth_attempt($username, $password)) {
+            flash_set('success', 'ログインしました。');
+            app_redirect(ADMIN_HOME_PATH);
+        }
+
+        if (auth_last_error() === 'db_error') {
+            $setupMessage = 'データベースの準備が完了していない可能性があります。セットアップ確認ページをご確認ください。';
+        } else {
+            $error = 'ログインに失敗しました。';
+        }
     }
-    $error = 'ログインに失敗しました。';
 }
 ?>
 <!doctype html>
-<html lang="ja"><head><meta charset="UTF-8"><title>管理ログイン</title><link rel="stylesheet" href="<?= e(app_url('assets/css/style.css')) ?>"></head><body>
-<h1>管理ログイン</h1>
-<?php if ($error): ?><div class="flash error"><?= e($error) ?></div><?php endif; ?>
-<form method="post">
-  <?= csrf_input() ?>
-  <div><label>ID <input name="username" required></label></div>
-  <div><label>Password <input type="password" name="password" required></label></div>
-  <button type="submit">ログイン</button>
-</form>
-<p>URL: <code>http://localhost/pinkclub-fanza/public/login0718.php</code></p>
-</body></html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><?= e(APP_NAME) ?> 管理ログイン</title>
+  <link rel="stylesheet" href="<?= e(asset_url('css/style.css')) ?>">
+</head>
+<body class="login-page">
+  <main class="login-wrap">
+    <section class="login-card">
+      <h1 class="login-title"><?= e(APP_NAME) ?></h1>
+      <p class="login-subtitle">管理画面ログイン</p>
+
+      <?php if ($setupMessage !== null): ?>
+        <div class="alert alert-warning" role="alert">
+          <?= e($setupMessage) ?>
+          <div class="alert-link-wrap">
+            <a href="<?= e(public_url('setup_check.php')) ?>">セットアップ状態を確認する</a>
+          </div>
+        </div>
+      <?php endif; ?>
+
+      <?php if ($error !== null): ?>
+        <div class="alert alert-error" role="alert"><?= e($error) ?></div>
+      <?php endif; ?>
+
+      <form method="post" class="login-form">
+        <?= csrf_input() ?>
+        <label class="login-label">
+          ユーザー名
+          <input class="login-input" name="username" autocomplete="username" required>
+        </label>
+        <label class="login-label">
+          パスワード
+          <input class="login-input" type="password" name="password" autocomplete="current-password" required>
+        </label>
+        <button class="login-button" type="submit">ログイン</button>
+      </form>
+
+      <p class="login-note">ログインURL: <code><?= e(login_url()) ?></code></p>
+    </section>
+  </main>
+</body>
+</html>

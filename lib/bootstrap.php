@@ -3,6 +3,10 @@
 declare(strict_types=1);
 
 $config = require __DIR__ . '/../config/config.php';
+if (!is_array($config)) {
+    $config = [];
+}
+$GLOBALS['app_config'] = $config;
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_name($config['security']['session_name']);

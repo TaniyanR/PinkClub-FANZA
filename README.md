@@ -1,60 +1,56 @@
-# PinkClub FANZA (DMM/FANZA Affiliate API v3)
+# PinkClub FANZA（XAMPP運用ガイド）
 
-プレーンPHP + MySQL（XAMPP想定）で構築した、FANZA同期＆閲覧サイトです。
+PinkClub FANZA は、DMM/FANZA Affiliate API v3 と連携して商品データを同期・公開する PHP + MySQL（MariaDB）アプリです。
 
-## 前提環境
-- XAMPP（Apache + MySQL/MariaDB）
-- PHP 8.1+ 推奨
-- MySQL / MariaDB
+## 1. 配置場所
+- `C:\xampp\htdocs\pinkclub-fanza` に配置してください。
 
-## セットアップ手順（XAMPP）
-1. このリポジトリを `C:\xampp\htdocs\pinkclub-fanza` に配置
-2. XAMPPで Apache / MySQL を起動
-3. phpMyAdmin で `pinkclub_fanza` を作成（utf8mb4推奨）
-4. `sql/schema.sql` を実行
-5. `sql/seed.sql` を実行
-6. `config/config.php` を編集（DB接続やBASE_URL）
-7. ブラウザでログインURLへアクセス
+## 2. 起動
+1. XAMPP Control Panel を開く
+2. `Apache` を `Start`
+3. `MySQL` を `Start`
 
-## ログイン情報
-- URL: `http://localhost/pinkclub-fanza/public/login0718.php`
+## 3. DB初期化
+1. phpMyAdmin でデータベース `pinkclub_fanza` を作成
+2. `sql/schema.sql` をインポート
+3. 続けて `sql/seed.sql` をインポート
+
+> インポート順は必ず `schema.sql` → `seed.sql` の順です。
+
+## 4. ログインURL（固定）
+- `http://localhost/pinkclub-fanza/public/login0718.php`
+
+## 5. 初期ID / PW
 - ID: `admin`
 - PW: `password`
-- 初回ログイン後にパスワード変更推奨
+- 初回ログイン後に必ず変更してください。
 
-## 同期手順
-1. 管理画面ログイン
-2. `API設定` で `api_id` / `affiliate_id` を保存
-3. 接続テスト（API疎通）
-4. Floor同期
-5. マスタ同期（女優・ジャンル・メーカー・シリーズ・作者）
-6. 商品同期（例: service=digital, floor=videoa）
+## 6. CSSが効かないときの確認
+1. 直接アクセスでCSSが見えるか確認
+   - `http://localhost/pinkclub-fanza/assets/css/style.css`
+2. `config/config.php` の `BASE_URL` 設定を確認
+   - `http://localhost/pinkclub-fanza`
+3. ログイン画面URLが固定URLになっているか確認
+   - `http://localhost/pinkclub-fanza/public/login0718.php`
 
-## 構成（主要）
-- `public/login0718.php` : 管理ログイン入口（固定）
-- `public/_bootstrap.php` : 共通bootstrap
-- `admin/*.php` : 管理画面
-- `public/*.php` : 公開画面
-- `lib/dmm_api_client.php` : APIクライアント
-- `lib/dmm_normalizer.php` : APIレスポンス正規化
-- `lib/dmm_sync_service.php` : 同期処理
-- `sql/schema.sql`, `sql/seed.sql` : DB初期化
+## 7. MySQL起動トラブルの注意（簡潔版）
+- InnoDBログ不整合がある場合は、必ずバックアップを取得してから復旧してください。
+- `xampp/mysql/data` をむやみに上書きしないでください。
 
-## セキュリティ対応
-- PDO + prepared statement
-- CSRFトークン検証（POSTフォーム）
-- XSS対策 `e()`
-- ログイン成功時 `session_regenerate_id(true)`
-- 未ログインの admin 配下は `public/login0718.php` へリダイレクト
+## 8. 同期手順
+1. 管理画面で API設定（`api_id` / `affiliate_id`）を保存
+2. Floor同期
+3. マスタ同期（Actress / Genre / Maker / Series / Author）
+4. 商品同期（ItemList）
 
-## トラブルシュート
-- API接続エラー
-  - API ID / Affiliate ID が正しいか
-  - XAMPPのPHPで cURL 有効か
-  - outbound通信がブロックされていないか
-- MySQLが起動しない
-  - 3306ポート競合を確認
-  - XAMPP管理画面のログを確認
-- ログインできない
-  - `sql/seed.sql` 実行済みか
-  - DB接続情報（`config/config.php`）を確認
+## 主要URL
+- ログイン: `http://localhost/pinkclub-fanza/public/login0718.php`
+- 管理画面トップ: `http://localhost/pinkclub-fanza/admin/index.php`
+- 公開トップ: `http://localhost/pinkclub-fanza/public/index.php`
+- 初期セットアップ確認: `http://localhost/pinkclub-fanza/public/setup_check.php`
+
+## セキュリティ実装（現行）
+- CSRF対策（トークン検証）
+- XSS対策（`e()` エスケープ）
+- パスワード検証（`password_hash` / `password_verify`）
+- PDO Prepared Statement

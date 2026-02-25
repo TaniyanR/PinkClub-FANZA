@@ -19,3 +19,29 @@ function db(): PDO
 
     return $pdo;
 }
+
+function db_can_connect(): bool
+{
+    try {
+        db();
+        return true;
+    } catch (PDOException) {
+        return false;
+    }
+}
+
+function db_table_exists(string $table): bool
+{
+    try {
+        $cfg = app_config()['db'];
+        $sql = 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = :schema AND table_name = :table LIMIT 1';
+        $stmt = db()->prepare($sql);
+        $stmt->execute([
+            'schema' => (string)$cfg['dbname'],
+            'table' => $table,
+        ]);
+        return (int)$stmt->fetchColumn() > 0;
+    } catch (Throwable) {
+        return false;
+    }
+}
