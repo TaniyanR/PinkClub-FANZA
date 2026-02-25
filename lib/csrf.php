@@ -3,27 +3,21 @@ declare(strict_types=1);
 
 function csrf_token(): string
 {
-    if (function_exists('admin_v2_session_start')) {
-        admin_v2_session_start();
-    } elseif (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
+    if (empty($_SESSION['_csrf'])) {
+        $_SESSION['_csrf'] = bin2hex(random_bytes(32));
     }
-
-    if (empty($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token'])) {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    }
-
-    return $_SESSION['csrf_token'];
+    return $_SESSION['_csrf'];
 }
 
-function csrf_verify(?string $sent): bool
+function csrf_input(): string
 {
-    if (function_exists('admin_v2_session_start')) {
-        admin_v2_session_start();
-    } elseif (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
-    }
+    return '<input type="hidden" name="_csrf" value="' . e(csrf_token()) . '">';
+}
 
-    $token = $_SESSION['csrf_token'] ?? '';
-    return is_string($sent) && is_string($token) && hash_equals($token, $sent);
+function verify_csrf(): void
+{
+    $token = $_POST['_csrf'] ?? '';
+    if (!$token || !hash_equals($_SESSION['_csrf'] ?? '', $token)) {
+        throw new RuntimeException('CSRFトークンが不正です。');
+    }
 }

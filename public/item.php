@@ -1,127 +1,25 @@
 <?php
-declare(strict_types=1);
-
 require_once __DIR__ . '/_bootstrap.php';
+$contentId = (string)($_GET['content_id'] ?? '');
+$stmt = db()->prepare('SELECT * FROM items WHERE content_id=:cid LIMIT 1'); $stmt->execute([':cid'=>$contentId]); $item = $stmt->fetch();
+if (!$item) { http_response_code(404); exit('商品が見つかりません。'); }
 
-require_once __DIR__ . '/partials/_helpers.php';
-require_once __DIR__ . '/../lib/repository.php';
-require_once __DIR__ . '/../lib/app_features.php';
-
-$cid = normalize_content_id((string)($_GET['cid'] ?? ''));
-if ($cid === '') {
-    abort_404('404 Not Found', '作品IDが指定されていません。');
-}
-
-$item = fetch_item_by_content_id($cid);
-if ($item === null) {
-    $item = fetch_item_by_cid($cid);
-}
-if ($item === null) {
-    abort_404('404 Not Found', '指定の作品が見つかりませんでした。');
-}
-
-$images = parse_image_list($item['image_list'] ?? '');
-$actresses = fetch_item_actresses((string)$item['content_id']);
-$genres = fetch_item_genres((string)$item['content_id']);
-$makers = fetch_item_makers((string)$item['content_id']);
-$seriesList = fetch_item_series((string)$item['content_id']);
-$labels = fetch_item_labels((string)$item['content_id']);
-
-// Use new related items function with better relevance scoring
-$related = fetch_related_items((string)$item['content_id'], 6);
-
-$pageStyles = ['/assets/css/detail.css'];
-$pageTitle = (string)$item['title'];
-$pageDescription = (string)($item['description'] ?? $item['category_name'] ?? $item['title']);
-$canonicalUrl = canonical_url('/item.php', ['cid' => (string)$item['content_id']]);
-$ogImage = (string)($item['image_large'] ?: $item['image_small']);
-$ogType = 'article';
-$itemCid = (string)$item['content_id'];
-
+$actresses = db()->prepare('SELECT a.* FROM item_actresses ia JOIN actresses a ON a.id=ia.actress_id WHERE ia.item_id=:id ORDER BY ia.sort_order'); $actresses->execute([':id'=>$item['id']]); $actresses = $actresses->fetchAll();
+$genres = db()->prepare('SELECT g.* FROM item_genres ig JOIN genres g ON g.id=ig.genre_id WHERE ig.item_id=:id ORDER BY ig.sort_order'); $genres->execute([':id'=>$item['id']]); $genres = $genres->fetchAll();
+$makers = db()->prepare('SELECT m.* FROM item_makers im JOIN makers m ON m.id=im.maker_id WHERE im.item_id=:id ORDER BY im.sort_order'); $makers->execute([':id'=>$item['id']]); $makers = $makers->fetchAll();
+$series = db()->prepare('SELECT s.* FROM item_series isr JOIN series_master s ON s.id=isr.series_id WHERE isr.item_id=:id ORDER BY isr.sort_order'); $series->execute([':id'=>$item['id']]); $series = $series->fetchAll();
+$authors = db()->prepare('SELECT a.* FROM item_authors iau JOIN authors a ON a.id=iau.author_id WHERE iau.item_id=:id ORDER BY iau.sort_order'); $authors->execute([':id'=>$item['id']]); $authors = $authors->fetchAll();
+$campaigns = db()->prepare('SELECT * FROM item_campaigns WHERE item_id=:id ORDER BY sort_order'); $campaigns->execute([':id'=>$item['id']]); $campaigns = $campaigns->fetchAll();
+$related = db()->prepare('SELECT * FROM items WHERE id<>:id AND (content_id IN (SELECT i2.content_id FROM items i2 JOIN item_makers im2 ON i2.id=im2.item_id JOIN item_makers im3 ON im3.maker_id=im2.maker_id WHERE im3.item_id=:id LIMIT 10)) ORDER BY item_date DESC LIMIT 8'); $related->execute([':id'=>$item['id']]); $related = $related->fetchAll();
+$sampleS = json_decode((string)$item['sample_image_s_json'], true) ?: [];
 include __DIR__ . '/partials/header.php';
-include __DIR__ . '/partials/nav_search.php';
 ?>
-<div class="layout detail-layout">
-    <aside class="sidebar detail-sidebar">
-        <div class="sidebar-block">
-            <h3>この作品のメタ</h3>
-            <ul class="meta-list">
-                <?php foreach ($makers as $maker) : ?>
-                    <li><a href="/maker.php?id=<?php echo urlencode((string)$maker['id']); ?>">メーカー: <?php echo e((string)$maker['name']); ?></a></li>
-                <?php endforeach; ?>
-                <?php foreach ($seriesList as $series) : ?>
-                    <li><a href="/series_one.php?id=<?php echo urlencode((string)$series['id']); ?>">シリーズ: <?php echo e((string)$series['name']); ?></a></li>
-                <?php endforeach; ?>
-                <?php foreach ($genres as $genre) : ?>
-                    <li><a href="/genre.php?id=<?php echo urlencode((string)$genre['id']); ?>">ジャンル: <?php echo e((string)$genre['name']); ?></a></li>
-                <?php endforeach; ?>
-                <?php foreach ($actresses as $actress) : ?>
-                    <li><a href="/actress.php?id=<?php echo urlencode((string)$actress['id']); ?>">女優: <?php echo e((string)$actress['name']); ?></a></li>
-                <?php endforeach; ?>
-            </ul>
-        </div>
-    </aside>
-
-    <main class="main-content detail-page">
-        <?php render_ad('content_top', 'item', 'pc'); ?>
-        <nav class="breadcrumb" aria-label="breadcrumb">
-            <a href="/">ホーム</a><span>/</span><a href="/posts.php">作品一覧</a><span>/</span><span><?php echo e((string)$item['title']); ?></span>
-        </nav>
-
-        <section class="detail-title"><h1><?php echo e((string)$item['title']); ?></h1></section>
-
-        <section class="detail-main">
-            <div class="detail-left">
-                <div class="package-media">
-                    <img src="<?php echo e((string)($item['image_large'] ?: $item['image_small'])); ?>" alt="<?php echo e((string)$item['title']); ?>">
-                </div>
-                <?php if (!empty($item['affiliate_url'])) : ?>
-                    <a class="cta-buy" href="<?php echo e((string)$item['affiliate_url']); ?>" target="_blank" rel="noopener">FANZAで購入</a>
-                <?php endif; ?>
-            </div>
-            <div class="detail-right">
-                <div class="pill-group">
-                    <?php foreach ($makers as $maker) : ?><a href="/maker.php?id=<?php echo urlencode((string)$maker['id']); ?>" class="pill">メーカー: <?php echo e((string)$maker['name']); ?></a><?php endforeach; ?>
-                    <?php foreach ($seriesList as $series) : ?><a href="/series_one.php?id=<?php echo urlencode((string)$series['id']); ?>" class="pill">シリーズ: <?php echo e((string)$series['name']); ?></a><?php endforeach; ?>
-                    <?php foreach ($genres as $genre) : ?><a href="/genre.php?id=<?php echo urlencode((string)$genre['id']); ?>" class="pill">ジャンル: <?php echo e((string)$genre['name']); ?></a><?php endforeach; ?>
-                    <?php foreach ($actresses as $actress) : ?><a href="/actress.php?id=<?php echo urlencode((string)$actress['id']); ?>" class="pill">女優: <?php echo e((string)$actress['name']); ?></a><?php endforeach; ?>
-                    <?php foreach ($labels as $label) : ?><span class="pill">レーベル: <?php echo e((string)$label['label_name']); ?></span><?php endforeach; ?>
-                </div>
-                <p class="detail-description"><?php echo e((string)($item['description'] ?? $item['category_name'] ?? '説明文データは未登録です。')); ?></p>
-                <div class="info-grid">
-                    <div class="info-card"><span class="info-label">発売日</span><span class="info-value"><?php echo e(format_date($item['date_published'] ?? null)); ?></span></div>
-                    <div class="info-card"><span class="info-label">価格</span><span class="info-value"><?php echo e(format_price($item['price_min'] ?? null)); ?></span></div>
-                    <div class="info-card"><span class="info-label">品番</span><span class="info-value"><?php echo e((string)($item['product_id'] ?? '')); ?></span></div>
-                    <div class="info-card"><span class="info-label">配信サービス</span><span class="info-value"><?php echo e((string)($item['service_code'] ?? '')); ?></span></div>
-                </div>
-            </div>
-        </section>
-
-        <?php if ($images !== []) : ?>
-            <section class="detail-samples" id="samples">
-                <div class="section-head"><h2 class="section-title">サンプル画像</h2><span class="section-sub"><?php echo e((string)count($images)); ?>枚</span></div>
-                <div class="sample-grid">
-                    <?php foreach ($images as $img) : ?><img src="<?php echo e($img); ?>" alt="<?php echo e((string)$item['title']); ?> サンプル"><?php endforeach; ?>
-                </div>
-                <?php if (!empty($item['affiliate_url'])) : ?><a class="cta-buy" href="<?php echo e((string)$item['affiliate_url']); ?>" target="_blank" rel="noopener">FANZAで購入</a><?php endif; ?>
-            </section>
-        <?php endif; ?>
-
-        <?php render_ad('content_bottom', 'item', 'pc'); ?>
-
-        <?php if ($related !== []) : ?>
-            <section class="detail-related" id="related">
-                <div class="section-head"><h2 class="section-title">関連作品</h2></div>
-                <div class="related-grid">
-                    <?php foreach ($related as $rel) : ?>
-                        <article class="product-card">
-                            <a class="product-card__media" href="/item.php?cid=<?php echo urlencode((string)$rel['content_id']); ?>"><img src="<?php echo e((string)($rel['image_small'] ?: $rel['image_large'])); ?>" alt="<?php echo e((string)$rel['title']); ?>"></a>
-                            <div class="product-card__body"><a class="product-card__title" href="/item.php?cid=<?php echo urlencode((string)$rel['content_id']); ?>"><?php echo e((string)$rel['title']); ?></a></div>
-                        </article>
-                    <?php endforeach; ?>
-                </div>
-            </section>
-        <?php endif; ?>
-    </main>
+<div class="card"><h1><?= e($item['title']) ?></h1><img style="max-width:280px" src="<?= e($item['image_large'] ?: $item['image_small']) ?>" alt=""><p>価格: <?= e($item['price_text']) ?> / 発売日: <?= e((string)$item['item_date']) ?> / レビュー: ★<?= e((string)$item['review_average']) ?> (<?= e((string)$item['review_count']) ?>)</p>
+<p><a class="btn" href="<?= e($item['affiliate_url']) ?>" target="_blank" rel="noopener">FANZAで見る</a></p>
+<?php if ($item['sample_movie_720']): ?><p>サンプル動画: <a href="<?= e($item['sample_movie_720']) ?>" target="_blank">720p</a></p><?php endif; ?>
 </div>
+<div class="card"><h2>サンプル画像</h2><div class="grid"><?php foreach($sampleS as $u): ?><img src="<?= e(is_array($u)?($u['src'] ?? ''):$u) ?>" style="width:100%;height:160px;object-fit:cover"><?php endforeach; ?></div></div>
+<div class="card"><h2>関連情報</h2><p>女優: <?php foreach($actresses as $a): ?><a href="/public/actress.php?actress_id=<?= e((string)$a['actress_id']) ?>"><?= e($a['name']) ?></a> <?php endforeach; ?></p><p>ジャンル: <?php foreach($genres as $g): ?><a href="/public/genre.php?genre_id=<?= e((string)$g['genre_id']) ?>"><?= e($g['name']) ?></a> <?php endforeach; ?></p><p>メーカー: <?php foreach($makers as $m): ?><a href="/public/maker.php?maker_id=<?= e((string)$m['maker_id']) ?>"><?= e($m['name']) ?></a> <?php endforeach; ?></p><p>シリーズ: <?php foreach($series as $s): ?><a href="/public/series_detail.php?series_id=<?= e((string)$s['series_id']) ?>"><?= e($s['name']) ?></a> <?php endforeach; ?></p><p>作者: <?php foreach($authors as $a): ?><a href="/public/author.php?author_id=<?= e((string)$a['author_id']) ?>"><?= e($a['name']) ?></a> <?php endforeach; ?></p></div>
+<div class="card"><h2>キャンペーン</h2><?php foreach($campaigns as $c): $active = (!$c['date_begin'] || strtotime($c['date_begin'])<=time()) && (!$c['date_end'] || strtotime($c['date_end'])>=time()); ?><div class="alert <?= $active?'success':'' ?>"><?= e($c['title']) ?> (<?= e((string)$c['date_begin']) ?> - <?= e((string)$c['date_end']) ?>)</div><?php endforeach; ?></div>
+<div class="card"><h2>関連商品</h2><div class="grid"><?php foreach($related as $r): ?><div class="item-card"><img src="<?= e($r['image_small']) ?>"><a href="/public/item.php?content_id=<?= urlencode($r['content_id']) ?>"><?= e($r['title']) ?></a></div><?php endforeach; ?></div></div>
 <?php include __DIR__ . '/partials/footer.php'; ?>

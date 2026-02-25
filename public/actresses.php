@@ -1,43 +1,12 @@
 <?php
-declare(strict_types=1);
-
 require_once __DIR__ . '/_bootstrap.php';
-
-require_once __DIR__ . '/partials/_helpers.php';
-require_once __DIR__ . '/../lib/repository.php';
-
-$page = safe_int($_GET['page'] ?? 1, 1, 1, 100000);
-$limit = 24;
-$offset = ($page - 1) * $limit;
-[$actresses, $hasNext] = paginate_items(fetch_actresses($limit + 1, $offset), $limit);
-
-$pageStyles = ['/assets/css/actresses.css'];
-$pageTitle = '女優一覧';
-$pageDescription = '登録済み女優の一覧ページです。';
-$canonicalUrl = canonical_url('/actresses.php', ['page' => $page > 1 ? $page : null]);
-
-include __DIR__ . '/partials/header.php';
-include __DIR__ . '/partials/nav_search.php';
-?>
-<div class="layout">
-    <?php include __DIR__ . '/partials/sidebar.php'; ?>
-    <main class="main-content">
-        <section class="block">
-            <div class="section-head"><h1 class="section-title">女優一覧</h1><span class="section-sub">実データ表示</span></div>
-            <div class="actress-grid">
-                <?php foreach ($actresses as $actress) : ?>
-                    <article class="actress-card">
-                        <a class="actress-card__media" href="/actress.php?id=<?php echo urlencode((string)$actress['id']); ?>"><img src="<?php echo e((string)($actress['image_small'] ?: $actress['image_large'])); ?>" alt="<?php echo e((string)$actress['name']); ?>"></a>
-                        <a class="actress-card__name" href="/actress.php?id=<?php echo urlencode((string)$actress['id']); ?>"><?php echo e((string)$actress['name']); ?></a>
-                    </article>
-                <?php endforeach; ?>
-            </div>
-        </section>
-        <nav class="pagination">
-            <?php if ($page > 1) : ?><a class="page-btn" href="/actresses.php?page=<?php echo e((string)($page - 1)); ?>">前へ</a><?php else : ?><span class="page-btn">前へ</span><?php endif; ?>
-            <span class="page-btn is-current"><?php echo e((string)$page); ?></span>
-            <?php if ($hasNext) : ?><a class="page-btn" href="/actresses.php?page=<?php echo e((string)($page + 1)); ?>">次へ</a><?php else : ?><span class="page-btn">次へ</span><?php endif; ?>
-        </nav>
-    </main>
-</div>
-<?php include __DIR__ . '/partials/footer.php'; ?>
+$page=max(1,(int)($_GET['page']??1));$kw=trim((string)($_GET['q']??''));$where='';$bind=[];
+if($kw!==''){ $where='WHERE name LIKE :q OR ruby LIKE :q'; $bind[':q']="%{$kw}%"; }
+$c=db()->prepare("SELECT COUNT(*) FROM actresses {$where}");$c->execute($bind);$p=paginate((int)$c->fetchColumn(),$page,30);
+$s=db()->prepare("SELECT a.*,COUNT(ia.item_id) item_count FROM actresses a LEFT JOIN item_actresses ia ON ia.actress_id=a.id {$where} GROUP BY a.id ORDER BY a.name LIMIT :lim OFFSET :off");
+foreach($bind as $k=>$v)$s->bindValue($k,$v);$s->bindValue(':lim',$p['per_page'],PDO::PARAM_INT);$s->bindValue(':off',$p['offset'],PDO::PARAM_INT);$s->execute();$rows=$s->fetchAll();
+include __DIR__.'/partials/header.php'; ?>
+<div class="card"><h1>女優一覧</h1><form><input name="q" value="<?= e($kw) ?>" placeholder="名前・読み"><button>検索</button></form></div>
+<div class="grid"><?php foreach($rows as $r): ?><div class="card item-card"><?php if($r['image_small']): ?><img src="<?= e($r['image_small']) ?>"><?php endif; ?><a href="/public/actress.php?actress_id=<?= e((string)$r['actress_id']) ?>"><?= e($r['name']) ?></a><div>件数:<?= e((string)$r['item_count']) ?></div></div><?php endforeach; ?></div>
+<div class="pagination card"><?php for($i=1;$i<=$p['pages'];$i++): ?><a href="?<?= http_build_query(['q'=>$kw,'page'=>$i]) ?>"><?= $i ?></a><?php endfor; ?></div>
+<?php include __DIR__.'/partials/footer.php'; ?>

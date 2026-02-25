@@ -1,0 +1,2 @@
+<?php require_once __DIR__.'/_bootstrap.php'; $rows=db()->query('SELECT a.*,COUNT(iau.item_id) item_count FROM authors a LEFT JOIN item_authors iau ON iau.author_id=a.id GROUP BY a.id ORDER BY a.name')->fetchAll(); include __DIR__.'/partials/header.php'; ?>
+<div class="card"><h1>作者一覧</h1></div><div class="grid"><?php foreach($rows as $r): ?><div class="card"><a href="/public/author.php?author_id=<?= e((string)$r['author_id']) ?>"><?= e($r['name']) ?></a> (<?= e((string)$r['item_count']) ?>)</div><?php endforeach; ?></div><?php include __DIR__.'/partials/footer.php'; ?>
