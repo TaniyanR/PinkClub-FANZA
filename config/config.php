@@ -2,10 +2,18 @@
 
 declare(strict_types=1);
 
-defined('APP_NAME') || define('APP_NAME', 'PinkClub FANZA');
-defined('BASE_URL') || define('BASE_URL', 'http://localhost/pinkclub-fanza');
-defined('LOGIN_PATH') || define('LOGIN_PATH', '/pinkclub-fanza/public/login0718.php');
-defined('ADMIN_HOME_PATH') || define('ADMIN_HOME_PATH', '/pinkclub-fanza/admin/index.php');
+if (!defined('APP_NAME')) {
+    define('APP_NAME', 'PinkClub FANZA');
+}
+if (!defined('BASE_URL')) {
+    define('BASE_URL', 'http://localhost/pinkclub-fanza');
+}
+if (!defined('LOGIN_PATH')) {
+    define('LOGIN_PATH', '/pinkclub-fanza/public/login0718.php');
+}
+if (!defined('ADMIN_HOME_PATH')) {
+    define('ADMIN_HOME_PATH', '/pinkclub-fanza/admin/index.php');
+}
 
 return [
     'db' => [

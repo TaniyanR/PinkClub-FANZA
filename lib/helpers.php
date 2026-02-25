@@ -57,7 +57,12 @@ function app_url(string $path = ''): string
 
 function asset_url(string $path): string
 {
-    return app_url('assets/' . ltrim($path, '/'));
+    $clean = ltrim($path, '/');
+    if (str_starts_with($clean, 'assets/')) {
+        return app_url($clean);
+    }
+
+    return app_url('assets/' . $clean);
 }
 
 if (!function_exists('login_url')) {

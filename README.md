@@ -10,12 +10,12 @@ PinkClub FANZA は、DMM/FANZA Affiliate API v3 と連携して商品データ�
 2. `Apache` を `Start`
 3. `MySQL` を `Start`
 
-## 3. DB初期化
-1. phpMyAdmin でデータベース `pinkclub_fanza` を作成
-2. `sql/schema.sql` をインポート
-3. 続けて `sql/seed.sql` をインポート
+## 3. 初回セットアップ（自動）
+1. ブラウザで `http://localhost/pinkclub-fanza/public/setup_check.php` を開く
+2. 「**DB自動セットアップを実行**」をクリック
+3. 完了メッセージを確認後、ログイン画面へ進む
 
-> インポート順は必ず `schema.sql` → `seed.sql` の順です。
+> 自動セットアップでは、DB作成・テーブル作成・初期データ投入（admin/settings）を順に実行します。
 
 ## 4. ログインURL（固定）
 - `http://localhost/pinkclub-fanza/public/login0718.php`
@@ -25,7 +25,15 @@ PinkClub FANZA は、DMM/FANZA Affiliate API v3 と連携して商品データ�
 - PW: `password`
 - 初回ログイン後に必ず変更してください。
 
-## 6. CSSが効かないときの確認
+## 6. 自動セットアップ失敗時（手動フォールバック）
+1. phpMyAdmin でデータベース `pinkclub_fanza` を作成
+2. `sql/schema.sql` をインポート
+3. 続けて `sql/seed.sql` をインポート
+
+> インポート順は必ず `schema.sql` → `seed.sql` の順です。  
+> 自動セットアップの失敗詳細は `logs/install.log` を確認してください。
+
+## 7. CSSが効かないときの確認
 1. 直接アクセスでCSSが見えるか確認
    - `http://localhost/pinkclub-fanza/assets/css/style.css`
 2. `config/config.php` の `BASE_URL` 設定を確認
@@ -33,11 +41,11 @@ PinkClub FANZA は、DMM/FANZA Affiliate API v3 と連携して商品データ�
 3. ログイン画面URLが固定URLになっているか確認
    - `http://localhost/pinkclub-fanza/public/login0718.php`
 
-## 7. MySQL起動トラブルの注意（簡潔版）
+## 8. MySQL起動トラブルの注意（簡潔版）
 - InnoDBログ不整合がある場合は、必ずバックアップを取得してから復旧してください。
 - `xampp/mysql/data` をむやみに上書きしないでください。
 
-## 8. 同期手順
+## 9. 同期手順
 1. 管理画面で API設定（`api_id` / `affiliate_id`）を保存
 2. Floor同期
 3. マスタ同期（Actress / Genre / Maker / Series / Author）

@@ -10,3 +10,6 @@ vendor/
 !public/assets/vendor/**
 
 config.local.php
+
+!logs/.gitkeep
+!logs/
