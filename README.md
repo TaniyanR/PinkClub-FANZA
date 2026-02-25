@@ -1,97 +1,60 @@
-# PinkClub-FANZA
+# PinkClub FANZA (DMM/FANZA Affiliate API v3)
 
-PinkClub-FANZA は、FANZA API から商品データを取得し、管理画面で運用するための PHP + MySQL ツールです。
+プレーンPHP + MySQL（XAMPP想定）で構築した、FANZA同期＆閲覧サイトです。
 
-## 概要
+## 前提環境
+- XAMPP（Apache + MySQL/MariaDB）
+- PHP 8.1+ 推奨
+- MySQL / MariaDB
 
-現在の実装でできることは以下です。
+## セットアップ手順（XAMPP）
+1. このリポジトリを `C:\xampp\htdocs\pinkclub-fanza` に配置
+2. XAMPPで Apache / MySQL を起動
+3. phpMyAdmin で `pinkclub_fanza` を作成（utf8mb4推奨）
+4. `sql/schema.sql` を実行
+5. `sql/seed.sql` を実行
+6. `config/config.php` を編集（DB接続やBASE_URL）
+7. ブラウザでログインURLへアクセス
 
-- 管理画面ログイン / ログアウト
-- 設定管理（サイト設定・API設定・デザイン設定）
-- 固定ページの作成 / 編集 / 削除
-- FANZA API からの商品インポート（手動実行）
-- 取得済みデータの一覧表示（簡易フィルタ）
-- 商品詳細の確認
-- 商品 1 件削除（POST + CSRF + PRG）
-- 管理画面ヘルプの参照
+## ログイン情報
+- URL: `http://localhost/pinkclub-fanza/public/login0718.php`
+- ID: `admin`
+- PW: `password`
+- 初回ログイン後にパスワード変更推奨
 
-管理画面での主な運用フローは、**設定 → インポート → 一覧/詳細確認 → 不要データ削除** です。
+## 同期手順
+1. 管理画面ログイン
+2. `API設定` で `api_id` / `affiliate_id` を保存
+3. 接続テスト（API疎通）
+4. Floor同期
+5. マスタ同期（女優・ジャンル・メーカー・シリーズ・作者）
+6. 商品同期（例: service=digital, floor=videoa）
 
-## 必要環境
+## 構成（主要）
+- `public/login0718.php` : 管理ログイン入口（固定）
+- `public/_bootstrap.php` : 共通bootstrap
+- `admin/*.php` : 管理画面
+- `public/*.php` : 公開画面
+- `lib/dmm_api_client.php` : APIクライアント
+- `lib/dmm_normalizer.php` : APIレスポンス正規化
+- `lib/dmm_sync_service.php` : 同期処理
+- `sql/schema.sql`, `sql/seed.sql` : DB初期化
 
-- PHP（7.4 以上推奨）
-- MySQL（5.7 / 8.0 系）
-- Web サーバー（Apache / XAMPP など、PHP が動作する環境）
+## セキュリティ対応
+- PDO + prepared statement
+- CSRFトークン検証（POSTフォーム）
+- XSS対策 `e()`
+- ログイン成功時 `session_regenerate_id(true)`
+- 未ログインの admin 配下は `public/login0718.php` へリダイレクト
 
-## 初期設定
-
-1. 管理画面にログインする
-2. サイト設定を保存する（サイト名 / サイト URL など）
-3. API 設定で以下を保存する（FANZA専用）
-   - API ID
-   - Affiliate ID
-   - フロア（内部的に service / floor の組で管理）
-   - site は FANZA 固定（選択不要）
-4. 必要に応じてデザイン設定を保存する
-
-> API ID / Affiliate ID が未設定の場合、商品インポートは実行できません。
-
-## 使い方
-
-### 1) インポート実行
-
-- 管理画面の `import_items.php` を開く
-- 実行ボタンからインポートを開始する
-
-### 2) 実行結果の確認
-
-- 実行後はフラッシュメッセージで結果を確認する
-- 画面上で最終実行日時を確認する
-
-### 3) 取得済みデータの確認
-
-- 一覧で取得済みデータを確認する
-- キーワード / 状態 / 件数で簡易フィルタする
-
-### 4) 詳細確認
-
-- `item_show.php` で対象データの詳細を確認する
-
-### 5) 削除
-
-- `item_delete.php` から 1 件削除する
-- 削除は **取り消しできません**（実行前に対象を確認してください）
-
-## トラブルシュート（最小）
-
-- **API 未設定メッセージが出る**
-  - API 設定で API ID / Affiliate ID / フロア が保存されているか確認
-- **画面エラー / 白画面になる**
-  - `storage/logs/php-error.log` やサーバーの `error_log` を確認
-- **URL が二重連結になる（例: `/public/public/...`）**
-  - サイト設定の base URL / SITE_URL の値を確認
-  - 末尾スラッシュや公開ディレクトリ指定の重複がないか確認
-
-## 運用前チェックリスト（STEP 10）
-
-- [ ] ログインできる
-- [ ] 設定 3 画面（サイト / API / デザイン）が保存できる
-- [ ] インポート画面が開く
-- [ ] API 未設定時にメッセージが出る
-- [ ] インポートを実行できる
-- [ ] 最終実行日時が表示される
-- [ ] 一覧フィルタ（キーワード / 状態 / 件数）が動く
-- [ ] 詳細画面が開く
-- [ ] 削除できる（取り消し不可）
-- [ ] URL 二重連結が出ていない
-
-## 現在未実装の範囲（将来拡張）
-
-- cron による自動実行
-- タグ自動生成
-- 関連記事自動連携
-- 高度検索 / 並び替え / ページネーション強化
-
-## ライセンス
-
-Private / 個人開発用
+## トラブルシュート
+- API接続エラー
+  - API ID / Affiliate ID が正しいか
+  - XAMPPのPHPで cURL 有効か
+  - outbound通信がブロックされていないか
+- MySQLが起動しない
+  - 3306ポート競合を確認
+  - XAMPP管理画面のログを確認
+- ログインできない
+  - `sql/seed.sql` 実行済みか
+  - DB接続情報（`config/config.php`）を確認
