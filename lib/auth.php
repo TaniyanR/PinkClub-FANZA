@@ -7,12 +7,31 @@ function auth_user(): ?array
     return $_SESSION['admin'] ?? null;
 }
 
+function auth_set_last_error(?string $error): void
+{
+    $GLOBALS['auth_last_error'] = $error;
+}
+
+function auth_last_error(): ?string
+{
+    $error = $GLOBALS['auth_last_error'] ?? null;
+    return is_string($error) ? $error : null;
+}
+
 function auth_attempt(string $username, string $password): bool
 {
-    $stmt = db()->prepare('SELECT id, username, password_hash FROM admins WHERE username = :u LIMIT 1');
-    $stmt->execute(['u' => $username]);
-    $user = $stmt->fetch();
-    if (!$user || !password_verify($password, $user['password_hash'])) {
+    auth_set_last_error(null);
+
+    try {
+        $stmt = db()->prepare('SELECT id, username, password_hash FROM admins WHERE username = :u LIMIT 1');
+        $stmt->execute(['u' => $username]);
+        $user = $stmt->fetch();
+    } catch (PDOException) {
+        auth_set_last_error('db_error');
+        return false;
+    }
+
+    if (!$user || !password_verify($password, (string)$user['password_hash'])) {
         return false;
     }
 
@@ -28,8 +47,7 @@ function auth_attempt(string $username, string $password): bool
 function auth_require_admin(): void
 {
     if (!auth_user()) {
-        header('Location: ' . LOGIN_PATH);
-        exit;
+        app_redirect(login_url());
     }
 }
 
