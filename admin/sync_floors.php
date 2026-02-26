@@ -3,6 +3,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../public/_bootstrap.php';
 auth_require_admin();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate_or_fail(post('_csrf'));
     try {
@@ -13,11 +14,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     app_redirect('admin/sync_floors.php');
 }
-$title='Floor同期';
-$floors=db()->query('SELECT * FROM dmm_floors ORDER BY service_code,floor_code')->fetchAll();
+
+$title = 'Floors';
+$floors = db()->query('SELECT * FROM dmm_floors ORDER BY service_code,floor_code')->fetchAll();
 require __DIR__ . '/includes/header.php';
 ?>
-<h2>Floor同期</h2>
-<form method="post"><?= csrf_input() ?><button type="submit">Floor同期を実行</button></form>
-<table><tr><th>service</th><th>floor</th><th>name</th></tr><?php foreach($floors as $f):?><tr><td><?=e($f['service_code'])?></td><td><?=e($f['floor_code'])?></td><td><?=e($f['name'])?></td></tr><?php endforeach;?></table>
+<section class="admin-card">
+  <h1>Floors</h1>
+  <form method="post">
+    <?= csrf_input() ?>
+    <button type="submit">Floor同期を実行</button>
+  </form>
+</section>
+
+<section class="admin-card">
+  <table class="admin-table">
+    <tr><th>service</th><th>floor</th><th>name</th></tr>
+    <?php foreach ($floors as $f): ?>
+      <tr><td><?= e($f['service_code']) ?></td><td><?= e($f['floor_code']) ?></td><td><?= e($f['name']) ?></td></tr>
+    <?php endforeach; ?>
+  </table>
+</section>
 <?php require __DIR__ . '/includes/footer.php'; ?>

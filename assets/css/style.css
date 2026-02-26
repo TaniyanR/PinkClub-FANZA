@@ -27,35 +27,50 @@ form.inline{display:inline}
 .setup-page{padding:24px}
 .setup-card{max-width:760px;background:#fff;border:1px solid #d8dce3;border-radius:12px;padding:20px}
 
-/* WP-style admin shell (migrated from prior polished admin UI) */
+/* WP-style admin shell restored from polished admin UI lineage */
+:root {
+  --admin-topbar-height: 46px;
+  --admin-sidebar-width: 250px;
+  --admin-bg: #f0f2f5;
+  --admin-surface: #fff;
+  --admin-border: #dcdcde;
+}
+
 body.admin-page{
   max-width:none;
   margin:0;
   padding:0;
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   color:#1d2327;
-  background:#f0f2f5;
+  background:var(--admin-bg);
 }
-body.admin-page .admin-topbar{position:fixed;top:0;left:0;right:0;height:46px;background:#1d2327;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 14px;z-index:1000}
+body.admin-page .admin-topbar{position:fixed;top:0;left:0;right:0;height:var(--admin-topbar-height);background:#1d2327;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 14px;z-index:1000}
 body.admin-page .admin-topbar a{color:#fff;text-decoration:none;font-size:14px}
 body.admin-page .admin-topbar__right{display:flex;align-items:center;gap:14px}
-body.admin-page .admin-shell{padding-top:46px}
-body.admin-page .admin-sidebar{position:fixed;top:46px;left:0;width:250px;bottom:0;overflow-y:auto;background:#1d2327}
+body.admin-page .admin-shell{padding-top:var(--admin-topbar-height)}
+body.admin-page .admin-sidebar{position:fixed;top:var(--admin-topbar-height);left:0;width:var(--admin-sidebar-width);bottom:0;overflow-y:auto;background:#1d2327}
 body.admin-page .admin-sidebar__heading{margin:14px 0 6px;padding:0 16px;font-size:11px;font-weight:700;color:#9ea3a8;letter-spacing:.04em}
 body.admin-page .admin-sidebar__list{margin:0;padding:0 0 8px;list-style:none}
-body.admin-page .admin-menu__link{display:block;color:#f0f0f1;text-decoration:none;padding:11px 16px;font-size:14px}
+body.admin-page .admin-menu__link{display:block;color:#f0f0f1;text-decoration:none;padding:11px 16px;font-size:14px;font-weight:600;border-left:3px solid transparent}
 body.admin-page .admin-menu__link:hover{background:#2c3338}
-body.admin-page .admin-menu__link.is-active{background:#2271b1;color:#fff}
-body.admin-page .admin-main{margin-left:250px;padding:24px}
+body.admin-page .admin-menu__link.is-active{background:#2271b1;color:#fff;border-left-color:#8ec5f4}
+body.admin-page .admin-main{margin-left:var(--admin-sidebar-width);padding:24px}
 body.admin-page h1,body.admin-page h2{margin:0 0 14px}
 body.admin-page .admin-main>h2{margin-top:20px}
-body.admin-page table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #dcdcde;margin:10px 0 16px}
-body.admin-page th,body.admin-page td{border-bottom:1px solid #dcdcde;padding:8px;text-align:left;vertical-align:top}
-body.admin-page .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:18px}
-body.admin-page .card,body.admin-page form{background:#fff;border:1px solid #dcdcde;border-radius:4px;padding:12px}
-body.admin-page form{margin-bottom:14px}
-body.admin-page button{width:auto;min-width:120px;padding:8px 12px;font-size:14px;background:#2271b1;border:1px solid #2271b1;color:#fff;border-radius:4px;cursor:pointer}
+body.admin-page .admin-card{background:var(--admin-surface);border:1px solid var(--admin-border);border-radius:4px;padding:16px;margin-bottom:14px}
+body.admin-page .admin-form-note{margin:8px 0 14px;color:#50575e;font-size:13px}
+body.admin-page .admin-table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--admin-border);margin:10px 0 0}
+body.admin-page .admin-table th,body.admin-page .admin-table td{border-bottom:1px solid var(--admin-border);padding:8px;text-align:left;vertical-align:top}
+body.admin-page .admin-status-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+body.admin-page .admin-status-card strong{display:block;font-size:13px;color:#50575e}
+body.admin-page .admin-status-card p{margin:8px 0 0;font-size:20px;font-weight:700}
+body.admin-page form{margin:0}
+body.admin-page label{display:block;margin-top:10px;margin-bottom:4px;font-weight:600}
 body.admin-page input,body.admin-page select{max-width:520px;width:100%;padding:8px;margin-top:4px;margin-bottom:8px;border:1px solid #8c8f94;border-radius:4px}
+body.admin-page button{width:auto;min-width:120px;padding:8px 12px;font-size:14px;background:#2271b1;border:1px solid #2271b1;color:#fff;border-radius:4px;cursor:pointer}
+body.admin-page button.button-secondary{background:#f6f7f7;color:#2c3338;border-color:#8c8f94}
+body.admin-page .admin-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
 body.admin-page .admin-notice,body.admin-page .flash{padding:10px 12px;margin:10px 0 14px;border:1px solid transparent;border-radius:4px}
+body.admin-page .admin-notice p{margin:0}
 body.admin-page .flash.success,body.admin-page .admin-notice--success{background:#edfaef;border-color:#74c278}
 body.admin-page .flash.error,body.admin-page .admin-notice--error{background:#fdf0f0;border-color:#d63638}

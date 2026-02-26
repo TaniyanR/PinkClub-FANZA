@@ -5,7 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../public/_bootstrap.php';
 auth_require_admin();
 
-$title = 'API設定';
+$title = 'Settings';
 $settings = settings_get();
 $result = null;
 
@@ -24,6 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'sync_floor') {
             $count = dmm_sync_service()->syncFloors();
             $result = "Floor同期完了: {$count}件";
+        } else {
+            $result = '設定を保存しました。';
         }
     } catch (Throwable $e) {
         $result = 'エラー: ' . $e->getMessage();
@@ -33,14 +35,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 require __DIR__ . '/includes/header.php';
 ?>
-<h2>API設定</h2>
-<?php if($result): ?><div class="flash success"><?= e($result) ?></div><?php endif; ?>
-<form method="post">
-<?= csrf_input() ?>
-<div><label>API ID <input name="api_id" value="<?= e($settings['api_id'] ?? '') ?>" style="width:420px"></label></div>
-<div><label>Affiliate ID <input name="affiliate_id" value="<?= e($settings['affiliate_id'] ?? '') ?>" style="width:420px"></label></div>
-<button name="action" value="save">保存</button>
-<button name="action" value="test">接続テスト</button>
-<button name="action" value="sync_floor">Floor同期</button>
-</form>
+<section class="admin-card">
+  <h1>Settings</h1>
+  <?php if ($result): ?><div class="admin-notice admin-notice--success"><p><?= e($result) ?></p></div><?php endif; ?>
+  <form method="post">
+    <?= csrf_input() ?>
+    <label>API ID
+      <input name="api_id" value="<?= e($settings['api_id'] ?? '') ?>">
+    </label>
+    <label>Affiliate ID
+      <input name="affiliate_id" value="<?= e($settings['affiliate_id'] ?? '') ?>">
+    </label>
+    <div class="admin-actions">
+      <button name="action" value="save" type="submit">保存</button>
+      <button class="button-secondary" name="action" value="test" type="submit">接続テスト</button>
+      <button class="button-secondary" name="action" value="sync_floor" type="submit">Floor同期</button>
+    </div>
+  </form>
+</section>
 <?php require __DIR__ . '/includes/footer.php'; ?>
