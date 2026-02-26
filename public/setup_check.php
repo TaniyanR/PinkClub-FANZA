@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
 
-$runResult = null;
 $notice = null;
+$runResult = null;
+$autoSetup = installer_auto_run_if_needed();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    csrf_validate_or_fail(post('_csrf'));
-    $runResult = installer_run();
-
-    if (($runResult['success'] ?? false) === true) {
-        $notice = ['type' => 'success', 'message' => 'セットアップ完了。ログイン画面へ進んでください。'];
+if (($autoSetup['blocked'] ?? false) === true) {
+    $notice = ['type' => 'error', 'message' => (string)($autoSetup['message'] ?? '自動セットアップは許可されていません。')];
+} elseif (($autoSetup['attempted'] ?? false) === true) {
+    $runResult = is_array($autoSetup['result'] ?? null) ? $autoSetup['result'] : null;
+    if (($autoSetup['success'] ?? false) === true) {
+        $notice = ['type' => 'success', 'message' => '自動セットアップが完了しました。'];
     } else {
         $message = is_string($runResult['error'] ?? null) ? $runResult['error'] : 'セットアップに失敗しました。';
         $notice = ['type' => 'error', 'message' => $message];
@@ -35,7 +36,7 @@ $isCompleted = (bool)($status['completed'] ?? false);
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= e(APP_NAME) ?> セットアップ確認</title>
-  <link rel="stylesheet" href="<?= e(asset_url('assets/css/style.css')) ?>">
+  <link rel="stylesheet" href="<?= e(BASE_URL) ?>/assets/css/style.css">
 </head>
 <body>
   <main class="setup-page">
@@ -80,12 +81,8 @@ $isCompleted = (bool)($status['completed'] ?? false);
 
       <?php if (!$isCompleted): ?>
         <div class="alert alert-warning">
-          初回セットアップが未完了です。「DB自動セットアップを実行」を押してください。
+          セットアップ未完了です。login0718.php アクセス時に自動実行されます。詳細は logs/install.log を確認してください。
         </div>
-        <form method="post">
-          <?= csrf_input() ?>
-          <button class="login-button" type="submit">DB自動セットアップを実行</button>
-        </form>
       <?php else: ?>
         <div class="alert flash success">セットアップ完了。ログイン画面へ進めます。</div>
       <?php endif; ?>

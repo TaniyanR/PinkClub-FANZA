@@ -6,10 +6,11 @@ if (!defined('APP_NAME')) {
     define('APP_NAME', 'PinkClub FANZA');
 }
 if (!defined('BASE_URL')) {
-    define('BASE_URL', 'http://localhost/pinkclub-fanza');
+    $baseUrl = rtrim((string)(getenv('PINKCLUB_BASE_URL') ?: 'http://localhost/pinkclub-fanza'), '/');
+    define('BASE_URL', $baseUrl);
 }
 if (!defined('LOGIN_PATH')) {
-    define('LOGIN_PATH', '/pinkclub-fanza/public/login0718.php');
+    define('LOGIN_PATH', '/public/login0718.php');
 }
 if (!defined('ADMIN_HOME_PATH')) {
     define('ADMIN_HOME_PATH', '/pinkclub-fanza/admin/index.php');

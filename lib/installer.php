@@ -32,6 +32,54 @@ function installer_user_error_message(Throwable $exception): string
     return 'セットアップ中にエラーが発生しました。logs/install.log を確認してください。';
 }
 
+function installer_request_host(): string
+{
+    $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+    if ($host === '') {
+        return '';
+    }
+
+    return strtolower(trim(explode(':', $host, 2)[0]));
+}
+
+function installer_is_local_request(): bool
+{
+    $host = installer_request_host();
+    return in_array($host, ['localhost', '127.0.0.1'], true);
+}
+
+function installer_can_auto_run(): bool
+{
+    return installer_is_local_request();
+}
+
+function installer_auto_run_if_needed(): array
+{
+    if (installer_is_completed()) {
+        return ['attempted' => false, 'success' => true, 'blocked' => false, 'result' => null];
+    }
+
+    if (!installer_can_auto_run()) {
+        $message = 'auto setup blocked for host: ' . (installer_request_host() ?: '(unknown)');
+        installer_log($message);
+        return [
+            'attempted' => false,
+            'success' => false,
+            'blocked' => true,
+            'message' => '自動セットアップは localhost / 127.0.0.1 でのみ実行できます。',
+            'result' => null,
+        ];
+    }
+
+    $result = installer_run();
+    return [
+        'attempted' => true,
+        'success' => (bool)($result['success'] ?? false),
+        'blocked' => false,
+        'result' => $result,
+    ];
+}
+
 function installer_can_connect_server(): bool
 {
     try {
@@ -132,8 +180,14 @@ function installer_execute_sql_file(PDO $pdo, string $path): int
 
     $executed = 0;
     foreach ($statements as $statement) {
-        $pdo->exec($statement);
-        $executed++;
+        try {
+            $pdo->exec($statement);
+            $executed++;
+        } catch (Throwable $exception) {
+            installer_log('sql failed [' . basename($path) . ']: ' . $statement);
+            installer_log('sql error: ' . $exception->getMessage());
+            throw $exception;
+        }
     }
 
     return $executed;
@@ -155,7 +209,7 @@ function installer_ensure_seed_data(): void
 
     $pdo->beginTransaction();
     try {
-        $stmt = $pdo->prepare('SELECT id, password_hash FROM admins WHERE username = :username LIMIT 1');
+        $stmt = $pdo->prepare('SELECT id FROM admins WHERE username = :username LIMIT 1');
         $stmt->execute(['username' => 'admin']);
         $admin = $stmt->fetch();
 
@@ -165,6 +219,7 @@ function installer_ensure_seed_data(): void
                 'username' => 'admin',
                 'password_hash' => password_hash('password', PASSWORD_DEFAULT),
             ]);
+            installer_log('seed guarantee: admin user created');
         }
 
         $settingsExists = (int)$pdo->query('SELECT COUNT(*) FROM settings WHERE id = 1')->fetchColumn() > 0;
@@ -174,6 +229,7 @@ function installer_ensure_seed_data(): void
                 'api_id' => '',
                 'affiliate_id' => '',
             ]);
+            installer_log('seed guarantee: settings row created');
         }
 
         $pdo->commit();
