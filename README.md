@@ -79,3 +79,12 @@ PinkClub FANZA は、DMM/FANZA Affiliate API v3 と連携して商品データ�
 - XSS対策（`e()` エスケープ）
 - パスワード検証（`password_hash` / `password_verify`）
 - PDO Prepared Statement
+## 管理画面の見える化（段階1）
+- `public/admin/sitemap.php` と `admin/sitemap.php` で、検出した管理ページ一覧（パス/ラベル/状態/認証/存在確認）を確認できます。
+- サイドメニューはディレクトリスキャンにより自動生成されます（`/public/admin` と `/admin` の両方）。
+- `未整備` バッジ付きの項目は、導線用途としては残しているが画面遷移向け最適化が未完了の候補です。
+
+## 整理・共通化メモ（段階2）
+- 共通化: 管理ページ検出ロジックを `lib/admin_page_discovery.php` に集約。
+- 削除候補の判定は sitemap を基準に、参照元確認と手動アクセス確認を行ってから実施してください。
+- 本PRでは安全のため大量削除は未実施です（候補のみ可視化）。

@@ -1,16 +1,24 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/../../lib/admin_page_discovery.php';
+
 $currentScript = basename((string)($_SERVER['SCRIPT_NAME'] ?? 'index.php'));
-$menuItems = [
-    ['file' => 'index.php', 'label' => 'ダッシュボード'],
-    ['file' => 'settings.php', 'label' => '設定'],
-    ['file' => 'sync_floors.php', 'label' => 'フロア'],
-    ['file' => 'sync_master.php', 'label' => 'マスタ'],
-    ['file' => 'sync_items.php', 'label' => '商品'],
-    ['file' => 'sync_logs.php', 'label' => 'ログ'],
-    ['file' => 'logout.php', 'label' => 'ログアウト'],
-];
+$pages = admin_discover_pages();
+$menuItems = [];
+
+foreach ($pages as $page) {
+    if ($page['scope'] !== 'legacy') {
+        continue;
+    }
+
+    $menuItems[] = [
+        'file' => $page['path'],
+        'label' => $page['label'],
+        'badge' => $page['broken'] ? '未整備' : '',
+    ];
+}
+
 ?>
 <!doctype html>
 <html lang="ja">
@@ -33,10 +41,13 @@ $menuItems = [
       <p class="admin-sidebar__heading">メニュー</p>
       <ul class="admin-sidebar__list">
         <?php foreach ($menuItems as $item): ?>
-          <?php $isActive = $currentScript === $item['file']; ?>
+          <?php $itemScript = basename((string)parse_url((string)$item['file'], PHP_URL_PATH)); ?>
+          <?php $isActive = $currentScript === $itemScript; ?>
           <li>
             <a class="admin-menu__link <?= $isActive ? 'is-active' : '' ?>"
-               href="<?= e(admin_url($item['file'])) ?>"><?= e($item['label']) ?></a>
+               href="<?= e(url((string)$item['file'])) ?>"><?= e((string)$item['label']) ?>
+               <?php if ((string)($item['badge'] ?? '') !== ''): ?><span class="admin-menu__badge"><?= e((string)$item['badge']) ?></span><?php endif; ?>
+            </a>
           </li>
         <?php endforeach; ?>
       </ul>

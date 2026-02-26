@@ -47,7 +47,10 @@ try {
                 <?php foreach ((array)($group['items'] ?? []) as $item) :
                     $file = (string)($item['file'] ?? '');
                     $label = (string)($item['label'] ?? '');
-                    $href = $file !== '' ? admin_url($file) : '#';
+                    $href = '#';
+                    if ($file !== '') {
+                        $href = str_starts_with($file, '/') ? url($file) : admin_url($file);
+                    }
                     $menuPath = $file !== '' ? (string)parse_url($file, PHP_URL_PATH) : '';
                     $menuScript = $menuPath !== '' ? basename($menuPath) : '';
                     $menuTab = $file !== '' ? (string)parse_url($file, PHP_URL_QUERY) : '';
@@ -60,6 +63,9 @@ try {
                         <a class="admin-menu__link <?php echo $isEmphasisGroup ? 'admin-menu__link--emphasis' : ''; ?> <?php echo $isActive ? 'is-active' : ''; ?>"
                            href="<?php echo e($href); ?>">
                             <?php echo e($label); ?>
+                            <?php if ((string)($item['badge'] ?? '') !== '') : ?>
+                                <span class="admin-menu__badge"><?php echo e((string)$item['badge']); ?></span>
+                            <?php endif; ?>
                         </a>
                     </li>
                 <?php endforeach; ?>
