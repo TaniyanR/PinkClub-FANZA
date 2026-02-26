@@ -5,6 +5,10 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 
 $autoSetup = installer_auto_run_if_needed();
+if (($autoSetup['blocked'] ?? false) === true) {
+    http_response_code(403);
+    exit('Auto setup is only allowed from localhost / 127.0.0.1.');
+}
 if (($autoSetup['success'] ?? false) !== true) {
     app_redirect('public/setup_check.php');
 }
