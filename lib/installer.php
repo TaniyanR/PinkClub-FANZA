@@ -13,6 +13,22 @@ function installer_log(string $message): void
     @file_put_contents($logDir . '/install.log', $line, FILE_APPEND);
 }
 
+function installer_log_exception(string $step, Throwable $exception, ?string $sql = null): void
+{
+    installer_log(sprintf(
+        'step=%s exception=%s message=%s file=%s:%d',
+        $step,
+        get_class($exception),
+        $exception->getMessage(),
+        $exception->getFile(),
+        $exception->getLine()
+    ));
+
+    if ($sql !== null && trim($sql) !== '') {
+        installer_log('failed_sql=' . $sql);
+    }
+}
+
 function installer_user_error_message(Throwable $exception): string
 {
     $message = $exception->getMessage();
@@ -173,7 +189,7 @@ function installer_split_sql_statements(string $sql): array
     return $statements;
 }
 
-function installer_execute_sql_file(PDO $pdo, string $path): int
+function installer_execute_sql_file(PDO $pdo, string $path, string $stepLabel): int
 {
     $sql = installer_read_sql_file($path);
     $statements = installer_split_sql_statements($sql);
@@ -184,8 +200,7 @@ function installer_execute_sql_file(PDO $pdo, string $path): int
             $pdo->exec($statement);
             $executed++;
         } catch (Throwable $exception) {
-            installer_log('sql failed [' . basename($path) . ']: ' . $statement);
-            installer_log('sql error: ' . $exception->getMessage());
+            installer_log_exception($stepLabel . ':' . basename($path), $exception, $statement);
             throw $exception;
         }
     }
@@ -196,7 +211,7 @@ function installer_execute_sql_file(PDO $pdo, string $path): int
 function installer_ensure_tables_exist(): int
 {
     $schemaPath = __DIR__ . '/../sql/schema.sql';
-    return installer_execute_sql_file(db_pdo(), $schemaPath);
+    return installer_execute_sql_file(db_pdo(), $schemaPath, 'schema');
 }
 
 function installer_ensure_seed_data(): void
@@ -204,7 +219,7 @@ function installer_ensure_seed_data(): void
     $pdo = db_pdo();
     $seedPath = __DIR__ . '/../sql/seed.sql';
     if (is_file($seedPath)) {
-        installer_execute_sql_file($pdo, $seedPath);
+        installer_execute_sql_file($pdo, $seedPath, 'seed');
     }
 
     $pdo->beginTransaction();
@@ -220,6 +235,8 @@ function installer_ensure_seed_data(): void
                 'password_hash' => password_hash('password', PASSWORD_DEFAULT),
             ]);
             installer_log('seed guarantee: admin user created');
+        } else {
+            installer_log('seed guarantee: admin user already exists');
         }
 
         $settingsExists = (int)$pdo->query('SELECT COUNT(*) FROM settings WHERE id = 1')->fetchColumn() > 0;
@@ -230,6 +247,8 @@ function installer_ensure_seed_data(): void
                 'affiliate_id' => '',
             ]);
             installer_log('seed guarantee: settings row created');
+        } else {
+            installer_log('seed guarantee: settings(id=1) already exists');
         }
 
         $pdo->commit();
@@ -254,7 +273,11 @@ function installer_is_completed(): bool
     try {
         $stmt = db()->prepare('SELECT COUNT(*) FROM admins WHERE username = :username LIMIT 1');
         $stmt->execute(['username' => 'admin']);
-        return (int)$stmt->fetchColumn() > 0;
+        $adminExists = (int)$stmt->fetchColumn() > 0;
+
+        $settingsExists = (int)db()->query('SELECT COUNT(*) FROM settings WHERE id = 1')->fetchColumn() > 0;
+
+        return $adminExists && $settingsExists;
     } catch (Throwable) {
         return false;
     }
@@ -278,13 +301,23 @@ function installer_status(): array
         }
     }
 
+    $settingsRowExists = false;
+    if ($settingsTable) {
+        try {
+            $settingsRowExists = (int)db()->query('SELECT COUNT(*) FROM settings WHERE id = 1')->fetchColumn() > 0;
+        } catch (Throwable $exception) {
+            installer_log('status check settings(id=1) failed: ' . $exception->getMessage());
+        }
+    }
+
     return [
         'server_connection' => $serverConnected,
         'db_connection' => $dbConnected,
         'admins_table' => $adminsTable,
         'settings_table' => $settingsTable,
         'admin_user' => $adminExists,
-        'completed' => $dbConnected && $adminsTable && $settingsTable && $adminExists,
+        'settings_row' => $settingsRowExists,
+        'completed' => $dbConnected && $adminsTable && $settingsTable && $adminExists && $settingsRowExists,
     ];
 }
 
@@ -296,6 +329,7 @@ function installer_run(): array
         'error' => null,
         'error_detail' => null,
     ];
+    $currentStep = 'start';
 
     $step = static function (string $label, string $status, ?string $message = null) use (&$result): void {
         $row = ['label' => $label, 'status' => $status];
@@ -306,20 +340,26 @@ function installer_run(): array
     };
 
     try {
+        installer_log('setup start');
+        $currentStep = 'server_connection';
         if (!installer_can_connect_server()) {
             throw new RuntimeException('MySQLサーバーに接続できません。');
         }
         $step('サーバー接続', 'ok');
 
+        $currentStep = 'create_database';
         installer_ensure_database_exists();
         $step('DB作成', 'ok');
 
+        $currentStep = 'create_tables';
         $executed = installer_ensure_tables_exist();
         $step('テーブル作成', 'ok', $executed . ' 件のSQLを実行');
 
+        $currentStep = 'seed_data';
         installer_ensure_seed_data();
         $step('初期データ投入', 'ok');
 
+        $currentStep = 'completion_check';
         if (!installer_is_completed()) {
             throw new RuntimeException('セットアップ完了条件を満たせませんでした。');
         }
@@ -330,7 +370,7 @@ function installer_run(): array
     } catch (Throwable $exception) {
         $result['error'] = installer_user_error_message($exception);
         $result['error_detail'] = $exception->getMessage();
-        installer_log('setup failed: ' . $exception->getMessage());
+        installer_log_exception($currentStep, $exception);
         $step('エラー', 'ng', $result['error']);
     }
 
