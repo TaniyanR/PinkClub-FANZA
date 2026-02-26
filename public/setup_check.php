@@ -27,6 +27,7 @@ $checks = [
     'admins テーブル' => $status['admins_table'] ?? false,
     'settings テーブル' => $status['settings_table'] ?? false,
     '初期管理者 admin' => $status['admin_user'] ?? false,
+    'settings(id=1)' => $status['settings_row'] ?? false,
 ];
 $isCompleted = (bool)($status['completed'] ?? false);
 ?>

@@ -3,8 +3,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/admin_auth_v2.php';
 
-const ADMIN_DEFAULT_USERNAME = ADMIN_V2_DEFAULT_USERNAME;
-const ADMIN_DEFAULT_PASSWORD = ADMIN_V2_DEFAULT_PASSWORD;
+if (!defined('ADMIN_DEFAULT_USERNAME')) {
+    define('ADMIN_DEFAULT_USERNAME', ADMIN_V2_DEFAULT_USERNAME);
+}
+if (!defined('ADMIN_DEFAULT_PASSWORD')) {
+    define('ADMIN_DEFAULT_PASSWORD', ADMIN_V2_DEFAULT_PASSWORD);
+}
 
 function admin_auth_log_error(string $message, ?Throwable $exception = null): void
 {

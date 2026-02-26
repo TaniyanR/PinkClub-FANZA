@@ -42,8 +42,18 @@ function installer_request_host(): string
     return strtolower(trim(explode(':', $host, 2)[0]));
 }
 
+function installer_request_remote_addr(): string
+{
+    return strtolower(trim((string)($_SERVER['REMOTE_ADDR'] ?? '')));
+}
+
 function installer_is_local_request(): bool
 {
+    $remoteAddr = installer_request_remote_addr();
+    if (in_array($remoteAddr, ['127.0.0.1', '::1', 'localhost'], true)) {
+        return true;
+    }
+
     $host = installer_request_host();
     return in_array($host, ['localhost', '127.0.0.1'], true);
 }
@@ -66,7 +76,7 @@ function installer_auto_run_if_needed(): array
             'attempted' => false,
             'success' => false,
             'blocked' => true,
-            'message' => '自動セットアップは localhost / 127.0.0.1 でのみ実行できます。',
+            'message' => '自動セットアップは localhost / 127.0.0.1 / ::1 でのみ実行できます。',
             'result' => null,
         ];
     }
@@ -101,6 +111,7 @@ function installer_ensure_database_exists(): void
     );
 
     db_server_pdo()->exec($sql);
+    db_reset_connections();
 }
 
 function installer_read_sql_file(string $path): string
@@ -254,7 +265,11 @@ function installer_is_completed(): bool
     try {
         $stmt = db()->prepare('SELECT COUNT(*) FROM admins WHERE username = :username LIMIT 1');
         $stmt->execute(['username' => 'admin']);
-        return (int)$stmt->fetchColumn() > 0;
+        $adminExists = (int)$stmt->fetchColumn() > 0;
+
+        $settingsExists = (int)db()->query('SELECT COUNT(*) FROM settings WHERE id = 1')->fetchColumn() > 0;
+
+        return $adminExists && $settingsExists;
     } catch (Throwable) {
         return false;
     }
@@ -268,6 +283,7 @@ function installer_status(): array
     $settingsTable = $dbConnected && db_table_exists('settings');
 
     $adminExists = false;
+    $settingsRowExists = false;
     if ($adminsTable) {
         try {
             $stmt = db()->prepare('SELECT COUNT(*) FROM admins WHERE username = :username LIMIT 1');
@@ -278,13 +294,22 @@ function installer_status(): array
         }
     }
 
+    if ($settingsTable) {
+        try {
+            $settingsRowExists = (int)db()->query('SELECT COUNT(*) FROM settings WHERE id = 1')->fetchColumn() > 0;
+        } catch (Throwable $exception) {
+            installer_log('status check settings row failed: ' . $exception->getMessage());
+        }
+    }
+
     return [
         'server_connection' => $serverConnected,
         'db_connection' => $dbConnected,
         'admins_table' => $adminsTable,
         'settings_table' => $settingsTable,
         'admin_user' => $adminExists,
-        'completed' => $dbConnected && $adminsTable && $settingsTable && $adminExists,
+        'settings_row' => $settingsRowExists,
+        'completed' => $dbConnected && $adminsTable && $settingsTable && $adminExists && $settingsRowExists,
     ];
 }
 
