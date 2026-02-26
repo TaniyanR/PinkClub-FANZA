@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
 
-if (!installer_is_completed()) {
+$autoSetup = installer_auto_run_if_needed();
+if (($autoSetup['success'] ?? false) !== true) {
     app_redirect('public/setup_check.php');
 }
 
@@ -39,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= e(APP_NAME) ?> 管理ログイン</title>
-  <link rel="stylesheet" href="<?= e(asset_url('assets/css/style.css')) ?>">
+  <link rel="stylesheet" href="<?= e(BASE_URL) ?>/assets/css/style.css">
 </head>
 <body class="login-page">
   <main class="login-wrap">
