@@ -27,7 +27,7 @@ if (!defined('LOGIN_PATH')) {
     define('LOGIN_PATH', '/public/login0718.php');
 }
 if (!defined('ADMIN_HOME_PATH')) {
-    define('ADMIN_HOME_PATH', '/pinkclub-fanza/admin/index.php');
+    define('ADMIN_HOME_PATH', '/admin/index.php');
 }
 
 return [

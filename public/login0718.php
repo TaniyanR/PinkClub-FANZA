@@ -10,7 +10,7 @@ if (($autoSetup['blocked'] ?? false) === true) {
     exit('Auto setup is only allowed from localhost / 127.0.0.1.');
 }
 if (($autoSetup['success'] ?? false) !== true) {
-    app_redirect('public/setup_check.php');
+    app_redirect('/public/setup_check.php');
 }
 
 if (auth_user()) {

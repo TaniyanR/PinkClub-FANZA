@@ -23,7 +23,11 @@ if (($autoSetup['blocked'] ?? false) === true) {
     }
 }
 
+
 $status = installer_status();
+if (($status['completed'] ?? false) === true) {
+    app_redirect('/public/login0718.php');
+}
 $checks = [
     'MySQLサーバー接続' => $status['server_connection'] ?? false,
     '対象DB接続' => $status['db_connection'] ?? false,
@@ -31,9 +35,7 @@ $checks = [
     'settings テーブル' => $status['settings_table'] ?? false,
     '初期管理者 admin' => $status['admin_user'] ?? false,
     'settings(id=1)' => $status['settings_row'] ?? false,
-    'install.lock' => $status['install_lock'] ?? false,
 ];
-$isCompleted = (bool)($status['completed'] ?? false);
 
 $errorSummary = function_exists('installer_last_error_summary') ? installer_last_error_summary() : null;
 $logTail = function_exists('installer_log_tail') ? installer_log_tail(20) : ['lines' => [], 'error' => null];
@@ -79,7 +81,7 @@ $logTail = function_exists('installer_log_tail') ? installer_log_tail(20) : ['li
           <tbody>
             <?php foreach ($runResult['steps'] as $step): ?>
               <tr>
-                <td><?= e((string)($step['label'] ?? '-')) ?></td>
+                <td><?= e((string)($step['id'] ?? '-')) ?></td>
                 <td><?= e(strtoupper((string)($step['status'] ?? '-'))) ?></td>
                 <td><?= e((string)($step['message'] ?? '')) ?></td>
               </tr>
@@ -88,13 +90,9 @@ $logTail = function_exists('installer_log_tail') ? installer_log_tail(20) : ['li
         </table>
       <?php endif; ?>
 
-      <?php if (!$isCompleted): ?>
-        <div class="alert alert-warning">
-          セットアップ未完了です。login0718.php アクセス時に自動実行されます。
-        </div>
-      <?php else: ?>
-        <div class="alert flash success">セットアップ完了。ログイン画面へ進めます。</div>
-      <?php endif; ?>
+      <div class="alert alert-warning">
+        セットアップ未完了です。login0718.php アクセス時に自動実行されます。
+      </div>
 
       <h2>直近エラー要約</h2>
       <?php if (is_array($errorSummary)): ?>
@@ -120,7 +118,7 @@ $logTail = function_exists('installer_log_tail') ? installer_log_tail(20) : ['li
       <?php endif; ?>
 
       <p><a href="<?= e(public_url('login0718.php')) ?>">ログイン画面へ</a></p>
-      <p><small>再セットアップする場合は <code>logs/install.lock</code> を削除してください。</small></p>
+      <p><small>再セットアップする場合は <code>login0718.php</code> に再アクセスしてください。</small></p>
     </section>
   </main>
 </body>
