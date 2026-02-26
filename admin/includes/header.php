@@ -8,6 +8,7 @@ $menuItems = [
     ['file' => 'sync_master.php', 'label' => 'Masters'],
     ['file' => 'sync_items.php', 'label' => 'Items'],
     ['file' => 'sync_logs.php', 'label' => 'Logs'],
+    ['file' => 'logout.php', 'label' => 'Logout'],
 ];
 ?>
 <!doctype html>
@@ -23,7 +24,6 @@ $menuItems = [
   <div class="admin-topbar__brand"><a href="<?= e(admin_url('index.php')) ?>">PinkClub FANZA 管理</a></div>
   <div class="admin-topbar__right">
     <a href="<?= e(public_url('index.php')) ?>" target="_blank" rel="noopener noreferrer">フロント表示</a>
-    <a href="<?= e(admin_url('logout.php')) ?>">Logout</a>
   </div>
 </header>
 <div class="admin-shell">
@@ -42,5 +42,5 @@ $menuItems = [
   </aside>
   <main class="admin-main">
 <?php if ($flash = flash_get()): ?>
-<div class="admin-notice <?= ($flash['type'] ?? '') === 'success' ? 'admin-notice--success' : 'admin-notice--error' ?>"><?= e($flash['message']) ?></div>
+<div class="admin-notice <?= ($flash['type'] ?? '') === 'success' ? 'admin-notice--success' : 'admin-notice--error' ?>"><p><?= e($flash['message']) ?></p></div>
 <?php endif; ?>
