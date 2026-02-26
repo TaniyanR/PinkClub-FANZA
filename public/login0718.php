@@ -4,37 +4,32 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
 
+if (!installer_is_completed()) {
+    app_redirect('public/setup_check.php');
+}
+
 if (auth_user()) {
     app_redirect(ADMIN_HOME_PATH);
 }
 
-$schemaReady = db_table_exists('admins');
 $error = null;
 $setupMessage = null;
-
-if (!$schemaReady) {
-    $setupMessage = 'DB未初期化です。schema.sql → seed.sql を実行してください。';
-}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate_or_fail(post('_csrf'));
 
-    if (!$schemaReady) {
-        $setupMessage = 'DB未初期化のためログインできません。schema.sql → seed.sql を実行してください。';
+    $username = trim((string) post('username', ''));
+    $password = (string) post('password', '');
+
+    if (auth_attempt($username, $password)) {
+        flash_set('success', 'ログインしました。');
+        app_redirect(ADMIN_HOME_PATH);
+    }
+
+    if (auth_last_error() === 'db_error') {
+        $setupMessage = 'データベースの準備が完了していない可能性があります。セットアップ確認ページをご確認ください。';
     } else {
-        $username = trim((string) post('username', ''));
-        $password = (string) post('password', '');
-
-        if (auth_attempt($username, $password)) {
-            flash_set('success', 'ログインしました。');
-            app_redirect(ADMIN_HOME_PATH);
-        }
-
-        if (auth_last_error() === 'db_error') {
-            $setupMessage = 'データベースの準備が完了していない可能性があります。セットアップ確認ページをご確認ください。';
-        } else {
-            $error = 'ログインに失敗しました。';
-        }
+        $error = 'ログインに失敗しました。';
     }
 }
 ?>
@@ -44,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= e(APP_NAME) ?> 管理ログイン</title>
-  <link rel="stylesheet" href="<?= e(asset_url('css/style.css')) ?>">
+  <link rel="stylesheet" href="<?= e(asset_url('assets/css/style.css')) ?>">
 </head>
 <body class="login-page">
   <main class="login-wrap">

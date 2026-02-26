@@ -2,7 +2,16 @@
 
 declare(strict_types=1);
 
-function db(): PDO
+function db_options(): array
+{
+    return [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ];
+}
+
+function db_server_pdo(): PDO
 {
     static $pdo = null;
     if ($pdo instanceof PDO) {
@@ -10,14 +19,29 @@ function db(): PDO
     }
 
     $cfg = app_config()['db'];
-    $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=%s', $cfg['host'], $cfg['port'], $cfg['dbname'], $cfg['charset']);
-    $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-    ]);
+    $dsn = sprintf('mysql:host=%s;port=%d;charset=%s', $cfg['host'], (int)$cfg['port'], $cfg['charset']);
+    $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], db_options());
 
     return $pdo;
+}
+
+function db_pdo(): PDO
+{
+    static $pdo = null;
+    if ($pdo instanceof PDO) {
+        return $pdo;
+    }
+
+    $cfg = app_config()['db'];
+    $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=%s', $cfg['host'], (int)$cfg['port'], $cfg['dbname'], $cfg['charset']);
+    $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], db_options());
+
+    return $pdo;
+}
+
+function db(): PDO
+{
+    return db_pdo();
 }
 
 function db_can_connect(): bool
