@@ -18,6 +18,7 @@ PinkClub FANZA は、DMM/FANZA Affiliate API v3 と連携して商品データ�
 > セットアップ状況は `http://localhost/pinkclub-fanza/public/setup_check.php` で確認できます（ボタン操作不要）。
 
 ## 4. ログインURL（固定）
+- 入口URLはこの1つのみです（他の `login*.php` は使わない）。
 - `http://localhost/pinkclub-fanza/public/login0718.php`
 
 ## 5. 初期ID / PW
@@ -31,7 +32,7 @@ PinkClub FANZA は、DMM/FANZA Affiliate API v3 と連携して商品データ�
 3. 続けて `sql/seed.sql` をインポート
 
 > インポート順は必ず `schema.sql` → `seed.sql` の順です。  
-> 自動セットアップの失敗詳細は `logs/install.log` を確認してください。
+> 自動セットアップの失敗詳細は `logs/install.log` を確認してください（例外メッセージと失敗SQLを追記）。
 
 ## 7. CSSが効かないときの確認
 1. 直接アクセスでCSSが見えるか確認
