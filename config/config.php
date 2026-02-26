@@ -6,8 +6,22 @@ if (!defined('APP_NAME')) {
     define('APP_NAME', 'PinkClub FANZA');
 }
 if (!defined('BASE_URL')) {
-    $baseUrl = rtrim((string)(getenv('PINKCLUB_BASE_URL') ?: 'http://localhost/pinkclub-fanza'), '/');
-    define('BASE_URL', $baseUrl);
+    $rawBaseUrl = (string)(getenv('PINKCLUB_BASE_URL') ?: 'http://localhost/pinkclub-fanza');
+    $parts = parse_url($rawBaseUrl);
+    if ($parts === false) {
+        $rawBaseUrl = 'http://localhost/pinkclub-fanza';
+        $parts = parse_url($rawBaseUrl) ?: [];
+    }
+
+    $scheme = $parts['scheme'] ?? 'http';
+    $host = $parts['host'] ?? 'localhost';
+    $port = isset($parts['port']) ? ':' . (string)$parts['port'] : '';
+    $path = isset($parts['path']) ? '/' . trim((string)$parts['path'], '/') : '';
+    if ($path === '/') {
+        $path = '';
+    }
+
+    define('BASE_URL', $scheme . '://' . $host . $port . $path);
 }
 if (!defined('LOGIN_PATH')) {
     define('LOGIN_PATH', '/public/login0718.php');

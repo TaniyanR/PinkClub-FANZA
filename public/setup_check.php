@@ -9,6 +9,7 @@ $runResult = null;
 $autoSetup = installer_auto_run_if_needed();
 
 if (($autoSetup['blocked'] ?? false) === true) {
+    http_response_code(403);
     $notice = ['type' => 'error', 'message' => (string)($autoSetup['message'] ?? '自動セットアップは許可されていません。')];
 } elseif (($autoSetup['attempted'] ?? false) === true) {
     $runResult = is_array($autoSetup['result'] ?? null) ? $autoSetup['result'] : null;
@@ -28,8 +29,11 @@ $checks = [
     'settings テーブル' => $status['settings_table'] ?? false,
     '初期管理者 admin' => $status['admin_user'] ?? false,
     'settings(id=1)' => $status['settings_row'] ?? false,
+    'install.lock' => $status['install_lock'] ?? false,
 ];
 $isCompleted = (bool)($status['completed'] ?? false);
+$errorSummary = installer_last_error_summary();
+$logTail = installer_log_tail(20);
 ?>
 <!doctype html>
 <html lang="ja">
@@ -37,7 +41,7 @@ $isCompleted = (bool)($status['completed'] ?? false);
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= e(APP_NAME) ?> セットアップ確認</title>
-  <link rel="stylesheet" href="<?= e(BASE_URL) ?>/assets/css/style.css">
+  <link rel="stylesheet" href="<?= e(asset_url('css/style.css')) ?>">
 </head>
 <body>
   <main class="setup-page">
@@ -82,14 +86,37 @@ $isCompleted = (bool)($status['completed'] ?? false);
 
       <?php if (!$isCompleted): ?>
         <div class="alert alert-warning">
-          セットアップ未完了です。login0718.php アクセス時に自動実行されます。詳細は logs/install.log を確認してください。
+          セットアップ未完了です。login0718.php アクセス時に自動実行されます。
         </div>
       <?php else: ?>
         <div class="alert flash success">セットアップ完了。ログイン画面へ進めます。</div>
       <?php endif; ?>
 
+      <h2>直近エラー要約</h2>
+      <?php if (is_array($errorSummary)): ?>
+        <table>
+          <tbody>
+            <tr><th>時刻</th><td><?= e((string)($errorSummary['time'] ?? '-')) ?></td></tr>
+            <tr><th>例外クラス</th><td><?= e((string)($errorSummary['class'] ?? '-')) ?></td></tr>
+            <tr><th>メッセージ</th><td><?= e((string)($errorSummary['message'] ?? '-')) ?></td></tr>
+            <tr><th>失敗SQL</th><td><pre><?= e((string)($errorSummary['failed_sql'] ?? '取得なし')) ?></pre></td></tr>
+          </tbody>
+        </table>
+      <?php else: ?>
+        <p>直近エラー要約はありません。</p>
+      <?php endif; ?>
+
+      <h2>install.log 末尾20行</h2>
+      <?php if (is_string($logTail['error'] ?? null)): ?>
+        <div class="alert alert-warning"><?= e((string)$logTail['error']) ?></div>
+      <?php elseif (!empty($logTail['lines'])): ?>
+        <pre><?php foreach ($logTail['lines'] as $line): ?><?= e((string)$line) . "\n" ?><?php endforeach; ?></pre>
+      <?php else: ?>
+        <p>表示できるログ行はありません。</p>
+      <?php endif; ?>
+
       <p><a href="<?= e(public_url('login0718.php')) ?>">ログイン画面へ</a></p>
-      <p><small>失敗時の詳細は <code>logs/install.log</code> を確認してください。</small></p>
+      <p><small>再セットアップする場合は <code>logs/install.lock</code> を削除してください。</small></p>
     </section>
   </main>
 </body>
