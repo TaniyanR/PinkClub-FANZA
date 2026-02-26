@@ -6,6 +6,7 @@ require_once __DIR__ . '/_bootstrap.php';
 
 $notice = null;
 $runResult = null;
+
 $autoSetup = installer_auto_run_if_needed();
 
 if (($autoSetup['blocked'] ?? false) === true) {
@@ -13,6 +14,7 @@ if (($autoSetup['blocked'] ?? false) === true) {
     $notice = ['type' => 'error', 'message' => (string)($autoSetup['message'] ?? '自動セットアップは許可されていません。')];
 } elseif (($autoSetup['attempted'] ?? false) === true) {
     $runResult = is_array($autoSetup['result'] ?? null) ? $autoSetup['result'] : null;
+
     if (($autoSetup['success'] ?? false) === true) {
         $notice = ['type' => 'success', 'message' => '自動セットアップが完了しました。'];
     } else {
@@ -32,8 +34,10 @@ $checks = [
     'install.lock' => $status['install_lock'] ?? false,
 ];
 $isCompleted = (bool)($status['completed'] ?? false);
-$errorSummary = installer_last_error_summary();
-$logTail = installer_log_tail(20);
+
+$errorSummary = function_exists('installer_last_error_summary') ? installer_last_error_summary() : null;
+$logTail = function_exists('installer_log_tail') ? installer_log_tail(20) : ['lines' => [], 'error' => null];
+
 ?>
 <!doctype html>
 <html lang="ja">
@@ -49,8 +53,8 @@ $logTail = installer_log_tail(20);
       <h1><?= e(APP_NAME) ?> セットアップ確認</h1>
 
       <?php if ($notice !== null): ?>
-        <div class="alert <?= $notice['type'] === 'success' ? 'flash success' : 'alert-error' ?>">
-          <?= e($notice['message']) ?>
+        <div class="alert <?= ($notice['type'] ?? '') === 'success' ? 'flash success' : 'alert-error' ?>">
+          <?= e((string)($notice['message'] ?? '')) ?>
         </div>
       <?php endif; ?>
 
@@ -61,7 +65,7 @@ $logTail = installer_log_tail(20);
         <tbody>
           <?php foreach ($checks as $label => $ok): ?>
             <tr>
-              <td><?= e($label) ?></td>
+              <td><?= e((string)$label) ?></td>
               <td><?= $ok ? 'OK' : 'NG' ?></td>
             </tr>
           <?php endforeach; ?>
@@ -107,9 +111,9 @@ $logTail = installer_log_tail(20);
       <?php endif; ?>
 
       <h2>install.log 末尾20行</h2>
-      <?php if (is_string($logTail['error'] ?? null)): ?>
+      <?php if (is_string($logTail['error'] ?? null) && ($logTail['error'] ?? '') !== ''): ?>
         <div class="alert alert-warning"><?= e((string)$logTail['error']) ?></div>
-      <?php elseif (!empty($logTail['lines'])): ?>
+      <?php elseif (!empty($logTail['lines']) && is_array($logTail['lines'])): ?>
         <pre><?php foreach ($logTail['lines'] as $line): ?><?= e((string)$line) . "\n" ?><?php endforeach; ?></pre>
       <?php else: ?>
         <p>表示できるログ行はありません。</p>

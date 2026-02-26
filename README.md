@@ -16,7 +16,8 @@ PinkClub FANZA は、DMM/FANZA Affiliate API v3 と連携して商品データ�
 3. セットアップ成功時は `logs/install.lock` が作成され、次回以降は自動セットアップを再実行しない
 4. そのままログイン画面からサインインする
 
-> セットアップ状況は `http://localhost/pinkclub-fanza/public/setup_check.php` で確認できます（ボタン操作不要）。
+> 自動セットアップは `localhost / 127.0.0.1` 限定です。  
+> `setup_check.php` は失敗時の診断ページです（成功時はログイン画面へ戻ります）。
 
 ## 4. ログインURL（固定）
 - 入口URLはこの1つのみです（他の `login*.php` は使わない）。
