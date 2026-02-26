@@ -58,8 +58,18 @@ function installer_request_host(): string
     return strtolower(trim(explode(':', $host, 2)[0]));
 }
 
+function installer_request_remote_addr(): string
+{
+    return strtolower(trim((string)($_SERVER['REMOTE_ADDR'] ?? '')));
+}
+
 function installer_is_local_request(): bool
 {
+    $remoteAddr = installer_request_remote_addr();
+    if (in_array($remoteAddr, ['127.0.0.1', '::1', 'localhost'], true)) {
+        return true;
+    }
+
     $host = installer_request_host();
     return in_array($host, ['localhost', '127.0.0.1'], true);
 }
@@ -82,7 +92,7 @@ function installer_auto_run_if_needed(): array
             'attempted' => false,
             'success' => false,
             'blocked' => true,
-            'message' => '自動セットアップは localhost / 127.0.0.1 でのみ実行できます。',
+            'message' => '自動セットアップは localhost / 127.0.0.1 / ::1 でのみ実行できます。',
             'result' => null,
         ];
     }
@@ -117,6 +127,7 @@ function installer_ensure_database_exists(): void
     );
 
     db_server_pdo()->exec($sql);
+    db_reset_connections();
 }
 
 function installer_read_sql_file(string $path): string

@@ -26,8 +26,11 @@ function auth_attempt(string $username, string $password): bool
         $stmt = db()->prepare('SELECT id, username, password_hash FROM admins WHERE username = :u LIMIT 1');
         $stmt->execute(['u' => $username]);
         $user = $stmt->fetch();
-    } catch (PDOException) {
+    } catch (PDOException $exception) {
         auth_set_last_error('db_error');
+        if (function_exists('installer_log')) {
+            installer_log('auth db error: ' . $exception->getMessage());
+        }
         return false;
     }
 
@@ -46,6 +49,10 @@ function auth_attempt(string $username, string $password): bool
 
 function auth_require_admin(): void
 {
+    if (installer_is_completed() === false) {
+        app_redirect('public/setup_check.php');
+    }
+
     if (!auth_user()) {
         app_redirect(login_url());
     }
