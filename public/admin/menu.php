@@ -1,57 +1,61 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/../../lib/admin_page_discovery.php';
+
 function admin_menu_groups(): array
 {
-    return [
-        [
-            'standalone' => true,
-            'items' => [
-                ['file' => 'index.php', 'label' => 'ダッシュボード'],
-            ],
-        ],
-        [
-            'heading' => '設定',
-            'items' => [
-                ['file' => 'settings.php?tab=site', 'label' => 'サイト設定'],
-                ['file' => 'design.php', 'label' => 'デザイン設定'],
-                ['file' => 'diagnostics.php', 'label' => '診断'],
-                ['file' => 'auth_diagnostics.php', 'label' => '認証診断'],
-                ['file' => 'help.php', 'label' => 'ヘルプ'],
-            ],
-        ],
-        [
-            'heading' => 'リンク設定',
-            'items' => [
-                ['file' => 'links.php', 'label' => '相互リンク管理'],
-            ],
-        ],
-        [
-            'standalone' => true,
-            'items' => [
-                ['file' => 'analytics.php', 'label' => 'アクセス解析'],
-            ],
-        ],
-        [
-            'heading' => 'アフィリエイト設定',
-            'items' => [
-                ['file' => 'settings.php?tab=api', 'label' => 'API設定'],
-                ['file' => 'ads.php', 'label' => '広告コード'],
-                ['file' => 'api_log.php', 'label' => 'APIログ'],
-            ],
-        ],
-        [
-            'heading' => '固定ページ',
-            'items' => [
-                ['file' => 'pages_new.php', 'label' => '新規'],
-                ['file' => 'pages.php', 'label' => '編集'],
-            ],
-        ],
-        [
-            'standalone' => true,
-            'items' => [
-                ['file' => 'help.php', 'label' => 'ヘルプ'],
-            ],
-        ],
-    ];
+    $pages = admin_discover_pages();
+
+    $frequent = [];
+    $others = [];
+    $legacy = [];
+    $logout = [];
+
+    foreach ($pages as $page) {
+        $item = [
+            'file' => $page['path'],
+            'label' => $page['label'],
+            'badge' => $page['broken'] ? '未整備' : '',
+        ];
+
+        $file = $page['file'];
+        $isFrequent = in_array($file, ['index.php', 'settings.php', 'links.php', 'sync_floors.php', 'sync_master.php', 'sync_items.php', 'sync_logs.php'], true);
+
+        if ($file === 'logout.php') {
+            $logout[] = $item;
+            continue;
+        }
+
+        if ($isFrequent) {
+            $frequent[] = $item;
+            continue;
+        }
+
+        if ($page['scope'] === 'legacy') {
+            $legacy[] = $item;
+            continue;
+        }
+
+        $others[] = $item;
+    }
+
+    usort($others, static fn(array $a, array $b): int => strcmp((string)$a['label'], (string)$b['label']));
+    usort($legacy, static fn(array $a, array $b): int => strcmp((string)$a['label'], (string)$b['label']));
+
+    $groups = [];
+    if ($frequent !== []) {
+        $groups[] = ['heading' => 'よく使う', 'items' => $frequent];
+    }
+    if ($others !== []) {
+        $groups[] = ['heading' => 'その他の管理ページ', 'items' => $others];
+    }
+    if ($legacy !== []) {
+        $groups[] = ['heading' => 'FANZA同期（/admin）', 'items' => $legacy];
+    }
+    if ($logout !== []) {
+        $groups[] = ['heading' => 'アカウント', 'items' => $logout];
+    }
+
+    return $groups;
 }

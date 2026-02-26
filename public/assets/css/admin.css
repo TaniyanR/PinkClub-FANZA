@@ -179,6 +179,18 @@ body {
     padding: 0 0 10px;
 }
 
+.admin-menu__badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #2d1a00;
+    background: #ffdb8a;
+    border: 1px solid #ffbe46;
+}
+
 .admin-menu__disabled {
     display: block;
     color: #7a7f84;
