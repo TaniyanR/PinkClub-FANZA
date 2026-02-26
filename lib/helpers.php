@@ -49,7 +49,7 @@ function app_url(string $path = ''): string
     }
 
     if (str_starts_with($cleanPath, '/')) {
-        return rtrim(app_origin(), '/') . $cleanPath;
+        return rtrim(BASE_URL, '/') . $cleanPath;
     }
 
     return rtrim(BASE_URL, '/') . '/' . ltrim($cleanPath, '/');

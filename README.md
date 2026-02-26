@@ -13,7 +13,7 @@ PinkClub FANZA は、DMM/FANZA Affiliate API v3 と連携して商品データ�
 ## 3. 初回セットアップ（自動）
 1. ブラウザで `http://localhost/pinkclub-fanza/public/login0718.php` を開く
 2. 画面表示時に DB 自動セットアップ（DB作成 → schema.sql → seed.sql試行 → admin/settings保証INSERT）が自動実行される
-3. セットアップ成功時は `logs/install.lock` が作成され、次回以降は自動セットアップを再実行しない
+3. セットアップ成功時は必要条件が満たされ、次回以降は不足がなければ自動セットアップを再実行しない
 4. そのままログイン画面からサインインする
 
 > 自動セットアップは `localhost / 127.0.0.1` 限定です。  
@@ -35,10 +35,10 @@ PinkClub FANZA は、DMM/FANZA Affiliate API v3 と連携して商品データ�
    - 例外クラス / メッセージ
    - 失敗SQL（取得できた場合）
    - `install.log` の末尾20行
-3. 失敗原因修正後、必要なら `logs/install.lock` を削除して再アクセス
+3. 失敗原因修正後に `login0718.php` を再アクセスして再実行
 
 ## 7. 自動セットアップ再実行方法
-- `logs/install.lock` を削除すると、次回 `login0718.php` アクセス時に再セットアップされます。
+- 次回 `login0718.php` へアクセスすると、未完了項目のみ冪等で再実行されます。
 
 ## 8. localhost 制限
 - 自動セットアップ実行は `localhost` / `127.0.0.1` / `::1` からのアクセス時のみ許可しています。

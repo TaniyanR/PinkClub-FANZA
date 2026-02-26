@@ -49,12 +49,12 @@ function auth_attempt(string $username, string $password): bool
 
 function auth_require_admin(): void
 {
-    if (installer_is_completed() === false) {
-        app_redirect('public/setup_check.php');
+    if (!auth_user()) {
+        app_redirect(LOGIN_PATH);
     }
 
-    if (!auth_user()) {
-        app_redirect(login_url());
+    if ((installer_status()['completed'] ?? false) !== true) {
+        app_redirect('/public/setup_check.php');
     }
 }
 
