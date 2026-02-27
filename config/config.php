@@ -4,6 +4,21 @@ declare(strict_types=1);
 
 $configuredBaseUrl = trim((string)getenv('BASE_URL'));
 
+function normalize_configured_base_url(string $value): string
+{
+    $normalized = rtrim(trim($value), '/');
+    if ($normalized === '') {
+        return '';
+    }
+
+    $normalized = preg_replace('#/(index\.php|login\.php|login0718\.php|admin/login\.php|admin(?:/index\.php)?|public(?:/index\.php)?)/*$#i', '', $normalized);
+    if (!is_string($normalized)) {
+        return '';
+    }
+
+    return rtrim($normalized, '/');
+}
+
 /**
  * Resolve application base path from the current script location.
  *
@@ -39,12 +54,69 @@ function detect_base_path(string $scriptName): string
     return $normalized;
 }
 
-if ($configuredBaseUrl !== '') {
-    $baseUrl = rtrim($configuredBaseUrl, '/');
-} else {
-    $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? '/'));
-    $basePath = detect_base_path($scriptName);
+/**
+ * Some servers expose SCRIPT_NAME as `/index.php` even when the app runs from a
+ * subdirectory (e.g. `/pinkclub-fanza/public/`). In that case infer the base
+ * path from REQUEST_URI.
+ */
 
+function apply_detected_path_to_base_url(string $configuredUrl, string $detectedPath): string
+{
+    $trimmed = rtrim($configuredUrl, '/');
+    if ($trimmed === '' || $detectedPath === '') {
+        return $trimmed;
+    }
+
+    $parts = parse_url($trimmed);
+    if (!is_array($parts)) {
+        return $trimmed;
+    }
+
+    $configuredPath = isset($parts['path']) ? rtrim((string)$parts['path'], '/') : '';
+    if ($configuredPath !== '' && $configuredPath !== '/') {
+        return $trimmed;
+    }
+
+    return $trimmed . $detectedPath;
+}
+function detect_base_path_from_request_uri(string $requestUri): string
+{
+    $path = (string) parse_url($requestUri, PHP_URL_PATH);
+    if ($path === '' || $path === '/') {
+        return '';
+    }
+
+    $normalized = str_replace('\\', '/', $path);
+    $patterns = [
+        '#/(?:public|admin)(?:/.*)?$#i',
+        '#/index\.php(?:/.*)?$#i',
+    ];
+
+    foreach ($patterns as $pattern) {
+        $candidate = preg_replace($pattern, '', $normalized);
+        if (is_string($candidate) && $candidate !== $normalized) {
+            $normalized = $candidate;
+            break;
+        }
+    }
+
+    $normalized = rtrim($normalized, '/');
+    if ($normalized === '' || $normalized === '.') {
+        return '';
+    }
+
+    return $normalized;
+}
+
+$scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? '/'));
+$basePath = detect_base_path($scriptName);
+if ($basePath === '') {
+    $basePath = detect_base_path_from_request_uri((string)($_SERVER['REQUEST_URI'] ?? ''));
+}
+
+if ($configuredBaseUrl !== '') {
+    $baseUrl = apply_detected_path_to_base_url(normalize_configured_base_url($configuredBaseUrl), $basePath);
+} else {
     $requestScheme = trim((string)($_SERVER['REQUEST_SCHEME'] ?? ''));
     if ($requestScheme !== '') {
         $scheme = $requestScheme;
