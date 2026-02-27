@@ -25,6 +25,7 @@ $menuGroups = [
         ['label' => 'マスタ同期', 'file' => 'sync_master.php'],
         ['label' => '商品同期', 'file' => 'sync_items.php'],
         ['label' => '同期ログ', 'file' => 'sync_logs.php'],
+        ['label' => 'タグ管理', 'file' => 'tags.php'],
     ]],
     ['label' => '固定ページ', 'children' => [
         ['label' => '固定ページ一覧', 'file' => 'pages_index.php'],

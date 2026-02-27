@@ -55,6 +55,14 @@ class DmmApiClient
         ]), static fn ($v) => $v !== null && $v !== '');
 
         $url = rtrim($this->endpoint, '/') . '/' . $operation . '?' . http_build_query($query);
+        $requestHash = hash('sha256', $url);
+
+        $cached = $this->fetchCachedResponse($requestHash);
+        if ($cached !== null) {
+            $this->insertApiLog($operation, $url, $requestHash, 200, json_encode($cached, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}', true);
+            return $cached;
+        }
+
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -66,11 +74,17 @@ class DmmApiClient
 
         $response = curl_exec($ch);
         if ($response === false) {
-            throw new RuntimeException('cURL error: ' . curl_error($ch));
+            $error = curl_error($ch);
+            curl_close($ch);
+            $this->insertApiLog($operation, $url, $requestHash, 0, json_encode(['error' => $error], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}', false);
+            throw new RuntimeException('cURL error: ' . $error);
         }
 
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
+
+        $this->insertApiLog($operation, $url, $requestHash, $httpCode, $response, false);
+
         if ($httpCode >= 400) {
             throw new RuntimeException('HTTP error: ' . $httpCode);
         }
@@ -85,5 +99,39 @@ class DmmApiClient
         }
 
         return $decoded;
+    }
+
+    private function fetchCachedResponse(string $requestHash): ?array
+    {
+        if (!function_exists('db')) {
+            return null;
+        }
+
+        $stmt = db()->prepare('SELECT response_body FROM api_logs WHERE request_hash = :request_hash AND response_status = 200 AND cache_hit = 0 AND created_at >= DATE_SUB(NOW(), INTERVAL 72 HOUR) ORDER BY id DESC LIMIT 1');
+        $stmt->execute([':request_hash' => $requestHash]);
+        $body = $stmt->fetchColumn();
+        if (!is_string($body) || $body === '') {
+            return null;
+        }
+
+        $decoded = json_decode($body, true);
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    private function insertApiLog(string $apiName, string $requestUrl, string $requestHash, int $status, string $responseBody, bool $cacheHit): void
+    {
+        if (!function_exists('db')) {
+            return;
+        }
+
+        $stmt = db()->prepare('INSERT INTO api_logs (api_name, request_url, request_hash, response_status, response_body, cache_hit, created_at) VALUES (:api_name, :request_url, :request_hash, :response_status, :response_body, :cache_hit, NOW())');
+        $stmt->execute([
+            ':api_name' => $apiName,
+            ':request_url' => $requestUrl,
+            ':request_hash' => $requestHash,
+            ':response_status' => $status,
+            ':response_body' => mb_substr($responseBody, 0, 65535),
+            ':cache_hit' => $cacheHit ? 1 : 0,
+        ]);
     }
 }

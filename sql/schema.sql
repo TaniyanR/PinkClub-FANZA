@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS items (
   volume VARCHAR(255) NULL,
   review_count INT NULL,
   review_average DECIMAL(3,2) NULL,
+  view_count INT NOT NULL DEFAULT 0,
   url TEXT NULL,
   affiliate_url TEXT NULL,
   image_list TEXT NULL,
@@ -186,6 +187,47 @@ CREATE TABLE IF NOT EXISTS item_actors (
   CONSTRAINT fk_item_actor_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+
+CREATE TABLE IF NOT EXISTS page_views (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  item_id INT UNSIGNED NOT NULL,
+  viewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  ip_hash VARCHAR(64) NULL,
+  user_agent VARCHAR(255) NULL,
+  INDEX idx_page_views_item_date (item_id, viewed_at),
+  CONSTRAINT fk_page_views_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS tags (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL UNIQUE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS item_tags (
+  item_id INT UNSIGNED NOT NULL,
+  tag_id BIGINT UNSIGNED NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (item_id, tag_id),
+  INDEX idx_item_tags_tag (tag_id),
+  CONSTRAINT fk_item_tags_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+  CONSTRAINT fk_item_tags_tag FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS api_logs (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  api_name VARCHAR(64) NOT NULL,
+  request_url TEXT NOT NULL,
+  request_hash CHAR(64) NOT NULL,
+  response_status INT NULL,
+  response_body MEDIUMTEXT NULL,
+  cache_hit TINYINT(1) NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_api_logs_created (created_at),
+  INDEX idx_api_logs_name (api_name),
+  INDEX idx_api_logs_hash (request_hash)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS sync_logs (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   sync_type VARCHAR(50) NOT NULL,
@@ -203,5 +245,6 @@ CREATE TABLE IF NOT EXISTS sync_job_state (
   last_run_at DATETIME NULL,
   last_success TINYINT(1) NOT NULL DEFAULT 0,
   last_message TEXT NULL,
+  lock_until DATETIME NULL,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

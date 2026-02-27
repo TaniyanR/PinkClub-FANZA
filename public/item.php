@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/repository.php';
 
 $id = (int)get('id', 0);
 $contentId = trim((string)get('content_id', ''));
@@ -22,6 +23,29 @@ if (!$item) {
     http_response_code(404);
     exit('not found');
 }
+
+
+try {
+    $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+    $ipHash = $ip !== '' ? hash('sha256', $ip . date('Y-m-d')) : null;
+    $ua = mb_substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255);
+    $viewStmt = db()->prepare('SELECT id FROM page_views WHERE item_id = :item_id AND ip_hash = :ip_hash AND DATE(viewed_at) = CURDATE() LIMIT 1');
+    $viewStmt->execute([':item_id' => (int)$item['id'], ':ip_hash' => $ipHash]);
+    if (!$viewStmt->fetch()) {
+        $insertView = db()->prepare('INSERT INTO page_views (item_id, viewed_at, ip_hash, user_agent) VALUES (:item_id, NOW(), :ip_hash, :user_agent)');
+        $insertView->execute([
+            ':item_id' => (int)$item['id'],
+            ':ip_hash' => $ipHash,
+            ':user_agent' => $ua,
+        ]);
+    }
+} catch (Throwable $e) {
+    error_log('page view logging failed: ' . $e->getMessage());
+}
+
+update_items_view_count();
+$relatedItems = fetch_related_items((string)$item['content_id'], 12);
+
 
 $rels = [];
 foreach (['item_actresses' => 'actress_name', 'item_genres' => 'genre_name', 'item_labels' => 'label_name', 'item_campaigns' => 'campaign_name', 'item_directors' => 'director_name', 'item_makers' => 'maker_name', 'item_series' => 'series_name', 'item_authors' => 'author_name', 'item_actors' => 'actor_name'] as $t => $c) {
@@ -108,4 +132,21 @@ require __DIR__ . '/partials/header.php';
 <?php if ($item['affiliate_url']): ?>
   <p><a href="<?= e($item['affiliate_url']) ?>" target="_blank" rel="noopener noreferrer">FANZAで見る</a></p>
 <?php endif; ?>
+
+<?php if ($relatedItems !== []): ?>
+  <h3>関連作品</h3>
+  <div class="grid">
+    <?php foreach ($relatedItems as $related): ?>
+      <div class="card">
+        <a href="<?= e(public_url('item.php?id=' . (int)$related['id'])) ?>"><?= e((string)$related['title']) ?></a><br>
+        <?php if (!empty($related['image_small'])): ?>
+          <img class="thumb" src="<?= e((string)$related['image_small']) ?>" alt="<?= e((string)$related['title']) ?>">
+        <?php else: ?>
+          画像なし
+        <?php endif; ?>
+      </div>
+    <?php endforeach; ?>
+  </div>
+<?php endif; ?>
+
 <?php require __DIR__ . '/partials/footer.php'; ?>

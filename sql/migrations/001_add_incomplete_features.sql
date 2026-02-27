@@ -1,5 +1,4 @@
--- Migration: Add tables and columns for incomplete features
--- Run this migration on existing databases to add new tables and columns
+-- Migration: restore incomplete feature schema (popularity/api logs/tags/related)
 
 SET @items_exists := (
     SELECT COUNT(*)
@@ -16,99 +15,68 @@ SET @sql := IF(
             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'items' AND COLUMN_NAME = 'view_count'
         ),
         'SELECT 1',
-        'ALTER TABLE items ADD COLUMN view_count INT DEFAULT 0'
+        'ALTER TABLE items ADD COLUMN view_count INT NOT NULL DEFAULT 0'
     )
 );
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SET @sql := IF(
-    @items_exists = 0,
-    'SELECT 1',
-    IF(
-        EXISTS(
-            SELECT 1 FROM information_schema.STATISTICS
-            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'items' AND INDEX_NAME = 'idx_items_view_count'
-        ),
-        'SELECT 1',
-        'CREATE INDEX idx_items_view_count ON items(view_count)'
-    )
-);
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+CREATE TABLE IF NOT EXISTS page_views (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    item_id INT UNSIGNED NOT NULL,
+    viewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ip_hash VARCHAR(64) NULL,
+    user_agent VARCHAR(255) NULL,
+    INDEX idx_page_views_item_date (item_id, viewed_at),
+    CONSTRAINT fk_page_views_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Create api_logs table
 CREATE TABLE IF NOT EXISTS api_logs (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    created_at DATETIME NOT NULL,
-    endpoint VARCHAR(255) NOT NULL,
-    params_json TEXT DEFAULT NULL,
-    status VARCHAR(50) NOT NULL,
-    http_code INT DEFAULT NULL,
-    item_count INT DEFAULT 0,
-    error_message TEXT DEFAULT NULL,
-    success TINYINT(1) NOT NULL DEFAULT 0,
+    api_name VARCHAR(64) NOT NULL,
+    request_url TEXT NOT NULL,
+    request_hash CHAR(64) NOT NULL,
+    response_status INT NULL,
+    response_body MEDIUMTEXT NULL,
+    cache_hit TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_api_logs_created (created_at),
-    INDEX idx_api_logs_status (status)
+    INDEX idx_api_logs_name (api_name),
+    INDEX idx_api_logs_hash (request_hash)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Create dmm_api table
-CREATE TABLE IF NOT EXISTS dmm_api (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    api_id VARCHAR(255) NOT NULL,
-    affiliate_id VARCHAR(255) NOT NULL,
-    site VARCHAR(100) DEFAULT 'FANZA',
-    service VARCHAR(100) DEFAULT 'digital',
-    floor VARCHAR(100) DEFAULT 'videoa',
-    created_at DATETIME NOT NULL,
-    updated_at DATETIME NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Create api_schedules table
-CREATE TABLE IF NOT EXISTS api_schedules (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    interval_minutes INT NOT NULL DEFAULT 60,
-    last_run DATETIME DEFAULT NULL,
-    lock_until DATETIME DEFAULT NULL,
-    fail_count INT NOT NULL DEFAULT 0,
-    last_error TEXT DEFAULT NULL,
-    last_success_at DATETIME DEFAULT NULL,
-    created_at DATETIME NOT NULL,
-    updated_at DATETIME DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Create tags table
 CREATE TABLE IF NOT EXISTS tags (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
-    created_at DATETIME NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_tags_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Create item_tags table
 CREATE TABLE IF NOT EXISTS item_tags (
-    item_content_id VARCHAR(64) NOT NULL,
-    tag_id INT NOT NULL,
-    PRIMARY KEY (item_content_id, tag_id),
+    item_id INT UNSIGNED NOT NULL,
+    tag_id BIGINT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (item_id, tag_id),
     INDEX idx_item_tags_tag (tag_id),
-    CONSTRAINT fk_item_tags_content
-        FOREIGN KEY (item_content_id) REFERENCES items(content_id) ON DELETE CASCADE,
-    CONSTRAINT fk_item_tags_tag
-        FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+    CONSTRAINT fk_item_tags_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+    CONSTRAINT fk_item_tags_tag FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Create access_events table
-CREATE TABLE IF NOT EXISTS access_events (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    event_type VARCHAR(50) NOT NULL,
-    event_at DATETIME NOT NULL,
-    path VARCHAR(500) DEFAULT NULL,
-    referrer VARCHAR(500) DEFAULT NULL,
-    link_id INT DEFAULT NULL,
-    ip_hash CHAR(64) DEFAULT NULL,
-    INDEX idx_access_events_event_at (event_at),
-    INDEX idx_access_events_type (event_type)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+SET @sync_state_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.TABLES
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sync_job_state'
+);
 
--- Initialize api_schedules with default interval
-INSERT INTO api_schedules (interval_minutes, created_at, updated_at)
-SELECT 60, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM api_schedules);
+SET @sql := IF(
+    @sync_state_exists = 0,
+    'SELECT 1',
+    IF(
+        EXISTS(
+            SELECT 1 FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sync_job_state' AND COLUMN_NAME = 'lock_until'
+        ),
+        'SELECT 1',
+        'ALTER TABLE sync_job_state ADD COLUMN lock_until DATETIME NULL'
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

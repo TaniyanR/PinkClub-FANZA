@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/dmm_api_client.php';
 require_once __DIR__ . '/dmm_normalizer.php';
+require_once __DIR__ . '/repository.php';
 
 class DmmSyncService
 {
@@ -151,6 +152,11 @@ class DmmSyncService
             foreach ($items as $item) {
                 $itemId = $this->upsertItem($item);
                 $this->rebuildItemRelations($itemId, $item);
+                generate_tags_for_item([
+                    'content_id' => $item['content_id'] ?? '',
+                    'title' => $item['title'] ?? '',
+                    'category_name' => $item['category_name'] ?? '',
+                ]);
                 $count++;
             }
             $this->pdo->commit();
@@ -248,5 +254,20 @@ class DmmSyncService
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS item_authors (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,item_id INT UNSIGNED NOT NULL,dmm_id VARCHAR(64) NULL,author_name VARCHAR(255) NOT NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE KEY uk_item_author (item_id,dmm_id),CONSTRAINT fk_item_author_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS item_actors (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,item_id INT UNSIGNED NOT NULL,dmm_id VARCHAR(64) NULL,actor_name VARCHAR(255) NOT NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE KEY uk_item_actor (item_id,dmm_id),CONSTRAINT fk_item_actor_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS sync_job_state (job_key VARCHAR(64) PRIMARY KEY,next_offset INT NOT NULL DEFAULT 1,next_initial VARCHAR(10) NULL,last_run_at DATETIME NULL,last_success TINYINT(1) NOT NULL DEFAULT 0,last_message TEXT NULL,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+
+        $itemColumns = [];
+        $itemStmt = $this->pdo->query('SHOW COLUMNS FROM items');
+        foreach (($itemStmt ? $itemStmt->fetchAll(PDO::FETCH_ASSOC) : []) as $col) {
+            $itemColumns[(string)($col['Field'] ?? '')] = true;
+        }
+        if (!isset($itemColumns['view_count'])) {
+            $this->pdo->exec('ALTER TABLE items ADD COLUMN view_count INT NOT NULL DEFAULT 0');
+        }
+
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS page_views (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,item_id INT UNSIGNED NOT NULL,viewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,ip_hash VARCHAR(64) NULL,user_agent VARCHAR(255) NULL,INDEX idx_page_views_item_date (item_id, viewed_at),CONSTRAINT fk_page_views_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS tags (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,name VARCHAR(100) NOT NULL UNIQUE,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS item_tags (item_id INT UNSIGNED NOT NULL,tag_id BIGINT UNSIGNED NOT NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY (item_id, tag_id),INDEX idx_item_tags_tag (tag_id),CONSTRAINT fk_item_tags_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,CONSTRAINT fk_item_tags_tag FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS api_logs (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,api_name VARCHAR(64) NOT NULL,request_url TEXT NOT NULL,request_hash CHAR(64) NOT NULL,response_status INT NULL,response_body MEDIUMTEXT NULL,cache_hit TINYINT(1) NOT NULL DEFAULT 0,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,INDEX idx_api_logs_created (created_at),INDEX idx_api_logs_name (api_name),INDEX idx_api_logs_hash (request_hash)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+
     }
 }
