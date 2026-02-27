@@ -99,3 +99,46 @@ body.login-page,
 .setup-card table{width:100%;border-collapse:collapse;margin-bottom:14px;background:#fff}
 .setup-card th,.setup-card td{border:1px solid #dcdcde;padding:8px;text-align:left;vertical-align:top}
 .setup-card pre{white-space:pre-wrap;word-break:break-word;background:#f6f7f9;border:1px solid #dcdcde;border-radius:4px;padding:10px;max-height:320px;overflow:auto}
+
+/* Public front pages */
+body:not(.admin-page):not(.login-page):not(.setup-page){
+  background:#f3f5f8;
+}
+body:not(.admin-page):not(.login-page) > header{
+  background:#ffffff;
+  border-bottom:1px solid #dcdcde;
+  padding:18px 20px 14px;
+}
+body:not(.admin-page):not(.login-page) > header h1{
+  margin:0 0 10px;
+  font-size:48px;
+  line-height:1.1;
+}
+body:not(.admin-page):not(.login-page) > header h1 a{
+  text-decoration:none;
+  color:#7b2cbf;
+}
+body:not(.admin-page):not(.login-page) > header nav{
+  display:flex;
+  flex-wrap:wrap;
+  gap:14px;
+}
+body:not(.admin-page):not(.login-page) > header nav a{
+  text-decoration:none;
+  color:#2271b1;
+  font-weight:600;
+}
+body:not(.admin-page):not(.login-page) > main{
+  max-width:1100px;
+  margin:20px auto;
+  padding:0 16px 28px;
+}
+body:not(.admin-page):not(.login-page) h2{
+  margin:0 0 16px;
+  font-size:30px;
+}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+.card{background:#fff;border:1px solid #dcdcde;border-radius:10px;padding:12px;box-shadow:0 4px 12px rgba(0,0,0,.04)}
+.thumb{max-width:100%;height:auto;border-radius:6px;display:block}
+main table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #dcdcde}
+main table th,main table td{border:1px solid #e5e7eb;padding:8px;text-align:left;vertical-align:top}

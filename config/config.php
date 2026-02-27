@@ -4,6 +4,33 @@ declare(strict_types=1);
 
 $configuredBaseUrl = trim((string) getenv('BASE_URL'));
 
+function normalize_configured_base_url(string $value): string
+{
+    $normalized = rtrim(trim($value), '/');
+    if ($normalized === '') {
+        return '';
+    }
+
+    // Strip common entry points and folders if someone accidentally sets BASE_URL to them.
+    // Examples:
+    // - https://example.com/index.php            => https://example.com
+    // - https://example.com/public/index.php     => https://example.com
+    // - https://example.com/admin               => https://example.com
+    // - https://example.com/admin/index.php      => https://example.com
+    // - https://example.com/public              => https://example.com
+    // - https://example.com/login0718.php        => https://example.com
+    $normalized = preg_replace(
+        '#/(index\.php|login\.php|login0718\.php|admin/login\.php|admin(?:/index\.php)?|public(?:/index\.php)?)/*$#i',
+        '',
+        $normalized
+    );
+    if (!is_string($normalized)) {
+        return '';
+    }
+
+    return rtrim($normalized, '/');
+}
+
 /**
  * Resolve application base path from the current script location.
  *
@@ -106,7 +133,10 @@ if ($basePath === '') {
 }
 
 if ($configuredBaseUrl !== '') {
-    $baseUrl = apply_detected_path_to_base_url($configuredBaseUrl, $basePath);
+    $baseUrl = apply_detected_path_to_base_url(
+        normalize_configured_base_url($configuredBaseUrl),
+        $basePath
+    );
 } else {
     $requestScheme = trim((string) ($_SERVER['REQUEST_SCHEME'] ?? ''));
     if ($requestScheme !== '') {
