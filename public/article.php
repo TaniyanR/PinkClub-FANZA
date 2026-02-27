@@ -4,14 +4,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
 
-require __DIR__ . '/../partials/db.php';
-
-$config = get_config();
-$siteTitle = $config['site']['title'];
+$siteTitle = APP_NAME;
 
 $articleId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 
-$pdo = get_pdo();
+$pdo = db();
 $stmt = $pdo->prepare('SELECT * FROM articles WHERE id = :id');
 $stmt->execute([':id' => $articleId]);
 $article = $stmt->fetch();
