@@ -47,11 +47,11 @@ function normalize_content_id(string $contentId): string
 function fetch_items(string $orderBy = 'date_published_desc', int $limit = 10, int $offset = 0): array
 {
     $allowedOrders = [
-        'date_published_desc' => 'date_published DESC',
-        'date_published_asc' => 'date_published ASC',
+        'date_published_desc' => 'release_date DESC, id DESC',
+        'date_published_asc' => 'release_date ASC, id ASC',
         'price_min_desc' => 'price_min DESC',
         'price_min_asc' => 'price_min ASC',
-        'popularity_desc' => 'view_count DESC, date_published DESC',
+        'popularity_desc' => 'view_count DESC, id DESC',
         'random' => 'RAND()',
     ];
     if (array_key_exists($orderBy, $allowedOrders)) {
@@ -105,7 +105,7 @@ function search_items(string $q, int $limit = 10, int $offset = 0): array
     $limit = normalize_int($limit, 1, 100);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare('SELECT * FROM items WHERE title LIKE :q ORDER BY date_published DESC LIMIT :limit OFFSET :offset');
+    $stmt = db()->prepare('SELECT * FROM items WHERE title LIKE :q ORDER BY release_date DESC, id DESC LIMIT :limit OFFSET :offset');
     $stmt->bindValue(':q', '%' . $q . '%', PDO::PARAM_STR);
     $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
@@ -768,16 +768,16 @@ function replace_item_labels(string $contentId, array $labels): void
 function update_items_view_count(): int
 {
     try {
-        $stmt = db()->prepare(
-            'UPDATE items i 
-             SET view_count = (
-                 SELECT COUNT(*) 
-                 FROM page_views pv 
-                 WHERE pv.item_cid = i.content_id
-             )
-             WHERE EXISTS (
-                 SELECT 1 FROM page_views pv2 WHERE pv2.item_cid = i.content_id
-             )'
+        $pdo = db();
+        $pdo->exec('UPDATE items SET view_count = 0');
+        $stmt = $pdo->prepare(
+            'UPDATE items i
+             INNER JOIN (
+                SELECT item_id, COUNT(*) AS view_count
+                FROM page_views
+                GROUP BY item_id
+             ) pv ON pv.item_id = i.id
+             SET i.view_count = pv.view_count'
         );
         $stmt->execute();
         return $stmt->rowCount();
@@ -802,43 +802,64 @@ function fetch_related_items(string $contentId, int $limit = 6): array
     $limit = normalize_int($limit, 1, 50);
 
     try {
-        // Optimized query using LEFT JOINs and conditional aggregation
+        $itemStmt = db()->prepare('SELECT id, release_date FROM items WHERE content_id = :cid LIMIT 1');
+        $itemStmt->execute([':cid' => $cid]);
+        $baseItem = $itemStmt->fetch();
+        if (!is_array($baseItem)) {
+            return [];
+        }
+
         $stmt = db()->prepare(
-            'SELECT DISTINCT i.*, 
-                   (COALESCE(genre_matches, 0) * 3 + 
-                    COALESCE(actress_matches, 0) * 5 + 
-                    COALESCE(series_matches, 0) * 4) AS relevance_score
+            'SELECT i.*,
+                    (
+                        COALESCE(ac.match_count, 0) * 5 +
+                        COALESCE(sr.match_count, 0) * 4 +
+                        COALESCE(gn.match_count, 0) * 3
+                    ) AS relevance_score
              FROM items i
              LEFT JOIN (
-                 SELECT ig1.content_id, COUNT(*) as genre_matches
-                 FROM item_genres ig1
-                 INNER JOIN item_genres ig2 ON ig1.genre_id = ig2.genre_id
-                 WHERE ig2.content_id = :cid1
-                 GROUP BY ig1.content_id
-             ) genre_scores ON i.content_id = genre_scores.content_id
+                SELECT ia.item_id, COUNT(*) AS match_count
+                FROM item_actresses ia
+                INNER JOIN item_actresses base
+                    ON (
+                        (base.dmm_id IS NOT NULL AND base.dmm_id != \'\' AND ia.dmm_id = base.dmm_id)
+                        OR ia.actress_name = base.actress_name
+                    )
+                WHERE base.item_id = :item_id1
+                GROUP BY ia.item_id
+             ) ac ON ac.item_id = i.id
              LEFT JOIN (
-                 SELECT ia1.content_id, COUNT(*) as actress_matches
-                 FROM item_actresses ia1
-                 INNER JOIN item_actresses ia2 ON ia1.actress_id = ia2.actress_id
-                 WHERE ia2.content_id = :cid2
-                 GROUP BY ia1.content_id
-             ) actress_scores ON i.content_id = actress_scores.content_id
+                SELECT isr.item_id, COUNT(*) AS match_count
+                FROM item_series isr
+                INNER JOIN item_series base
+                    ON (
+                        (base.dmm_id IS NOT NULL AND base.dmm_id != \'\' AND isr.dmm_id = base.dmm_id)
+                        OR isr.series_name = base.series_name
+                    )
+                WHERE base.item_id = :item_id2
+                GROUP BY isr.item_id
+             ) sr ON sr.item_id = i.id
              LEFT JOIN (
-                 SELECT is1.content_id, COUNT(*) as series_matches
-                 FROM item_series is1
-                 INNER JOIN item_series is2 ON is1.series_id = is2.series_id
-                 WHERE is2.content_id = :cid3
-                 GROUP BY is1.content_id
-             ) series_scores ON i.content_id = series_scores.content_id
-             WHERE i.content_id != :cid4
+                SELECT ig.item_id, COUNT(*) AS match_count
+                FROM item_genres ig
+                INNER JOIN item_genres base
+                    ON (
+                        (base.dmm_id IS NOT NULL AND base.dmm_id != \'\' AND ig.dmm_id = base.dmm_id)
+                        OR ig.genre_name = base.genre_name
+                    )
+                WHERE base.item_id = :item_id3
+                GROUP BY ig.item_id
+             ) gn ON gn.item_id = i.id
+             WHERE i.id != :item_id4
              HAVING relevance_score > 0
-             ORDER BY relevance_score DESC, i.date_published DESC
+             ORDER BY relevance_score DESC, i.release_date DESC, i.id DESC
              LIMIT :limit'
         );
-        $stmt->bindValue(':cid1', $cid, PDO::PARAM_STR);
-        $stmt->bindValue(':cid2', $cid, PDO::PARAM_STR);
-        $stmt->bindValue(':cid3', $cid, PDO::PARAM_STR);
-        $stmt->bindValue(':cid4', $cid, PDO::PARAM_STR);
+        $itemId = (int)$baseItem['id'];
+        $stmt->bindValue(':item_id1', $itemId, PDO::PARAM_INT);
+        $stmt->bindValue(':item_id2', $itemId, PDO::PARAM_INT);
+        $stmt->bindValue(':item_id3', $itemId, PDO::PARAM_INT);
+        $stmt->bindValue(':item_id4', $itemId, PDO::PARAM_INT);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
         $related = $stmt->fetchAll() ?: [];
@@ -848,11 +869,11 @@ function fetch_related_items(string $contentId, int $limit = 6): array
             $remaining = $limit - count($related);
             $stmt2 = db()->prepare(
                 'SELECT * FROM items 
-                 WHERE content_id != :cid
-                 ORDER BY date_published DESC
+                 WHERE id != :item_id
+                 ORDER BY release_date DESC, id DESC
                  LIMIT :limit'
             );
-            $stmt2->bindValue(':cid', $cid, PDO::PARAM_STR);
+            $stmt2->bindValue(':item_id', $itemId, PDO::PARAM_INT);
             $stmt2->bindValue(':limit', $remaining, PDO::PARAM_INT);
             $stmt2->execute();
             $newItems = $stmt2->fetchAll() ?: [];
@@ -911,19 +932,26 @@ function generate_item_tags(string $contentId, string $title, string $category =
             }
         }
         
+        $itemStmt = $pdo->prepare('SELECT id FROM items WHERE content_id = :cid LIMIT 1');
+        $itemStmt->execute([':cid' => $cid]);
+        $itemId = (int)$itemStmt->fetchColumn();
+        if ($itemId <= 0) {
+            return;
+        }
+
         // Delete existing tag associations for this item
-        $stmt = $pdo->prepare('DELETE FROM item_tags WHERE item_content_id = :cid');
-        $stmt->execute([':cid' => $cid]);
+        $stmt = $pdo->prepare('DELETE FROM item_tags WHERE item_id = :item_id');
+        $stmt->execute([':item_id' => $itemId]);
         
         // Insert new tag associations
         if (!empty($tagIds)) {
             $stmt = $pdo->prepare(
-                'INSERT IGNORE INTO item_tags (item_content_id, tag_id) 
-                 VALUES (:cid, :tag_id)'
+                'INSERT IGNORE INTO item_tags (item_id, tag_id) 
+                 VALUES (:item_id, :tag_id)'
             );
             
             foreach ($tagIds as $tagId) {
-                $stmt->execute([':cid' => $cid, ':tag_id' => $tagId]);
+                $stmt->execute([':item_id' => $itemId, ':tag_id' => $tagId]);
             }
         }
     } catch (PDOException $e) {
@@ -981,7 +1009,8 @@ function fetch_item_tags(string $contentId): array
             'SELECT tags.* 
              FROM tags
              INNER JOIN item_tags ON tags.id = item_tags.tag_id
-             WHERE item_tags.item_content_id = :cid
+             INNER JOIN items ON items.id = item_tags.item_id
+             WHERE items.content_id = :cid
              ORDER BY tags.name ASC'
         );
         $stmt->execute([':cid' => $cid]);
@@ -1002,7 +1031,7 @@ function fetch_all_tags(int $limit = 100, int $offset = 0): array
 
     try {
         $stmt = db()->prepare(
-            'SELECT tags.*, COUNT(item_tags.item_content_id) as item_count
+            'SELECT tags.*, COUNT(item_tags.item_id) as item_count
              FROM tags
              LEFT JOIN item_tags ON tags.id = item_tags.tag_id
              GROUP BY tags.id
@@ -1017,4 +1046,19 @@ function fetch_all_tags(int $limit = 100, int $offset = 0): array
         error_log('fetch_all_tags error: ' . $e->getMessage());
         return [];
     }
+}
+
+function generate_tags_for_item(array $item): void
+{
+    $contentId = (string)($item['content_id'] ?? '');
+    $title = (string)($item['title'] ?? '');
+    $category = (string)($item['category_name'] ?? '');
+    generate_item_tags($contentId, $title, $category);
+}
+
+function delete_tag(int $tagId): bool
+{
+    $tagId = max(1, $tagId);
+    $stmt = db()->prepare('DELETE FROM tags WHERE id = :id');
+    return $stmt->execute([':id' => $tagId]);
 }

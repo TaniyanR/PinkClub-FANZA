@@ -2,10 +2,18 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/app.php';
+require_once __DIR__ . '/repository.php';
 
 function scheduler_tick(): array
 {
     $pdo = db();
+    $lockStmt = $pdo->query("SELECT GET_LOCK('pinkclub_scheduler_tick', 1)");
+    $locked = (int)($lockStmt ? $lockStmt->fetchColumn() : 0) === 1;
+    if (!$locked) {
+        return ['status' => 'busy', 'message' => 'lock not acquired'];
+    }
+
+    try {
     $service = dmm_sync_service();
     $settings = settings_get();
     $intervalSeconds = 3600;
@@ -54,6 +62,7 @@ function scheduler_tick(): array
             $result = $service->syncItemsBatch('digital', 'videoa', $batch, $nextOffset);
             $synced = (int)$result['synced_count'];
             $newOffset = (int)$result['next_offset'];
+            update_items_view_count();
             $message = "items synced: {$synced}";
         } elseif ($job['type'] === 'floors') {
             $synced = $service->syncFloors();
@@ -72,6 +81,9 @@ function scheduler_tick(): array
     } catch (Throwable $e) {
         scheduler_update_job_state($pdo, $jobKey, $nextOffset, null, false, $e->getMessage());
         return ['status' => 'error', 'job_key' => $jobKey, 'synced_count' => 0, 'message' => $e->getMessage()];
+    }
+    } finally {
+        $pdo->query("SELECT RELEASE_LOCK('pinkclub_scheduler_tick')");
     }
 }
 
