@@ -4,15 +4,47 @@ declare(strict_types=1);
 
 $configuredBaseUrl = trim((string)getenv('BASE_URL'));
 
+/**
+ * Resolve application base path from the current script location.
+ *
+ * Examples:
+ * - /pinkclub-fanza/public/index.php                => /pinkclub-fanza
+ * - /pinkclub-fanza/admin/index.php                 => /pinkclub-fanza
+ * - /pinkclub-fanza/admin/index.php/public/         => /pinkclub-fanza
+ */
+function detect_base_path(string $scriptName): string
+{
+    $normalized = str_replace('\\', '/', $scriptName);
+    if ($normalized === '' || $normalized === '/') {
+        return '';
+    }
+
+    $patterns = [
+        '#/(?:public|admin)(?:/.*)?$#i',
+        '#/index\.php(?:/.*)?$#i',
+    ];
+
+    foreach ($patterns as $pattern) {
+        $candidate = preg_replace($pattern, '', $normalized);
+        if (is_string($candidate) && $candidate !== $normalized) {
+            $normalized = $candidate;
+            break;
+        }
+    }
+
+    $normalized = rtrim($normalized, '/');
+    if ($normalized === '' || $normalized === '.') {
+        return '';
+    }
+
+    return $normalized;
+}
+
 if ($configuredBaseUrl !== '') {
     $baseUrl = rtrim($configuredBaseUrl, '/');
 } else {
     $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? '/'));
-    $basePath = preg_replace('#/public/.*$#', '', $scriptName);
-    $basePath = is_string($basePath) ? $basePath : '';
-    if ($basePath === '' || $basePath === '.') {
-        $basePath = '';
-    }
+    $basePath = detect_base_path($scriptName);
 
     $requestScheme = trim((string)($_SERVER['REQUEST_SCHEME'] ?? ''));
     if ($requestScheme !== '') {
