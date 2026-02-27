@@ -10,7 +10,6 @@ $configuredBaseUrl = trim((string)getenv('BASE_URL'));
  * Examples:
  * - /pinkclub-fanza/public/index.php                => /pinkclub-fanza
  * - /pinkclub-fanza/admin/index.php                 => /pinkclub-fanza
- * - /pinkclub-fanza/admin/index.php/public/         => /pinkclub-fanza
  */
 function detect_base_path(string $scriptName): string
 {
