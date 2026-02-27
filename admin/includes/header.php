@@ -6,14 +6,31 @@ if (!function_exists('e') || !function_exists('asset_url')) {
 }
 
 $currentScript = basename((string)($_SERVER['SCRIPT_NAME'] ?? 'index.php'));
-$menuItems = [
-    ['file' => 'index.php', 'label' => 'ダッシュボード'],
-    ['file' => 'settings.php', 'label' => '設定'],
-    ['file' => 'sync_floors.php', 'label' => 'フロア同期'],
-    ['file' => 'sync_master.php', 'label' => 'マスタ同期'],
-    ['file' => 'sync_items.php', 'label' => '商品同期'],
-    ['file' => 'sync_logs.php', 'label' => '同期ログ'],
-    ['file' => 'logout.php', 'label' => 'ログアウト'],
+$menuGroups = [
+    ['label' => 'ダッシュボード', 'file' => 'index.php'],
+    ['label' => '設定', 'children' => [
+        ['label' => 'サイト設定', 'file' => 'site_settings.php'],
+        ['label' => 'アカウント設定', 'file' => 'account_settings.php'],
+        ['label' => 'デザイン設定', 'file' => 'design_settings.php'],
+    ]],
+    ['label' => 'リンク設定', 'children' => [
+        ['label' => '相互リンク管理', 'file' => 'link_partners.php'],
+        ['label' => 'RSS管理', 'file' => 'rss_settings.php'],
+    ]],
+    ['label' => 'アクセス解析', 'file' => 'access_analytics.php'],
+    ['label' => 'アフィリエイト設定', 'children' => [
+        ['label' => 'API設定', 'file' => 'affiliate_api.php'],
+        ['label' => '広告コード', 'file' => 'ads_code.php'],
+        ['label' => 'フロア同期', 'file' => 'sync_floors.php'],
+        ['label' => 'マスタ同期', 'file' => 'sync_master.php'],
+        ['label' => '商品同期', 'file' => 'sync_items.php'],
+        ['label' => '同期ログ', 'file' => 'sync_logs.php'],
+    ]],
+    ['label' => '固定ページ', 'children' => [
+        ['label' => '固定ページ一覧', 'file' => 'pages_index.php'],
+        ['label' => '新規', 'file' => 'pages_new.php'],
+    ]],
+    ['label' => 'ログアウト', 'file' => 'logout.php'],
 ];
 
 $flash = function_exists('flash_get') ? flash_get() : null;
@@ -35,8 +52,19 @@ $titleText = (string)($title ?? APP_NAME);
   <aside class="admin-sidebar" aria-label="管理メニュー">
     <nav><p class="admin-sidebar__heading">メニュー</p>
       <ul class="admin-sidebar__list">
-        <?php foreach ($menuItems as $item): $isActive = ($currentScript === basename($item['file'])); ?>
-          <li><a class="admin-menu__link <?= $isActive ? 'is-active' : '' ?>" href="<?= e(admin_url($item['file'])) ?>"><?= e($item['label']) ?></a></li>
+        <?php foreach ($menuGroups as $group): ?>
+          <?php if (isset($group['children']) && is_array($group['children'])): ?>
+            <li>
+              <span class="admin-menu__link"><?= e($group['label']) ?></span>
+              <ul class="admin-sidebar__list" style="padding-left:12px;">
+                <?php foreach ($group['children'] as $item): $isActive = ($currentScript === basename($item['file'])); ?>
+                  <li><a class="admin-menu__link <?= $isActive ? 'is-active' : '' ?>" href="<?= e(admin_url($item['file'])) ?>">┗ <?= e($item['label']) ?></a></li>
+                <?php endforeach; ?>
+              </ul>
+            </li>
+          <?php else: $isActive = ($currentScript === basename((string)$group['file'])); ?>
+            <li><a class="admin-menu__link <?= $isActive ? 'is-active' : '' ?>" href="<?= e(admin_url((string)$group['file'])) ?>"><?= e($group['label']) ?></a></li>
+          <?php endif; ?>
         <?php endforeach; ?>
       </ul>
     </nav>

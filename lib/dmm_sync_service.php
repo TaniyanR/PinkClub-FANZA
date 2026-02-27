@@ -9,6 +9,7 @@ class DmmSyncService
 {
     public function __construct(private readonly DmmApiClient $client, private readonly PDO $pdo)
     {
+        $this->ensureSchema();
     }
 
     public function syncFloors(): int
@@ -37,19 +38,19 @@ class DmmSyncService
                 }
             }
             $this->pdo->commit();
-            $this->logSync('floor', 1, $count, 'Floor sync completed.');
+            $this->logSync('floors', 1, $count, 'Floor sync completed.');
             return $count;
         } catch (Throwable $e) {
             $this->pdo->rollBack();
-            $this->logSync('floor', 0, 0, $e->getMessage());
+            $this->logSync('floors', 0, 0, $e->getMessage());
             throw $e;
         }
     }
 
-    public function syncMaster(string $kind, ?string $floorId = null): int
+    public function syncMaster(string $kind, ?string $floorId = null, int $offset = 1, int $hits = 100): int
     {
         $count = 0;
-        $params = ['hits' => 100, 'offset' => 1];
+        $params = ['hits' => min(100, max(1, $hits)), 'offset' => max(1, $offset)];
         if ($floorId && $kind !== 'actress') {
             $params['floor_id'] = $floorId;
         }
@@ -65,16 +66,14 @@ class DmmSyncService
 
         $key = $kind === 'series' ? 'series' : ($kind === 'actress' ? 'actress' : $kind);
         $rows = DmmNormalizer::toList($response['result'][$key] ?? []);
-        $table = $kind === 'series' ? 'series_master' : $kind . 'es';
-        if ($kind === 'genre') {
-            $table = 'genres';
-        } elseif ($kind === 'maker') {
-            $table = 'makers';
-        } elseif ($kind === 'author') {
-            $table = 'authors';
-        } elseif ($kind === 'actress') {
-            $table = 'actresses';
-        }
+        $table = match ($kind) {
+            'genre' => 'genres',
+            'maker' => 'makers',
+            'author' => 'authors',
+            'actress' => 'actresses',
+            'series' => 'series_master',
+            default => throw new InvalidArgumentException('Unknown master type.'),
+        };
 
         $this->pdo->beginTransaction();
         try {
@@ -97,19 +96,55 @@ class DmmSyncService
                 $count++;
             }
             $this->pdo->commit();
-            $this->logSync('master:' . $kind, 1, $count, 'Master sync completed.');
+            $this->logSync($kind . 's', 1, $count, 'Master sync completed.');
             return $count;
         } catch (Throwable $e) {
             $this->pdo->rollBack();
-            $this->logSync('master:' . $kind, 0, 0, $e->getMessage());
+            $this->logSync($kind . 's', 0, 0, $e->getMessage());
             throw $e;
         }
     }
 
     public function syncItems(string $serviceCode, string $floorCode, array $params = []): int
     {
-        $response = $this->client->fetchItems($serviceCode, $floorCode, array_merge(['hits' => 100, 'offset' => 1], $params));
+        $hits = min(100, max(1, (int)($params['hits'] ?? 100)));
+        $offset = max(1, (int)($params['offset'] ?? 1));
+        $response = $this->client->fetchItems($serviceCode, $floorCode, ['hits' => $hits, 'offset' => $offset]);
         $items = DmmNormalizer::normalizeItemsResponse($response);
+        return $this->saveItems($items, 'items');
+    }
+
+    public function syncItemsBatch(string $serviceCode, string $floorCode, int $batch, int $offset = 1): array
+    {
+        $remaining = max(1, $batch);
+        $currentOffset = max(1, $offset);
+        $total = 0;
+
+        while ($remaining > 0) {
+            $hits = min(100, $remaining);
+            $response = $this->client->fetchItems($serviceCode, $floorCode, ['hits' => $hits, 'offset' => $currentOffset]);
+            $items = DmmNormalizer::normalizeItemsResponse($response);
+            if ($items === []) {
+                $currentOffset = 1;
+                break;
+            }
+
+            $saved = $this->saveItems($items, 'items');
+            $total += $saved;
+            $remaining -= $hits;
+            $currentOffset += 100;
+
+            if (count($items) < $hits) {
+                $currentOffset = 1;
+                break;
+            }
+        }
+
+        return ['synced_count' => $total, 'next_offset' => $currentOffset];
+    }
+
+    private function saveItems(array $items, string $logType): int
+    {
         $count = 0;
         $this->pdo->beginTransaction();
         try {
@@ -119,11 +154,11 @@ class DmmSyncService
                 $count++;
             }
             $this->pdo->commit();
-            $this->logSync('item', 1, $count, 'Item sync completed.');
+            $this->logSync($logType, 1, $count, 'Item sync completed.');
             return $count;
         } catch (Throwable $e) {
             $this->pdo->rollBack();
-            $this->logSync('item', 0, 0, $e->getMessage());
+            $this->logSync($logType, 0, 0, $e->getMessage());
             throw $e;
         }
     }
@@ -156,7 +191,7 @@ class DmmSyncService
 
     private function rebuildItemRelations(int $itemId, array $item): void
     {
-        $tables = ['item_actresses', 'item_genres', 'item_campaigns', 'item_labels', 'item_directors'];
+        $tables = ['item_actresses', 'item_genres', 'item_campaigns', 'item_labels', 'item_directors', 'item_makers', 'item_series', 'item_authors', 'item_actors'];
         foreach ($tables as $table) {
             $this->pdo->prepare("DELETE FROM {$table} WHERE item_id = ?")->execute([$itemId]);
         }
@@ -166,6 +201,10 @@ class DmmSyncService
         $this->insertRelation($itemId, 'item_campaigns', 'campaign_name', $item['campaigns']);
         $this->insertRelation($itemId, 'item_labels', 'label_name', $item['labels']);
         $this->insertRelation($itemId, 'item_directors', 'director_name', $item['directors']);
+        $this->insertRelation($itemId, 'item_makers', 'maker_name', $item['makers']);
+        $this->insertRelation($itemId, 'item_series', 'series_name', $item['series']);
+        $this->insertRelation($itemId, 'item_authors', 'author_name', $item['authors']);
+        $this->insertRelation($itemId, 'item_actors', 'actor_name', $item['actors'] ?? []);
     }
 
     private function insertRelation(int $itemId, string $table, string $nameCol, array $rows): void
@@ -174,12 +213,12 @@ class DmmSyncService
             if (!is_array($row)) {
                 continue;
             }
-            $dmmId = (string) ($row['id'] ?? '');
+            $dmmId = (string) ($row['id'] ?? '0');
             $name = (string) ($row['name'] ?? '');
             if ($name === '') {
                 continue;
             }
-            $this->pdo->prepare("INSERT INTO {$table}(item_id,dmm_id,{$nameCol}) VALUES(?,?,?)")
+            $this->pdo->prepare("INSERT IGNORE INTO {$table}(item_id,dmm_id,{$nameCol}) VALUES(?,?,?)")
                 ->execute([$itemId, $dmmId, $name]);
         }
     }
@@ -188,5 +227,26 @@ class DmmSyncService
     {
         $this->pdo->prepare('INSERT INTO sync_logs(sync_type,is_success,synced_count,message,created_at) VALUES(?,?,?,?,NOW())')
             ->execute([$type, $isSuccess, $count, mb_substr($message, 0, 1000)]);
+    }
+
+    private function ensureSchema(): void
+    {
+        $columns = [];
+        $stmt = $this->pdo->query('SHOW COLUMNS FROM settings');
+        foreach (($stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : []) as $col) {
+            $columns[(string)($col['Field'] ?? '')] = true;
+        }
+        if (!isset($columns['item_sync_batch'])) {
+            $this->pdo->exec('ALTER TABLE settings ADD COLUMN item_sync_batch INT NOT NULL DEFAULT 100');
+        }
+        if (!isset($columns['master_floor_id'])) {
+            $this->pdo->exec('ALTER TABLE settings ADD COLUMN master_floor_id INT NULL');
+        }
+
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS item_makers (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,item_id INT UNSIGNED NOT NULL,dmm_id VARCHAR(64) NULL,maker_name VARCHAR(255) NOT NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE KEY uk_item_maker (item_id,dmm_id),CONSTRAINT fk_item_maker_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS item_series (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,item_id INT UNSIGNED NOT NULL,dmm_id VARCHAR(64) NULL,series_name VARCHAR(255) NOT NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE KEY uk_item_series (item_id,dmm_id),CONSTRAINT fk_item_series_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS item_authors (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,item_id INT UNSIGNED NOT NULL,dmm_id VARCHAR(64) NULL,author_name VARCHAR(255) NOT NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE KEY uk_item_author (item_id,dmm_id),CONSTRAINT fk_item_author_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS item_actors (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,item_id INT UNSIGNED NOT NULL,dmm_id VARCHAR(64) NULL,actor_name VARCHAR(255) NOT NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE KEY uk_item_actor (item_id,dmm_id),CONSTRAINT fk_item_actor_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS sync_job_state (job_key VARCHAR(64) PRIMARY KEY,next_offset INT NOT NULL DEFAULT 1,next_initial VARCHAR(10) NULL,last_run_at DATETIME NULL,last_success TINYINT(1) NOT NULL DEFAULT 0,last_message TEXT NULL,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
     }
 }

@@ -258,3 +258,11 @@ The system is ready for production deployment.
   - `INFORMATION_SCHEMA.STATISTICS` / `INFORMATION_SCHEMA.COLUMNS` で存在確認してから `CREATE INDEX` / `ALTER TABLE ADD COLUMN` を実行。
   - `CREATE TABLE IF NOT EXISTS` と `schema_migrations` の併用で二重適用を抑止。
   - 途中破損DB向けに `db_repair_schema()` で差分補修し、最終的に desired schema に収束させる。
+
+## 2026-02 API→DB保存とタイマー式同期
+- `items` は `content_id` をキーに upsert し、APIレスポンス1件を `raw_json` に保存。
+- 商品の関連情報は `item_actresses / item_genres / item_labels / item_directors / item_campaigns / item_makers / item_series / item_authors / item_actors` に保存。
+- マスタ系は `actresses / genres / makers / series_master / authors` に保存。
+- フロア同期は `dmm_sites / dmm_services / dmm_floors` に保存。
+- 実行ログは `sync_logs`、タイマー進捗は `sync_job_state` に保存。
+- API設定は `settings.api_id / settings.affiliate_id`、商品同期間隔件数は `settings.item_sync_batch`、マスタ対象フロアは `settings.master_floor_id` を利用。
