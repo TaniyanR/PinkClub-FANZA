@@ -164,7 +164,6 @@ function installer_ensure_settings_row(PDO $pdo, string $stepLabel): bool
 
 function installer_status(): array
 {
-    $requiredKeys = ['server_connection', 'db_connection', 'admins_table', 'settings_table', 'admin_user', 'settings_row'];
     $status = ['server_connection'=>false,'db_connection'=>false,'admins_table'=>false,'settings_table'=>false,'admin_user'=>false,'settings_row'=>false,'completed'=>false];
     $status['server_connection'] = installer_can_connect_server();
     if (!$status['server_connection']) {
@@ -186,7 +185,14 @@ function installer_status(): array
     if ($status['settings_table']) {
         $status['settings_row'] = db()->query('SELECT 1 FROM settings WHERE id = 1 LIMIT 1')->fetchColumn() !== false;
     }
-    $status['completed'] = !in_array(false, array_map(static fn(string $key): bool => (bool)($status[$key] ?? false), $requiredKeys), true);
+    $status['completed'] = (
+        $status['server_connection']
+        && $status['db_connection']
+        && $status['admins_table']
+        && $status['settings_table']
+        && $status['admin_user']
+        && $status['settings_row']
+    );
     return $status;
 }
 

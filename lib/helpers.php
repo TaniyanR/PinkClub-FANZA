@@ -35,7 +35,7 @@ function app_url(string $path = ''): string
 
 function asset_url(string $path): string
 {
-    return url_path('/assets/' . ltrim($path, '/'));
+    return rtrim(BASE_URL, '/') . '/assets/' . ltrim($path, '/');
 }
 
 if (!function_exists('login_url')) {

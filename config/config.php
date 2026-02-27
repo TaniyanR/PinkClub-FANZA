@@ -8,17 +8,20 @@ if ($configuredBaseUrl !== '') {
     $baseUrl = rtrim($configuredBaseUrl, '/');
 } else {
     $scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? '/'));
-    $baseDir = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
-    if ($baseDir === '' || $baseDir === '.') {
-        $baseDir = '';
-    }
-    if (str_ends_with($baseDir, '/public')) {
-        $baseDir = substr($baseDir, 0, -7);
+    $basePath = preg_replace('#/public/.*$#', '', $scriptName);
+    $basePath = is_string($basePath) ? $basePath : '';
+    if ($basePath === '' || $basePath === '.') {
+        $basePath = '';
     }
 
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $requestScheme = trim((string)($_SERVER['REQUEST_SCHEME'] ?? ''));
+    if ($requestScheme !== '') {
+        $scheme = $requestScheme;
+    } else {
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    }
     $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
-    $baseUrl = rtrim("{$scheme}://{$host}{$baseDir}", '/');
+    $baseUrl = rtrim("{$scheme}://{$host}{$basePath}", '/');
 }
 
 if (!defined('APP_NAME')) {
