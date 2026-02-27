@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $title = 'Items';
-$logs = db()->query("SELECT * FROM sync_logs WHERE sync_type='item' ORDER BY id DESC LIMIT 30")->fetchAll();
+$logs = db()->query("SELECT * FROM sync_logs WHERE sync_type IN ('item','items') ORDER BY id DESC LIMIT 30")->fetchAll();
 require __DIR__ . '/includes/header.php';
 ?>
 <section class="admin-card">

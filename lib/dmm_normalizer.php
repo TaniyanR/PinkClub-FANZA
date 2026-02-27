@@ -75,6 +75,7 @@ class DmmNormalizer
                 'directors' => self::toList($info['director'] ?? []),
                 'labels' => self::toList($info['label'] ?? []),
                 'campaigns' => self::toList($info['campaign'] ?? []),
+                'actors' => self::toList($info['actor'] ?? []),
             ];
         }
 

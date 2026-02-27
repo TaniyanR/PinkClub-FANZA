@@ -24,7 +24,7 @@ if (!$item) {
 }
 
 $rels = [];
-foreach (['item_actresses' => 'actress_name', 'item_genres' => 'genre_name', 'item_labels' => 'label_name', 'item_campaigns' => 'campaign_name', 'item_directors' => 'director_name'] as $t => $c) {
+foreach (['item_actresses' => 'actress_name', 'item_genres' => 'genre_name', 'item_labels' => 'label_name', 'item_campaigns' => 'campaign_name', 'item_directors' => 'director_name', 'item_makers' => 'maker_name', 'item_series' => 'series_name', 'item_authors' => 'author_name', 'item_actors' => 'actor_name'] as $t => $c) {
     $s = db()->prepare("SELECT {$c} FROM {$t} WHERE item_id = ?");
     $s->execute([(int)$item['id']]);
     $rels[$c] = $s->fetchAll(PDO::FETCH_COLUMN);
@@ -44,6 +44,18 @@ foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560'
     if ($candidate !== '') {
         $sampleMovieUrl = $candidate;
         break;
+    }
+}
+
+
+$rawMovie = $raw['sampleMovieURL'] ?? null;
+if ($sampleMovieUrl === '' && is_array($rawMovie)) {
+    foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
+        $candidate = trim((string)($rawMovie[$movieKey] ?? ''));
+        if ($candidate !== '') {
+            $sampleMovieUrl = $candidate;
+            break;
+        }
     }
 }
 
