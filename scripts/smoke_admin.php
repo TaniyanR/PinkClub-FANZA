@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/db.php';
 
-$adminDir = realpath(__DIR__ . '/../public/admin');
+$adminDir = realpath(__DIR__ . '/../admin');
 if ($adminDir === false) {
     fwrite(STDERR, "admin directory not found\n");
     exit(1);

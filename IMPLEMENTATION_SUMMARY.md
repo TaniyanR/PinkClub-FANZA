@@ -12,7 +12,7 @@ This PR implements 6 incomplete features identified in README.md and docs/issues
 
 ### 1. API履歴画面 / API History Screen ✅
 
-**場所 / Location**: `public/admin/api_logs.php`
+**場所 / Location**: `admin/api_logs.php`
 
 **機能 / Features**:
 - DMM APIの実行履歴を一覧表示
@@ -77,7 +77,7 @@ php /path/to/PinkClub-FANZA/scripts/auto_import.php
 ### 4. API保存整形・重複排除 / API Duplicate Elimination ✅
 
 **変更箇所 / Changes**:
-- `public/admin/import_items.php`に APIログ記録を追加
+- `admin/import_items.php`に APIログ記録を追加
 
 **機能 / Features**:
 - `content_id`ベースで重複チェック
@@ -91,8 +91,8 @@ php /path/to/PinkClub-FANZA/scripts/auto_import.php
 
 **場所 / Location**: 
 - `lib/repository.php` - タグ生成関数
-- `public/admin/tags.php` - タグ管理画面
-- `public/admin/import_items.php` - インポート時に自動生成
+- `admin/tags.php` - タグ管理画面
+- `admin/import_items.php` - インポート時に自動生成
 
 **機能 / Features**:
 - タイトル・カテゴリーからキーワードを自動抽出

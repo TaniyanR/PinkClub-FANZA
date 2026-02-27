@@ -8,9 +8,9 @@ This document summarizes the security review of the implemented incomplete featu
 ### 1. SQL Injection Prevention
 ✅ **Status**: All queries use prepared statements with parameter binding
 - `lib/repository.php`: All database queries use PDO prepared statements
-- `public/admin/api_logs.php`: Count and fetch queries use prepared statements
-- `public/admin/import_items.php`: API logging uses prepared statements
-- `public/admin/tags.php`: Tag management uses prepared statements
+- `admin/api_logs.php`: Count and fetch queries use prepared statements
+- `admin/import_items.php`: API logging uses prepared statements
+- `admin/tags.php`: Tag management uses prepared statements
 
 **Example**:
 ```php
@@ -43,9 +43,9 @@ function normalize_content_id(string $contentId): string
 
 ### 3. CSRF Protection
 ✅ **Status**: All admin POST forms include CSRF tokens
-- `public/admin/api_logs.php`: No forms (read-only)
-- `public/admin/tags.php`: Delete action includes CSRF token verification
-- `public/admin/import_items.php`: Existing CSRF protection maintained
+- `admin/api_logs.php`: No forms (read-only)
+- `admin/tags.php`: Delete action includes CSRF token verification
+- `admin/import_items.php`: Existing CSRF protection maintained
 
 **Example**:
 ```php

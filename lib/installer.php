@@ -86,18 +86,12 @@ function installer_read_sql_file(string $path): string
     return (string)file_get_contents($path);
 }
 
-function installer_exec_multi_sql(string $sql, string $step): int
+function installer_apply_sql_file_mysqli_multi(mysqli $mysqli, string $path, string $step): int
 {
-    $cfg = app_config()['db'];
-    $mysqli = mysqli_init();
-    if ($mysqli === false) throw new RuntimeException('mysqli初期化に失敗しました。');
-    $mysqli->set_charset((string)$cfg['charset']);
-    if (!$mysqli->real_connect((string)$cfg['host'], (string)$cfg['user'], (string)$cfg['pass'], (string)$cfg['dbname'], (int)$cfg['port'])) {
-        throw new RuntimeException('mysqli接続失敗: ' . $mysqli->connect_error);
-    }
-
+    $sql = installer_read_sql_file($path);
     if (!$mysqli->multi_query($sql)) {
         $failedSql = trim(substr($sql, 0, 1000));
+        $GLOBALS['installer_last_failed_sql'] = $failedSql;
         installer_log('step=' . $step . ' mysqli_error=' . $mysqli->error);
         throw new RuntimeException('SQL実行失敗: ' . $mysqli->error . ' sql=' . $failedSql);
     }
@@ -105,26 +99,46 @@ function installer_exec_multi_sql(string $sql, string $step): int
     $count = 0;
     do {
         $count++;
-        if ($result = $mysqli->store_result()) { $result->free(); }
+        $result = $mysqli->store_result();
+        if ($result instanceof mysqli_result) {
+            $result->free();
+        }
     } while ($mysqli->more_results() && $mysqli->next_result());
 
     if ($mysqli->errno !== 0) {
         throw new RuntimeException('SQL実行失敗: ' . $mysqli->error);
     }
 
-    $mysqli->close();
     return $count;
 }
 
 function installer_execute_sql_file(string $path, string $step): int
 {
-    $sql = installer_read_sql_file($path);
+    $cfg = app_config()['db'];
+    $mysqli = mysqli_init();
+    if ($mysqli === false) {
+        throw new RuntimeException('mysqli初期化に失敗しました。');
+    }
+
+    if (!$mysqli->real_connect((string)$cfg['host'], (string)$cfg['user'], (string)$cfg['pass'], (string)$cfg['dbname'], (int)$cfg['port'])) {
+        throw new RuntimeException('mysqli接続失敗: ' . $mysqli->connect_error);
+    }
+
+    if (!$mysqli->set_charset((string)$cfg['charset'])) {
+        throw new RuntimeException('文字コード設定失敗: ' . $mysqli->error);
+    }
+
     try {
-        return installer_exec_multi_sql($sql, $step);
+        return installer_apply_sql_file_mysqli_multi($mysqli, $path, $step);
     } catch (Throwable $e) {
-        $GLOBALS['installer_last_failed_sql'] = substr($sql, 0, 2000);
+        if (!isset($GLOBALS['installer_last_failed_sql']) || !is_string($GLOBALS['installer_last_failed_sql'])) {
+            $sql = installer_read_sql_file($path);
+            $GLOBALS['installer_last_failed_sql'] = substr($sql, 0, 2000);
+        }
         installer_log_exception($step, $e, $GLOBALS['installer_last_failed_sql']);
         throw $e;
+    } finally {
+        $mysqli->close();
     }
 }
 
