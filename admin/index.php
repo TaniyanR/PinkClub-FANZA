@@ -3,6 +3,13 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../public/_bootstrap.php';
+
+$requestPath = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
+if ($requestPath !== '' && preg_match('#/admin/index\.php/(.+)$#', $requestPath) === 1) {
+    http_response_code(404);
+    exit('Not Found');
+}
+
 auth_require_admin();
 
 $title = 'Dashboard';
