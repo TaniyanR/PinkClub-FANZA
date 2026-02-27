@@ -10,31 +10,14 @@ function app_config(): array
     }
 
     $config = require __DIR__ . '/../config/config.php';
-    if (!is_array($config)) {
-        $config = [];
-    }
-    $GLOBALS['app_config'] = $config;
+    $GLOBALS['app_config'] = is_array($config) ? $config : [];
 
-    return $config;
+    return $GLOBALS['app_config'];
 }
 
-function app_origin(): string
+function url_path(string $path): string
 {
-    $parts = parse_url(BASE_URL);
-    $scheme = $parts['scheme'] ?? 'http';
-    $host = $parts['host'] ?? 'localhost';
-    $port = isset($parts['port']) ? ':' . (string)$parts['port'] : '';
-
-    return $scheme . '://' . $host . $port;
-}
-
-function app_base_path(): string
-{
-    $parts = parse_url(BASE_URL);
-    $path = (string)($parts['path'] ?? '');
-    $path = '/' . trim($path, '/');
-
-    return $path === '/' ? '' : $path;
+    return rtrim(BASE_URL, '/') . $path;
 }
 
 function app_url(string $path = ''): string
@@ -43,45 +26,35 @@ function app_url(string $path = ''): string
     if ($cleanPath === '') {
         return rtrim(BASE_URL, '/');
     }
-
     if (str_starts_with($cleanPath, 'http://') || str_starts_with($cleanPath, 'https://')) {
         return $cleanPath;
     }
 
-    if (str_starts_with($cleanPath, '/')) {
-        return rtrim(BASE_URL, '/') . $cleanPath;
-    }
-
-    return rtrim(BASE_URL, '/') . '/' . ltrim($cleanPath, '/');
+    return str_starts_with($cleanPath, '/') ? url_path($cleanPath) : url_path('/' . ltrim($cleanPath, '/'));
 }
 
 function asset_url(string $path): string
 {
-    $clean = ltrim($path, '/');
-    if (str_starts_with($clean, 'assets/')) {
-        return app_url($clean);
-    }
-
-    return app_url('assets/' . $clean);
+    return url_path('/assets/' . ltrim($path, '/'));
 }
 
 if (!function_exists('login_url')) {
     function login_url(): string
     {
-        return app_url(LOGIN_PATH);
+        return url_path(LOGIN_PATH);
     }
 }
 
 if (!function_exists('admin_url')) {
     function admin_url(string $path = ''): string
     {
-        return app_url('admin/' . ltrim($path, '/'));
+        return url_path('/admin/' . ltrim($path, '/'));
     }
 }
 
 function public_url(string $path = ''): string
 {
-    return app_url('public/' . ltrim($path, '/'));
+    return url_path('/public/' . ltrim($path, '/'));
 }
 
 function app_redirect(string $path): never

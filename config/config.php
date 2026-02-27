@@ -2,26 +2,26 @@
 
 declare(strict_types=1);
 
+$scriptName = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? '/'));
+$baseDir = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
+if ($baseDir === '' || $baseDir === '.') {
+    $baseDir = '';
+}
+if (str_ends_with($baseDir, '/public')) {
+    $baseDir = substr($baseDir, 0, -7);
+}
+if ($baseDir === '') {
+    $baseDir = '/pinkclub-fanza';
+}
+
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
 if (!defined('APP_NAME')) {
     define('APP_NAME', 'PinkClub FANZA');
 }
 if (!defined('BASE_URL')) {
-    $rawBaseUrl = (string)(getenv('PINKCLUB_BASE_URL') ?: 'http://localhost/pinkclub-fanza');
-    $parts = parse_url($rawBaseUrl);
-    if ($parts === false) {
-        $rawBaseUrl = 'http://localhost/pinkclub-fanza';
-        $parts = parse_url($rawBaseUrl) ?: [];
-    }
-
-    $scheme = $parts['scheme'] ?? 'http';
-    $host = $parts['host'] ?? 'localhost';
-    $port = isset($parts['port']) ? ':' . (string)$parts['port'] : '';
-    $path = isset($parts['path']) ? '/' . trim((string)$parts['path'], '/') : '';
-    if ($path === '/') {
-        $path = '';
-    }
-
-    define('BASE_URL', $scheme . '://' . $host . $port . $path);
+    define('BASE_URL', rtrim("{$scheme}://{$host}{$baseDir}", '/'));
 }
 if (!defined('LOGIN_PATH')) {
     define('LOGIN_PATH', '/public/login0718.php');
