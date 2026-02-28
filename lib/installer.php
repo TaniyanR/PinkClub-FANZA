@@ -278,6 +278,12 @@ function installer_status(): array
     if ($status['settings_table']) {
         require_once __DIR__ . '/site_settings.php';
 
+        try {
+            installer_normalize_settings_table(db(), 'status_normalize_settings');
+        } catch (Throwable $e) {
+            installer_log_exception('status_normalize_settings', $e);
+        }
+
         $ready = site_setting_get('installer.ready', '') === '1';
         if (!$ready) {
             try {
