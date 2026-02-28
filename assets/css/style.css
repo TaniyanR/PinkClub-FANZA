@@ -60,7 +60,7 @@ body.admin-page .admin-status-card p{margin:8px 0 0;font-size:20px;font-weight:7
 body.admin-page form{margin:0}
 body.admin-page label{display:block;margin-top:10px;margin-bottom:4px;font-weight:600}
 body.admin-page input,body.admin-page select{max-width:520px;width:100%;padding:8px;margin-top:4px;margin-bottom:8px;border:1px solid #8c8f94;border-radius:4px}
-body.admin-page textarea{max-width:760px;width:100%;padding:8px;margin-top:4px;margin-bottom:8px;border:1px solid #8c8f94;border-radius:4px}
+body.admin-page textarea{max-width:760px;width:100%;padding:8px;margin-top:4px;margin-bottom:8px;border:1px solid #8c8f94;border-radius:4px;background:transparent}
 body.admin-page .admin-card--form input,body.admin-page .admin-card--form select{max-width:760px}
 body.admin-page .admin-card--form .admin-form--compact input,body.admin-page .admin-card--form .admin-form--compact select,body.admin-page .admin-card--form .admin-form--compact textarea{max-width:640px}
 body.admin-page button{width:auto;min-width:120px;padding:8px 12px;font-size:14px;background:#2271b1;border:1px solid #2271b1;color:#fff;border-radius:4px;cursor:pointer}
