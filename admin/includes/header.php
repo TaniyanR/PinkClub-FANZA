@@ -8,14 +8,14 @@ if (!function_exists('e') || !function_exists('asset_url')) {
 $currentScript = basename((string)($_SERVER['SCRIPT_NAME'] ?? 'index.php'));
 $menuGroups = [
     ['label' => 'ダッシュボード', 'file' => 'index.php'],
-    ['label' => '一般設定', 'children' => [
+    ['label' => '設定', 'children' => [
         ['label' => 'サイト設定', 'file' => 'site_settings.php'],
         ['label' => 'アカウント設定', 'file' => 'account_settings.php'],
         ['label' => 'デザイン設定', 'file' => 'design_settings.php'],
     ]],
     ['label' => 'リンク設定', 'children' => [
-        ['label' => '相互リンク管理', 'file' => 'links_partner.php'],
-        ['label' => 'RSS管理', 'file' => 'links_rss.php'],
+        ['label' => '相互リンク管理', 'file' => 'links.php'],
+        ['label' => 'RSS管理', 'file' => 'rss.php'],
     ]],
     ['label' => 'アクセス解析', 'file' => 'analytics.php'],
     ['label' => 'アフィリエイト設定', 'children' => [
@@ -41,7 +41,10 @@ $titleText = (string)($title ?? APP_NAME);
 <body class="admin-page">
 <header class="admin-topbar">
   <div class="admin-topbar__brand"><a href="<?= e(admin_url('index.php')) ?>">PinkClub FANZA 管理</a></div>
-  <div class="admin-topbar__right"><a href="<?= e(public_url('')) ?>" target="_blank" rel="noopener noreferrer">フロント表示</a></div>
+  <div class="admin-topbar__right">
+    <a href="<?= e(public_url('')) ?>" target="_blank" rel="noopener noreferrer">フロント表示</a>
+    <a href="<?= e(admin_url('logout.php')) ?>">ログアウト</a>
+  </div>
 </header>
 <div class="admin-shell">
   <aside class="admin-sidebar" aria-label="管理メニュー">
@@ -52,8 +55,8 @@ $titleText = (string)($title ?? APP_NAME);
             <li>
               <span class="admin-menu__link"><?= e('> ' . (string)$group['label']) ?></span>
               <ul class="admin-sidebar__list admin-menu__child">
-                <?php foreach ($group['children'] as $item): $isActive = ($currentScript === basename($item['file'])); ?>
-                  <li><a class="admin-menu__link <?= $isActive ? 'is-active' : '' ?>" href="<?= e(admin_url($item['file'])) ?>">┗ <?= e($item['label']) ?></a></li>
+                <?php foreach ($group['children'] as $item): $isActive = ($currentScript === basename((string)$item['file'])); ?>
+                  <li><a class="admin-menu__link <?= $isActive ? 'is-active' : '' ?>" href="<?= e(admin_url((string)$item['file'])) ?>">┗ <?= e((string)$item['label']) ?></a></li>
                 <?php endforeach; ?>
               </ul>
             </li>

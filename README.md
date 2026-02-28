@@ -39,3 +39,18 @@
 - `http://localhost/pinkclub-fanza/admin/affiliate_ads.php`
 - `http://localhost/pinkclub-fanza/admin/pages.php`
 - `http://localhost/pinkclub-fanza/admin/pages_new.php`
+
+## API設定→テスト取得→自動タイマー取得 手順
+1. 管理画面 `http://localhost/pinkclub-fanza/admin/affiliate_api.php` を開きます。
+2. `APIID` と `アフィリエイトID` を入力し、`商品取得件数`（100/200/300/500/1000）を選んで保存します。
+3. `商品情報を10件取得（手動）` を押してテスト取得します（ItemList hits=10）。
+4. 自動取得を使う場合は `タイマー自動取得` を `ON`、`実行間隔（分）` を設定して保存します。
+5. 同ページを開いたままにすると、ブラウザ側のタイマーが `admin/timer_tick.php` を定期呼び出しし、実行条件を満たしたときのみ同期します。
+6. 実行結果は `最終実行` と `直近結果` に表示されます。
+
+## 新規/更新された管理画面URL
+- `http://localhost/pinkclub-fanza/admin/site_settings.php`（サイト名/URL/キャッチフレーズ/キーワード）
+- `http://localhost/pinkclub-fanza/admin/links.php`（相互リンク管理）
+- `http://localhost/pinkclub-fanza/admin/rss.php`（RSS管理）
+- `http://localhost/pinkclub-fanza/admin/analytics.php`（アクセス解析）
+- `http://localhost/pinkclub-fanza/admin/affiliate_api.php`（API設定/手動10件取得/タイマー状態）
