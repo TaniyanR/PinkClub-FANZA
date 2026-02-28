@@ -5,9 +5,8 @@ require_once __DIR__ . '/db.php';
 
 function site_settings_columns(): array
 {
-    static $columns = null;
-    if (is_array($columns)) {
-        return $columns;
+    if (isset($GLOBALS['__site_settings_columns']) && is_array($GLOBALS['__site_settings_columns'])) {
+        return $GLOBALS['__site_settings_columns'];
     }
 
     $columns = [
@@ -19,6 +18,16 @@ function site_settings_columns(): array
         $stmt = db()->query('SHOW COLUMNS FROM settings');
         $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
         $names = array_map(static fn(array $row): string => (string)($row['Field'] ?? ''), $rows);
+
+        if ($names === []) {
+            $fallbackStmt = db()->query('SELECT * FROM settings LIMIT 1');
+            if ($fallbackStmt instanceof PDOStatement) {
+                $sample = $fallbackStmt->fetch(PDO::FETCH_ASSOC);
+                if (is_array($sample)) {
+                    $names = array_keys($sample);
+                }
+            }
+        }
 
         foreach (['setting_key', 'key_name', 'setting_name', 'name'] as $candidate) {
             if (in_array($candidate, $names, true)) {
@@ -34,13 +43,39 @@ function site_settings_columns(): array
             }
         }
     } catch (Throwable $e) {
-        $columns = [
-            'key' => 'setting_key',
-            'value' => 'setting_value',
-        ];
+        try {
+            $stmt = db()->query('SELECT * FROM settings LIMIT 1');
+            $sample = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
+            if (is_array($sample)) {
+                $names = array_keys($sample);
+                foreach (['setting_key', 'key_name', 'setting_name', 'name'] as $candidate) {
+                    if (in_array($candidate, $names, true)) {
+                        $columns['key'] = $candidate;
+                        break;
+                    }
+                }
+                foreach (['setting_value', 'value_text', 'setting_text', 'value'] as $candidate) {
+                    if (in_array($candidate, $names, true)) {
+                        $columns['value'] = $candidate;
+                        break;
+                    }
+                }
+            }
+        } catch (Throwable $ignore) {
+            $columns = [
+                'key' => 'setting_key',
+                'value' => 'setting_value',
+            ];
+        }
     }
 
+    $GLOBALS['__site_settings_columns'] = $columns;
     return $columns;
+}
+
+function site_settings_columns_reset(): void
+{
+    unset($GLOBALS['__site_settings_columns']);
 }
 
 function site_setting_get(string $key, string $default = ''): string
@@ -65,26 +100,39 @@ function site_setting_get(string $key, string $default = ''): string
 
 function site_setting_set(string $key, string $value): void
 {
-    $columns = site_settings_columns();
+    $attempt = 0;
+    while ($attempt < 2) {
+        $columns = site_settings_columns();
 
-    $sql = sprintf(
-        'INSERT INTO settings(`%s`,`%s`,created_at,updated_at) VALUES(:key,:value,NOW(),NOW()) ON DUPLICATE KEY UPDATE `%s`=VALUES(`%s`),updated_at=NOW()',
-        $columns['key'],
-        $columns['value'],
-        $columns['value'],
-        $columns['value']
-    );
+        $sql = sprintf(
+            'INSERT INTO settings(`%s`,`%s`,created_at,updated_at) VALUES(:key,:value,NOW(),NOW()) ON DUPLICATE KEY UPDATE `%s`=VALUES(`%s`),updated_at=NOW()',
+            $columns['key'],
+            $columns['value'],
+            $columns['value'],
+            $columns['value']
+        );
 
-    try {
-        db()->prepare($sql)->execute([':key' => $key, ':value' => $value]);
-    } catch (Throwable $e) {
-        $fallbackSql = sprintf('UPDATE settings SET `%s`=:value, updated_at=NOW() WHERE `%s`=:key', $columns['value'], $columns['key']);
-        $updated = db()->prepare($fallbackSql);
-        $updated->execute([':key' => $key, ':value' => $value]);
+        try {
+            db()->prepare($sql)->execute([':key' => $key, ':value' => $value]);
+            return;
+        } catch (Throwable $e) {
+            try {
+                $fallbackSql = sprintf('UPDATE settings SET `%s`=:value, updated_at=NOW() WHERE `%s`=:key', $columns['value'], $columns['key']);
+                $updated = db()->prepare($fallbackSql);
+                $updated->execute([':key' => $key, ':value' => $value]);
 
-        if ($updated->rowCount() === 0) {
-            $insertSql = sprintf('INSERT INTO settings(`%s`,`%s`) VALUES(:key,:value)', $columns['key'], $columns['value']);
-            db()->prepare($insertSql)->execute([':key' => $key, ':value' => $value]);
+                if ($updated->rowCount() === 0) {
+                    $insertSql = sprintf('INSERT INTO settings(`%s`,`%s`) VALUES(:key,:value)', $columns['key'], $columns['value']);
+                    db()->prepare($insertSql)->execute([':key' => $key, ':value' => $value]);
+                }
+                return;
+            } catch (Throwable $secondary) {
+                $attempt++;
+                site_settings_columns_reset();
+                if ($attempt >= 2) {
+                    throw $secondary;
+                }
+            }
         }
     }
 }
