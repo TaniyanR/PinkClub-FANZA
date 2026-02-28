@@ -50,6 +50,24 @@
 6. tickごとに最大1種類のみ同期します（items → genres → makers → series → authors の順、各60分間隔）。
 7. 手動10件テストは `item_sync_test_offset` を使い、本番offset (`item_sync_offset`) は進めません。
 
+## リリース運用方針（速度優先・一括リリース）
+
+### Done条件（完成定義）
+- Must機能がすべて動作すること
+- 重大/高優先の既知バグを0件にすること
+- 一括リリース可能な最低限の動作確認が完了していること
+- ログイン機能、CSS、その他既存機能にデグレがないこと
+
+### 優先順位
+- Must機能を最優先で固定し、Must以外は後回しにする
+
+### 締切と品質バランス
+- 速度優先で進める
+- ただし致命的不具合は必ず修正する
+
+### リリース方式
+- リリースは一括で実施する
+
 ## 新規/更新された管理画面URL
 - `http://localhost/pinkclub-fanza/admin/site_settings.php`（サイト名/URL/キャッチフレーズ/キーワード）
 - `http://localhost/pinkclub-fanza/admin/links.php`（相互リンク管理）
