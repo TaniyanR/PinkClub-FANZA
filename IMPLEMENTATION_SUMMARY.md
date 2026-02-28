@@ -266,3 +266,18 @@ The system is ready for production deployment.
 - フロア同期は `dmm_sites / dmm_services / dmm_floors` に保存。
 - 実行ログは `sync_logs`、タイマー進捗は `sync_job_state` に保存。
 - API設定は `settings.api_id / settings.affiliate_id`、商品同期間隔件数は `settings.item_sync_batch`、マスタ対象フロアは `settings.master_floor_id` を利用。
+
+## 2026-02-28 設定整備・タイマー同期・アクセス解析対応（Codex）
+- `lib/site_settings.php`: 設定保存先テーブルを `site_settings` から `settings` に統一（`setting_key` / `setting_value`）。
+- `lib/app.php`: API設定をキー/値形式で読み書きするように変更。`fanza_api_id` / `fanza_affiliate_id` / `item_sync_*` 系キーを利用。
+- `sql/schema.sql`: `settings` をキー/値テーブル定義に変更。
+- `sql/migrations/002_fix_settings_table.sql`: `site_settings` から `settings` への移行を追加。
+- `sql/migrations/003_access_and_links.sql`: `daily_stats` / `visit_sessions` / `in_logs` / `out_logs` / `partner_sites` / `partner_rss` を追加。
+- `admin/includes/header.php`: サイドメニュー構造を指定どおり固定、トップバーに「ログアウト」追加。
+- `admin/site_settings.php`: サイト名/URL/キャッチフレーズ/キーワード保存画面を実装。
+- `admin/affiliate_api.php`: API ID/アフィリエイトID、取得件数、タイマー設定、10件手動取得、タイマー状態表示を実装。
+- `admin/timer_tick.php`: cron不使用のタイマー式同期エンドポイントを追加（POST+CSRF+認証+JSON返却）。
+- `lib/access_analytics.php` / `public/_bootstrap.php` / `public/out.php`: PV/UU/IN/OUT 計測と外部遷移ログを実装。
+- `admin/access_analytics.php`: KPI/期間別/前期間比較/日別一覧のアクセス解析画面を実装。
+- `admin/link_partners.php` / `admin/rss_settings.php` / `admin/links.php` / `admin/rss.php`: 相互リンク・RSS管理画面（最小CRUD）を実装。
+- `README.md`: 「API設定→テスト取得→自動タイマー取得」手順を追記。

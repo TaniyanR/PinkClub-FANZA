@@ -4,16 +4,33 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/dmm_api_client.php';
 require_once __DIR__ . '/dmm_sync_service.php';
+require_once __DIR__ . '/site_settings.php';
 
 function settings_get(): array
 {
-    $row = db()->query('SELECT * FROM settings ORDER BY id ASC LIMIT 1')->fetch();
-    if (!is_array($row)) {
-        return ['api_id' => '', 'affiliate_id' => '', 'item_sync_batch' => 100, 'master_floor_id' => null];
+    return [
+        'api_id' => site_setting_get('fanza_api_id', ''),
+        'affiliate_id' => site_setting_get('fanza_affiliate_id', ''),
+        'item_sync_batch' => settings_int('item_sync_batch', 100),
+        'item_sync_enabled' => settings_bool('item_sync_enabled', false),
+        'item_sync_interval_minutes' => settings_int('item_sync_interval_minutes', 60),
+        'last_item_sync_at' => site_setting_get('last_item_sync_at', ''),
+        'item_sync_offset' => settings_int('item_sync_offset', 1),
+    ];
+}
+
+function settings_int(string $key, int $default): int
+{
+    $value = site_setting_get($key, (string)$default);
+    if (!preg_match('/^-?\d+$/', $value)) {
+        return $default;
     }
-    $row['item_sync_batch'] = (int)($row['item_sync_batch'] ?? 100);
-    $row['master_floor_id'] = isset($row['master_floor_id']) && $row['master_floor_id'] !== null ? (int)$row['master_floor_id'] : null;
-    return $row;
+    return (int)$value;
+}
+
+function settings_bool(string $key, bool $default): bool
+{
+    return settings_int($key, $default ? 1 : 0) === 1;
 }
 
 function settings_save(string $apiId, string $affiliateId, int $itemSyncBatch = 100, ?int $masterFloorId = null): void
@@ -23,12 +40,10 @@ function settings_save(string $apiId, string $affiliateId, int $itemSyncBatch = 
         $itemSyncBatch = 100;
     }
 
-    $stmt = db()->prepare('INSERT INTO settings(id,api_id,affiliate_id,item_sync_batch,master_floor_id,created_at,updated_at) VALUES(1,:api_id,:affiliate_id,:item_sync_batch,:master_floor_id,NOW(),NOW()) ON DUPLICATE KEY UPDATE api_id=VALUES(api_id),affiliate_id=VALUES(affiliate_id),item_sync_batch=VALUES(item_sync_batch),master_floor_id=VALUES(master_floor_id),updated_at=NOW()');
-    $stmt->execute([
-        'api_id' => $apiId,
-        'affiliate_id' => $affiliateId,
-        'item_sync_batch' => $itemSyncBatch,
-        'master_floor_id' => $masterFloorId,
+    site_setting_set_many([
+        'fanza_api_id' => trim($apiId),
+        'fanza_affiliate_id' => trim($affiliateId),
+        'item_sync_batch' => (string)$itemSyncBatch,
     ]);
 }
 
