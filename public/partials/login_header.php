@@ -22,7 +22,7 @@ $fullTitle = $rawPageTitle . ' | ' . $siteTitle;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title><?php echo e($fullTitle); ?></title>
-    <link rel="stylesheet" href="<?php echo e(base_url() . '/assets/css/login.css'); ?>">
+    <link rel="stylesheet" href="<?php echo e(asset_url('css/style.css')); ?>">
 </head>
 <body>
 <div class="login-shell">

@@ -29,12 +29,13 @@ require __DIR__ . '/includes/header.php';
 ?>
 <section class="admin-card admin-card--form">
   <h1>相互リンク管理</h1>
+  <p class="admin-form-note">「識別コード（ref）」は、流入元サイトを判別するための管理用コードです。半角英数字で一意の値を設定してください（例: partner01）。</p>
   <?php if ($message): ?><p><?= e($message) ?></p><?php endif; ?>
   <form method="post">
     <?= csrf_input() ?>
     <input type="hidden" name="action" value="create">
     <label>サイト名<input name="name" required></label>
-    <label>refコード<input name="ref_code" required></label>
+    <label>識別コード（ref）<input name="ref_code" required></label>
     <label>URL<input name="url" type="url" required></label>
     <label>有効
       <select name="is_enabled"><option value="1">有効</option><option value="0">無効</option></select>
@@ -43,7 +44,7 @@ require __DIR__ . '/includes/header.php';
   </form>
 
   <table class="admin-table">
-    <tr><th>ID</th><th>サイト名</th><th>ref</th><th>URL</th><th>状態</th><th>操作</th></tr>
+    <tr><th>ID</th><th>サイト名</th><th>識別コード（ref）</th><th>URL</th><th>状態</th><th>操作</th></tr>
     <?php foreach ($rows as $r): ?>
       <tr>
         <td><?= e((string)$r['id']) ?></td><td><?= e((string)$r['name']) ?></td><td><?= e((string)$r['ref_code']) ?></td><td><?= e((string)$r['url']) ?></td>

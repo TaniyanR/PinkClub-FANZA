@@ -30,6 +30,27 @@ body.admin-page h1,body.admin-page h2{margin:0 0 14px}
 body.admin-page .admin-main>h2{margin-top:20px}
 body.admin-page .admin-card{background:var(--admin-surface);border:1px solid var(--admin-border);border-radius:4px;padding:16px;margin-bottom:14px}
 body.admin-page .admin-card--form{max-width:860px}
+
+body.admin-page .admin-card--form form > label{
+  display:grid;
+  grid-template-columns:220px minmax(0,1fr);
+  gap:14px;
+  align-items:center;
+  margin-top:0;
+  margin-bottom:12px;
+}
+body.admin-page .admin-card--form form > label > input,
+body.admin-page .admin-card--form form > label > select,
+body.admin-page .admin-card--form form > label > textarea{
+  margin:0;
+  max-width:none;
+}
+@media (max-width: 768px){
+  body.admin-page .admin-card--form form > label{
+    grid-template-columns:1fr;
+    gap:6px;
+  }
+}
 body.admin-page .admin-form-note{margin:8px 0 14px;color:#50575e;font-size:13px}
 body.admin-page .admin-table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--admin-border);margin:10px 0 0}
 body.admin-page .admin-table th,body.admin-page .admin-table td{border-bottom:1px solid var(--admin-border);padding:8px;text-align:left;vertical-align:top}
