@@ -24,7 +24,6 @@ try {
 
 $pageTitle = 'RSS';
 include __DIR__ . '/partials/header.php';
-include __DIR__ . '/partials/nav_search.php';
 ?>
         <section class="block">
             <h1 class="section-title">RSS一覧</h1>

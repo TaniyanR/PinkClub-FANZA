@@ -229,3 +229,17 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
   .only-pc{display:none !important}
   .only-sp{display:block}
 }
+
+/* Front UI unified layout */
+.layout{display:flex;align-items:flex-start;gap:16px;width:100%;padding:16px;box-sizing:border-box}
+.sidebar{width:250px;flex:0 0 250px}
+.content{flex:1;min-width:0}
+.header-site-name{font-size:12px;color:#646970;font-weight:700}
+.site-nav a.is-active{text-decoration:underline}
+.sidebar-ad-html img,.sidebar-ad-html iframe,.sidebar-ad-html video{max-width:100%;height:auto}
+.sidebar-image-links img{max-width:100%;height:auto}
+.site-footer{width:100%;box-sizing:border-box}
+@media (max-width: 900px){
+  .layout{display:block}
+  .sidebar{width:100%;margin-bottom:12px}
+}

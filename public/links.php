@@ -39,7 +39,6 @@ $rows = db()->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 
 $pageTitle = 'リンク集';
 include __DIR__ . '/partials/header.php';
-include __DIR__ . '/partials/nav_search.php';
 ?>
 <section class="block"><h1 class="section-title">リンク集</h1>
 <ul>

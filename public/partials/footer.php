@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_helpers.php';
 
-$siteName = trim((string)app_setting_get('site_name', ''));
+$siteName = trim(front_safe_text_setting('site_name', ''));
 if ($siteName === '') {
-    $siteName = trim((string)app_setting_get('site.title', ''));
+    $siteName = trim(front_safe_text_setting('site.title', ''));
 }
 if ($siteName === '') {
-    $siteName = 'PinkClub-FANZA';
+    $siteName = 'PinkClub FANZA';
 }
 ?>
   </main>

@@ -17,7 +17,6 @@ if (!$article) {
     http_response_code(404);
     $pageTitle = $siteTitle . ' | 記事が見つかりません';
     require __DIR__ . '/partials/header.php';
-    require __DIR__ . '/partials/nav_search.php';
     echo '<h1>記事が見つかりませんでした。</h1>';
     require __DIR__ . '/partials/footer.php';
     exit;
@@ -26,7 +25,6 @@ if (!$article) {
 $pageTitle = $siteTitle . ' | ' . $article['title'];
 
 require __DIR__ . '/partials/header.php';
-require __DIR__ . '/partials/nav_search.php';
 ?>
 <article>
         <h1><?php echo e($article['title']); ?></h1>

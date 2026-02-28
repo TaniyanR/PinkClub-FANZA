@@ -3,6 +3,46 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
 
+function site_settings_columns(): array
+{
+    static $columns = null;
+    if (is_array($columns)) {
+        return $columns;
+    }
+
+    $columns = [
+        'key' => 'setting_key',
+        'value' => 'setting_value',
+    ];
+
+    try {
+        $stmt = db()->query('SHOW COLUMNS FROM settings');
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        $names = array_map(static fn(array $row): string => (string)($row['Field'] ?? ''), $rows);
+
+        foreach (['setting_key', 'key_name', 'setting_name', 'name'] as $candidate) {
+            if (in_array($candidate, $names, true)) {
+                $columns['key'] = $candidate;
+                break;
+            }
+        }
+
+        foreach (['setting_value', 'value_text', 'setting_text', 'value'] as $candidate) {
+            if (in_array($candidate, $names, true)) {
+                $columns['value'] = $candidate;
+                break;
+            }
+        }
+    } catch (Throwable $e) {
+        $columns = [
+            'key' => 'setting_key',
+            'value' => 'setting_value',
+        ];
+    }
+
+    return $columns;
+}
+
 function site_setting_get(string $key, string $default = ''): string
 {
     static $cache = [];
@@ -11,7 +51,9 @@ function site_setting_get(string $key, string $default = ''): string
     }
 
     try {
-        $stmt = db()->prepare('SELECT setting_value FROM settings WHERE setting_key=:key LIMIT 1');
+        $columns = site_settings_columns();
+        $sql = sprintf('SELECT `%s` FROM settings WHERE `%s` = :key LIMIT 1', $columns['value'], $columns['key']);
+        $stmt = db()->prepare($sql);
         $stmt->execute([':key' => $key]);
         $value = $stmt->fetchColumn();
         $cache[$key] = is_string($value) ? $value : $default;
@@ -23,8 +65,28 @@ function site_setting_get(string $key, string $default = ''): string
 
 function site_setting_set(string $key, string $value): void
 {
-    db()->prepare('INSERT INTO settings(setting_key,setting_value,created_at,updated_at) VALUES(:key,:value,NOW(),NOW()) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),updated_at=NOW()')
-        ->execute([':key' => $key, ':value' => $value]);
+    $columns = site_settings_columns();
+
+    $sql = sprintf(
+        'INSERT INTO settings(`%s`,`%s`,created_at,updated_at) VALUES(:key,:value,NOW(),NOW()) ON DUPLICATE KEY UPDATE `%s`=VALUES(`%s`),updated_at=NOW()',
+        $columns['key'],
+        $columns['value'],
+        $columns['value'],
+        $columns['value']
+    );
+
+    try {
+        db()->prepare($sql)->execute([':key' => $key, ':value' => $value]);
+    } catch (Throwable $e) {
+        $fallbackSql = sprintf('UPDATE settings SET `%s`=:value, updated_at=NOW() WHERE `%s`=:key', $columns['value'], $columns['key']);
+        $updated = db()->prepare($fallbackSql);
+        $updated->execute([':key' => $key, ':value' => $value]);
+
+        if ($updated->rowCount() === 0) {
+            $insertSql = sprintf('INSERT INTO settings(`%s`,`%s`) VALUES(:key,:value)', $columns['key'], $columns['value']);
+            db()->prepare($insertSql)->execute([':key' => $key, ':value' => $value]);
+        }
+    }
 }
 
 function setting_get(string $key, ?string $default = null): ?string
