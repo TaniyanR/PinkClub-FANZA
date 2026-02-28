@@ -173,6 +173,64 @@ function installer_apply_migrations(string $dir, string $step): int
     return $count;
 }
 
+function installer_normalize_settings_table(PDO $pdo, string $stepLabel): void
+{
+    if (!db_table_exists('settings')) {
+        return;
+    }
+
+    $rows = $pdo->query('SHOW COLUMNS FROM settings')->fetchAll(PDO::FETCH_ASSOC);
+    $columns = array_map(static fn(array $row): string => (string)($row['Field'] ?? ''), $rows);
+
+    if (in_array('setting_key', $columns, true) && in_array('setting_value', $columns, true)) {
+        return;
+    }
+
+    $tmpTable = 'settings_kv_tmp';
+    $pdo->exec('DROP TABLE IF EXISTS `' . $tmpTable . '`');
+    $pdo->exec('CREATE TABLE `' . $tmpTable . '` (setting_key VARCHAR(191) PRIMARY KEY, setting_value LONGTEXT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+
+    $pairs = [
+        ['setting_key', 'setting_value'],
+        ['key_name', 'value_text'],
+        ['setting_name', 'setting_text'],
+        ['name', 'value'],
+    ];
+
+    foreach ($pairs as [$keyCol, $valueCol]) {
+        if (!in_array($keyCol, $columns, true) || !in_array($valueCol, $columns, true)) {
+            continue;
+        }
+
+        $sql = sprintf(
+            'INSERT INTO `%s`(setting_key, setting_value, created_at, updated_at) SELECT CAST(`%s` AS CHAR(191)), CAST(`%s` AS CHAR), NOW(), NOW() FROM settings WHERE `%s` IS NOT NULL AND `%s` <> "" ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value), updated_at=NOW()',
+            $tmpTable,
+            $keyCol,
+            $valueCol,
+            $keyCol,
+            $keyCol
+        );
+        $pdo->exec($sql);
+    }
+
+    if (in_array('api_id', $columns, true)) {
+        $orderBy = in_array('id', $columns, true) ? ' ORDER BY id ASC ' : '';
+        $sql = 'INSERT INTO `' . $tmpTable . '`(setting_key, setting_value, created_at, updated_at) SELECT "fanza_api_id", COALESCE(CAST(api_id AS CHAR), ""), NOW(), NOW() FROM settings' . $orderBy . 'LIMIT 1 ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value), updated_at=NOW()';
+        $pdo->exec($sql);
+    }
+
+    if (in_array('affiliate_id', $columns, true)) {
+        $orderBy = in_array('id', $columns, true) ? ' ORDER BY id ASC ' : '';
+        $sql = 'INSERT INTO `' . $tmpTable . '`(setting_key, setting_value, created_at, updated_at) SELECT "fanza_affiliate_id", COALESCE(CAST(affiliate_id AS CHAR), ""), NOW(), NOW() FROM settings' . $orderBy . 'LIMIT 1 ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value), updated_at=NOW()';
+        $pdo->exec($sql);
+    }
+
+    $backup = 'settings_legacy_backup';
+    $pdo->exec('DROP TABLE IF EXISTS `' . $backup . '`');
+    $pdo->exec('RENAME TABLE settings TO `' . $backup . '`, `' . $tmpTable . '` TO settings');
+    installer_log('step=' . $stepLabel . ' settings_table_normalized=true');
+}
+
 function installer_ensure_admin_user(PDO $pdo, string $stepLabel): bool
 {
     $stmt = $pdo->prepare('SELECT 1 FROM admins WHERE username = :username LIMIT 1');
@@ -262,6 +320,8 @@ function installer_run(): array
         $currentStep='create_tables'; $tableCount = installer_execute_sql_file(__DIR__ . '/../sql/schema.sql', 'create_tables'); $step('create_tables', true, 'results=' . $tableCount);
 
         $currentStep='apply_migrations'; $migrationCount = installer_apply_migrations(__DIR__ . '/../sql/migrations', 'apply_migrations'); $step('apply_migrations', true, 'count=' . $migrationCount);
+
+        $currentStep='normalize_settings'; installer_normalize_settings_table(db(), 'normalize_settings'); $step('normalize_settings', true);
 
         $currentStep='seed_data';
         $seedPath = __DIR__ . '/../sql/seed.sql';
