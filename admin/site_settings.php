@@ -29,7 +29,7 @@ require __DIR__ . '/includes/header.php';
 <section class="admin-card admin-card--form">
   <h1>サイト設定</h1>
   <?php if ($message !== null): ?><p><?= e($message) ?></p><?php endif; ?>
-  <form method="post">
+  <form method="post" class="admin-form--compact">
     <?= csrf_input() ?>
     <label>サイト名
       <input type="text" name="site_name" value="<?= e(site_setting_get('site.title', site_setting_get('site.name', APP_NAME))) ?>">
