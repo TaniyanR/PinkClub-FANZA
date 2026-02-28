@@ -41,7 +41,7 @@ $titleText = (string)($title ?? APP_NAME);
 <body class="admin-page">
 <header class="admin-topbar">
   <div class="admin-topbar__brand"><a href="<?= e(admin_url('index.php')) ?>">PinkClub FANZA 管理</a></div>
-  <div class="admin-topbar__right"><span id="api-timer-status" style="font-size:12px;color:#c3c4c7;">タイマー待機中</span><a href="<?= e(public_url('')) ?>" target="_blank" rel="noopener noreferrer">フロント表示</a></div>
+  <div class="admin-topbar__right"><a href="<?= e(public_url('')) ?>" target="_blank" rel="noopener noreferrer">フロント表示</a></div>
 </header>
 <div class="admin-shell">
   <aside class="admin-sidebar" aria-label="管理メニュー">
