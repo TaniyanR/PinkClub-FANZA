@@ -174,14 +174,11 @@ if (!function_exists('abort_404')) {
         $notFoundMessage = $message;
 
         include __DIR__ . '/header.php';
-        include __DIR__ . '/nav_search.php';
-        echo '<div class="layout">';
-        include __DIR__ . '/sidebar.php';
-        echo '<main class="main-content"><section class="block">';
+        echo '<section class="block">';
         echo '<h1 class="section-title">' . e($notFoundTitle) . '</h1>';
         echo '<p>' . e($notFoundMessage) . '</p>';
         echo '<a class="button button--primary" href="/">トップへ戻る</a>';
-        echo '</section></main></div>';
+        echo '</section>';
         include __DIR__ . '/footer.php';
         exit;
     }

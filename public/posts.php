@@ -42,7 +42,6 @@ $canonicalUrl = canonical_url('/posts.php', [
 ]);
 
 include __DIR__ . '/partials/header.php';
-include __DIR__ . '/partials/nav_search.php';
 ?>
         <div class="only-pc"><?php include __DIR__ . '/partials/rss_text_widget.php'; ?></div>
         <?php render_ad('content_top', 'list', 'pc'); ?>

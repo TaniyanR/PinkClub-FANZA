@@ -17,7 +17,6 @@ $pageDescription = 'シリーズ一覧です。';
 $canonicalUrl = canonical_url('/series.php', ['page' => $page > 1 ? (string)$page : null]);
 
 include __DIR__ . '/partials/header.php';
-include __DIR__ . '/partials/nav_search.php';
 ?>
         <section class="block">
             <div class="section-head"><h1 class="section-title">シリーズ一覧</h1></div>

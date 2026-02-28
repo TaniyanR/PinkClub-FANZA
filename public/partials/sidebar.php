@@ -3,25 +3,33 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../lib/db.php';
-require_once __DIR__ . '/../../lib/url.php';
 require_once __DIR__ . '/_helpers.php';
 
 $mutualLinks = [];
 try {
-    $stmt = db()->query("SELECT id, site_name, site_url, link_url, banner_image_url, image_url FROM mutual_links WHERE status='approved' ORDER BY id DESC LIMIT 50");
+    $sql = "SELECT id, site_name, site_url, link_url, banner_image_url, image_url
+            FROM mutual_links
+            WHERE status='approved' AND (is_enabled = 1 OR enabled = 1)
+            ORDER BY display_order ASC, id DESC
+            LIMIT 50";
+    $stmt = db()->query($sql);
     $mutualLinks = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 } catch (Throwable $e) {
-    $mutualLinks = [];
+    try {
+        $stmt = db()->query("SELECT id, site_name, site_url, link_url, banner_image_url, image_url FROM mutual_links WHERE status='approved' ORDER BY id DESC LIMIT 50");
+        $mutualLinks = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    } catch (Throwable $e) {
+        $mutualLinks = [];
+    }
 }
 
 $resolveLinkUrl = static function (array $row): string {
     $id = (int)($row['id'] ?? 0);
     if ($id > 0) {
-        return base_path() . '/public/out.php?id=' . $id;
+        return public_url('out.php?id=' . $id);
     }
 
-    $raw = trim((string)($row['link_url'] ?? $row['site_url'] ?? ''));
-    return $raw;
+    return trim((string)($row['link_url'] ?? $row['site_url'] ?? '#'));
 };
 
 $getImageUrl = static function (array $row): string {
@@ -34,46 +42,51 @@ $getImageUrl = static function (array $row): string {
 
     return '';
 };
+
+$imageLinkHtml = trim(front_safe_text_setting('sidebar_image_link_html', ''));
+if ($imageLinkHtml === '') {
+    $imageLinkHtml = trim(front_safe_text_setting('image_link_html', ''));
+}
 ?>
-<aside class="site-sidebar">
+<aside class="sidebar site-sidebar">
     <section class="sidebar-block">
         <h2 class="sidebar-block__title">検索</h2>
         <form method="get" action="<?= e(public_url('posts.php')) ?>" class="sidebar-search-form">
-            <input type="text" name="q" value="<?= e((string)($_GET['q'] ?? '')) ?>" placeholder="キーワードを入力" class="sidebar-search-form__input">
+            <input type="text" name="q" value="<?= e((string)($_GET['q'] ?? '')) ?>" placeholder="タイトル/説明を検索" class="sidebar-search-form__input">
             <button type="submit" class="sidebar-search-form__button">検索</button>
         </form>
     </section>
 
     <section class="sidebar-block">
         <h2 class="sidebar-block__title">画像リンク</h2>
-        <?php $imageLinks = array_values(array_filter($mutualLinks, static fn(array $row): bool => $getImageUrl($row) !== '')); ?>
-        <?php if ($imageLinks === []) : ?>
-            <p class="sidebar-empty">画像リンク（準備中）</p>
+        <?php if ($imageLinkHtml !== '') : ?>
+            <div class="sidebar-ad-html"><?= $imageLinkHtml ?></div>
         <?php else : ?>
-            <ul class="sidebar-image-links">
-                <?php foreach ($imageLinks as $link) : ?>
-                    <?php $href = $resolveLinkUrl($link); ?>
-                    <?php $img = $getImageUrl($link); ?>
-                    <li>
-                        <a href="<?= e($href) ?>" target="_blank" rel="noopener noreferrer">
-                            <img src="<?= e($img) ?>" alt="<?= e((string)($link['site_name'] ?? '画像リンク')) ?>">
-                        </a>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
+            <?php $imageLinks = array_values(array_filter($mutualLinks, static fn(array $row): bool => $getImageUrl($row) !== '')); ?>
+            <?php if ($imageLinks === []) : ?>
+                <p class="sidebar-empty">画像リンク（未設定）</p>
+            <?php else : ?>
+                <ul class="sidebar-image-links">
+                    <?php foreach ($imageLinks as $link) : ?>
+                        <li>
+                            <a href="<?= e($resolveLinkUrl($link)) ?>" target="_blank" rel="noopener noreferrer">
+                                <img src="<?= e($getImageUrl($link)) ?>" alt="<?= e((string)($link['site_name'] ?? '画像リンク')) ?>">
+                            </a>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
         <?php endif; ?>
     </section>
 
     <section class="sidebar-block">
         <h2 class="sidebar-block__title">相互リンク</h2>
         <?php if ($mutualLinks === []) : ?>
-            <p class="sidebar-empty">相互リンク（準備中）</p>
+            <p class="sidebar-empty">相互リンク（未設定）</p>
         <?php else : ?>
             <ul class="sidebar-links">
                 <?php foreach ($mutualLinks as $link) : ?>
-                    <li>
-                        <a href="<?= e($resolveLinkUrl($link)) ?>" target="_blank" rel="noopener noreferrer"><?= e((string)($link['site_name'] ?? 'リンク')) ?></a>
-                    </li>
+                    <li><a href="<?= e($resolveLinkUrl($link)) ?>" target="_blank" rel="noopener noreferrer"><?= e((string)($link['site_name'] ?? 'リンク')) ?></a></li>
                 <?php endforeach; ?>
             </ul>
         <?php endif; ?>

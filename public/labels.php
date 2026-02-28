@@ -16,7 +16,6 @@ $pageDescription = 'レーベル一覧ページです。';
 $canonicalUrl = canonical_url('/labels.php', ['page' => $page > 1 ? $page : null]);
 
 include __DIR__ . '/partials/header.php';
-include __DIR__ . '/partials/nav_search.php';
 ?>
         <section class="block">
             <div class="section-head"><h1 class="section-title">レーベル一覧</h1></div>

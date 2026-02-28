@@ -1,35 +1,23 @@
 <?php
 declare(strict_types=1);
 
-$path = (string)parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
-$current = basename($path) ?: 'index.php';
-if ($path === '/' || $path === '') {
-    $current = 'index.php';
-}
+require_once __DIR__ . '/_helpers.php';
 
-$currentQuery = trim((string)($_GET['q'] ?? ''));
+$path = (string)parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
 
 $navItems = [
-    'index.php' => 'TOP',
-    'posts.php' => '作品一覧',
-    'actresses.php' => '女優一覧',
-    'series.php' => 'シリーズ一覧',
-    'makers.php' => 'メーカー一覧',
-    'genres.php' => 'ジャンル一覧',
+    ['href' => public_url(''), 'label' => 'TOP'],
+    ['href' => public_url('items.php'), 'label' => '商品一覧'],
+    ['href' => public_url('actresses.php'), 'label' => '女優一覧'],
+    ['href' => public_url('genres.php'), 'label' => 'ジャンル一覧'],
+    ['href' => public_url('makers.php'), 'label' => 'メーカー一覧'],
+    ['href' => public_url('series.php'), 'label' => 'シリーズ一覧'],
+    ['href' => public_url('authors.php'), 'label' => '作者一覧'],
 ];
 ?>
-<section class="nav-search">
-    <div class="nav-search__inner">
-        <nav class="nav-search__menu" aria-label="メインメニュー">
-            <ul>
-                <?php foreach ($navItems as $file => $label) : ?>
-                    <li><a class="nav-link<?php echo $current === $file ? ' is-active' : ''; ?>" href="/<?php echo e((string)$file); ?>"><?php echo e((string)$label); ?></a></li>
-                <?php endforeach; ?>
-            </ul>
-        </nav>
-        <form class="nav-search__form" method="get" action="/posts.php">
-            <input type="text" name="q" value="<?php echo e($currentQuery); ?>" placeholder="作品名で検索">
-            <button type="submit">検索</button>
-        </form>
-    </div>
-</section>
+<nav class="site-nav" aria-label="グローバルナビゲーション">
+    <?php foreach ($navItems as $item) : ?>
+        <?php $isActive = $path === parse_url($item['href'], PHP_URL_PATH); ?>
+        <a class="<?= $isActive ? 'is-active' : '' ?>" href="<?= e($item['href']) ?>"><?= e($item['label']) ?></a>
+    <?php endforeach; ?>
+</nav>
