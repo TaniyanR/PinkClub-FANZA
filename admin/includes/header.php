@@ -44,6 +44,7 @@ $titleText = (string)($title ?? APP_NAME);
   <div class="admin-topbar__brand"><a href="<?= e(admin_url('index.php')) ?>">PinkClub FANZA 管理</a></div>
   <div class="admin-topbar__right">
     <a href="<?= e(public_url('')) ?>" target="_blank" rel="noopener noreferrer">フロント表示</a>
+    <span class="admin-topbar__separator" aria-hidden="true"> | </span>
     <a href="<?= e(admin_url('logout.php')) ?>">ログアウト</a>
   </div>
 </header>

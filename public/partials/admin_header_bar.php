@@ -20,6 +20,7 @@ if ($siteTitle === '') {
         <?php $currentAdmin = admin_current_user(); ?>
         <span>ログイン中: <?php echo e((string)($currentAdmin['username'] ?? '')); ?></span>
         <a href="<?php echo e(base_url() . '/index.php'); ?>" target="_blank" rel="noopener noreferrer">フロント表示</a>
+        <span class="admin-topbar__separator" aria-hidden="true"> | </span>
         <form method="post" action="<?php echo e(admin_url('logout.php')); ?>"><input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>"><button type="submit">ログアウト</button></form>
     </div>
 </header>
