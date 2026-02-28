@@ -43,7 +43,7 @@ require __DIR__ . '/includes/header.php';
   <p>前期間比較: ページビュー <?= e((string)($sum['pv'] - (int)$prev['pv'])) ?> / ユニークユーザー <?= e((string)($sum['uu'] - (int)$prev['uu'])) ?> / 流入数 <?= e((string)($sum['in_count'] - (int)$prev['in_count'])) ?> / 流出数 <?= e((string)($sum['out_count'] - (int)$prev['out_count'])) ?></p>
 
   <h2>日別PV（棒グラフ）</h2>
-  <div class="analytics-bars">
+  <div class="analytics-bars analytics-bars--vertical">
     <?php
       $maxPv = 0;
       foreach ($rows as $barRow) {
@@ -55,10 +55,10 @@ require __DIR__ . '/includes/header.php';
       $pv = (int)$barRow['pv'];
       $ratio = (int)round(($pv / $maxPv) * 100);
     ?>
-      <div class="analytics-bars__row">
-        <span class="analytics-bars__date"><?= e((string)$barRow['stat_date']) ?></span>
-        <div class="analytics-bars__track"><span class="analytics-bars__fill" style="width: <?= e((string)$ratio) ?>%;"></span></div>
+      <div class="analytics-bars__col">
         <span class="analytics-bars__value"><?= e((string)$pv) ?></span>
+        <div class="analytics-bars__track"><span class="analytics-bars__fill" style="height: <?= e((string)$ratio) ?>%;"></span></div>
+        <span class="analytics-bars__date"><?= e((string)date('m/d', strtotime((string)$barRow['stat_date']))) ?></span>
       </div>
     <?php endforeach; ?>
   </div>

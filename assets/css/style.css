@@ -62,6 +62,7 @@ body.admin-page label{display:block;margin-top:10px;margin-bottom:4px;font-weigh
 body.admin-page input,body.admin-page select{max-width:520px;width:100%;padding:8px;margin-top:4px;margin-bottom:8px;border:1px solid #8c8f94;border-radius:4px}
 body.admin-page textarea{max-width:760px;width:100%;padding:8px;margin-top:4px;margin-bottom:8px;border:1px solid #8c8f94;border-radius:4px}
 body.admin-page .admin-card--form input,body.admin-page .admin-card--form select{max-width:760px}
+body.admin-page .admin-card--form .admin-form--compact input,body.admin-page .admin-card--form .admin-form--compact select,body.admin-page .admin-card--form .admin-form--compact textarea{max-width:640px}
 body.admin-page button{width:auto;min-width:120px;padding:8px 12px;font-size:14px;background:#2271b1;border:1px solid #2271b1;color:#fff;border-radius:4px;cursor:pointer}
 body.admin-page button.button-secondary{background:#f6f7f7;color:#2c3338;border-color:#8c8f94}
 body.admin-page .admin-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
@@ -207,9 +208,12 @@ body.admin-page .admin-sidebar{width:250px}
 body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weight:500}
 
 .analytics-bars{display:grid;gap:8px;margin:12px 0 18px}
-.analytics-bars__row{display:grid;grid-template-columns:120px 1fr 60px;gap:10px;align-items:center}
-.analytics-bars__track{height:16px;background:#eef2f7;border-radius:999px;overflow:hidden}
-.analytics-bars__fill{display:block;height:100%;background:#2271b1}
+.analytics-bars--vertical{display:flex;align-items:flex-end;gap:10px;min-height:240px;padding:12px;border:1px solid #dcdcde;background:#fff;overflow-x:auto}
+.analytics-bars__col{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:48px}
+.analytics-bars__track{display:flex;align-items:flex-end;justify-content:center;width:28px;height:160px;background:#eef2f7;border-radius:6px;overflow:hidden}
+.analytics-bars__fill{display:block;width:100%;background:#2271b1;min-height:2px}
+.analytics-bars__date{font-size:12px;color:#50575e;white-space:nowrap}
+.analytics-bars__value{font-size:12px;font-weight:700}
 
 .only-sp{display:none}
 @media (max-width: 900px){

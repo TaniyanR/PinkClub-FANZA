@@ -9,11 +9,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate_or_fail((string)post('_csrf', ''));
     $action = (string)post('action', 'create');
     if ($action === 'create') {
+        $name = trim((string)post('name', ''));
+        $url = trim((string)post('url', ''));
+        $refCode = 'partner_' . substr(sha1($name . '|' . $url . '|' . microtime(true)), 0, 16);
+
         db()->prepare('INSERT INTO partner_sites(name,ref_code,url,is_enabled,created_at,updated_at) VALUES(:name,:ref,:url,:enabled,NOW(),NOW())')
             ->execute([
-                ':name' => trim((string)post('name', '')),
-                ':ref' => trim((string)post('ref_code', '')),
-                ':url' => trim((string)post('url', '')),
+                ':name' => $name,
+                ':ref' => $refCode,
+                ':url' => $url,
                 ':enabled' => post('is_enabled', '1') === '1' ? 1 : 0,
             ]);
         $message = '相互リンクを追加しました。';
@@ -29,13 +33,11 @@ require __DIR__ . '/includes/header.php';
 ?>
 <section class="admin-card admin-card--form">
   <h1>相互リンク管理</h1>
-  <p class="admin-form-note">「識別コード（ref）」は、流入元サイトを判別するための管理用コードです。半角英数字で一意の値を設定してください（例: partner01）。</p>
   <?php if ($message): ?><p><?= e($message) ?></p><?php endif; ?>
   <form method="post">
     <?= csrf_input() ?>
     <input type="hidden" name="action" value="create">
     <label>サイト名<input name="name" required></label>
-    <label>識別コード（ref）<input name="ref_code" required></label>
     <label>URL<input name="url" type="url" required></label>
     <label>有効
       <select name="is_enabled"><option value="1">有効</option><option value="0">無効</option></select>
@@ -44,10 +46,10 @@ require __DIR__ . '/includes/header.php';
   </form>
 
   <table class="admin-table">
-    <tr><th>ID</th><th>サイト名</th><th>識別コード（ref）</th><th>URL</th><th>状態</th><th>操作</th></tr>
+    <tr><th>ID</th><th>サイト名</th><th>URL</th><th>状態</th><th>操作</th></tr>
     <?php foreach ($rows as $r): ?>
       <tr>
-        <td><?= e((string)$r['id']) ?></td><td><?= e((string)$r['name']) ?></td><td><?= e((string)$r['ref_code']) ?></td><td><?= e((string)$r['url']) ?></td>
+        <td><?= e((string)$r['id']) ?></td><td><?= e((string)$r['name']) ?></td><td><?= e((string)$r['url']) ?></td>
         <td><?= (int)$r['is_enabled'] === 1 ? '有効' : '無効' ?></td>
         <td>
           <form method="post">
