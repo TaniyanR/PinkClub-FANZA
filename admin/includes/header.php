@@ -14,24 +14,18 @@ $menuGroups = [
         ['label' => 'デザイン設定', 'file' => 'design_settings.php'],
     ]],
     ['label' => 'リンク設定', 'children' => [
-        ['label' => '相互リンク管理', 'file' => 'link_partners.php'],
-        ['label' => 'RSS管理', 'file' => 'rss_settings.php'],
+        ['label' => '相互リンク管理', 'file' => 'links_partner.php'],
+        ['label' => 'RSS管理', 'file' => 'links_rss.php'],
     ]],
-    ['label' => 'アクセス解析', 'file' => 'access_analytics.php'],
+    ['label' => 'アクセス解析', 'file' => 'analytics.php'],
     ['label' => 'アフィリエイト設定', 'children' => [
         ['label' => 'API設定', 'file' => 'affiliate_api.php'],
-        ['label' => '広告コード', 'file' => 'ads_code.php'],
-        ['label' => 'フロア同期', 'file' => 'sync_floors.php'],
-        ['label' => 'マスタ同期', 'file' => 'sync_master.php'],
-        ['label' => '商品同期', 'file' => 'sync_items.php'],
-        ['label' => '同期ログ', 'file' => 'sync_logs.php'],
-        ['label' => 'タグ管理', 'file' => 'tags.php'],
+        ['label' => '広告コード', 'file' => 'affiliate_ads.php'],
     ]],
     ['label' => '固定ページ', 'children' => [
-        ['label' => '固定ページ一覧', 'file' => 'pages_index.php'],
+        ['label' => '固定ページ一覧', 'file' => 'pages.php'],
         ['label' => '新規', 'file' => 'pages_new.php'],
     ]],
-    ['label' => 'ログアウト', 'file' => 'logout.php'],
 ];
 
 $flash = function_exists('flash_get') ? flash_get() : null;
@@ -47,7 +41,7 @@ $titleText = (string)($title ?? APP_NAME);
 <body class="admin-page">
 <header class="admin-topbar">
   <div class="admin-topbar__brand"><a href="<?= e(admin_url('index.php')) ?>">PinkClub FANZA 管理</a></div>
-  <div class="admin-topbar__right"><a href="<?= e(public_url('')) ?>" target="_blank" rel="noopener noreferrer">フロント表示</a></div>
+  <div class="admin-topbar__right"><span id="api-timer-status" style="font-size:12px;color:#c3c4c7;">タイマー待機中</span><a href="<?= e(public_url('')) ?>" target="_blank" rel="noopener noreferrer">フロント表示</a></div>
 </header>
 <div class="admin-shell">
   <aside class="admin-sidebar" aria-label="管理メニュー">
@@ -57,7 +51,7 @@ $titleText = (string)($title ?? APP_NAME);
           <?php if (isset($group['children']) && is_array($group['children'])): ?>
             <li>
               <span class="admin-menu__link"><?= e($group['label']) ?></span>
-              <ul class="admin-sidebar__list" style="padding-left:12px;">
+              <ul class="admin-sidebar__list admin-menu__child">
                 <?php foreach ($group['children'] as $item): $isActive = ($currentScript === basename($item['file'])); ?>
                   <li><a class="admin-menu__link <?= $isActive ? 'is-active' : '' ?>" href="<?= e(admin_url($item['file'])) ?>">┗ <?= e($item['label']) ?></a></li>
                 <?php endforeach; ?>

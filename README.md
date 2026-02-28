@@ -21,3 +21,21 @@
 ## 補足
 - 自動セットアップ実行は localhost / 127.0.0.1 / ::1 のみ。
 - `login0718.php` / `setup_check.php` のCSSは `/assets/css/style.css` を共通利用します。
+
+## マイグレーション適用
+- インストーラーは `sql/schema.sql` 適用後に `sql/migrations/*.sql` をファイル名順で実行します。
+- 実行済みは `migrations` テーブルで管理します。
+- インストール完了後、`api_logs` と `api_schedules` が作成されていれば正常です。
+
+## 管理画面の追加URL
+- `http://localhost/pinkclub-fanza/admin/affiliate_api.php`（API設定 / テスト取得10件）
+- `http://localhost/pinkclub-fanza/admin/api_timer.php`（タイマー実行API）
+- `http://localhost/pinkclub-fanza/admin/site_settings.php`
+- `http://localhost/pinkclub-fanza/admin/account_settings.php`
+- `http://localhost/pinkclub-fanza/admin/design_settings.php`
+- `http://localhost/pinkclub-fanza/admin/links_partner.php`
+- `http://localhost/pinkclub-fanza/admin/links_rss.php`
+- `http://localhost/pinkclub-fanza/admin/analytics.php`
+- `http://localhost/pinkclub-fanza/admin/affiliate_ads.php`
+- `http://localhost/pinkclub-fanza/admin/pages.php`
+- `http://localhost/pinkclub-fanza/admin/pages_new.php`
