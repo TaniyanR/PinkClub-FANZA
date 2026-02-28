@@ -26,9 +26,6 @@ $pageTitle = 'RSS';
 include __DIR__ . '/partials/header.php';
 include __DIR__ . '/partials/nav_search.php';
 ?>
-<div class="layout">
-    <?php include __DIR__ . '/partials/sidebar.php'; ?>
-    <main class="main-content">
         <section class="block">
             <h1 class="section-title">RSS一覧</h1>
             <?php foreach ($rows as $row) : ?>
@@ -38,6 +35,4 @@ include __DIR__ . '/partials/nav_search.php';
                 </article>
             <?php endforeach; ?>
         </section>
-    </main>
-</div>
 <?php include __DIR__ . '/partials/footer.php'; ?>

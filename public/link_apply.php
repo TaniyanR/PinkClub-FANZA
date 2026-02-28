@@ -45,11 +45,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 $pageTitle = '相互リンク申請';
 include __DIR__ . '/partials/header.php';
 include __DIR__ . '/partials/nav_search.php';
-echo '<div class="layout">';
-include __DIR__ . '/partials/sidebar.php';
 ?>
-<main class="main-content">
-    <section class="block">
+<section class="block">
         <h1 class="section-title">相互リンク申請</h1>
         <?php if ($msg !== '') : ?><p><?php echo e($msg); ?></p><?php endif; ?>
         <?php if ($err !== '') : ?><p><?php echo e($err); ?></p><?php endif; ?>
@@ -79,7 +76,5 @@ include __DIR__ . '/partials/sidebar.php';
 
             <button>申請する</button>
         </form>
-    </section>
-</main>
-</div>
+</section>
 <?php include __DIR__ . '/partials/footer.php';

@@ -114,9 +114,6 @@ $pageDescription = (string)($p['seo_description'] ?? '');
 include __DIR__ . '/partials/header.php';
 include __DIR__ . '/partials/nav_search.php';
 ?>
-<div class="layout">
-    <?php include __DIR__ . '/partials/sidebar.php'; ?>
-    <main class="main-content">
         <div class="only-pc"><?php include __DIR__ . '/partials/rss_text_widget.php'; ?></div>
         <?php render_ad('content_top', 'page', 'pc'); ?>
         <section class="block">
@@ -156,6 +153,4 @@ include __DIR__ . '/partials/nav_search.php';
 
         <?php render_ad('content_bottom', 'page', 'pc'); ?>
         <div class="only-pc"><?php include __DIR__ . '/partials/rss_text_widget.php'; ?></div>
-    </main>
-</div>
 <?php include __DIR__ . '/partials/footer.php'; ?>
