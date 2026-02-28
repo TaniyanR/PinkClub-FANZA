@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 require __DIR__ . '/includes/header.php';
 ?>
-<section class="admin-card">
+<section class="admin-card admin-card--form">
   <h1>API設定</h1>
   <?php if ($resultMessage !== null): ?><div class="admin-notice <?= $resultType === 'error' ? 'admin-notice--error' : 'admin-notice--success' ?>"><p><?= e($resultMessage) ?></p></div><?php endif; ?>
   <form method="post">

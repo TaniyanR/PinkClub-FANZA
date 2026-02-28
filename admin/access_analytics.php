@@ -35,13 +35,35 @@ require __DIR__ . '/includes/header.php';
     <a href="?period=day">1日</a> / <a href="?period=week">1週</a> / <a href="?period=month">1ヶ月</a>
   </p>
   <div class="admin-status-grid">
-    <article class="admin-card admin-status-card"><strong>PV</strong><p><?= e((string)$sum['pv']) ?></p></article>
-    <article class="admin-card admin-status-card"><strong>UU</strong><p><?= e((string)$sum['uu']) ?></p></article>
-    <article class="admin-card admin-status-card"><strong>IN</strong><p><?= e((string)$sum['in_count']) ?></p></article>
-    <article class="admin-card admin-status-card"><strong>OUT</strong><p><?= e((string)$sum['out_count']) ?></p></article>
+    <article class="admin-card admin-status-card"><strong>ページビュー</strong><p><?= e((string)$sum['pv']) ?></p></article>
+    <article class="admin-card admin-status-card"><strong>ユニークユーザー</strong><p><?= e((string)$sum['uu']) ?></p></article>
+    <article class="admin-card admin-status-card"><strong>流入数</strong><p><?= e((string)$sum['in_count']) ?></p></article>
+    <article class="admin-card admin-status-card"><strong>流出数</strong><p><?= e((string)$sum['out_count']) ?></p></article>
   </div>
-  <p>前期間比較: PV <?= e((string)($sum['pv'] - (int)$prev['pv'])) ?> / UU <?= e((string)($sum['uu'] - (int)$prev['uu'])) ?> / IN <?= e((string)($sum['in_count'] - (int)$prev['in_count'])) ?> / OUT <?= e((string)($sum['out_count'] - (int)$prev['out_count'])) ?></p>
-  <table class="admin-table"><tr><th>日付</th><th>PV</th><th>UU</th><th>IN</th><th>OUT</th></tr>
+  <p>前期間比較: ページビュー <?= e((string)($sum['pv'] - (int)$prev['pv'])) ?> / ユニークユーザー <?= e((string)($sum['uu'] - (int)$prev['uu'])) ?> / 流入数 <?= e((string)($sum['in_count'] - (int)$prev['in_count'])) ?> / 流出数 <?= e((string)($sum['out_count'] - (int)$prev['out_count'])) ?></p>
+
+  <h2>日別PV（棒グラフ）</h2>
+  <div class="analytics-bars">
+    <?php
+      $maxPv = 0;
+      foreach ($rows as $barRow) {
+          $maxPv = max($maxPv, (int)$barRow['pv']);
+      }
+      $maxPv = max($maxPv, 1);
+    ?>
+    <?php foreach ($rows as $barRow):
+      $pv = (int)$barRow['pv'];
+      $ratio = (int)round(($pv / $maxPv) * 100);
+    ?>
+      <div class="analytics-bars__row">
+        <span class="analytics-bars__date"><?= e((string)$barRow['stat_date']) ?></span>
+        <div class="analytics-bars__track"><span class="analytics-bars__fill" style="width: <?= e((string)$ratio) ?>%;"></span></div>
+        <span class="analytics-bars__value"><?= e((string)$pv) ?></span>
+      </div>
+    <?php endforeach; ?>
+  </div>
+
+  <table class="admin-table"><tr><th>日付</th><th>PV</th><th>UU</th><th>流入</th><th>流出</th></tr>
     <?php foreach ($rows as $r): ?>
       <tr><td><?= e((string)$r['stat_date']) ?></td><td><?= e((string)$r['pv']) ?></td><td><?= e((string)$r['uu']) ?></td><td><?= e((string)$r['in_count']) ?></td><td><?= e((string)$r['out_count']) ?></td></tr>
     <?php endforeach; ?>

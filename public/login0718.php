@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <button class="login-button" type="submit">ログイン</button>
       </form>
 
-      <p class="login-note">ログインURL: <code><?= e(login_url()) ?></code></p>
+      <p class="login-note"><a href="<?= e(public_url('forgot_password.php')) ?>">パスワードが分からない場合はコチラ</a></p>
     </section>
   </main>
 </body>

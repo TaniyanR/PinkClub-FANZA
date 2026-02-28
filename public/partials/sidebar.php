@@ -22,8 +22,6 @@ $sidebarGenres = $sidebarSafeFetch(static fn(): array => fetch_genres(8, 0), 'ge
 $sidebarMakers = $sidebarSafeFetch(static fn(): array => fetch_makers(8, 0), 'makers');
 $sidebarSeries = $sidebarSafeFetch(static fn(): array => fetch_series(8, 0), 'series');
 
-$adHtml = function_exists('app_setting_get') ? (string)app_setting_get('sidebar_ad_html', '') : '';
-
 $scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $isHome = isset($is_home) ? (bool)$is_home : ($scriptName === 'index.php');
 
@@ -107,11 +105,7 @@ if ($isHome) {
 
     <div class="sidebar-block"><h3>画像RSS</h3><?php include __DIR__ . '/rss_image_widget.php'; ?></div>
 
-    <?php
-    $canUseNewAd = function_exists('should_show_ad') && function_exists('render_ad') && function_exists('ad_current_page_type');
-    if ($canUseNewAd && should_show_ad('sidebar_bottom', ad_current_page_type(), 'pc')) : ?>
+    <?php if (should_show_ad('sidebar_bottom', ad_current_page_type(), 'pc')) : ?>
         <div class="sidebar-block"><h3>広告枠</h3><?php render_ad('sidebar_bottom', ad_current_page_type(), 'pc'); ?></div>
-    <?php elseif ($adHtml !== '') : ?>
-        <div class="sidebar-block"><h3>広告枠</h3><?php echo $adHtml; ?></div>
     <?php endif; ?>
 </aside>

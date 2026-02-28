@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $rows = db()->query('SELECT * FROM partner_sites ORDER BY id DESC')->fetchAll(PDO::FETCH_ASSOC) ?: [];
 require __DIR__ . '/includes/header.php';
 ?>
-<section class="admin-card">
+<section class="admin-card admin-card--form">
   <h1>相互リンク管理</h1>
   <?php if ($message): ?><p><?= e($message) ?></p><?php endif; ?>
   <form method="post">
