@@ -30,6 +30,7 @@
 ## 管理画面の追加URL
 - `http://localhost/pinkclub-fanza/admin/affiliate_api.php`（API設定 / テスト取得10件）
 - `http://localhost/pinkclub-fanza/admin/api_timer.php`（タイマー実行API）
+- `http://localhost/pinkclub-fanza/admin/auto_timer.php`（タイマー稼働ページ）
 - `http://localhost/pinkclub-fanza/admin/site_settings.php`
 - `http://localhost/pinkclub-fanza/admin/account_settings.php`
 - `http://localhost/pinkclub-fanza/admin/design_settings.php`
@@ -45,8 +46,9 @@
 2. `APIID` と `アフィリエイトID` を入力し、`商品取得件数`（100/200/300/500/1000）を選んで保存します。
 3. `商品情報を10件取得（手動）` を押してテスト取得します（ItemList hits=10）。
 4. 自動取得を使う場合は `タイマー自動取得` を `ON`、`実行間隔（分）` を設定して保存します。
-5. 同ページを開いたままにすると、ブラウザ側のタイマーが `admin/timer_tick.php` を定期呼び出しし、実行条件を満たしたときのみ同期します。
-6. 実行結果は `最終実行` と `直近結果` に表示されます。
+5. `http://localhost/pinkclub-fanza/admin/auto_timer.php` を開いたままにすると、60秒ごとに `admin/timer_tick.php` を実行します（cron不要）。
+6. tickごとに最大1種類のみ同期します（items → genres → makers → series → authors の順、各60分間隔）。
+7. 手動10件テストは `item_sync_test_offset` を使い、本番offset (`item_sync_offset`) は進めません。
 
 ## 新規/更新された管理画面URL
 - `http://localhost/pinkclub-fanza/admin/site_settings.php`（サイト名/URL/キャッチフレーズ/キーワード）

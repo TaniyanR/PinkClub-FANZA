@@ -281,3 +281,30 @@ The system is ready for production deployment.
 - `admin/access_analytics.php`: KPI/期間別/前期間比較/日別一覧のアクセス解析画面を実装。
 - `admin/link_partners.php` / `admin/rss_settings.php` / `admin/links.php` / `admin/rss.php`: 相互リンク・RSS管理画面（最小CRUD）を実装。
 - `README.md`: 「API設定→テスト取得→自動タイマー取得」手順を追記。
+
+## 2026-02-28 API保存マッピング（現状DBとの対応）
+
+### ItemList → items / 関連テーブル
+- `items.content_id` ← `content_id`（ユニークキー）
+- `items.title/url/affiliate_url` ← `title` / `URL` / `affiliateURL`
+- `items.image_list/image_small/image_large` ← `imageURL.list/small/large`
+- `items.release_date` ← `date`
+- `items.service_code/service_name/floor_code/floor_name/category_name` ← 同名項目
+- `items.review_count/review_average` ← `review.count` / `review.average`
+- `items.price_min_text/list_price_text` ← `prices` 配下（最小価格/定価）
+- `items.sample_movie_url_720/644/560/476` と `sample_movie_pc_flag/sp_flag` ← `sampleMovieURL`
+- `items.raw_json` ← API1件のレスポンス生JSON
+- `item_actresses/item_genres/item_makers/item_series/item_authors/item_labels/item_directors/item_campaigns/item_actors` ← `iteminfo.*`
+
+### マスタAPI → マスタテーブル
+- `GenreSearch` → `genres`（`dmm_id/name/ruby` をupsert）
+- `MakerSearch` → `makers`（`dmm_id/name/ruby` をupsert）
+- `SeriesSearch` → `series_master`（`dmm_id/name/ruby` をupsert）
+- `AuthorSearch` → `authors`（`dmm_id/name/ruby` をupsert）
+- `ActressSearch` / `iteminfo.actress` → `actresses`（`dmm_id/name/ruby` をupsert）
+
+### フロア・同期状態・ログ
+- `FloorList` → `dmm_sites/dmm_services/dmm_floors`
+- 同期状態（offset/lock）→ `sync_job_state`
+- 同期結果ログ → `sync_logs`
+- API呼び出しログ（HTTP・キャッシュ）→ `api_logs`
