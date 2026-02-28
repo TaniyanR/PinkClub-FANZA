@@ -21,7 +21,7 @@ $sites = db()->query('SELECT id,name FROM partner_sites ORDER BY name ASC')->fet
 $rows = db()->query('SELECT pr.*, ps.name AS partner_name FROM partner_rss pr LEFT JOIN partner_sites ps ON ps.id=pr.partner_site_id ORDER BY pr.id DESC')->fetchAll(PDO::FETCH_ASSOC) ?: [];
 require __DIR__ . '/includes/header.php';
 ?>
-<section class="admin-card">
+<section class="admin-card admin-card--form">
   <h1>RSS管理</h1>
   <?php if ($message): ?><p><?= e($message) ?></p><?php endif; ?>
   <form method="post">

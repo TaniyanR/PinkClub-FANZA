@@ -12,6 +12,7 @@ $menuGroups = [
         ['label' => 'サイト設定', 'file' => 'site_settings.php'],
         ['label' => 'アカウント設定', 'file' => 'account_settings.php'],
         ['label' => 'デザイン設定', 'file' => 'design_settings.php'],
+        ['label' => 'お問い合わせ', 'file' => 'contact_settings.php'],
     ]],
     ['label' => 'リンク設定', 'children' => [
         ['label' => '相互リンク管理', 'file' => 'links.php'],

@@ -117,6 +117,7 @@ include __DIR__ . '/partials/nav_search.php';
 <div class="layout">
     <?php include __DIR__ . '/partials/sidebar.php'; ?>
     <main class="main-content">
+        <div class="only-pc"><?php include __DIR__ . '/partials/rss_text_widget.php'; ?></div>
         <?php render_ad('content_top', 'page', 'pc'); ?>
         <section class="block">
             <h1 class="section-title"><?php echo e((string)$p['title']); ?></h1>
@@ -154,6 +155,7 @@ include __DIR__ . '/partials/nav_search.php';
         <?php endif; ?>
 
         <?php render_ad('content_bottom', 'page', 'pc'); ?>
+        <div class="only-pc"><?php include __DIR__ . '/partials/rss_text_widget.php'; ?></div>
     </main>
 </div>
 <?php include __DIR__ . '/partials/footer.php'; ?>

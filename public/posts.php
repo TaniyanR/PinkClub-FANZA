@@ -48,6 +48,7 @@ include __DIR__ . '/partials/nav_search.php';
     <?php include __DIR__ . '/partials/sidebar.php'; ?>
 
     <main class="main-content">
+        <div class="only-pc"><?php include __DIR__ . '/partials/rss_text_widget.php'; ?></div>
         <?php render_ad('content_top', 'list', 'pc'); ?>
         <section class="block">
             <div class="section-head">
@@ -123,6 +124,7 @@ include __DIR__ . '/partials/nav_search.php';
             <?php endif; ?>
         </nav>
         <?php render_ad('content_bottom', 'list', 'pc'); ?>
+        <div class="only-pc"><?php include __DIR__ . '/partials/rss_text_widget.php'; ?></div>
     </main>
 </div>
 <?php include __DIR__ . '/partials/footer.php'; ?>

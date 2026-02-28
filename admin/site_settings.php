@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 require __DIR__ . '/includes/header.php';
 ?>
-<section class="admin-card">
+<section class="admin-card admin-card--form">
   <h1>サイト設定</h1>
   <?php if ($message !== null): ?><p><?= e($message) ?></p><?php endif; ?>
   <form method="post">

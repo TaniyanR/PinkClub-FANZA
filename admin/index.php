@@ -23,18 +23,27 @@ if ($requestPath !== '' && preg_match('#/admin/index\.php/(.+)$#', $requestPath)
 
 auth_require_admin();
 
-$title = 'Dashboard';
+$title = 'ダッシュボード';
 $tables = ['items', 'actresses', 'genres', 'makers', 'series_master', 'authors', 'dmm_floors'];
 $counts = [];
 foreach ($tables as $t) {
     $counts[$t] = (int) db()->query("SELECT COUNT(*) FROM {$t}")->fetchColumn();
 }
+$labels = [
+    'items' => '商品',
+    'actresses' => '女優',
+    'genres' => 'ジャンル',
+    'makers' => 'メーカー',
+    'series_master' => 'シリーズ',
+    'authors' => '作者',
+    'dmm_floors' => 'フロア',
+];
 $logs = db()->query('SELECT * FROM sync_logs ORDER BY id DESC LIMIT 20')->fetchAll();
 
 require __DIR__ . '/includes/header.php';
 ?>
 <section class="admin-card">
-  <h1>Dashboard</h1>
+  <h1>ダッシュボード</h1>
   <p class="admin-form-note">同期対象の件数と最新の同期状態を確認できます。</p>
 </section>
 
@@ -43,7 +52,7 @@ require __DIR__ . '/includes/header.php';
   <div class="admin-status-grid">
     <?php foreach ($counts as $name => $count): ?>
       <article class="admin-card admin-status-card">
-        <strong><?= e($name) ?></strong>
+        <strong><?= e($labels[$name] ?? $name) ?></strong>
         <p><?= e((string) $count) ?></p>
       </article>
     <?php endforeach; ?>
