@@ -1,3 +1,62 @@
-<?php declare(strict_types=1);
+<?php
 
-require_once __DIR__ . '/_bootstrap.php'; require_once __DIR__ . '/../lib/app_features.php'; require_once __DIR__ . '/../lib/csrf.php'; require_once __DIR__ . '/../lib/db.php'; require_once __DIR__ . '/partials/_helpers.php'; function e2(string $v): string { return htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'); } $enabled=(bool)app_setting_get('user_registration_enabled', false); $err=''; $ok=''; if($enabled && ($_SERVER['REQUEST_METHOD']??'GET')==='POST'){ if(!csrf_verify((string)($_POST['_token']??''))){$err='CSRFエラー';} else {$email=trim((string)$_POST['email']);$pass=(string)$_POST['password']; if(!filter_var($email,FILTER_VALIDATE_EMAIL)||strlen($pass)<8){$err='入力エラー';} else {try{$st=db()->prepare('INSERT INTO users (email,password_hash,created_at,is_active) VALUES (:e,:p,NOW(),1)');$st->execute([':e'=>$email,':p'=>password_hash($pass,PASSWORD_DEFAULT)]);$ok='登録しました';}catch(Throwable $e){$err='登録失敗';}} }} $pageTitle='会員登録'; include __DIR__.'/partials/header.php'; ?><main class="main-content"><section class="block"><h1>会員登録</h1><?php if(!$enabled): ?><p>現在、新規登録は無効です。</p><?php else: ?><?php if($err!==''): ?><p><?php echo e2($err); ?></p><?php endif; ?><?php if($ok!==''): ?><p><?php echo e2($ok); ?></p><?php endif; ?><form method="post"><input type="hidden" name="_token" value="<?php echo e2(csrf_token()); ?>"><input type="email" name="email" required><input type="password" name="password" required><button>登録</button></form><?php endif; ?></section></main><?php include __DIR__.'/partials/footer.php';
+declare(strict_types=1);
+
+require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/app_features.php';
+require_once __DIR__ . '/../lib/csrf.php';
+require_once __DIR__ . '/../lib/db.php';
+require_once __DIR__ . '/partials/_helpers.php';
+
+function e2(string $v): string
+{
+    return htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
+}
+
+$enabled = (bool)app_setting_get('user_registration_enabled', false);
+$err = '';
+$ok = '';
+
+if ($enabled && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    if (!csrf_verify((string)($_POST['_token'] ?? ''))) {
+        $err = 'CSRFエラー';
+    } else {
+        $email = trim((string)$_POST['email']);
+        $pass = (string)$_POST['password'];
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($pass) < 8) {
+            $err = '入力エラー';
+        } else {
+            try {
+                db()->prepare('INSERT INTO users (email,password_hash,created_at,is_active) VALUES (:e,:p,NOW(),1)')
+                    ->execute([':e' => $email, ':p' => password_hash($pass, PASSWORD_DEFAULT)]);
+                $ok = '登録しました';
+            } catch (Throwable $e) {
+                $err = '登録失敗';
+            }
+        }
+    }
+}
+
+$pageTitle = '会員登録';
+include __DIR__ . '/partials/header.php';
+?>
+<section class="block">
+    <h1>会員登録</h1>
+    <?php if (!$enabled) : ?>
+        <p>現在、新規登録は無効です。</p>
+    <?php else : ?>
+        <?php if ($err !== '') : ?>
+            <p><?php echo e2($err); ?></p>
+        <?php endif; ?>
+        <?php if ($ok !== '') : ?>
+            <p><?php echo e2($ok); ?></p>
+        <?php endif; ?>
+        <form method="post">
+            <input type="hidden" name="_token" value="<?php echo e2(csrf_token()); ?>">
+            <input type="email" name="email" required>
+            <input type="password" name="password" required>
+            <button>登録</button>
+        </form>
+    <?php endif; ?>
+</section>
+<?php include __DIR__ . '/partials/footer.php';

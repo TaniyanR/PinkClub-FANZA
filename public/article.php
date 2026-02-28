@@ -28,8 +28,7 @@ $pageTitle = $siteTitle . ' | ' . $article['title'];
 require __DIR__ . '/partials/header.php';
 require __DIR__ . '/partials/nav_search.php';
 ?>
-<div class="layout">
-    <article>
+<article>
         <h1><?php echo e($article['title']); ?></h1>
         <div class="meta">発売日: <?php echo e($article['release_date'] ?? '未設定'); ?></div>
         <?php if (!empty($article['image_url'])): ?>
@@ -42,8 +41,6 @@ require __DIR__ . '/partials/nav_search.php';
             <p>価格: <?php echo e((string) $article['price']); ?>円</p>
         <?php endif; ?>
         <p><a href="<?php echo e($article['affiliate_url']); ?>" target="_blank" rel="noopener">FANZA商品ページへ</a></p>
-    </article>
-    <?php require __DIR__ . '/partials/sidebar.php'; ?>
-</div>
+</article>
 <?php
 require __DIR__ . '/partials/footer.php';

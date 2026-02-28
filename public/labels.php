@@ -18,9 +18,6 @@ $canonicalUrl = canonical_url('/labels.php', ['page' => $page > 1 ? $page : null
 include __DIR__ . '/partials/header.php';
 include __DIR__ . '/partials/nav_search.php';
 ?>
-<div class="layout">
-    <?php include __DIR__ . '/partials/sidebar.php'; ?>
-    <main class="main-content">
         <section class="block">
             <div class="section-head"><h1 class="section-title">レーベル一覧</h1></div>
             <div class="taxonomy-grid">
@@ -37,6 +34,4 @@ include __DIR__ . '/partials/nav_search.php';
             <span class="page-btn is-current"><?php echo e((string)$page); ?></span>
             <?php if ($hasNext) : ?><a class="page-btn" href="/labels.php?page=<?php echo e((string)($page + 1)); ?>">次へ</a><?php else : ?><span class="page-btn">次へ</span><?php endif; ?>
         </nav>
-    </main>
-</div>
 <?php include __DIR__ . '/partials/footer.php'; ?>

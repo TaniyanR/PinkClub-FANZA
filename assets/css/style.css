@@ -128,44 +128,80 @@ body.login-page,
 body:not(.admin-page):not(.login-page):not(.setup-page){
   background:#f3f5f8;
 }
-body:not(.admin-page):not(.login-page) > header{
-  background:#ffffff;
+
+.site-header{
+  width:100%;
+  background:#fff;
   border-bottom:1px solid #dcdcde;
-  padding:18px 20px 14px;
+  padding:14px 20px 12px;
+  box-sizing:border-box;
 }
-body:not(.admin-page):not(.login-page) > header h1{
-  margin:0 0 10px;
-  font-size:48px;
-  line-height:1.1;
+.site-header__top{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
 }
-body:not(.admin-page):not(.login-page) > header h1 a{
-  text-decoration:none;
-  color:#7b2cbf;
-}
-body:not(.admin-page):not(.login-page) > header nav{
+.site-header__left{min-width:0}
+.site-title{font-size:30px;font-weight:700;line-height:1.2;margin:0 0 4px}
+.site-disclaimer{font-size:10px;color:#646970}
+.site-header__right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;max-width:50%}
+.site-name{font-size:16px;font-weight:700;text-align:right}
+.site-ad{max-width:100%}
+.site-ad img{max-width:100%;height:auto;display:block}
+
+.site-nav{
+  margin-top:12px;
   display:flex;
   flex-wrap:wrap;
-  gap:14px;
+  gap:8px 14px;
 }
-body:not(.admin-page):not(.login-page) > header nav a{
-  text-decoration:none;
-  color:#2271b1;
-  font-weight:600;
+.site-nav a{color:#2271b1;text-decoration:none;font-weight:600}
+
+.site-layout{
+  width:100%;
+  display:flex;
+  align-items:flex-start;
+  gap:16px;
+  padding:16px;
+  box-sizing:border-box;
 }
-body:not(.admin-page):not(.login-page) > main{
-  max-width:1100px;
-  margin:20px auto;
-  padding:0 16px 28px;
+.site-sidebar{
+  width:250px;
+  flex:0 0 250px;
+  display:grid;
+  gap:12px;
 }
-body:not(.admin-page):not(.login-page) h2{
-  margin:0 0 16px;
-  font-size:30px;
+.sidebar-block{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:12px}
+.sidebar-block__title{margin:0 0 10px;font-size:16px}
+.sidebar-search-form{display:grid;gap:8px}
+.sidebar-search-form__input{width:100%;box-sizing:border-box;padding:8px;border:1px solid #c3c4c7;border-radius:4px}
+.sidebar-search-form__button{padding:8px 10px;border:1px solid #2271b1;background:#2271b1;color:#fff;border-radius:4px;cursor:pointer}
+.sidebar-empty{margin:0;color:#646970}
+.sidebar-image-links,.sidebar-links{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.sidebar-image-links img{width:100%;height:auto;display:block;border-radius:4px}
+
+.site-main{
+  flex:1;
+  min-width:0;
 }
+.site-main h2{margin:0 0 16px;font-size:28px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
 .card{background:#fff;border:1px solid #dcdcde;border-radius:10px;padding:12px;box-shadow:0 4px 12px rgba(0,0,0,.04)}
 .thumb{max-width:100%;height:auto;border-radius:6px;display:block}
-main table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #dcdcde}
-main table th,main table td{border:1px solid #e5e7eb;padding:8px;text-align:left;vertical-align:top}
+.site-main table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #dcdcde}
+.site-main table th,.site-main table td{border:1px solid #e5e7eb;padding:8px;text-align:left;vertical-align:top}
+
+.site-footer{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding:12px 16px 20px;
+  border-top:1px solid #dcdcde;
+  background:#fff;
+}
+.site-footer__copy{text-align:right;color:#50575e}
 
 body.admin-page .admin-sidebar{width:250px}
 body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weight:500}
@@ -176,6 +212,15 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .analytics-bars__fill{display:block;height:100%;background:#2271b1}
 
 .only-sp{display:none}
+@media (max-width: 900px){
+  .site-header__top{flex-direction:column;align-items:flex-start}
+  .site-header__right{align-items:flex-start;max-width:100%}
+  .site-name{text-align:left}
+  .site-layout{flex-direction:column}
+  .site-sidebar{width:100%;flex:1 1 auto}
+  .site-footer{flex-direction:column;align-items:flex-start}
+  .site-footer__copy{text-align:left}
+}
 @media (max-width: 768px){
   .only-pc{display:none !important}
   .only-sp{display:block}
