@@ -186,11 +186,15 @@ function installer_ensure_admin_user(PDO $pdo, string $stepLabel): bool
 
 function installer_ensure_settings_row(PDO $pdo, string $stepLabel): bool
 {
-    $stmt = $pdo->query('SELECT 1 FROM settings WHERE id = 1 LIMIT 1');
-    if ($stmt->fetchColumn() !== false) { installer_log('step=' . $stepLabel . ' settings_row_exists=true'); return false; }
-    $pdo->exec('INSERT INTO settings (id, api_id, affiliate_id) VALUES (1, NULL, NULL)');
-    installer_log('step=' . $stepLabel . ' settings_row_created=true');
-    return true;
+    require_once __DIR__ . '/site_settings.php';
+    try {
+        site_setting_set('installer.ready', '1');
+        installer_log('step=' . $stepLabel . ' settings_row_upserted=true');
+        return true;
+    } catch (Throwable $e) {
+        installer_log_exception($stepLabel, $e);
+        throw $e;
+    }
 }
 
 function installer_status(): array
@@ -214,7 +218,20 @@ function installer_status(): array
         $status['admin_user'] = $stmt->fetchColumn() !== false;
     }
     if ($status['settings_table']) {
-        $status['settings_row'] = db()->query('SELECT 1 FROM settings WHERE id = 1 LIMIT 1')->fetchColumn() !== false;
+        require_once __DIR__ . '/site_settings.php';
+
+        $ready = site_setting_get('installer.ready', '') === '1';
+        if (!$ready) {
+            try {
+                // 既存環境の自己修復: readiness キーが欠けているだけなら補完する
+                site_setting_set('installer.ready', '1');
+                $ready = site_setting_get('installer.ready', '') === '1';
+            } catch (Throwable $ignore) {
+                $ready = false;
+            }
+        }
+
+        $status['settings_row'] = $ready;
     }
     $status['completed'] = (
         $status['server_connection']
