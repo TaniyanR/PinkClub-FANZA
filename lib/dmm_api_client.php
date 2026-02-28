@@ -124,14 +124,19 @@ class DmmApiClient
             return;
         }
 
-        $stmt = db()->prepare('INSERT INTO api_logs (api_name, request_url, request_hash, response_status, response_body, cache_hit, created_at) VALUES (:api_name, :request_url, :request_hash, :response_status, :response_body, :cache_hit, NOW())');
+        $stmt = db()->prepare('INSERT INTO api_logs (api_name, endpoint, request_params, request_url, request_hash, response_status, status_code, response_body, cache_hit, is_success, message, created_at) VALUES (:api_name, :endpoint, :request_params, :request_url, :request_hash, :response_status, :status_code, :response_body, :cache_hit, :is_success, :message, NOW())');
         $stmt->execute([
             ':api_name' => $apiName,
+            ':endpoint' => $apiName,
+            ':request_params' => json_encode(['url' => $requestUrl], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             ':request_url' => $requestUrl,
             ':request_hash' => $requestHash,
             ':response_status' => $status,
+            ':status_code' => $status,
             ':response_body' => mb_substr($responseBody, 0, 65535),
             ':cache_hit' => $cacheHit ? 1 : 0,
+            ':is_success' => ($status >= 200 && $status < 400) ? 1 : 0,
+            ':message' => $cacheHit ? 'cache' : (($status >= 200 && $status < 400) ? 'ok' : 'error'),
         ]);
     }
 }

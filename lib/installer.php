@@ -142,6 +142,37 @@ function installer_execute_sql_file(string $path, string $step): int
     }
 }
 
+
+function installer_ensure_migrations_table(PDO $pdo): void
+{
+    $pdo->exec('CREATE TABLE IF NOT EXISTS migrations (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, migration_name VARCHAR(255) NOT NULL UNIQUE, applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+function installer_apply_migrations(string $dir, string $step): int
+{
+    $pdo = db();
+    installer_ensure_migrations_table($pdo);
+    $files = glob(rtrim($dir, '/\\') . '/*.sql');
+    if (!is_array($files)) {
+        return 0;
+    }
+    sort($files, SORT_STRING);
+    $count = 0;
+    foreach ($files as $path) {
+        $name = basename((string)$path);
+        $stmt = $pdo->prepare('SELECT 1 FROM migrations WHERE migration_name = ? LIMIT 1');
+        $stmt->execute([$name]);
+        if ($stmt->fetchColumn() !== false) {
+            continue;
+        }
+        installer_execute_sql_file($path, $step . ':' . $name);
+        $pdo->prepare('INSERT INTO migrations (migration_name, applied_at) VALUES (?, NOW())')->execute([$name]);
+        installer_log('step=' . $step . ' migration_applied=' . $name);
+        $count++;
+    }
+    return $count;
+}
+
 function installer_ensure_admin_user(PDO $pdo, string $stepLabel): bool
 {
     $stmt = $pdo->prepare('SELECT 1 FROM admins WHERE username = :username LIMIT 1');
@@ -212,6 +243,8 @@ function installer_run(): array
         $currentStep='create_database'; installer_ensure_database_exists(); $step('create_database', true);
 
         $currentStep='create_tables'; $tableCount = installer_execute_sql_file(__DIR__ . '/../sql/schema.sql', 'create_tables'); $step('create_tables', true, 'results=' . $tableCount);
+
+        $currentStep='apply_migrations'; $migrationCount = installer_apply_migrations(__DIR__ . '/../sql/migrations', 'apply_migrations'); $step('apply_migrations', true, 'count=' . $migrationCount);
 
         $currentStep='seed_data';
         $seedPath = __DIR__ . '/../sql/seed.sql';

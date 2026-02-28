@@ -142,3 +142,6 @@ body:not(.admin-page):not(.login-page) h2{
 .thumb{max-width:100%;height:auto;border-radius:6px;display:block}
 main table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #dcdcde}
 main table th,main table td{border:1px solid #e5e7eb;padding:8px;text-align:left;vertical-align:top}
+
+body.admin-page .admin-sidebar{width:250px}
+body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weight:500}

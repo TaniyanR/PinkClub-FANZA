@@ -106,6 +106,27 @@ class DmmSyncService
         }
     }
 
+
+    public function syncGenres(string $floorId, ?string $initial = null, int $hits = 100, int $offset = 1): int
+    {
+        return $this->syncMaster('genre', $floorId, $offset, $hits);
+    }
+
+    public function syncMakers(string $floorId, ?string $initial = null, int $hits = 100, int $offset = 1): int
+    {
+        return $this->syncMaster('maker', $floorId, $offset, $hits);
+    }
+
+    public function syncSeries(string $floorId, ?string $initial = null, int $hits = 100, int $offset = 1): int
+    {
+        return $this->syncMaster('series', $floorId, $offset, $hits);
+    }
+
+    public function syncAuthors(string $floorId, ?string $initial = null, int $hits = 100, int $offset = 1): int
+    {
+        return $this->syncMaster('author', $floorId, $offset, $hits);
+    }
+
     public function syncItems(string $serviceCode, string $floorCode, array $params = []): int
     {
         $hits = min(100, max(1, (int)($params['hits'] ?? 100)));
