@@ -28,10 +28,9 @@ $titleText = (string)($title ?? $pageTitle ?? $siteName);
   <div class="site-header__top">
     <div class="header-left site-header__left">
       <div class="site-title"><?= e($siteName) ?></div>
-      <div class="site-disclaimer">当サイトはアフィリエイト広告を利用しています。</div>
+      <div class="site-disclaimer"><strong>当サイトはアフィリエイト広告を利用しています。</strong></div>
     </div>
     <div class="header-right site-header__right">
-      <div class="header-site-name site-name"><?= e($siteName) ?></div>
       <?php if ($headerAdHtml !== '') : ?>
         <div class="site-ad"><?= $headerAdHtml ?></div>
       <?php elseif (should_show_ad('header_right', $pageType, 'pc')) : ?>
