@@ -8,7 +8,7 @@ if (!function_exists('e') || !function_exists('asset_url')) {
 $currentScript = basename((string)($_SERVER['SCRIPT_NAME'] ?? 'index.php'));
 $menuGroups = [
     ['label' => 'ダッシュボード', 'file' => 'index.php'],
-    ['label' => '設定', 'children' => [
+    ['label' => '一般設定', 'children' => [
         ['label' => 'サイト設定', 'file' => 'site_settings.php'],
         ['label' => 'アカウント設定', 'file' => 'account_settings.php'],
         ['label' => 'デザイン設定', 'file' => 'design_settings.php'],
@@ -45,12 +45,12 @@ $titleText = (string)($title ?? APP_NAME);
 </header>
 <div class="admin-shell">
   <aside class="admin-sidebar" aria-label="管理メニュー">
-    <nav><p class="admin-sidebar__heading">メニュー</p>
+    <nav>
       <ul class="admin-sidebar__list">
         <?php foreach ($menuGroups as $group): ?>
           <?php if (isset($group['children']) && is_array($group['children'])): ?>
             <li>
-              <span class="admin-menu__link"><?= e($group['label']) ?></span>
+              <span class="admin-menu__link"><?= e('> ' . (string)$group['label']) ?></span>
               <ul class="admin-sidebar__list admin-menu__child">
                 <?php foreach ($group['children'] as $item): $isActive = ($currentScript === basename($item['file'])); ?>
                   <li><a class="admin-menu__link <?= $isActive ? 'is-active' : '' ?>" href="<?= e(admin_url($item['file'])) ?>">┗ <?= e($item['label']) ?></a></li>
@@ -58,7 +58,7 @@ $titleText = (string)($title ?? APP_NAME);
               </ul>
             </li>
           <?php else: $isActive = ($currentScript === basename((string)$group['file'])); ?>
-            <li><a class="admin-menu__link <?= $isActive ? 'is-active' : '' ?>" href="<?= e(admin_url((string)$group['file'])) ?>"><?= e($group['label']) ?></a></li>
+            <li><a class="admin-menu__link <?= $isActive ? 'is-active' : '' ?>" href="<?= e(admin_url((string)$group['file'])) ?>"><?= e('> ' . (string)$group['label']) ?></a></li>
           <?php endif; ?>
         <?php endforeach; ?>
       </ul>
