@@ -162,6 +162,8 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     $sample = item_sample_state($item);
     $movieClass = $sample['movie_url'] !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $imageClass = $sample['has_images'] ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
+    $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
+    $affiliateClass = $affiliateUrl !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>">
       <?php if (!empty($item['image_small'])): ?>
@@ -173,6 +175,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
       <div class="sample-buttons">
         <button type="button" class="<?= e($movieClass) ?> sample-movie-trigger" <?= $sample['movie_url'] === '' ? 'disabled' : '' ?> data-movie-url="<?= e((string)$sample['movie_url']) ?>" data-movie-title="<?= e($title) ?>">サンプル動画</button>
         <button type="button" class="<?= e($imageClass) ?>" <?= !$sample['has_images'] ? 'disabled' : '' ?> onclick="<?= $sample['has_images'] ? "window.open('" . e(public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')))) . "','_blank','noopener,noreferrer,width=820,height=520');" : 'return false;' ?>">サンプル画像</button>
+        <button type="button" class="<?= e($affiliateClass) ?>" <?= $affiliateUrl === '' ? 'disabled' : '' ?> onclick="<?= $affiliateUrl !== '' ? "window.open('" . e($affiliateUrl) . "','_blank','noopener,noreferrer');" : 'return false;' ?>">アフィリエイト</button>
       </div>
       <?php if ($taxonomy !== null): ?>
         <a class="rail-card__meta" href="<?= e((string)$taxonomy['url']) ?>"><?= e((string)$taxonomy['name']) ?></a>
@@ -226,7 +229,7 @@ try {
             $genreCandidates = seeded_shuffle($genreCandidates, $seedBase + 20);
             foreach (array_slice($genreCandidates, 0, 3) as $index => $genre) {
                 $stmt = $pdo->prepare(
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
+                    'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
                      FROM items i
                      INNER JOIN item_genres ig ON ig.content_id = i.content_id
                      WHERE ig.genre_id = :id
@@ -245,7 +248,7 @@ try {
                 $seriesCandidates = seeded_shuffle($seriesCandidates, $seedBase + 40);
                 $picked = $seriesCandidates[0];
                 $stmt = $pdo->prepare(
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
+                    'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
                      FROM items i
                      INNER JOIN item_series isr ON isr.content_id = i.content_id
                      WHERE isr.series_id = :id
@@ -267,7 +270,7 @@ try {
                 $makerCandidates = seeded_shuffle($makerCandidates, $seedBase + 50);
                 $picked = $makerCandidates[0];
                 $stmt = $pdo->prepare(
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
+                    'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
                      FROM items i
                      INNER JOIN item_makers im ON im.content_id = i.content_id
                      WHERE im.maker_id = :id
@@ -289,7 +292,7 @@ try {
                 $authorCandidates = seeded_shuffle($authorCandidates, $seedBase + 60);
                 $picked = $authorCandidates[0];
                 $stmt = $pdo->prepare(
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
+                    'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
                      FROM items i
                      INNER JOIN item_authors ia ON ia.item_id = i.id
                      INNER JOIN authors a ON a.dmm_id = ia.dmm_id
@@ -381,7 +384,7 @@ require __DIR__ . '/partials/header.php';
   <div class="sample-movie-modal__overlay" data-movie-close="1"></div>
   <div class="sample-movie-modal__dialog" role="dialog" aria-modal="true" aria-label="サンプル動画プレイヤー">
     <button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>
-    <div id="sample-movie-title" class="sample-movie-modal__title"></div>
+    <div id="sample-movie-title" class="sample-movie-modal__title">サンプル動画</div>
     <div class="sample-movie-modal__frame-wrap">
       <iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
     </div>
@@ -396,7 +399,8 @@ require __DIR__ . '/partials/header.php';
 
   const openMovie = (url, title) => {
     if (!url) return;
-    titleNode.textContent = title || '';
+    const normalizedTitle = String(title || '').trim();
+    titleNode.textContent = normalizedTitle !== '' ? normalizedTitle : 'サンプル動画';
     frame.src = url;
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
@@ -406,14 +410,16 @@ require __DIR__ . '/partials/header.php';
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
     frame.src = 'about:blank';
-    titleNode.textContent = '';
+    titleNode.textContent = 'サンプル動画';
   };
 
   document.addEventListener('click', (event) => {
     const trigger = event.target.closest('.sample-movie-trigger');
     if (trigger && !trigger.disabled) {
       event.preventDefault();
-      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || '');
+      const card = trigger.closest('.rail-card');
+      const fallbackTitle = card ? (card.querySelector('.rail-card__title')?.textContent || '') : '';
+      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || fallbackTitle);
       return;
     }
 

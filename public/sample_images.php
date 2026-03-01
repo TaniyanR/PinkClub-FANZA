@@ -44,14 +44,18 @@ if (is_array($decoded) && isset($decoded['sampleImageURL']) && is_array($decoded
   <title><?= e((string)$item['title']) ?> - サンプル画像</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 12px; background: #f8f9fa; }
-    h1 { font-size: 18px; margin-bottom: 12px; }
+    h1 { font-size: 18px; margin-bottom: 12px; position: sticky; top: 0; background: #f8f9fa; padding: 6px 0; }
     .message { text-align: center; color: #555; margin-top: 32px; }
-    .sample-frame { width: 800px; max-width: 100%; height: 450px; background: #fff; border: 1px solid #dcdcde; margin: 10px auto; display: flex; align-items: center; justify-content: center; }
+    .sample-scroll { max-height: calc(100vh - 90px); overflow-y: auto; padding-right: 6px; }
+    .sample-scroll::-webkit-scrollbar { width: 10px; }
+    .sample-scroll::-webkit-scrollbar-thumb { background: #b9bdc5; border-radius: 8px; }
+    .sample-frame { width: 800px; max-width: 100%; height: 450px; background: #fff; border: 1px solid #dcdcde; margin: 10px auto; display: flex; align-items: center; justify-content: center; scroll-margin-top: 12px; }
     .sample-frame img { width: 800px; height: 450px; object-fit: contain; display: block; }
   </style>
 </head>
 <body>
   <h1><?= e((string)$item['title']) ?> のサンプル画像</h1>
+  <div class="sample-scroll">
   <?php if ($images === []): ?>
     <p class="message">画像がありません</p>
   <?php else: ?>
@@ -61,5 +65,6 @@ if (is_array($decoded) && isset($decoded['sampleImageURL']) && is_array($decoded
       </div>
     <?php endforeach; ?>
   <?php endif; ?>
+  </div>
 </body>
 </html>
