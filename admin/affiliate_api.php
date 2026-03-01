@@ -29,10 +29,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'fanza_floor' => trim((string)post('floor', 'videoa')),
             'master_floor_id' => trim((string)post('master_floor_id', '43')),
             'item_sync_batch' => (string)$batch,
-            'item_sync_enabled' => post('item_sync_enabled', '0') === '1' ? '1' : '0',
+            'item_sync_enabled' => '1',
             'item_sync_interval_minutes' => (string)max(1, (int)post('item_sync_interval_minutes', 60)),
         ]);
-        $resultMessage = 'API設定を保存しました。';
+
+        try {
+            $cfg = settings_get();
+            if ((string)$cfg['api_id'] !== '' && (string)$cfg['affiliate_id'] !== '') {
+                dmm_sync_service()->syncItemsBatch((string)$cfg['service'], (string)$cfg['floor'], 10, 1);
+            }
+            $resultMessage = 'API設定を保存しました。初回同期を実行しました。';
+        } catch (Throwable $e) {
+            $resultType = 'error';
+            $resultMessage = 'API設定は保存しましたが、初回同期に失敗しました: ' . $e->getMessage();
+        }
     }
 
     if ($action === 'test_items') {
@@ -75,16 +85,16 @@ require __DIR__ . '/includes/header.php';
     <label>アフィリエイトID
       <input name="affiliate_id" value="<?= e((string)($settings['affiliate_id'] ?? '')) ?>">
     </label>
-    <label>site
+    <label>サイト
       <input name="site" value="<?= e((string)($settings['site'] ?? 'FANZA')) ?>">
     </label>
-    <label>service
+    <label>サービス（通常は digital）
       <input name="service" value="<?= e((string)($settings['service'] ?? 'digital')) ?>">
     </label>
-    <label>floor
+    <label>フロア（動画は videoa）
       <input name="floor" value="<?= e((string)($settings['floor'] ?? 'videoa')) ?>">
     </label>
-    <label>floor_id（Genre/Maker/Series/Author）
+    <label>フロアID（Genre/Maker/Series/Author）
       <input name="master_floor_id" value="<?= e((string)($settings['master_floor_id'] ?? '43')) ?>">
     </label>
     <label>商品取得件数
@@ -94,19 +104,12 @@ require __DIR__ . '/includes/header.php';
         <?php endforeach; ?>
       </select>
     </label>
-    <label>タイマー自動取得
-      <select name="item_sync_enabled">
-        <option value="1" <?= ((int)($settings['item_sync_enabled'] ?? 0) === 1) ? 'selected' : '' ?>>ON</option>
-        <option value="0" <?= ((int)($settings['item_sync_enabled'] ?? 0) !== 1) ? 'selected' : '' ?>>OFF</option>
-      </select>
-    </label>
     <label>実行間隔（分）
       <input name="item_sync_interval_minutes" type="number" min="1" value="<?= e((string)($settings['item_sync_interval_minutes'] ?? 60)) ?>">
     </label>
     <div class="admin-actions">
       <button type="submit" name="action" value="save">保存</button>
       <button class="button-secondary" type="submit" name="action" value="test_items">商品情報を10件取得（手動）</button>
-      <a class="button-secondary" href="<?= e(admin_url('auto_timer.php')) ?>">タイマー稼働ページを開く</a>
     </div>
   </form>
 

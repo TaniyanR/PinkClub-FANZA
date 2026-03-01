@@ -46,9 +46,8 @@ require __DIR__ . '/includes/header.php';
 <section class="admin-card admin-card--form">
   <h1>固定ページ一覧</h1>
   <?php if ($message !== null): ?><p><?= e($message) ?></p><?php endif; ?>
-  <p>「新規」は現在保留中です。標準ページは自動作成されます。</p>
   <table class="admin-table">
-    <tr><th>ID</th><th>スラッグ</th><th>タイトル</th><th>公開</th><th>更新日時</th></tr>
+    <tr><th>ID</th><th>スラッグ</th><th>タイトル</th><th>公開</th><th>更新日時</th><th>編集</th></tr>
     <?php foreach ($rows as $row): ?>
       <tr>
         <td><?= e((string)$row['id']) ?></td>
@@ -56,6 +55,7 @@ require __DIR__ . '/includes/header.php';
         <td><?= e((string)$row['title']) ?></td>
         <td><?= (int)$row['is_published'] === 1 ? '公開' : '非公開' ?></td>
         <td><?= e((string)$row['updated_at']) ?></td>
+        <td><a href="<?= e(admin_url('pages_edit.php?id=' . (int)$row['id'])) ?>">編集</a></td>
       </tr>
     <?php endforeach; ?>
   </table>

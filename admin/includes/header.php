@@ -10,18 +10,14 @@ $menuGroups = [
     ['label' => 'ダッシュボード', 'file' => 'index.php'],
     ['label' => '設定', 'children' => [
         ['label' => 'サイト設定', 'file' => 'site_settings.php'],
-        ['label' => 'アカウント設定', 'file' => 'account_settings.php'],
-        ['label' => 'デザイン設定', 'file' => 'design_settings.php'],
     ]],
     ['label' => 'リンク設定', 'children' => [
         ['label' => '相互リンク管理', 'file' => 'links.php'],
-        ['label' => 'RSS管理', 'file' => 'rss.php'],
     ]],
     ['label' => 'アクセス解析', 'file' => 'analytics.php'],
     ['label' => 'アフィリエイト設定', 'children' => [
         ['label' => 'API設定', 'file' => 'affiliate_api.php'],
         ['label' => '広告コード', 'file' => 'affiliate_ads.php'],
-        ['label' => 'タイマー稼働', 'file' => 'auto_timer.php'],
     ]],
     ['label' => '固定ページ', 'children' => [
         ['label' => '固定ページ一覧', 'file' => 'pages.php'],

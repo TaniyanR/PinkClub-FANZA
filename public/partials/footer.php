@@ -14,6 +14,7 @@ if ($siteName === '') {
 ?>
   </main>
 </div>
+<?php render_ad('sp_footer_above', ad_current_page_type(), 'sp'); ?>
 <footer class="site-footer">
   <div class="site-footer__credit">
     <a href="https://affiliate.dmm.com/api/"><img src="https://p.dmm.co.jp/p/affiliate/web_service/r18_135_17.gif" width="135" height="17" alt="WEB SERVICE BY FANZA" /></a>
