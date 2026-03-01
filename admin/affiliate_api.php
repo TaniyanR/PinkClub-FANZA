@@ -8,6 +8,7 @@ $title = 'API設定';
 $resultMessage = null;
 $resultType = 'success';
 $testTitles = [];
+$testListTitle = '';
 $settings = settings_get();
 
 $floorOptions = [];
@@ -48,20 +49,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $resultMessage = 'API設定を保存しました。';
     }
 
-    if ($action === 'test_items') {
+    $masterActionMap = [
+        'test_actresses' => ['kind' => 'actress', 'offset_key' => 'actress_sync_test_offset', 'table' => 'actresses', 'label' => '女優検索API'],
+        'test_genres' => ['kind' => 'genre', 'offset_key' => 'genre_sync_test_offset', 'table' => 'genres', 'label' => 'ジャンル検索API'],
+        'test_makers' => ['kind' => 'maker', 'offset_key' => 'maker_sync_test_offset', 'table' => 'makers', 'label' => 'メーカー検索API'],
+        'test_series' => ['kind' => 'series', 'offset_key' => 'series_sync_test_offset', 'table' => 'series_master', 'label' => 'シリーズ検索API'],
+        'test_authors' => ['kind' => 'author', 'offset_key' => 'author_sync_test_offset', 'table' => 'authors', 'label' => '作者検索API'],
+    ];
+
+    if ($action === 'test_items' || isset($masterActionMap[$action])) {
         try {
             $cfg = settings_get();
             if ((string)$cfg['api_id'] === '' || (string)$cfg['affiliate_id'] === '') {
                 throw new RuntimeException('API ID / アフィリエイトID を保存してから実行してください。');
             }
-            $offset = max(1, settings_int('item_sync_test_offset', 1));
-            $result = dmm_sync_service()->syncItemsBatch((string)$cfg['service'], (string)$cfg['floor'], 10, $offset);
-            $nextOffset = (int)($result['next_offset'] ?? ($offset + 100));
-            site_setting_set_many(['item_sync_test_offset' => (string)$nextOffset]);
 
-            $resultMessage = 'テスト取得完了: ' . (int)$result['synced_count'] . '件を保存しました。';
-            $stmt = db()->query('SELECT title FROM items ORDER BY updated_at DESC LIMIT 5');
-            $testTitles = $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+            if ($action === 'test_items') {
+                $offset = max(1, settings_int('item_sync_test_offset', 1));
+                $result = dmm_sync_service()->syncItemsBatch((string)$cfg['service'], (string)$cfg['floor'], 10, $offset);
+                $nextOffset = (int)($result['next_offset'] ?? ($offset + 10));
+                site_setting_set_many(['item_sync_test_offset' => (string)$nextOffset]);
+
+                $resultMessage = '商品情報API テスト取得完了: ' . (int)$result['synced_count'] . '件を保存しました。';
+                $stmt = db()->query('SELECT title FROM items ORDER BY updated_at DESC LIMIT 5');
+                $testTitles = $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+                $testListTitle = '代表タイトル（商品情報API）';
+            } else {
+                $spec = $masterActionMap[$action];
+                $offset = max(1, settings_int((string)$spec['offset_key'], 1));
+                $floorId = (string)($cfg['master_floor_id'] ?? '43');
+                $count = dmm_sync_service()->syncMaster((string)$spec['kind'], (string)$spec['kind'] === 'actress' ? null : $floorId, $offset, 10);
+                $nextOffset = $offset + 10;
+                if ($nextOffset > 50000) {
+                    $nextOffset = 1;
+                }
+                site_setting_set_many([(string)$spec['offset_key'] => (string)$nextOffset]);
+
+                $resultMessage = (string)$spec['label'] . ' テスト取得完了: ' . $count . '件を保存しました。';
+                $stmt = db()->query('SELECT name FROM ' . $spec['table'] . ' ORDER BY updated_at DESC LIMIT 5');
+                $testTitles = $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+                $testListTitle = '代表名称（' . (string)$spec['label'] . '）';
+            }
             $resultType = 'success';
         } catch (Throwable $e) {
             $resultType = 'error';
@@ -135,12 +163,17 @@ require __DIR__ . '/includes/header.php';
     </label>
     <div class="admin-actions">
       <button type="submit" name="action" value="save">保存</button>
-      <button class="button-secondary" type="submit" name="action" value="test_items">商品情報を10件取得（手動）</button>
+      <button class="button-secondary" type="submit" name="action" value="test_items">商品情報APIを10件取得（手動）</button>
+      <button class="button-secondary" type="submit" name="action" value="test_actresses">女優検索APIを10件取得</button>
+      <button class="button-secondary" type="submit" name="action" value="test_genres">ジャンル検索APIを10件取得</button>
+      <button class="button-secondary" type="submit" name="action" value="test_makers">メーカー検索APIを10件取得</button>
+      <button class="button-secondary" type="submit" name="action" value="test_series">シリーズ検索APIを10件取得</button>
+      <button class="button-secondary" type="submit" name="action" value="test_authors">作者検索APIを10件取得</button>
     </div>
   </form>
 
   <?php if ($testTitles !== []): ?>
-    <h2>代表タイトル</h2>
+    <h2><?= e($testListTitle !== "" ? $testListTitle : "代表タイトル") ?></h2>
     <ul><?php foreach ($testTitles as $t): ?><li><?= e((string)$t) ?></li><?php endforeach; ?></ul>
   <?php endif; ?>
 </section>
