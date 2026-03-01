@@ -1,8 +1,10 @@
 <?php
 
 declare(strict_types=1);
+
 require_once __DIR__ . '/../public/_bootstrap.php';
 require_once __DIR__ . '/../lib/fanza_api_config.php';
+
 auth_require_admin();
 
 $title = 'API設定';
@@ -38,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         site_setting_set_many([
+            // settings_get() 側で api_id / affiliate_id に正規化される前提（保存キーは fanza_*）
             'fanza_api_id' => trim((string)post('api_id', '')),
             'fanza_affiliate_id' => trim((string)post('affiliate_id', '')),
             'fanza_site' => trim((string)post('site', 'FANZA')),
@@ -48,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'item_sync_enabled' => post('item_sync_enabled', '0') === '1' ? '1' : '0',
             'item_sync_interval_minutes' => (string)max(1, (int)post('item_sync_interval_minutes', 60)),
         ]);
+
         $resultMessage = 'API設定を保存しました。';
     }
 
@@ -55,8 +59,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $cfg = fanza_normalize_api_config(settings_get());
             $timeouts = fanza_api_timeout_config($cfg);
-            $credentialTest = fanza_test_api_credentials((string)$cfg['api_id'], (string)$cfg['affiliate_id'], $timeouts['connect_timeout'], $timeouts['timeout']);
-            $itemTest = fanza_test_item_fetch((string)$cfg['api_id'], (string)$cfg['affiliate_id'], (string)$cfg['service'], (string)$cfg['floor'], $timeouts['connect_timeout'], $timeouts['timeout']);
+
+            $credentialTest = fanza_test_api_credentials(
+                (string)$cfg['api_id'],
+                (string)$cfg['affiliate_id'],
+                $timeouts['connect_timeout'],
+                $timeouts['timeout']
+            );
+
+            $itemTest = fanza_test_item_fetch(
+                (string)$cfg['api_id'],
+                (string)$cfg['affiliate_id'],
+                (string)$cfg['service'],
+                (string)$cfg['floor'],
+                $timeouts['connect_timeout'],
+                $timeouts['timeout']
+            );
+
             $connectionSummary = [
                 'credential' => $credentialTest,
                 'item' => $itemTest,
@@ -64,10 +83,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $allOk = (($credentialTest['ok'] ?? false) && ($itemTest['ok'] ?? false));
             if ($allOk) {
-                $itemsCount = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+                $itemsCount = 0;
+                try {
+                    $itemsCount = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+                } catch (Throwable) {
+                    $itemsCount = 0;
+                }
+
                 if ($itemsCount === 0) {
+                    // 初回導線（未同期なら 10件だけ自動同期して体験を良くする）
                     $autoSync = dmm_sync_service()->syncItemsBatch((string)$cfg['service'], (string)$cfg['floor'], 10, 1);
                     $autoSynced = (int)($autoSync['synced_count'] ?? 0);
+
                     $resultType = $autoSynced > 0 ? 'success' : 'error';
                     $resultMessage = $autoSynced > 0
                         ? '接続テストに成功し、未同期のため商品を自動同期しました（' . $autoSynced . '件）。'
@@ -89,17 +116,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'test_items') {
         try {
             $cfg = settings_get();
-            if ((string)$cfg['api_id'] === '' || (string)$cfg['affiliate_id'] === '') {
+            if ((string)($cfg['api_id'] ?? '') === '' || (string)($cfg['affiliate_id'] ?? '') === '') {
                 throw new RuntimeException('API ID / アフィリエイトID を保存してから実行してください。');
             }
+
             $offset = max(1, settings_int('item_sync_test_offset', 1));
             $result = dmm_sync_service()->syncItemsBatch((string)$cfg['service'], (string)$cfg['floor'], 10, $offset);
             $nextOffset = (int)($result['next_offset'] ?? ($offset + 100));
             site_setting_set_many(['item_sync_test_offset' => (string)$nextOffset]);
 
-            $resultMessage = 'テスト取得完了: ' . (int)$result['synced_count'] . '件を保存しました。';
+            $resultMessage = 'テスト取得完了: ' . (int)($result['synced_count'] ?? 0) . '件を保存しました。';
+
             $stmt = db()->query('SELECT title FROM items ORDER BY updated_at DESC LIMIT 5');
             $testTitles = $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+
             $resultType = 'success';
         } catch (Throwable $e) {
             $resultType = 'error';
@@ -111,18 +141,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $cfg = fanza_normalize_api_config(settings_get());
             $hits = max(10, min(100, (int)($cfg['item_sync_batch'] ?? 100)));
+
             $syncSummary = fanza_sync_items_to_db($cfg, $hits);
 
+            // 0件保存なら、既存同期ロジックへフォールバック（保険）
             $savedItemsCount = (int)($syncSummary['saved_items_count'] ?? 0);
             if ($savedItemsCount <= 0) {
                 $legacy = dmm_sync_service()->syncItemsBatch((string)$cfg['service'], (string)$cfg['floor'], $hits, 1);
                 $legacySaved = (int)($legacy['synced_count'] ?? 0);
+
                 $syncSummary['saved_items_count'] = $legacySaved;
                 $syncSummary['fetched_items_count'] = max((int)($syncSummary['fetched_items_count'] ?? 0), $legacySaved);
+
                 if (!isset($syncSummary['warnings']) || !is_array($syncSummary['warnings'])) {
                     $syncSummary['warnings'] = [];
                 }
                 $syncSummary['warnings'][] = 'FANZA同期で保存件数が0件だったため、既存同期ロジックへフォールバックしました。';
+
                 if ($legacySaved > 0) {
                     $syncSummary['sync_ok'] = true;
                     $syncSummary['reason'] = '';
@@ -145,10 +180,19 @@ require __DIR__ . '/includes/header.php';
 ?>
 <section class="admin-card admin-card--form">
   <h1>API設定</h1>
-  <?php if ($resultMessage !== null): ?><div class="admin-notice <?= $resultType === 'error' ? 'admin-notice--error' : 'admin-notice--success' ?>"><p><?= e($resultMessage) ?></p></div><?php endif; ?>
-  <?php if ((string)($settings['api_id'] ?? '') === '' || (string)($settings['affiliate_id'] ?? '') === ''): ?>
-    <div class="admin-notice admin-notice--error"><p>API ID / アフィリエイトID が未設定です。保存してから同期してください。</p></div>
+
+  <?php if ($resultMessage !== null): ?>
+    <div class="admin-notice <?= $resultType === 'error' ? 'admin-notice--error' : 'admin-notice--success' ?>">
+      <p><?= e($resultMessage) ?></p>
+    </div>
   <?php endif; ?>
+
+  <?php if ((string)($settings['api_id'] ?? '') === '' || (string)($settings['affiliate_id'] ?? '') === ''): ?>
+    <div class="admin-notice admin-notice--error">
+      <p>API ID / アフィリエイトID が未設定です。保存してから同期してください。</p>
+    </div>
+  <?php endif; ?>
+
   <?php
     $currentItemsCount = 0;
     try {
@@ -157,7 +201,9 @@ require __DIR__ . '/includes/header.php';
         $currentItemsCount = 0;
     }
   ?>
-  <div class="admin-notice <?= $currentItemsCount > 0 ? 'admin-notice--success' : 'admin-notice--error' ?>"><p>現在の items 件数: <?= e((string)$currentItemsCount) ?>件<?= $currentItemsCount === 0 ? '（未同期）' : '' ?></p></div>
+  <div class="admin-notice <?= $currentItemsCount > 0 ? 'admin-notice--success' : 'admin-notice--error' ?>">
+    <p>現在の items 件数: <?= e((string)$currentItemsCount) ?>件<?= $currentItemsCount === 0 ? '（未同期）' : '' ?></p>
+  </div>
 
   <div class="admin-card" style="margin-bottom:12px;">
     <h2 style="margin-top:0;">XAMPP向け DB設定ヘルプ</h2>
@@ -171,18 +217,23 @@ require __DIR__ . '/includes/header.php';
 
   <form method="post">
     <?= csrf_input() ?>
+
     <label>APIID
       <input name="api_id" value="<?= e((string)($settings['api_id'] ?? '')) ?>">
     </label>
+
     <label>アフィリエイトID
       <input name="affiliate_id" value="<?= e((string)($settings['affiliate_id'] ?? '')) ?>">
     </label>
+
     <label>サイト
       <input name="site" value="<?= e((string)($settings['site'] ?? 'FANZA')) ?>">
     </label>
+
     <label>サービス（service）
       <input name="service" value="<?= e((string)($settings['service'] ?? 'digital')) ?>">
     </label>
+
     <label>フロア
       <?php if ($floorOptions !== []): ?>
         <select name="floor">
@@ -196,16 +247,22 @@ require __DIR__ . '/includes/header.php';
               $floorName = trim((string)($option['floor_name'] ?? $floorCode));
               $label = $siteName . ' - ' . $serviceName . ' - ' . $floorName;
             ?>
-            <option value="<?= e($floorCode) ?>" data-service-code="<?= e($serviceCode) ?>" <?= $currentFloor === $floorCode ? 'selected' : '' ?>><?= e($label) ?></option>
+            <option
+              value="<?= e($floorCode) ?>"
+              data-service-code="<?= e($serviceCode) ?>"
+              <?= $currentFloor === $floorCode ? 'selected' : '' ?>
+            ><?= e($label) ?></option>
           <?php endforeach; ?>
         </select>
       <?php else: ?>
         <input name="floor" value="<?= e((string)($settings['floor'] ?? 'videoa')) ?>">
       <?php endif; ?>
     </label>
+
     <label>floor_id（Genre/Maker/Series/Author）
       <input name="master_floor_id" value="<?= e((string)($settings['master_floor_id'] ?? '43')) ?>">
     </label>
+
     <label>商品取得件数
       <select name="item_sync_batch">
         <?php foreach ([100, 200, 300, 500, 1000] as $option): ?>
@@ -213,15 +270,18 @@ require __DIR__ . '/includes/header.php';
         <?php endforeach; ?>
       </select>
     </label>
+
     <label>定期自動取得
       <select name="item_sync_enabled">
         <option value="1" <?= ((int)($settings['item_sync_enabled'] ?? 0) === 1) ? 'selected' : '' ?>>ON</option>
         <option value="0" <?= ((int)($settings['item_sync_enabled'] ?? 0) !== 1) ? 'selected' : '' ?>>OFF</option>
       </select>
     </label>
+
     <label>実行間隔（分）
       <input name="item_sync_interval_minutes" type="number" min="1" value="<?= e((string)($settings['item_sync_interval_minutes'] ?? 60)) ?>">
     </label>
+
     <div class="admin-actions">
       <button type="submit" name="action" value="save">保存</button>
       <button class="button-secondary" type="submit" name="action" value="test_connection">接続テスト</button>
@@ -251,27 +311,36 @@ require __DIR__ . '/includes/header.php';
       <p>error_type: <?= e((string)($syncSummary['error_type'] ?? '')) ?></p>
       <?php if (!empty($syncSummary['warnings']) && is_array($syncSummary['warnings'])): ?>
         <p>warnings:</p>
-        <ul><?php foreach ($syncSummary['warnings'] as $warning): ?><li><?= e((string)$warning) ?></li><?php endforeach; ?></ul>
+        <ul>
+          <?php foreach ($syncSummary['warnings'] as $warning): ?>
+            <li><?= e((string)$warning) ?></li>
+          <?php endforeach; ?>
+        </ul>
       <?php endif; ?>
     </div>
   <?php endif; ?>
 
   <?php if ($testTitles !== []): ?>
     <h2>代表タイトル</h2>
-    <ul><?php foreach ($testTitles as $t): ?><li><?= e((string)$t) ?></li><?php endforeach; ?></ul>
+    <ul>
+      <?php foreach ($testTitles as $t): ?>
+        <li><?= e((string)$t) ?></li>
+      <?php endforeach; ?>
+    </ul>
   <?php endif; ?>
 </section>
 
 <script>
 (function(){
-  var floor=document.querySelector('select[name="floor"]');
-  var service=document.querySelector('input[name="service"]');
-  if(!floor||!service){return;}
-  floor.addEventListener('change',function(){
-    var opt=floor.options[floor.selectedIndex];
-    var code=opt ? opt.getAttribute('data-service-code') : '';
-    if(code){service.value=code;}
+  var floor = document.querySelector('select[name="floor"]');
+  var service = document.querySelector('input[name="service"]');
+  if(!floor || !service){ return; }
+  floor.addEventListener('change', function(){
+    var opt = floor.options[floor.selectedIndex];
+    var code = opt ? opt.getAttribute('data-service-code') : '';
+    if(code){ service.value = code; }
   });
 })();
 </script>
+
 <?php require __DIR__ . '/includes/footer.php'; ?>
