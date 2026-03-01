@@ -497,6 +497,11 @@ function upsert_item(array $item): array
         'image_list' => (string)($item['image_list'] ?? ''),
         'image_small' => (string)($item['image_small'] ?? ''),
         'image_large' => (string)($item['image_large'] ?? ''),
+        'sample_movie_url_476' => (string)($item['sample_movie_url_476'] ?? ''),
+        'sample_movie_url_560' => (string)($item['sample_movie_url_560'] ?? ''),
+        'sample_movie_url_644' => (string)($item['sample_movie_url_644'] ?? ''),
+        'sample_movie_url_720' => (string)($item['sample_movie_url_720'] ?? ''),
+        'raw_json' => is_string($item['raw_json'] ?? null) ? (string)$item['raw_json'] : null,
         'date_published' => $item['date_published'] ?? null,
         'service_code' => (string)($item['service_code'] ?? ''),
         'floor_code' => (string)($item['floor_code'] ?? ''),
@@ -517,6 +522,11 @@ function upsert_item(array $item): array
                     image_list = :image_list,
                     image_small = :image_small,
                     image_large = :image_large,
+                    sample_movie_url_476 = :sample_movie_url_476,
+                    sample_movie_url_560 = :sample_movie_url_560,
+                    sample_movie_url_644 = :sample_movie_url_644,
+                    sample_movie_url_720 = :sample_movie_url_720,
+                    raw_json = :raw_json,
                     date_published = :date_published,
                     service_code = :service_code,
                     floor_code = :floor_code,
@@ -533,6 +543,11 @@ function upsert_item(array $item): array
             ':image_list' => $payload['image_list'],
             ':image_small' => $payload['image_small'],
             ':image_large' => $payload['image_large'],
+            ':sample_movie_url_476' => $payload['sample_movie_url_476'],
+            ':sample_movie_url_560' => $payload['sample_movie_url_560'],
+            ':sample_movie_url_644' => $payload['sample_movie_url_644'],
+            ':sample_movie_url_720' => $payload['sample_movie_url_720'],
+            ':raw_json' => $payload['raw_json'],
             ':date_published' => $payload['date_published'],
             ':service_code' => $payload['service_code'],
             ':floor_code' => $payload['floor_code'],
@@ -546,9 +561,9 @@ function upsert_item(array $item): array
     }
 
     $sql = 'INSERT INTO items
-            (content_id, product_id, title, url, affiliate_url, image_list, image_small, image_large, date_published, service_code, floor_code, category_name, price_min, created_at, updated_at)
+            (content_id, product_id, title, url, affiliate_url, image_list, image_small, image_large, sample_movie_url_476, sample_movie_url_560, sample_movie_url_644, sample_movie_url_720, raw_json, date_published, service_code, floor_code, category_name, price_min, created_at, updated_at)
             VALUES
-            (:content_id, :product_id, :title, :url, :affiliate_url, :image_list, :image_small, :image_large, :date_published, :service_code, :floor_code, :category_name, :price_min, :created_at, :updated_at)';
+            (:content_id, :product_id, :title, :url, :affiliate_url, :image_list, :image_small, :image_large, :sample_movie_url_476, :sample_movie_url_560, :sample_movie_url_644, :sample_movie_url_720, :raw_json, :date_published, :service_code, :floor_code, :category_name, :price_min, :created_at, :updated_at)';
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
         ':content_id' => $payload['content_id'],
@@ -559,6 +574,11 @@ function upsert_item(array $item): array
         ':image_list' => $payload['image_list'],
         ':image_small' => $payload['image_small'],
         ':image_large' => $payload['image_large'],
+        ':sample_movie_url_476' => $payload['sample_movie_url_476'],
+        ':sample_movie_url_560' => $payload['sample_movie_url_560'],
+        ':sample_movie_url_644' => $payload['sample_movie_url_644'],
+        ':sample_movie_url_720' => $payload['sample_movie_url_720'],
+        ':raw_json' => $payload['raw_json'],
         ':date_published' => $payload['date_published'],
         ':service_code' => $payload['service_code'],
         ':floor_code' => $payload['floor_code'],
