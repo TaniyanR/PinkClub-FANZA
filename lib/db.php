@@ -33,6 +33,25 @@ function db_validate_config(array $cfg, bool $requireDbName): array
     return $errors;
 }
 
+function db_resolve_connect_target(array $cfg): string
+{
+    $host = trim((string)($cfg['host'] ?? ''));
+    if ($host === '') {
+        return '';
+    }
+
+    if ($host === 'localhost' || $host === '127.0.0.1') {
+        return $host;
+    }
+
+    $resolved = @gethostbyname($host);
+    if ($resolved === false || $resolved === '' || $resolved === $host) {
+        return $host;
+    }
+
+    return $host . ' (' . $resolved . ')';
+}
+
 function db_log_connection_error(array $cfg, string $dsn, Throwable $e, array $errors = []): void
 {
     $payload = [
@@ -41,6 +60,7 @@ function db_log_connection_error(array $cfg, string $dsn, Throwable $e, array $e
         'dbname' => (string)($cfg['dbname'] ?? ''),
         'user' => (string)($cfg['user'] ?? ''),
         'dsn' => $dsn,
+        'connect_target' => db_resolve_connect_target($cfg),
         'error' => $e->getMessage(),
         'config_errors' => $errors,
     ];
@@ -55,7 +75,7 @@ function db_server_pdo(): PDO
     }
 
     $cfg = app_config()['db'];
-    $dsn = sprintf('mysql:host=%s;port=%d;charset=%s', $cfg['host'], (int)$cfg['port'], $cfg['charset']);
+    $dsn = sprintf('mysql:host=%s;port=%d;charset=%s', (string)($cfg['host'] ?? ''), (int)($cfg['port'] ?? 0), (string)($cfg['charset'] ?? 'utf8mb4'));
     $configErrors = db_validate_config($cfg, false);
 
     if ($configErrors !== []) {
@@ -65,7 +85,7 @@ function db_server_pdo(): PDO
     }
 
     try {
-        $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], db_options());
+        $pdo = new PDO($dsn, (string)$cfg['user'], (string)($cfg['pass'] ?? ''), db_options());
     } catch (Throwable $e) {
         db_log_connection_error($cfg, $dsn, $e);
         throw new RuntimeException('DB接続に失敗しました（設定を確認してください）。');
@@ -82,7 +102,7 @@ function db_pdo(): PDO
     }
 
     $cfg = app_config()['db'];
-    $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=%s', $cfg['host'], (int)$cfg['port'], $cfg['dbname'], $cfg['charset']);
+    $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=%s', (string)($cfg['host'] ?? ''), (int)($cfg['port'] ?? 0), (string)($cfg['dbname'] ?? ''), (string)($cfg['charset'] ?? 'utf8mb4'));
     $configErrors = db_validate_config($cfg, true);
 
     if ($configErrors !== []) {
@@ -92,7 +112,7 @@ function db_pdo(): PDO
     }
 
     try {
-        $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], db_options());
+        $pdo = new PDO($dsn, (string)$cfg['user'], (string)($cfg['pass'] ?? ''), db_options());
     } catch (Throwable $e) {
         db_log_connection_error($cfg, $dsn, $e);
         throw new RuntimeException('DB接続に失敗しました（設定を確認してください）。');
