@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 require_once __DIR__ . '/../public/_bootstrap.php';
+require_once __DIR__ . '/../lib/app.php';
 auth_require_admin();
 
 $title = 'API設定';
@@ -37,9 +38,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         site_setting_set_many([
             'fanza_api_id' => trim((string)post('api_id', '')),
             'fanza_affiliate_id' => trim((string)post('affiliate_id', '')),
-            'fanza_site' => trim((string)post('site', 'FANZA')),
-            'fanza_service' => trim((string)post('service', 'digital')),
-            'fanza_floor' => trim((string)post('floor', 'video（videoa）')),
+            'fanza_site' => settings_normalize_site((string)post('site', 'FANZA')),
+            'fanza_service' => strtolower(settings_normalize_token((string)post('service', 'digital'), 'digital')),
+            'fanza_floor' => strtolower(settings_normalize_token((string)post('floor', 'videoa'), 'videoa')),
             'master_floor_id' => trim((string)post('master_floor_id', '43')),
             'item_sync_batch' => (string)$batch,
             'item_sync_enabled' => post('item_sync_enabled', '0') === '1' ? '1' : '0',
@@ -55,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('API ID / アフィリエイトID を保存してから実行してください。');
             }
             $offset = max(1, settings_int('item_sync_test_offset', 1));
-            $result = dmm_sync_service()->syncItemsBatch((string)$cfg['service'], (string)$cfg['floor'], 10, $offset);
+            $result = dmm_sync_service()->syncItemsBatch((string)$cfg['site'], (string)$cfg['service'], (string)$cfg['floor'], 10, $offset);
             $nextOffset = (int)($result['next_offset'] ?? ($offset + 100));
             site_setting_set_many(['item_sync_test_offset' => (string)$nextOffset]);
 
@@ -97,7 +98,7 @@ require __DIR__ . '/includes/header.php';
     <label>フロア
       <?php if ($floorOptions !== []): ?>
         <select name="floor">
-          <?php $currentFloor = (string)($settings['floor'] ?? 'video（videoa）'); ?>
+          <?php $currentFloor = (string)($settings['floor'] ?? 'videoa'); ?>
           <?php foreach ($floorOptions as $option): ?>
             <?php
               $floorCode = (string)($option['floor_code'] ?? '');
@@ -111,7 +112,7 @@ require __DIR__ . '/includes/header.php';
           <?php endforeach; ?>
         </select>
       <?php else: ?>
-        <input name="floor" value="<?= e((string)($settings['floor'] ?? 'video（videoa）')) ?>">
+        <input name="floor" value="<?= e((string)($settings['floor'] ?? 'videoa')) ?>">
       <?php endif; ?>
     </label>
     <label>floor_id（Genre/Maker/Series/Author）
