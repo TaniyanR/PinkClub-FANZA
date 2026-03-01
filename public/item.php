@@ -62,6 +62,56 @@ if (is_string($item['raw_json'] ?? null) && $item['raw_json'] !== '') {
     }
 }
 
+function collect_movie_urls_from_value_item(mixed $value, array &$urls): void
+{
+    if (is_string($value)) {
+        $candidate = trim($value);
+        if ($candidate !== '' && (str_starts_with($candidate, 'http://') || str_starts_with($candidate, 'https://'))) {
+            $urls[] = $candidate;
+        }
+        return;
+    }
+
+    if (!is_array($value)) {
+        return;
+    }
+
+    foreach ($value as $child) {
+        collect_movie_urls_from_value_item($child, $urls);
+    }
+}
+
+function pick_sample_movie_url_from_raw_item(array $raw): string
+{
+    foreach (['sampleMovieURL', 'sample_movie_url', 'sampleMovieUrl'] as $movieKeyName) {
+        $rawMovie = $raw[$movieKeyName] ?? null;
+
+        if (is_string($rawMovie)) {
+            $candidate = trim($rawMovie);
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        if (is_array($rawMovie)) {
+            foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
+                $candidate = trim((string)($rawMovie[$movieKey] ?? ''));
+                if ($candidate !== '') {
+                    return $candidate;
+                }
+            }
+
+            $urls = [];
+            collect_movie_urls_from_value_item($rawMovie, $urls);
+            if ($urls !== []) {
+                return $urls[0];
+            }
+        }
+    }
+
+    return '';
+}
+
 $sampleMovieUrl = '';
 foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $movieColumn) {
     $candidate = trim((string)($item[$movieColumn] ?? ''));
@@ -72,15 +122,8 @@ foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560'
 }
 
 
-$rawMovie = $raw['sampleMovieURL'] ?? null;
-if ($sampleMovieUrl === '' && is_array($rawMovie)) {
-    foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
-        $candidate = trim((string)($rawMovie[$movieKey] ?? ''));
-        if ($candidate !== '') {
-            $sampleMovieUrl = $candidate;
-            break;
-        }
-    }
+if ($sampleMovieUrl === '') {
+    $sampleMovieUrl = pick_sample_movie_url_from_raw_item($raw);
 }
 
 $sampleImages = [];
@@ -114,7 +157,7 @@ require __DIR__ . '/partials/header.php';
 
 <div style="margin: 16px 0; display: flex; gap: 8px; flex-wrap: wrap;">
   <?php if ($sampleMovieUrl !== ''): ?>
-    <button type="button" onclick="window.open('<?= e($sampleMovieUrl) ?>', '_blank', 'noopener,noreferrer')">サンプル動画</button>
+    <button type="button" class="sample-movie-trigger" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e((string)$item['title']) ?>">サンプル動画</button>
   <?php endif; ?>
   <?php if ($sampleImages !== []): ?>
     <button type="button" onclick="window.open('<?= e(public_url('sample_images.php?content_id=' . rawurlencode((string)$item['content_id']))) ?>', '_blank', 'noopener,noreferrer')">サンプル画像</button>
@@ -149,4 +192,59 @@ require __DIR__ . '/partials/header.php';
   </div>
 <?php endif; ?>
 
+
+<div id="sample-movie-modal" class="sample-movie-modal" aria-hidden="true">
+  <div class="sample-movie-modal__overlay" data-movie-close="1"></div>
+  <div class="sample-movie-modal__dialog" role="dialog" aria-modal="true" aria-label="サンプル動画プレイヤー">
+    <button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>
+    <div id="sample-movie-title" class="sample-movie-modal__title">サンプル動画</div>
+    <div class="sample-movie-modal__frame-wrap">
+      <iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  const modal = document.getElementById('sample-movie-modal');
+  const frame = document.getElementById('sample-movie-frame');
+  const titleNode = document.getElementById('sample-movie-title');
+  if (!modal || !frame || !titleNode) return;
+
+  const openMovie = (url, title) => {
+    if (!url) return;
+    const normalizedTitle = String(title || '').trim();
+    titleNode.textContent = normalizedTitle !== '' ? normalizedTitle : 'サンプル動画';
+    frame.src = url;
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+  };
+
+  const closeMovie = () => {
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+    frame.src = 'about:blank';
+    titleNode.textContent = 'サンプル動画';
+  };
+
+  document.addEventListener('click', (event) => {
+    const trigger = event.target.closest('.sample-movie-trigger');
+    if (trigger) {
+      event.preventDefault();
+      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || '<?= e((string)$item['title']) ?>');
+      return;
+    }
+
+    if (event.target.closest('[data-movie-close="1"]')) {
+      event.preventDefault();
+      closeMovie();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && modal.classList.contains('is-open')) {
+      closeMovie();
+    }
+  });
+})();
+</script>
 <?php require __DIR__ . '/partials/footer.php'; ?>

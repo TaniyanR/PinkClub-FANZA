@@ -294,3 +294,13 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .sample-button{border:none;border-radius:4px;padding:6px 10px;font-size:12px;cursor:pointer}
 .sample-button--enabled{background:#2ea043;color:#fff}
 .sample-button--disabled{background:#9ca3af;color:#fff;cursor:not-allowed}
+
+/* Sample movie modal player */
+.sample-movie-modal{position:fixed;inset:0;display:none;z-index:9999}
+.sample-movie-modal.is-open{display:block}
+.sample-movie-modal__overlay{position:absolute;inset:0;background:rgba(0,0,0,.6)}
+.sample-movie-modal__dialog{position:relative;width:min(96vw,900px);margin:5vh auto 0;background:#000;border-radius:8px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.sample-movie-modal__close{position:absolute;top:6px;right:10px;border:none;background:transparent;color:#fff;font-size:36px;line-height:1;cursor:pointer;z-index:2}
+.sample-movie-modal__title{color:#fff;font-size:14px;line-height:1.4;padding:12px 48px 8px 14px;min-height:20px;box-sizing:border-box}
+.sample-movie-modal__frame-wrap{width:100%;aspect-ratio:16 / 9;background:#000}
+.sample-movie-modal__frame{width:100%;height:100%;border:0;display:block;background:#000}
