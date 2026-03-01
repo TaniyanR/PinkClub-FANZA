@@ -347,6 +347,53 @@ function fanza_normalize_iteminfo_list(mixed $value): array
     return [$value];
 }
 
+function fanza_collect_movie_urls(mixed $value, array &$urls): void
+{
+    if (is_string($value)) {
+        $candidate = trim($value);
+        if ($candidate !== '' && (str_starts_with($candidate, 'http://') || str_starts_with($candidate, 'https://'))) {
+            $urls[] = $candidate;
+        }
+        return;
+    }
+
+    if (!is_array($value)) {
+        return;
+    }
+
+    foreach ($value as $child) {
+        fanza_collect_movie_urls($child, $urls);
+    }
+}
+
+function fanza_pick_sample_movie_urls(array $item): array
+{
+    $rawMovie = $item['sampleMovieURL'] ?? [];
+    if (!is_array($rawMovie)) {
+        $rawMovie = [];
+    }
+
+    $movie476 = trim((string)($rawMovie['size_476_306'] ?? ''));
+    $movie560 = trim((string)($rawMovie['size_560_360'] ?? ''));
+    $movie644 = trim((string)($rawMovie['size_644_414'] ?? ''));
+    $movie720 = trim((string)($rawMovie['size_720_480'] ?? ''));
+
+    if ($movie476 === '' && $movie560 === '' && $movie644 === '' && $movie720 === '') {
+        $urls = [];
+        fanza_collect_movie_urls($rawMovie, $urls);
+        if ($urls !== []) {
+            $movie720 = $urls[0];
+        }
+    }
+
+    return [
+        'sample_movie_url_476' => $movie476,
+        'sample_movie_url_560' => $movie560,
+        'sample_movie_url_644' => $movie644,
+        'sample_movie_url_720' => $movie720,
+    ];
+}
+
 function fanza_extract_items_from_itemlist_result(array $result): array
 {
     $items = $result['items'] ?? null;
@@ -519,6 +566,8 @@ function fanza_sync_items_to_db(array $apiConfig, int $hits = 10): array
                 $datePublished .= ' 00:00:00';
             }
 
+            $movieUrls = fanza_pick_sample_movie_urls($item);
+
             $result = upsert_item([
                 'content_id' => $contentId,
                 'product_id' => (string)($item['product_id'] ?? ''),
@@ -528,10 +577,10 @@ function fanza_sync_items_to_db(array $apiConfig, int $hits = 10): array
                 'image_list' => (string)($item['imageURL']['list'] ?? ''),
                 'image_small' => (string)($item['imageURL']['small'] ?? ''),
                 'image_large' => (string)($item['imageURL']['large'] ?? ''),
-                'sample_movie_url_476' => (string)($item['sampleMovieURL']['size_476_306'] ?? ''),
-                'sample_movie_url_560' => (string)($item['sampleMovieURL']['size_560_360'] ?? ''),
-                'sample_movie_url_644' => (string)($item['sampleMovieURL']['size_644_414'] ?? ''),
-                'sample_movie_url_720' => (string)($item['sampleMovieURL']['size_720_480'] ?? ''),
+                'sample_movie_url_476' => $movieUrls['sample_movie_url_476'],
+                'sample_movie_url_560' => $movieUrls['sample_movie_url_560'],
+                'sample_movie_url_644' => $movieUrls['sample_movie_url_644'],
+                'sample_movie_url_720' => $movieUrls['sample_movie_url_720'],
                 'raw_json' => json_encode($item, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 'date_published' => $datePublished,
                 'service_code' => (string)($item['service_code'] ?? $service),

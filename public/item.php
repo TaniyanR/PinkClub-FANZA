@@ -62,6 +62,56 @@ if (is_string($item['raw_json'] ?? null) && $item['raw_json'] !== '') {
     }
 }
 
+function collect_movie_urls_from_value_item(mixed $value, array &$urls): void
+{
+    if (is_string($value)) {
+        $candidate = trim($value);
+        if ($candidate !== '' && (str_starts_with($candidate, 'http://') || str_starts_with($candidate, 'https://'))) {
+            $urls[] = $candidate;
+        }
+        return;
+    }
+
+    if (!is_array($value)) {
+        return;
+    }
+
+    foreach ($value as $child) {
+        collect_movie_urls_from_value_item($child, $urls);
+    }
+}
+
+function pick_sample_movie_url_from_raw_item(array $raw): string
+{
+    foreach (['sampleMovieURL', 'sample_movie_url', 'sampleMovieUrl'] as $movieKeyName) {
+        $rawMovie = $raw[$movieKeyName] ?? null;
+
+        if (is_string($rawMovie)) {
+            $candidate = trim($rawMovie);
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        if (is_array($rawMovie)) {
+            foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
+                $candidate = trim((string)($rawMovie[$movieKey] ?? ''));
+                if ($candidate !== '') {
+                    return $candidate;
+                }
+            }
+
+            $urls = [];
+            collect_movie_urls_from_value_item($rawMovie, $urls);
+            if ($urls !== []) {
+                return $urls[0];
+            }
+        }
+    }
+
+    return '';
+}
+
 $sampleMovieUrl = '';
 foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $movieColumn) {
     $candidate = trim((string)($item[$movieColumn] ?? ''));
@@ -72,15 +122,8 @@ foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560'
 }
 
 
-$rawMovie = $raw['sampleMovieURL'] ?? null;
-if ($sampleMovieUrl === '' && is_array($rawMovie)) {
-    foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
-        $candidate = trim((string)($rawMovie[$movieKey] ?? ''));
-        if ($candidate !== '') {
-            $sampleMovieUrl = $candidate;
-            break;
-        }
-    }
+if ($sampleMovieUrl === '') {
+    $sampleMovieUrl = pick_sample_movie_url_from_raw_item($raw);
 }
 
 $sampleImages = [];

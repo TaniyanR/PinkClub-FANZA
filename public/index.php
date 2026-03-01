@@ -36,6 +36,56 @@ function decode_item_raw(array $item): array
     return $raw;
 }
 
+function collect_movie_urls_from_value(mixed $value, array &$urls): void
+{
+    if (is_string($value)) {
+        $candidate = trim($value);
+        if ($candidate !== '' && (str_starts_with($candidate, 'http://') || str_starts_with($candidate, 'https://'))) {
+            $urls[] = $candidate;
+        }
+        return;
+    }
+
+    if (!is_array($value)) {
+        return;
+    }
+
+    foreach ($value as $child) {
+        collect_movie_urls_from_value($child, $urls);
+    }
+}
+
+function pick_sample_movie_url_from_raw(array $raw): string
+{
+    foreach (['sampleMovieURL', 'sample_movie_url', 'sampleMovieUrl'] as $movieKeyName) {
+        $rawMovie = $raw[$movieKeyName] ?? null;
+
+        if (is_string($rawMovie)) {
+            $candidate = trim($rawMovie);
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        if (is_array($rawMovie)) {
+            foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
+                $candidate = trim((string)($rawMovie[$movieKey] ?? ''));
+                if ($candidate !== '') {
+                    return $candidate;
+                }
+            }
+
+            $urls = [];
+            collect_movie_urls_from_value($rawMovie, $urls);
+            if ($urls !== []) {
+                return $urls[0];
+            }
+        }
+    }
+
+    return '';
+}
+
 function item_sample_state(array $item): array
 {
     $raw = decode_item_raw($item);
@@ -48,15 +98,8 @@ function item_sample_state(array $item): array
         }
     }
 
-    $rawMovie = $raw['sampleMovieURL'] ?? null;
-    if ($movie === '' && is_array($rawMovie)) {
-        foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
-            $candidate = trim((string)($rawMovie[$movieKey] ?? ''));
-            if ($candidate !== '') {
-                $movie = $candidate;
-                break;
-            }
-        }
+    if ($movie === '') {
+        $movie = pick_sample_movie_url_from_raw($raw);
     }
 
     $hasImageSample = false;
