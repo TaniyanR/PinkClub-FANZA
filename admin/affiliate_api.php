@@ -82,14 +82,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
 
             $allOk = (($credentialTest['ok'] ?? false) && ($itemTest['ok'] ?? false));
-            if ($allOk) {
-                $itemsCount = 0;
-                try {
-                    $itemsCount = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
-                } catch (Throwable) {
-                    $itemsCount = 0;
-                }
 
+            // 現在の items 件数
+            $itemsCount = 0;
+            try {
+                $itemsCount = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+            } catch (Throwable) {
+                $itemsCount = 0;
+            }
+
+            if ($allOk) {
                 if ($itemsCount === 0) {
                     // 初回導線（未同期なら 10件だけ自動同期して体験を良くする）
                     $autoSync = dmm_sync_service()->syncItemsBatch((string)$cfg['service'], (string)$cfg['floor'], 10, 1);
@@ -104,8 +106,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $resultMessage = '接続テストに成功しました。';
                 }
             } else {
-                $resultType = 'error';
-                $resultMessage = '接続テストでエラーが発生しました。';
+                // FANZA直APIがNGでも、未同期なら既存同期ロジックで試す（救済）
+                $fallbackSynced = 0;
+                if ($itemsCount === 0) {
+                    try {
+                        $fallback = dmm_sync_service()->syncItemsBatch((string)$cfg['service'], (string)$cfg['floor'], 10, 1);
+                        $fallbackSynced = (int)($fallback['synced_count'] ?? 0);
+                    } catch (Throwable $fallbackError) {
+                        $connectionSummary['item']['fallback_error'] = $fallbackError->getMessage();
+                    }
+                }
+
+                if ($fallbackSynced > 0) {
+                    $resultType = 'success';
+                    $resultMessage = '接続テスト（FANZA直API）は失敗しましたが、既存同期ロジックで ' . $fallbackSynced . '件保存できました。フロント表示は可能です。';
+                } else {
+                    $resultType = 'error';
+                    $resultMessage = '接続テストでエラーが発生しました。HTTP 400 の場合は API ID/アフィリエイトID の組み合わせ、または floor/service をご確認ください。';
+                }
             }
         } catch (Throwable $e) {
             $resultType = 'error';
@@ -297,6 +315,7 @@ require __DIR__ . '/includes/header.php';
       <p>ItemList: <?= !empty($connectionSummary['item']['ok']) ? 'OK' : 'NG' ?> / HTTP <?= e((string)($connectionSummary['item']['http_code'] ?? '-')) ?> / 件数 <?= e((string)($connectionSummary['item']['item_count'] ?? 0)) ?></p>
       <?php if (!empty($connectionSummary['credential']['message'])): ?><p>FloorList詳細: <?= e((string)$connectionSummary['credential']['message']) ?></p><?php endif; ?>
       <?php if (!empty($connectionSummary['item']['message'])): ?><p>ItemList詳細: <?= e((string)$connectionSummary['item']['message']) ?></p><?php endif; ?>
+      <?php if (!empty($connectionSummary['item']['fallback_error'])): ?><p>fallback_error: <?= e((string)$connectionSummary['item']['fallback_error']) ?></p><?php endif; ?>
     </div>
   <?php endif; ?>
 
