@@ -10,6 +10,19 @@ $resultType = 'success';
 $testTitles = [];
 $settings = settings_get();
 
+$floorOptions = [];
+try {
+    $sql = 'SELECT f.service_code,f.floor_code,f.name AS floor_name,s.name AS service_name,si.name AS site_name
+            FROM dmm_floors f
+            LEFT JOIN dmm_services s ON s.service_code = f.service_code
+            LEFT JOIN dmm_sites si ON si.site_code = s.site_code
+            ORDER BY si.name ASC, s.name ASC, f.name ASC';
+    $stmt = db()->query($sql);
+    $floorOptions = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+} catch (Throwable $e) {
+    $floorOptions = [];
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate_or_fail((string)post('_csrf', ''));
     $action = (string)post('action', 'save');
@@ -81,8 +94,25 @@ require __DIR__ . '/includes/header.php';
     <label>service
       <input name="service" value="<?= e((string)($settings['service'] ?? 'digital')) ?>">
     </label>
-    <label>floor
-      <input name="floor" value="<?= e((string)($settings['floor'] ?? 'videoa')) ?>">
+    <label>フロア
+      <?php if ($floorOptions !== []): ?>
+        <select name="floor">
+          <?php $currentFloor = (string)($settings['floor'] ?? 'videoa'); ?>
+          <?php foreach ($floorOptions as $option): ?>
+            <?php
+              $floorCode = (string)($option['floor_code'] ?? '');
+              $serviceCode = (string)($option['service_code'] ?? '');
+              $siteName = trim((string)($option['site_name'] ?? 'FANZA'));
+              $serviceName = trim((string)($option['service_name'] ?? $serviceCode));
+              $floorName = trim((string)($option['floor_name'] ?? $floorCode));
+              $label = $siteName . ' - ' . $serviceName . ' - ' . $floorName;
+            ?>
+            <option value="<?= e($floorCode) ?>" data-service-code="<?= e($serviceCode) ?>" <?= $currentFloor === $floorCode ? 'selected' : '' ?>><?= e($label) ?></option>
+          <?php endforeach; ?>
+        </select>
+      <?php else: ?>
+        <input name="floor" value="<?= e((string)($settings['floor'] ?? 'videoa')) ?>">
+      <?php endif; ?>
     </label>
     <label>floor_id（Genre/Maker/Series/Author）
       <input name="master_floor_id" value="<?= e((string)($settings['master_floor_id'] ?? '43')) ?>">
