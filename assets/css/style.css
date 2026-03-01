@@ -279,3 +279,18 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
   .site-main--legacy{padding:12px}
   .site-main--legacy .thumb{max-width:100%}
 }
+
+/* Home rails */
+.rail-section{margin-bottom:28px}
+.rail-section h3{margin:0 0 10px;font-size:20px}
+.rail-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:10px}
+.rail-card{display:flex;flex-direction:column;gap:8px}
+.rail-card--300{flex:0 0 300px;max-width:300px}
+.rail-card--180{flex:0 0 180px;max-width:180px}
+.rail-card__title{font-weight:600;text-decoration:none;display:block}
+.rail-card__meta{font-size:13px;color:#2271b1;text-decoration:none}
+.rail-card__noimage{height:180px;display:flex;align-items:center;justify-content:center;background:#f0f0f1;border-radius:6px;color:#646970}
+.sample-buttons{display:flex;gap:6px;flex-wrap:wrap}
+.sample-button{border:none;border-radius:4px;padding:6px 10px;font-size:12px;cursor:pointer}
+.sample-button--enabled{background:#2ea043;color:#fff}
+.sample-button--disabled{background:#9ca3af;color:#fff;cursor:not-allowed}

@@ -43,10 +43,11 @@ if (is_array($decoded) && isset($decoded['sampleImageURL']) && is_array($decoded
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= e((string)$item['title']) ?> - サンプル画像</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 16px; background: #f8f9fa; }
-    h1 { font-size: 18px; margin-bottom: 16px; }
+    body { font-family: Arial, sans-serif; margin: 12px; background: #f8f9fa; }
+    h1 { font-size: 18px; margin-bottom: 12px; }
     .message { text-align: center; color: #555; margin-top: 32px; }
-    img { max-width: 800px; max-height: 450px; width: auto; height: auto; display: block; margin: 12px auto; }
+    .sample-frame { width: 800px; max-width: 100%; height: 450px; background: #fff; border: 1px solid #dcdcde; margin: 10px auto; display: flex; align-items: center; justify-content: center; }
+    .sample-frame img { width: 800px; height: 450px; object-fit: contain; display: block; }
   </style>
 </head>
 <body>
@@ -55,7 +56,9 @@ if (is_array($decoded) && isset($decoded['sampleImageURL']) && is_array($decoded
     <p class="message">画像がありません</p>
   <?php else: ?>
     <?php foreach ($images as $index => $image): ?>
-      <img src="<?= e($image) ?>" alt="サンプル画像 <?= e((string)($index + 1)) ?>">
+      <div class="sample-frame">
+        <img src="<?= e($image) ?>" alt="サンプル画像 <?= e((string)($index + 1)) ?>">
+      </div>
     <?php endforeach; ?>
   <?php endif; ?>
 </body>

@@ -309,13 +309,13 @@ function fanza_test_item_fetch(string $apiId, string $affiliateId, string $servi
         ];
     }
 
-    $items = $result['items'] ?? null;
-    if (!is_array($items)) {
+    $items = fanza_extract_items_from_itemlist_result(is_array($result) ? $result : []);
+    if ($items === []) {
         return [
             'ok' => false,
             'http_code' => (int)($response['http_code'] ?? 200),
             'error_type' => 'api_error',
-            'message' => 'ItemListの result.items が配列ではありません。',
+            'message' => 'ItemListの result.items が見つかりません。',
             'data' => $response['data'] ?? null,
             'service' => $service,
             'floor' => $floor,
@@ -354,11 +354,15 @@ function fanza_extract_items_from_itemlist_result(array $result): array
         return [];
     }
 
-    if (isset($items['item']) && is_array($items['item'])) {
-        return isset($items['item'][0]) ? $items['item'] : [$items['item']];
+    if (isset($items['item'])) {
+        $wrapped = $items['item'];
+        if (!is_array($wrapped)) {
+            return [];
+        }
+        return isset($wrapped[0]) ? $wrapped : [$wrapped];
     }
 
-    return isset($items[0]) ? $items : [];
+    return isset($items[0]) ? $items : [$items];
 }
 
 function fanza_fetch_itemlist_for_sync(string $apiId, string $affiliateId, string $service, string $floor, int $connectTimeout, int $timeout, int $hits = 10): array
@@ -441,6 +445,8 @@ function fanza_sync_items_to_db(array $apiConfig, int $hits = 10): array
     $service = (string)$resolvedFloor['service'];
     $floor = (string)$resolvedFloor['floor'];
 
+    $hasApiLogsTable = db_table_exists('api_logs');
+
     $summary = [
         'sync_ok' => false,
         'target_floor_label' => (string)(fanza_floor_options_for_select()[$resolvedFloor['pair']] ?? ($service . ':' . $floor)),
@@ -456,6 +462,10 @@ function fanza_sync_items_to_db(array $apiConfig, int $hits = 10): array
         'error_type' => '',
         'reason' => '',
     ];
+
+    if (!$hasApiLogsTable) {
+        $summary['warnings'][] = 'api_logs テーブルが無いため、APIログ保存をスキップしました。';
+    }
 
     if ($apiId === '' || $affiliateId === '') {
         $summary['error_type'] = 'config_error';
@@ -486,6 +496,11 @@ function fanza_sync_items_to_db(array $apiConfig, int $hits = 10): array
 
     try {
         $pdo = db();
+        $hasItemLabelsTable = db_table_exists($pdo, 'item_labels');
+        if (!$hasItemLabelsTable) {
+            $summary['warnings'][] = 'item_labels テーブルが無いため、レーベル保存をスキップしました。';
+        }
+
         $pdo->beginTransaction();
 
         foreach ($items as $item) {
@@ -588,7 +603,7 @@ function fanza_sync_items_to_db(array $apiConfig, int $hits = 10): array
             }
             replace_item_relations($contentId, $genreIds, 'item_genres', 'genre_id');
 
-            if (db_table_exists($pdo, 'item_labels')) {
+            if ($hasItemLabelsTable) {
                 $labels = [];
                 foreach (fanza_normalize_iteminfo_list($itemInfo['label'] ?? []) as $label) {
                     if (!is_array($label)) { continue; }
