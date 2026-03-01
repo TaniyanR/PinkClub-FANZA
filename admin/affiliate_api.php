@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'test_connection') {
         try {
-            $cfg = fanza_prepare_api_config(settings_get());
+            $cfg = fanza_normalize_api_config(settings_get());
             $timeouts = fanza_api_timeout_config($cfg);
             $credentialTest = fanza_test_api_credentials((string)$cfg['api_id'], (string)$cfg['affiliate_id'], $timeouts['connect_timeout'], $timeouts['timeout']);
             $itemTest = fanza_test_item_fetch((string)$cfg['api_id'], (string)$cfg['affiliate_id'], (string)$cfg['service'], (string)$cfg['floor'], $timeouts['connect_timeout'], $timeouts['timeout']);
@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'sync_db') {
         try {
-            $cfg = fanza_prepare_api_config(settings_get());
+            $cfg = fanza_normalize_api_config(settings_get());
             $hits = max(10, min(100, (int)($cfg['item_sync_batch'] ?? 100)));
             $syncSummary = fanza_sync_items_to_db($cfg, $hits);
             $resultType = !empty($syncSummary['sync_ok']) ? 'success' : 'error';
