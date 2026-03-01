@@ -2,12 +2,15 @@
 
 declare(strict_types=1);
 require_once __DIR__ . '/../public/_bootstrap.php';
+require_once __DIR__ . '/../lib/fanza_api_config.php';
 auth_require_admin();
 
 $title = 'API設定';
 $resultMessage = null;
 $resultType = 'success';
 $testTitles = [];
+$syncSummary = null;
+$connectionSummary = null;
 $settings = settings_get();
 
 $floorOptions = [];
@@ -19,7 +22,7 @@ try {
             ORDER BY si.name ASC, s.name ASC, f.name ASC';
     $stmt = db()->query($sql);
     $floorOptions = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
-} catch (Throwable $e) {
+} catch (Throwable) {
     $floorOptions = [];
 }
 
@@ -39,13 +42,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'fanza_affiliate_id' => trim((string)post('affiliate_id', '')),
             'fanza_site' => trim((string)post('site', 'FANZA')),
             'fanza_service' => trim((string)post('service', 'digital')),
-            'fanza_floor' => trim((string)post('floor', 'video（videoa）')),
+            'fanza_floor' => trim((string)post('floor', 'videoa')),
             'master_floor_id' => trim((string)post('master_floor_id', '43')),
             'item_sync_batch' => (string)$batch,
             'item_sync_enabled' => post('item_sync_enabled', '0') === '1' ? '1' : '0',
             'item_sync_interval_minutes' => (string)max(1, (int)post('item_sync_interval_minutes', 60)),
         ]);
         $resultMessage = 'API設定を保存しました。';
+    }
+
+    if ($action === 'test_connection') {
+        try {
+            $cfg = fanza_normalize_api_config(settings_get());
+            $timeouts = fanza_api_timeout_config($cfg);
+            $credentialTest = fanza_test_api_credentials((string)$cfg['api_id'], (string)$cfg['affiliate_id'], $timeouts['connect_timeout'], $timeouts['timeout']);
+            $itemTest = fanza_test_item_fetch((string)$cfg['api_id'], (string)$cfg['affiliate_id'], (string)$cfg['service'], (string)$cfg['floor'], $timeouts['connect_timeout'], $timeouts['timeout']);
+            $connectionSummary = [
+                'credential' => $credentialTest,
+                'item' => $itemTest,
+            ];
+            $resultType = (($credentialTest['ok'] ?? false) && ($itemTest['ok'] ?? false)) ? 'success' : 'error';
+            $resultMessage = $resultType === 'success' ? '接続テストに成功しました。' : '接続テストでエラーが発生しました。';
+        } catch (Throwable $e) {
+            $resultType = 'error';
+            $resultMessage = '接続テストに失敗しました: ' . $e->getMessage();
+        }
     }
 
     if ($action === 'test_items') {
@@ -69,6 +90,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($action === 'sync_db') {
+        try {
+            $cfg = fanza_normalize_api_config(settings_get());
+            $hits = max(10, min(100, (int)($cfg['item_sync_batch'] ?? 100)));
+            $syncSummary = fanza_sync_items_to_db($cfg, $hits);
+
+            $savedItemsCount = (int)($syncSummary['saved_items_count'] ?? 0);
+            if ($savedItemsCount <= 0) {
+                $legacy = dmm_sync_service()->syncItemsBatch((string)$cfg['service'], (string)$cfg['floor'], $hits, 1);
+                $legacySaved = (int)($legacy['synced_count'] ?? 0);
+                $syncSummary['saved_items_count'] = $legacySaved;
+                $syncSummary['fetched_items_count'] = max((int)($syncSummary['fetched_items_count'] ?? 0), $legacySaved);
+                if (!isset($syncSummary['warnings']) || !is_array($syncSummary['warnings'])) {
+                    $syncSummary['warnings'] = [];
+                }
+                $syncSummary['warnings'][] = 'FANZA同期で保存件数が0件だったため、既存同期ロジックへフォールバックしました。';
+                if ($legacySaved > 0) {
+                    $syncSummary['sync_ok'] = true;
+                    $syncSummary['reason'] = '';
+                    $syncSummary['error_type'] = '';
+                }
+            }
+
+            $resultType = !empty($syncSummary['sync_ok']) ? 'success' : 'error';
+            $resultMessage = !empty($syncSummary['sync_ok']) ? '同期実行が完了しました。' : '同期実行でエラーが発生しました。';
+        } catch (Throwable $e) {
+            $resultType = 'error';
+            $resultMessage = '同期実行に失敗しました: ' . $e->getMessage();
+        }
+    }
+
     $settings = settings_get();
 }
 
@@ -80,6 +132,17 @@ require __DIR__ . '/includes/header.php';
   <?php if ((string)($settings['api_id'] ?? '') === '' || (string)($settings['affiliate_id'] ?? '') === ''): ?>
     <div class="admin-notice admin-notice--error"><p>API ID / アフィリエイトID が未設定です。保存してから同期してください。</p></div>
   <?php endif; ?>
+
+  <div class="admin-card" style="margin-bottom:12px;">
+    <h2 style="margin-top:0;">XAMPP向け DB設定ヘルプ</h2>
+    <ul>
+      <li>host: <code>127.0.0.1</code> / port: <code>3306</code></li>
+      <li>db: <code>pinkclub_fanza</code> / user: <code>root</code> / pass: （空）</li>
+      <li><code>localhost</code> で接続できない場合は <code>127.0.0.1</code> を使用してください。</li>
+      <li>phpMyAdminで DB名が <code>pinkclub_fanza</code> と一致しているか確認してください。</li>
+    </ul>
+  </div>
+
   <form method="post">
     <?= csrf_input() ?>
     <label>APIID
@@ -97,7 +160,7 @@ require __DIR__ . '/includes/header.php';
     <label>フロア
       <?php if ($floorOptions !== []): ?>
         <select name="floor">
-          <?php $currentFloor = (string)($settings['floor'] ?? 'video（videoa）'); ?>
+          <?php $currentFloor = (string)($settings['floor'] ?? 'videoa'); ?>
           <?php foreach ($floorOptions as $option): ?>
             <?php
               $floorCode = (string)($option['floor_code'] ?? '');
@@ -111,7 +174,7 @@ require __DIR__ . '/includes/header.php';
           <?php endforeach; ?>
         </select>
       <?php else: ?>
-        <input name="floor" value="<?= e((string)($settings['floor'] ?? 'video（videoa）')) ?>">
+        <input name="floor" value="<?= e((string)($settings['floor'] ?? 'videoa')) ?>">
       <?php endif; ?>
     </label>
     <label>floor_id（Genre/Maker/Series/Author）
@@ -135,9 +198,37 @@ require __DIR__ . '/includes/header.php';
     </label>
     <div class="admin-actions">
       <button type="submit" name="action" value="save">保存</button>
+      <button class="button-secondary" type="submit" name="action" value="test_connection">接続テスト</button>
       <button class="button-secondary" type="submit" name="action" value="test_items">商品情報を10件取得（手動）</button>
+      <button type="submit" name="action" value="sync_db">同期実行（DB保存）</button>
     </div>
   </form>
+
+  <?php if ($connectionSummary !== null): ?>
+    <div class="admin-card" style="margin-top:12px;">
+      <h2 style="margin-top:0;">接続テスト結果</h2>
+      <p>FloorList: <?= !empty($connectionSummary['credential']['ok']) ? 'OK' : 'NG' ?> / HTTP <?= e((string)($connectionSummary['credential']['http_code'] ?? '-')) ?></p>
+      <p>ItemList: <?= !empty($connectionSummary['item']['ok']) ? 'OK' : 'NG' ?> / HTTP <?= e((string)($connectionSummary['item']['http_code'] ?? '-')) ?> / 件数 <?= e((string)($connectionSummary['item']['item_count'] ?? 0)) ?></p>
+      <?php if (!empty($connectionSummary['credential']['message'])): ?><p>FloorList詳細: <?= e((string)$connectionSummary['credential']['message']) ?></p><?php endif; ?>
+      <?php if (!empty($connectionSummary['item']['message'])): ?><p>ItemList詳細: <?= e((string)$connectionSummary['item']['message']) ?></p><?php endif; ?>
+    </div>
+  <?php endif; ?>
+
+  <?php if ($syncSummary !== null): ?>
+    <div class="admin-card" style="margin-top:12px;">
+      <h2 style="margin-top:0;">同期結果</h2>
+      <p>結果: <?= !empty($syncSummary['sync_ok']) ? 'OK' : 'NG' ?></p>
+      <p>対象floor: <?= e((string)($syncSummary['target_floor_label'] ?? '-')) ?></p>
+      <p>HTTP/API status: HTTP <?= e((string)($syncSummary['http_status'] ?? '-')) ?> / <?= e((string)($syncSummary['error_type'] ?? '200')) ?></p>
+      <p>取得件数: <?= e((string)($syncSummary['fetched_items_count'] ?? 0)) ?> / 保存件数: <?= e((string)($syncSummary['saved_items_count'] ?? 0)) ?></p>
+      <p>reason: <?= e((string)($syncSummary['reason'] ?? '')) ?></p>
+      <p>error_type: <?= e((string)($syncSummary['error_type'] ?? '')) ?></p>
+      <?php if (!empty($syncSummary['warnings']) && is_array($syncSummary['warnings'])): ?>
+        <p>warnings:</p>
+        <ul><?php foreach ($syncSummary['warnings'] as $warning): ?><li><?= e((string)$warning) ?></li><?php endforeach; ?></ul>
+      <?php endif; ?>
+    </div>
+  <?php endif; ?>
 
   <?php if ($testTitles !== []): ?>
     <h2>代表タイトル</h2>
