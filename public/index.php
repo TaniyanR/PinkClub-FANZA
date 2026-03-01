@@ -130,43 +130,53 @@ try {
         $pickupTop = array_slice($popularRows, 0, 5);
         $pickupBottom = array_slice($popularRows, 5, 15);
 
-        $actressCandidates = $pdo->query('SELECT id,name,image_small FROM actresses ORDER BY (CASE WHEN image_small IS NULL OR image_small = "" THEN 1 ELSE 0 END), id DESC LIMIT 200')->fetchAll();
-        $actresses = pick_random_items($actressCandidates, $seedBase + 10, 15);
-
-        $genreCandidates = $pdo->query('SELECT g.id,g.name,COUNT(ig.id) AS item_count FROM genres g INNER JOIN item_genres ig ON ig.genre_id = g.id GROUP BY g.id,g.name HAVING COUNT(ig.id) > 0 ORDER BY item_count DESC,g.id DESC LIMIT 120')->fetchAll();
-        $genreCandidates = seeded_shuffle($genreCandidates, $seedBase + 20);
-        foreach (array_slice($genreCandidates, 0, 3) as $index => $genre) {
-            $stmt = $pdo->prepare('SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476 FROM items i INNER JOIN item_genres ig ON ig.content_id = i.content_id WHERE ig.genre_id = :id ORDER BY i.release_date DESC, i.id DESC LIMIT 120');
-            $stmt->execute([':id' => (int)$genre['id']]);
-            $genreItems = pick_random_items($stmt->fetchAll(), $seedBase + 30 + $index, 15);
-            $genreRows[] = ['id' => (int)$genre['id'], 'name' => (string)$genre['name'], 'items' => $genreItems];
+        if (db_table_exists($pdo, 'actresses')) {
+            $actressCandidates = $pdo->query('SELECT id,name,image_small FROM actresses ORDER BY (CASE WHEN image_small IS NULL OR image_small = "" THEN 1 ELSE 0 END), id DESC LIMIT 200')->fetchAll();
+            $actresses = pick_random_items($actressCandidates, $seedBase + 10, 15);
         }
 
-        $seriesCandidates = $pdo->query('SELECT s.id,s.name,COUNT(isr.id) AS item_count FROM series s INNER JOIN item_series isr ON isr.series_id = s.id GROUP BY s.id,s.name HAVING COUNT(isr.id) > 0 ORDER BY item_count DESC,s.id DESC LIMIT 120')->fetchAll();
-        if ($seriesCandidates !== []) {
-            $seriesCandidates = seeded_shuffle($seriesCandidates, $seedBase + 40);
-            $picked = $seriesCandidates[0];
-            $stmt = $pdo->prepare('SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476 FROM items i INNER JOIN item_series isr ON isr.content_id = i.content_id WHERE isr.series_id = :id ORDER BY i.release_date DESC, i.id DESC LIMIT 120');
-            $stmt->execute([':id' => (int)$picked['id']]);
-            $seriesSection = ['name' => (string)$picked['name'], 'url' => app_url('public/series_one.php?id=' . (int)$picked['id']), 'items' => pick_random_items($stmt->fetchAll(), $seedBase + 41, 15)];
+        if (db_table_exists($pdo, 'genres') && db_table_exists($pdo, 'item_genres')) {
+            $genreCandidates = $pdo->query('SELECT g.id,g.name,COUNT(ig.id) AS item_count FROM genres g INNER JOIN item_genres ig ON ig.genre_id = g.id GROUP BY g.id,g.name HAVING COUNT(ig.id) > 0 ORDER BY item_count DESC,g.id DESC LIMIT 120')->fetchAll();
+            $genreCandidates = seeded_shuffle($genreCandidates, $seedBase + 20);
+            foreach (array_slice($genreCandidates, 0, 3) as $index => $genre) {
+                $stmt = $pdo->prepare('SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476 FROM items i INNER JOIN item_genres ig ON ig.content_id = i.content_id WHERE ig.genre_id = :id ORDER BY i.release_date DESC, i.id DESC LIMIT 120');
+                $stmt->execute([':id' => (int)$genre['id']]);
+                $genreItems = pick_random_items($stmt->fetchAll(), $seedBase + 30 + $index, 15);
+                $genreRows[] = ['id' => (int)$genre['id'], 'name' => (string)$genre['name'], 'items' => $genreItems];
+            }
         }
 
-        $makerCandidates = $pdo->query('SELECT m.id,m.name,COUNT(im.id) AS item_count FROM makers m INNER JOIN item_makers im ON im.maker_id = m.id GROUP BY m.id,m.name HAVING COUNT(im.id) > 0 ORDER BY item_count DESC,m.id DESC LIMIT 120')->fetchAll();
-        if ($makerCandidates !== []) {
-            $makerCandidates = seeded_shuffle($makerCandidates, $seedBase + 50);
-            $picked = $makerCandidates[0];
-            $stmt = $pdo->prepare('SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476 FROM items i INNER JOIN item_makers im ON im.content_id = i.content_id WHERE im.maker_id = :id ORDER BY i.release_date DESC, i.id DESC LIMIT 120');
-            $stmt->execute([':id' => (int)$picked['id']]);
-            $makerSection = ['name' => (string)$picked['name'], 'url' => app_url('public/maker.php?id=' . (int)$picked['id']), 'items' => pick_random_items($stmt->fetchAll(), $seedBase + 51, 15)];
+        if (db_table_exists($pdo, 'series') && db_table_exists($pdo, 'item_series')) {
+            $seriesCandidates = $pdo->query('SELECT s.id,s.name,COUNT(isr.id) AS item_count FROM series s INNER JOIN item_series isr ON isr.series_id = s.id GROUP BY s.id,s.name HAVING COUNT(isr.id) > 0 ORDER BY item_count DESC,s.id DESC LIMIT 120')->fetchAll();
+            if ($seriesCandidates !== []) {
+                $seriesCandidates = seeded_shuffle($seriesCandidates, $seedBase + 40);
+                $picked = $seriesCandidates[0];
+                $stmt = $pdo->prepare('SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476 FROM items i INNER JOIN item_series isr ON isr.content_id = i.content_id WHERE isr.series_id = :id ORDER BY i.release_date DESC, i.id DESC LIMIT 120');
+                $stmt->execute([':id' => (int)$picked['id']]);
+                $seriesSection = ['name' => (string)$picked['name'], 'url' => app_url('public/series_one.php?id=' . (int)$picked['id']), 'items' => pick_random_items($stmt->fetchAll(), $seedBase + 41, 15)];
+            }
         }
 
-        $authorCandidates = $pdo->query('SELECT a.id,a.name,COUNT(ia.id) AS item_count FROM authors a INNER JOIN item_authors ia ON ia.dmm_id = a.dmm_id GROUP BY a.id,a.name HAVING COUNT(ia.id) > 0 ORDER BY item_count DESC,a.id DESC LIMIT 120')->fetchAll();
-        if ($authorCandidates !== []) {
-            $authorCandidates = seeded_shuffle($authorCandidates, $seedBase + 60);
-            $picked = $authorCandidates[0];
-            $stmt = $pdo->prepare('SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476 FROM items i INNER JOIN item_authors ia ON ia.item_id = i.id INNER JOIN authors a ON a.dmm_id = ia.dmm_id WHERE a.id = :id ORDER BY i.release_date DESC, i.id DESC LIMIT 120');
-            $stmt->execute([':id' => (int)$picked['id']]);
-            $authorSection = ['name' => (string)$picked['name'], 'url' => app_url('public/author.php?id=' . (int)$picked['id']), 'items' => pick_random_items($stmt->fetchAll(), $seedBase + 61, 15)];
+        if (db_table_exists($pdo, 'makers') && db_table_exists($pdo, 'item_makers')) {
+            $makerCandidates = $pdo->query('SELECT m.id,m.name,COUNT(im.id) AS item_count FROM makers m INNER JOIN item_makers im ON im.maker_id = m.id GROUP BY m.id,m.name HAVING COUNT(im.id) > 0 ORDER BY item_count DESC,m.id DESC LIMIT 120')->fetchAll();
+            if ($makerCandidates !== []) {
+                $makerCandidates = seeded_shuffle($makerCandidates, $seedBase + 50);
+                $picked = $makerCandidates[0];
+                $stmt = $pdo->prepare('SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476 FROM items i INNER JOIN item_makers im ON im.content_id = i.content_id WHERE im.maker_id = :id ORDER BY i.release_date DESC, i.id DESC LIMIT 120');
+                $stmt->execute([':id' => (int)$picked['id']]);
+                $makerSection = ['name' => (string)$picked['name'], 'url' => app_url('public/maker.php?id=' . (int)$picked['id']), 'items' => pick_random_items($stmt->fetchAll(), $seedBase + 51, 15)];
+            }
+        }
+
+        if (db_table_exists($pdo, 'authors') && db_table_exists($pdo, 'item_authors')) {
+            $authorCandidates = $pdo->query('SELECT a.id,a.name,COUNT(ia.id) AS item_count FROM authors a INNER JOIN item_authors ia ON ia.dmm_id = a.dmm_id GROUP BY a.id,a.name HAVING COUNT(ia.id) > 0 ORDER BY item_count DESC,a.id DESC LIMIT 120')->fetchAll();
+            if ($authorCandidates !== []) {
+                $authorCandidates = seeded_shuffle($authorCandidates, $seedBase + 60);
+                $picked = $authorCandidates[0];
+                $stmt = $pdo->prepare('SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476 FROM items i INNER JOIN item_authors ia ON ia.item_id = i.id INNER JOIN authors a ON a.dmm_id = ia.dmm_id WHERE a.id = :id ORDER BY i.release_date DESC, i.id DESC LIMIT 120');
+                $stmt->execute([':id' => (int)$picked['id']]);
+                $authorSection = ['name' => (string)$picked['name'], 'url' => app_url('public/author.php?id=' . (int)$picked['id']), 'items' => pick_random_items($stmt->fetchAll(), $seedBase + 61, 15)];
+            }
         }
     }
 } catch (Throwable $e) {
