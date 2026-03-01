@@ -132,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($allOk) {
                 if ($itemsCount === 0) {
                     // 初回導線（未同期なら 10件だけ自動同期して体験を良くする）
-                    $autoSync = dmm_sync_service()->syncItemsBatch((string)$cfg['service'], (string)$cfg['floor'], 10, 1);
+                    $autoSync = dmm_sync_service()->syncItemsBatch((string)($cfg['site'] ?? 'FANZA'), (string)$cfg['service'], (string)$cfg['floor'], 10, 1);
                     $autoSynced = (int)($autoSync['synced_count'] ?? 0);
 
                     $resultType = $autoSynced > 0 ? 'success' : 'error';
@@ -148,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $fallbackSynced = 0;
                 if ($itemsCount === 0) {
                     try {
-                        $fallback = dmm_sync_service()->syncItemsBatch((string)$cfg['service'], (string)$cfg['floor'], 10, 1);
+                        $fallback = dmm_sync_service()->syncItemsBatch((string)($cfg['site'] ?? 'FANZA'), (string)$cfg['service'], (string)$cfg['floor'], 10, 1);
                         $fallbackSynced = (int)($fallback['synced_count'] ?? 0);
                     } catch (Throwable $fallbackError) {
                         $connectionSummary['item']['fallback_error'] = $fallbackError->getMessage();
@@ -178,8 +178,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $offset = max(1, settings_int('item_sync_test_offset', 1));
 
-            // syncItemsBatch の引数を他の箇所と統一：(service, floor, limit, offset)
+            // syncItemsBatch の引数: (site, service, floor, limit, offset)
             $result = dmm_sync_service()->syncItemsBatch(
+                (string)($cfg['site'] ?? 'FANZA'),
                 (string)$cfg['service'],
                 (string)$cfg['floor'],
                 10,
@@ -211,7 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // 0件保存なら、既存同期ロジックへフォールバック（保険）
             $savedItemsCount = (int)($syncSummary['saved_items_count'] ?? 0);
             if ($savedItemsCount <= 0) {
-                $legacy = dmm_sync_service()->syncItemsBatch((string)$cfg['service'], (string)$cfg['floor'], $hits, 1);
+                $legacy = dmm_sync_service()->syncItemsBatch((string)($cfg['site'] ?? 'FANZA'), (string)$cfg['service'], (string)$cfg['floor'], $hits, 1);
                 $legacySaved = (int)($legacy['synced_count'] ?? 0);
 
                 $syncSummary['saved_items_count'] = $legacySaved;
