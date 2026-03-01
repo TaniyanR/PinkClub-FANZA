@@ -43,7 +43,7 @@ function scheduler_run_schedule(array $schedule): array
     $floorId = (string)($settings['master_floor_id'] ?? '43');
 
     return match ($type) {
-        'items' => ['synced_count' => (int)$service->syncItemsBatch('digital', 'videoa', (int)($settings['item_sync_batch'] ?? 100), 1)['synced_count'], 'message' => '商品を同期しました'],
+        'items' => ['synced_count' => (int)$service->syncItemsBatch((string)($settings['site'] ?? 'FANZA'), (string)($settings['service'] ?? 'digital'), (string)($settings['floor'] ?? 'videoa'), (int)($settings['item_sync_batch'] ?? 100), 1)['synced_count'], 'message' => '商品を同期しました'],
         'genres' => ['synced_count' => $service->syncGenres($floorId, 'あ', 100, 1), 'message' => 'ジャンルを同期しました'],
         'makers' => ['synced_count' => $service->syncMakers($floorId, 'あ', 100, 1), 'message' => 'メーカーを同期しました'],
         'series' => ['synced_count' => $service->syncSeries($floorId, 'あ', 100, 1), 'message' => 'シリーズを同期しました'],

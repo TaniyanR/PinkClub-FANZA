@@ -21,16 +21,16 @@ class DmmSyncService
         $this->pdo->beginTransaction();
         try {
             foreach ($siteList as $site) {
-                $siteCode = $site['site'] ?? '';
+                $siteCode = (string)($site['code'] ?? ($site['site'] ?? ''));
                 $siteName = $site['name'] ?? '';
                 $this->upsertSimple('dmm_sites', 'site_code', $siteCode, $siteName);
                 foreach (DmmNormalizer::toList($site['service'] ?? []) as $service) {
-                    $serviceCode = $service['service'] ?? '';
+                    $serviceCode = (string)($service['code'] ?? ($service['service'] ?? ''));
                     $serviceName = $service['name'] ?? '';
                     $this->pdo->prepare('INSERT INTO dmm_services(site_code,service_code,name,updated_at) VALUES(?,?,?,NOW()) ON DUPLICATE KEY UPDATE name=VALUES(name),updated_at=NOW()')
                         ->execute([$siteCode, $serviceCode, $serviceName]);
                     foreach (DmmNormalizer::toList($service['floor'] ?? []) as $floor) {
-                        $floorCode = $floor['floor'] ?? '';
+                        $floorCode = (string)($floor['code'] ?? ($floor['floor'] ?? ''));
                         $floorName = $floor['name'] ?? '';
                         $this->pdo->prepare('INSERT INTO dmm_floors(service_code,floor_code,name,updated_at) VALUES(?,?,?,NOW()) ON DUPLICATE KEY UPDATE name=VALUES(name),updated_at=NOW()')
                             ->execute([$serviceCode, $floorCode, $floorName]);
@@ -79,7 +79,14 @@ class DmmSyncService
         $this->pdo->beginTransaction();
         try {
             foreach ($rows as $r) {
-                $id = (string) ($r['id'] ?? '');
+                $idKey = match ($kind) {
+                    'genre' => 'genre_id',
+                    'maker' => 'maker_id',
+                    'series' => 'series_id',
+                    'author' => 'author_id',
+                    default => 'id',
+                };
+                $id = (string)($r[$idKey] ?? ($r['id'] ?? ''));
                 if ($id === '') {
                     continue;
                 }
@@ -92,7 +99,7 @@ class DmmSyncService
                     'ruby' => $ruby,
                     'birthday' => $r['birthday'] ?? null,
                     'pref' => $r['prefectures'] ?? null,
-                    'img' => $r['imageURL']['large'] ?? null,
+                    'img' => $r['imageURL']['large'] ?? ($r['image_url'] ?? null),
                 ]);
                 $count++;
             }
@@ -127,16 +134,16 @@ class DmmSyncService
         return $this->syncMaster('author', $floorId, $offset, $hits);
     }
 
-    public function syncItems(string $serviceCode, string $floorCode, array $params = []): int
+    public function syncItems(string $siteCode, string $serviceCode, string $floorCode, array $params = []): int
     {
         $hits = min(100, max(1, (int)($params['hits'] ?? 100)));
         $offset = max(1, (int)($params['offset'] ?? 1));
-        $response = $this->client->fetchItems($serviceCode, $floorCode, ['hits' => $hits, 'offset' => $offset]);
+        $response = $this->client->fetchItems($siteCode, $serviceCode, $floorCode, ['hits' => $hits, 'offset' => $offset]);
         $items = DmmNormalizer::normalizeItemsResponse($response);
         return $this->saveItems($items, 'items');
     }
 
-    public function syncItemsBatch(string $serviceCode, string $floorCode, int $batch, int $offset = 1): array
+    public function syncItemsBatch(string $siteCode, string $serviceCode, string $floorCode, int $batch, int $offset = 1): array
     {
         $remaining = max(1, $batch);
         $currentOffset = max(1, $offset);
@@ -144,7 +151,7 @@ class DmmSyncService
 
         while ($remaining > 0) {
             $hits = min(100, $remaining);
-            $response = $this->client->fetchItems($serviceCode, $floorCode, ['hits' => $hits, 'offset' => $currentOffset]);
+            $response = $this->client->fetchItems($siteCode, $serviceCode, $floorCode, ['hits' => $hits, 'offset' => $currentOffset]);
             $items = DmmNormalizer::normalizeItemsResponse($response);
             if ($items === []) {
                 $currentOffset = 1;
@@ -154,7 +161,7 @@ class DmmSyncService
             $saved = $this->saveItems($items, 'items');
             $total += $saved;
             $remaining -= $hits;
-            $currentOffset += 100;
+            $currentOffset += $hits;
 
             if (count($items) < $hits) {
                 $currentOffset = 1;
