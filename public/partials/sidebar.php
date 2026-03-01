@@ -5,47 +5,32 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/_helpers.php';
 
-$mutualLinks = [];
+$sortMode = site_setting_get('link.sort_mode', 'registered');
+$orderBy = $sortMode === 'kana' ? 'ps.name ASC, ps.id ASC' : 'ps.id DESC';
+
+$partnerLinks = [];
+$rssLinks = [];
+$fixedPages = [];
+
 try {
-    $sql = "SELECT id, site_name, site_url, link_url, banner_image_url, image_url
-            FROM mutual_links
-            WHERE status='approved' AND (is_enabled = 1 OR enabled = 1)
-            ORDER BY display_order ASC, id DESC
-            LIMIT 50";
-    $stmt = db()->query($sql);
-    $mutualLinks = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    $stmt = db()->query("SELECT ps.id, ps.name, ps.url, COALESCE(ps.show_link, ps.is_enabled, 1) AS show_link FROM partner_sites ps WHERE COALESCE(ps.show_link, ps.is_enabled, 1) = 1 ORDER BY {$orderBy}");
+    $partnerLinks = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 } catch (Throwable $e) {
-    try {
-        $stmt = db()->query("SELECT id, site_name, site_url, link_url, banner_image_url, image_url FROM mutual_links WHERE status='approved' ORDER BY id DESC LIMIT 50");
-        $mutualLinks = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
-    } catch (Throwable $e) {
-        $mutualLinks = [];
-    }
+    $partnerLinks = [];
 }
 
-$resolveLinkUrl = static function (array $row): string {
-    $id = (int)($row['id'] ?? 0);
-    if ($id > 0) {
-        return public_url('out.php?id=' . $id);
-    }
+try {
+    $stmt = db()->query('SELECT pr.feed_url, ps.name FROM partner_rss pr INNER JOIN partner_sites ps ON ps.id = pr.partner_site_id WHERE COALESCE(pr.show_rss, pr.is_enabled, 1)=1 ORDER BY pr.id DESC');
+    $rssLinks = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+} catch (Throwable $e) {
+    $rssLinks = [];
+}
 
-    return trim((string)($row['link_url'] ?? $row['site_url'] ?? '#'));
-};
-
-$getImageUrl = static function (array $row): string {
-    foreach (['banner_image_url', 'image_url'] as $key) {
-        $value = trim((string)($row[$key] ?? ''));
-        if ($value !== '') {
-            return $value;
-        }
-    }
-
-    return '';
-};
-
-$imageLinkHtml = trim(front_safe_text_setting('sidebar_image_link_html', ''));
-if ($imageLinkHtml === '') {
-    $imageLinkHtml = trim(front_safe_text_setting('image_link_html', ''));
+try {
+    $stmt = db()->query('SELECT slug,title FROM fixed_pages WHERE is_published=1 ORDER BY id ASC');
+    $fixedPages = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+} catch (Throwable $e) {
+    $fixedPages = [];
 }
 ?>
 <aside class="sidebar site-sidebar">
@@ -58,37 +43,46 @@ if ($imageLinkHtml === '') {
     </section>
 
     <section class="sidebar-block">
-        <h2 class="sidebar-block__title">画像リンク</h2>
-        <?php if ($imageLinkHtml !== '') : ?>
-            <div class="sidebar-ad-html"><?= $imageLinkHtml ?></div>
-        <?php else : ?>
-            <?php $imageLinks = array_values(array_filter($mutualLinks, static fn(array $row): bool => $getImageUrl($row) !== '')); ?>
-            <?php if ($imageLinks === []) : ?>
-                <p class="sidebar-empty">画像リンク（未設定）</p>
-            <?php else : ?>
-                <ul class="sidebar-image-links">
-                    <?php foreach ($imageLinks as $link) : ?>
-                        <li>
-                            <a href="<?= e($resolveLinkUrl($link)) ?>" target="_blank" rel="noopener noreferrer">
-                                <img src="<?= e($getImageUrl($link)) ?>" alt="<?= e((string)($link['site_name'] ?? '画像リンク')) ?>">
-                            </a>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
-            <?php endif; ?>
-        <?php endif; ?>
+      <h2 class="sidebar-block__title">固定ページ</h2>
+      <?php if ($fixedPages === []): ?>
+        <p class="sidebar-empty">固定ページ（未設定）</p>
+      <?php else: ?>
+      <ul class="sidebar-links">
+        <?php foreach ($fixedPages as $page): ?>
+          <li><a href="<?= e(public_url('page.php?slug=' . (string)$page['slug'])) ?>"><?= e((string)$page['title']) ?></a></li>
+        <?php endforeach; ?>
+      </ul>
+      <?php endif; ?>
     </section>
 
-    <section class="sidebar-block">
+    <section class="sidebar-block only-pc">
         <h2 class="sidebar-block__title">相互リンク</h2>
-        <?php if ($mutualLinks === []) : ?>
+        <?php if ($partnerLinks === []) : ?>
             <p class="sidebar-empty">相互リンク（未設定）</p>
         <?php else : ?>
-            <ul class="sidebar-links">
-                <?php foreach ($mutualLinks as $link) : ?>
-                    <li><a href="<?= e($resolveLinkUrl($link)) ?>" target="_blank" rel="noopener noreferrer"><?= e((string)($link['site_name'] ?? 'リンク')) ?></a></li>
+            <ul class="sidebar-links sidebar-links--scroll">
+                <?php foreach ($partnerLinks as $link) : ?>
+                    <li><a href="<?= e((string)$link['url']) ?>" target="_blank" rel="noopener noreferrer"><?= e((string)$link['name']) ?></a></li>
                 <?php endforeach; ?>
             </ul>
         <?php endif; ?>
+    </section>
+
+    <section class="sidebar-block only-pc">
+      <h2 class="sidebar-block__title">RSS</h2>
+      <?php if ($rssLinks === []): ?>
+        <p class="sidebar-empty">RSS（未設定）</p>
+      <?php else: ?>
+      <ul class="sidebar-links sidebar-links--scroll">
+        <?php foreach ($rssLinks as $rss): ?>
+          <li><a href="<?= e((string)$rss['feed_url']) ?>" target="_blank" rel="noopener noreferrer"><?= e((string)$rss['name']) ?> RSS</a></li>
+        <?php endforeach; ?>
+      </ul>
+      <?php endif; ?>
+    </section>
+
+    <section class="sidebar-block only-pc">
+      <h2 class="sidebar-block__title">画像RSS</h2>
+      <?php include __DIR__ . '/rss_image_widget.php'; ?>
     </section>
 </aside>
