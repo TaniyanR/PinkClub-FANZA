@@ -35,12 +35,15 @@ function db_validate_config(array $cfg, bool $requireDbName): array
 
 function db_log_connection_error(array $cfg, string $dsn, Throwable $e, array $errors = []): void
 {
+    $host = (string)($cfg['host'] ?? '');
+    $port = (int)($cfg['port'] ?? 0);
     $payload = [
-        'host' => (string)($cfg['host'] ?? ''),
-        'port' => (int)($cfg['port'] ?? 0),
+        'host' => $host,
+        'port' => $port,
         'dbname' => (string)($cfg['dbname'] ?? ''),
         'user' => (string)($cfg['user'] ?? ''),
         'dsn' => $dsn,
+        'effective_target' => $host . ($port > 0 ? (':' . $port) : ''),
         'error' => $e->getMessage(),
         'config_errors' => $errors,
     ];
@@ -55,7 +58,7 @@ function db_server_pdo(): PDO
     }
 
     $cfg = app_config()['db'];
-    $dsn = sprintf('mysql:host=%s;port=%d;charset=%s', $cfg['host'], (int)$cfg['port'], $cfg['charset']);
+    $dsn = sprintf('mysql:host=%s;port=%d;charset=%s', (string)($cfg['host'] ?? ''), (int)($cfg['port'] ?? 0), (string)($cfg['charset'] ?? ''));
     $configErrors = db_validate_config($cfg, false);
 
     if ($configErrors !== []) {
@@ -82,7 +85,13 @@ function db_pdo(): PDO
     }
 
     $cfg = app_config()['db'];
-    $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=%s', $cfg['host'], (int)$cfg['port'], $cfg['dbname'], $cfg['charset']);
+    $dsn = sprintf(
+        'mysql:host=%s;port=%d;dbname=%s;charset=%s',
+        (string)($cfg['host'] ?? ''),
+        (int)($cfg['port'] ?? 0),
+        (string)($cfg['dbname'] ?? ''),
+        (string)($cfg['charset'] ?? '')
+    );
     $configErrors = db_validate_config($cfg, true);
 
     if ($configErrors !== []) {

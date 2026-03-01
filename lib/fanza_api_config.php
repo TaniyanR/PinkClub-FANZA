@@ -431,6 +431,7 @@ function fanza_fetch_itemlist_for_sync(string $apiId, string $affiliateId, strin
             'error_type' => (string)($response['error_type'] ?? 'http_error'),
             'reason' => (string)($response['message'] ?? 'APIリクエストに失敗しました。'),
             'http_status' => (int)($response['http_code'] ?? 0),
+            'api_status' => '',
             'body_excerpt' => '',
             'items' => [],
         ];
@@ -444,6 +445,7 @@ function fanza_fetch_itemlist_for_sync(string $apiId, string $affiliateId, strin
             'error_type' => 'api_response_error',
             'reason' => 'ItemList result.status が200ではありません。',
             'http_status' => (int)($response['http_code'] ?? 200),
+            'api_status' => (string)$status,
             'body_excerpt' => fanza_api_json_snippet((string)json_encode($response['data'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
             'items' => [],
         ];
@@ -455,6 +457,7 @@ function fanza_fetch_itemlist_for_sync(string $apiId, string $affiliateId, strin
         'error_type' => '',
         'reason' => '',
         'http_status' => (int)($response['http_code'] ?? 200),
+        'api_status' => (string)$status,
         'body_excerpt' => '',
         'items' => $items,
     ];
@@ -497,14 +500,18 @@ function fanza_sync_items_to_db(array $apiConfig, int $hits = 10): array
     $summary = [
         'sync_ok' => false,
         'target_floor_label' => (string)(fanza_floor_options_for_select()[$resolvedFloor['pair']] ?? ($service . ':' . $floor)),
+        'target_service_code' => $service,
+        'target_floor_code' => $floor,
         'service' => $service,
         'floor' => $floor,
         'http_status' => 0,
+        'api_status' => '',
         'fetched_items_count' => 0,
         'saved_items_count' => 0,
         'saved_actresses_count' => 0,
         'saved_makers_count' => 0,
         'saved_genres_count' => 0,
+        'saved_labels_count' => 0,
         'warnings' => [],
         'error_type' => '',
         'reason' => '',
@@ -524,6 +531,8 @@ function fanza_sync_items_to_db(array $apiConfig, int $hits = 10): array
     $fetchResult = fanza_fetch_itemlist_for_sync($apiId, $affiliateId, $service, $floor, $timeouts['connect_timeout'], $timeouts['timeout'], $hits);
     $summary['http_status'] = (int)($fetchResult['http_status'] ?? 0);
 
+    $summary['api_status'] = (string)($fetchResult['api_status'] ?? '');
+
     if (!($fetchResult['ok'] ?? false)) {
         $summary['error_type'] = (string)($fetchResult['error_type'] ?? 'api_error');
         $summary['reason'] = (string)($fetchResult['reason'] ?? 'APIレスポンスの検証に失敗しました。');
@@ -539,7 +548,8 @@ function fanza_sync_items_to_db(array $apiConfig, int $hits = 10): array
 
     $savedActresses = [];
     $savedMakers = [];
-    $savedGenres = [];
+$savedGenres = [];
+    $savedLabels = [];
 
     try {
         $pdo = db();
@@ -663,7 +673,9 @@ function fanza_sync_items_to_db(array $apiConfig, int $hits = 10): array
                     if (!is_array($label)) { continue; }
                     $labelName = trim((string)($label['name'] ?? ''));
                     if ($labelName === '') { continue; }
-                    $labels[] = ['id' => is_numeric($label['id'] ?? null) ? (int)$label['id'] : null, 'name' => $labelName, 'ruby' => $label['ruby'] ?? null];
+                    $labelId = is_numeric($label['id'] ?? null) ? (int)$label['id'] : null;
+                    $labels[] = ['id' => $labelId, 'name' => $labelName, 'ruby' => $label['ruby'] ?? null];
+                    $savedLabels[$labelId !== null ? (string)$labelId : ('name:' . strtolower($labelName))] = true;
                 }
                 replace_item_labels($contentId, $labels);
             }
@@ -672,6 +684,7 @@ function fanza_sync_items_to_db(array $apiConfig, int $hits = 10): array
         $summary['saved_actresses_count'] = count($savedActresses);
         $summary['saved_makers_count'] = count($savedMakers);
         $summary['saved_genres_count'] = count($savedGenres);
+        $summary['saved_labels_count'] = count($savedLabels);
 
         $pdo->commit();
         $summary['sync_ok'] = true;

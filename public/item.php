@@ -4,22 +4,133 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
 
-$id = (int)get('id', 0);
-$contentId = trim((string)get('content_id', ''));
-
-if ($id > 0) {
-    $stmt = db()->prepare('SELECT * FROM items WHERE id = ?');
-    $stmt->execute([$id]);
-} elseif ($contentId !== '') {
-    $stmt = db()->prepare('SELECT * FROM items WHERE content_id = ?');
-    $stmt->execute([$contentId]);
-} else {
-    http_response_code(404);
-    exit('not found');
+function item_decode_raw_json(array $item): array
+{
+    $raw = [];
+    if (is_string($item['raw_json'] ?? null) && $item['raw_json'] !== '') {
+        $decoded = json_decode((string)$item['raw_json'], true);
+        if (is_array($decoded)) {
+            $raw = $decoded;
+        }
+    }
+    return $raw;
 }
 
-$item = $stmt->fetch();
-if (!$item) {
+function item_collect_urls(mixed $value, array &$urls): void
+{
+    if (is_string($value)) {
+        $candidate = trim($value);
+        if ($candidate !== '' && (str_starts_with($candidate, 'http://') || str_starts_with($candidate, 'https://'))) {
+            $urls[] = $candidate;
+        }
+        return;
+    }
+    if (!is_array($value)) {
+        return;
+    }
+    foreach ($value as $child) {
+        item_collect_urls($child, $urls);
+    }
+}
+
+function item_pick_sample_movie_url(array $item, array $raw): string
+{
+    foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $column) {
+        $candidate = trim((string)($item[$column] ?? ''));
+        if ($candidate !== '') {
+            return $candidate;
+        }
+    }
+
+    foreach (['sampleMovieURL', 'sample_movie_url', 'sampleMovieUrl'] as $movieKeyName) {
+        $rawMovie = $raw[$movieKeyName] ?? null;
+        if (is_string($rawMovie) && trim($rawMovie) !== '') {
+            return trim($rawMovie);
+        }
+        if (is_array($rawMovie)) {
+            foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
+                $candidate = trim((string)($rawMovie[$movieKey] ?? ''));
+                if ($candidate !== '') {
+                    return $candidate;
+                }
+            }
+            $urls = [];
+            item_collect_urls($rawMovie, $urls);
+            if ($urls !== []) {
+                return $urls[0];
+            }
+        }
+    }
+
+    return '';
+}
+
+function item_extract_sample_images(array $raw, int $max = 20): array
+{
+    $images = [];
+    $sampleImageUrl = $raw['sampleImageURL'] ?? null;
+    if (!is_array($sampleImageUrl)) {
+        return [];
+    }
+
+    foreach (['sample_l', 'sample_s'] as $sampleKey) {
+        $list = $sampleImageUrl[$sampleKey]['image'] ?? null;
+        if (is_string($list)) {
+            $list = [$list];
+        }
+        if (is_array($list)) {
+            foreach ($list as $image) {
+                $url = trim((string)$image);
+                if ($url !== '') {
+                    $images[] = $url;
+                }
+                if (count($images) >= $max) {
+                    return array_values(array_unique($images));
+                }
+            }
+        }
+        if ($images !== []) {
+            break;
+        }
+    }
+
+    return array_values(array_unique($images));
+}
+
+function item_has_sample_images(array $item): bool
+{
+    $raw = item_decode_raw_json($item);
+    return item_extract_sample_images($raw, 1) !== [];
+}
+
+function item_affiliate_link(array $item): string
+{
+    $affiliate = trim((string)($item['affiliate_url'] ?? ''));
+    if ($affiliate !== '') {
+        return $affiliate;
+    }
+    return trim((string)($item['url'] ?? ''));
+}
+
+$id = (int)get('id', 0);
+$contentId = trim((string)get('content_id', ''));
+$item = null;
+
+try {
+    if ($id > 0) {
+        $stmt = db()->prepare('SELECT * FROM items WHERE id = ?');
+        $stmt->execute([$id]);
+        $item = $stmt->fetch();
+    } elseif ($contentId !== '') {
+        $stmt = db()->prepare('SELECT * FROM items WHERE content_id = ?');
+        $stmt->execute([$contentId]);
+        $item = $stmt->fetch();
+    }
+} catch (Throwable $e) {
+    error_log('public/item.php load item failed: ' . $e->getMessage());
+}
+
+if (!is_array($item)) {
     http_response_code(404);
     exit('not found');
 }
@@ -38,221 +149,112 @@ try {
             ':user_agent' => $ua,
         ]);
     }
+    update_items_view_count();
 } catch (Throwable $e) {
-    error_log('page view logging failed: ' . $e->getMessage());
+    error_log('public/item.php page view logging failed: ' . $e->getMessage());
 }
 
-update_items_view_count();
-$relatedItems = fetch_related_items((string)$item['content_id'], 12);
+$raw = item_decode_raw_json($item);
+$sampleMovieUrl = item_pick_sample_movie_url($item, $raw);
+$sampleImages = item_extract_sample_images($raw, 20);
+$affiliateLink = item_affiliate_link($item);
 
-$rels = [];
-foreach ([
-    'item_actresses' => 'actress_name',
-    'item_genres' => 'genre_name',
-    'item_labels' => 'label_name',
-    'item_campaigns' => 'campaign_name',
-    'item_directors' => 'director_name',
-    'item_makers' => 'maker_name',
-    'item_series' => 'series_name',
-    'item_authors' => 'author_name',
-    'item_actors' => 'actor_name',
-] as $t => $c) {
-    $s = db()->prepare("SELECT {$c} FROM {$t} WHERE item_id = ?");
-    $s->execute([(int)$item['id']]);
-    $rels[$c] = $s->fetchAll(PDO::FETCH_COLUMN);
+$coverImage = trim((string)($item['image_large'] ?? ''));
+if ($coverImage === '') {
+    $coverImage = trim((string)($item['image_small'] ?? ''));
+}
+if ($coverImage === '') {
+    $coverImage = trim((string)($item['image_list'] ?? ''));
 }
 
-$raw = [];
-if (is_string($item['raw_json'] ?? null) && $item['raw_json'] !== '') {
-    $decoded = json_decode($item['raw_json'], true);
-    if (is_array($decoded)) {
-        $raw = $decoded;
-    }
-}
-
-function collect_movie_urls_from_value_item(mixed $value, array &$urls): void
-{
-    if (is_string($value)) {
-        $candidate = trim($value);
-        if ($candidate !== '' && (str_starts_with($candidate, 'http://') || str_starts_with($candidate, 'https://'))) {
-            $urls[] = $candidate;
-        }
-        return;
-    }
-
-    if (!is_array($value)) {
-        return;
-    }
-
-    foreach ($value as $child) {
-        collect_movie_urls_from_value_item($child, $urls);
-    }
-}
-
-function pick_sample_movie_url_from_raw_item(array $raw): string
-{
-    foreach (['sampleMovieURL', 'sample_movie_url', 'sampleMovieUrl'] as $movieKeyName) {
-        $rawMovie = $raw[$movieKeyName] ?? null;
-
-        if (is_string($rawMovie)) {
-            $candidate = trim($rawMovie);
-            if ($candidate !== '') {
-                return $candidate;
-            }
-        }
-
-        if (is_array($rawMovie)) {
-            foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
-                $candidate = trim((string)($rawMovie[$movieKey] ?? ''));
-                if ($candidate !== '') {
-                    return $candidate;
-                }
-            }
-
-            $urls = [];
-            collect_movie_urls_from_value_item($rawMovie, $urls);
-            if ($urls !== []) {
-                return $urls[0];
-            }
-        }
-    }
-
-    return '';
-}
-
-$sampleMovieUrl = '';
-foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $movieColumn) {
-    $candidate = trim((string)($item[$movieColumn] ?? ''));
-    if ($candidate !== '') {
-        $sampleMovieUrl = $candidate;
-        break;
-    }
-}
-
-if ($sampleMovieUrl === '') {
-    $sampleMovieUrl = pick_sample_movie_url_from_raw_item($raw);
-}
-
-$sampleImages = [];
-$sampleImageUrl = $raw['sampleImageURL'] ?? null;
-if (is_array($sampleImageUrl)) {
-    foreach (['sample_l', 'sample_s'] as $sampleKey) {
-        $images = $sampleImageUrl[$sampleKey]['image'] ?? null;
-        if (is_array($images)) {
-            foreach ($images as $image) {
-                $url = trim((string)($image ?? ''));
-                if ($url !== '') {
-                    $sampleImages[] = $url;
-                }
-            }
-            if ($sampleImages !== []) {
-                break;
-            }
-        }
-    }
+$relatedItems = [];
+try {
+    $relatedItems = fetch_related_items((string)$item['content_id'], 12);
+} catch (Throwable $e) {
+    error_log('public/item.php related load failed: ' . $e->getMessage());
 }
 
 $title = (string)$item['title'];
 require __DIR__ . '/partials/header.php';
 ?>
-<h2><?= e((string)$item['title']) ?></h2>
-<?php if (!empty($item['image_large'])): ?>
-  <img src="<?= e((string)$item['image_large']) ?>" style="max-width:320px" alt="<?= e((string)$item['title']) ?>">
-<?php else: ?>
-  <p>画像なし</p>
-<?php endif; ?>
 
-<div style="margin: 16px 0; display: flex; gap: 8px; flex-wrap: wrap;">
-  <?php if ($sampleMovieUrl !== ''): ?>
-    <button type="button" class="sample-movie-trigger" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e((string)$item['title']) ?>">サンプル動画</button>
-  <?php endif; ?>
-  <?php if ($sampleImages !== []): ?>
-    <button type="button" onclick="window.open('<?= e(public_url('sample_images.php?content_id=' . rawurlencode((string)$item['content_id']))) ?>', '_blank', 'noopener,noreferrer')">サンプル画像</button>
-  <?php endif; ?>
-</div>
-
-<ul>
-  <li>価格: <?= e((string)($item['price_min_text'] ?? '')) ?></li>
-  <li>発売日: <?= e((string)($item['release_date'] ?? '')) ?></li>
-  <li>レビュー: <?= e((string)($item['review_average'] ?? '')) ?> (<?= e((string)($item['review_count'] ?? '')) ?>)</li>
-</ul>
-
-<?php foreach ($rels as $name => $vals): ?>
-  <p><?= e((string)$name) ?>: <?= e(implode(', ', array_filter(array_map('strval', $vals)))) ?></p>
-<?php endforeach; ?>
-
-<?php if (!empty($item['affiliate_url'])): ?>
-  <p><a href="<?= e((string)$item['affiliate_url']) ?>" target="_blank" rel="noopener noreferrer">FANZAで見る</a></p>
-<?php endif; ?>
-
-<?php if ($relatedItems !== []): ?>
-  <h3>関連作品</h3>
-  <div class="grid">
-    <?php foreach ($relatedItems as $related): ?>
-      <div class="card">
-        <a href="<?= e(public_url('item.php?id=' . (int)$related['id'])) ?>"><?= e((string)($related['title'] ?? '')) ?></a><br>
-        <?php if (!empty($related['image_small'])): ?>
-          <img class="thumb" src="<?= e((string)$related['image_small']) ?>" alt="<?= e((string)($related['title'] ?? '')) ?>">
-        <?php else: ?>
-          画像なし
-        <?php endif; ?>
-      </div>
-    <?php endforeach; ?>
+<section class="item-page">
+  <div class="card item-top-video">
+    <h2>サンプル動画</h2>
+    <div class="item-top-video__placeholder"><?= $sampleMovieUrl !== '' ? 'サンプル動画を視聴できます。' : 'サンプル動画はありません。' ?></div>
+    <button type="button" class="sample-button <?= $sampleMovieUrl !== '' ? 'sample-button--enabled' : 'sample-button--disabled' ?>" <?= $sampleMovieUrl === '' ? 'disabled' : '' ?> onclick="<?= $sampleMovieUrl !== '' ? "window.open('" . e($sampleMovieUrl) . "','_blank','noopener,noreferrer');" : 'return false;' ?>">サンプル動画を見る</button>
   </div>
-<?php endif; ?>
 
-<div id="sample-movie-modal" class="sample-movie-modal" aria-hidden="true">
-  <div class="sample-movie-modal__overlay" data-movie-close="1"></div>
-  <div class="sample-movie-modal__dialog" role="dialog" aria-modal="true" aria-label="サンプル動画プレイヤー">
-    <button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>
-    <div id="sample-movie-title" class="sample-movie-modal__title">サンプル動画</div>
-    <div class="sample-movie-modal__frame-wrap">
-      <iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
+  <div class="card item-main-block">
+    <div class="item-main-block__image">
+      <?php if ($coverImage !== ''): ?>
+        <img class="thumb" src="<?= e($coverImage) ?>" alt="<?= e((string)$item['title']) ?>">
+      <?php else: ?>
+        <div class="item-main-block__noimage">画像なし</div>
+      <?php endif; ?>
+    </div>
+    <div class="item-main-block__info">
+      <h1><?= e((string)$item['title']) ?></h1>
+      <ul>
+        <li>発売日: <?= e((string)($item['release_date'] ?? $item['date_published'] ?? '')) ?></li>
+        <li>収録時間: <?= e((string)($item['runtime'] ?? '不明')) ?></li>
+        <li>価格: <?= e((string)($item['price_min_text'] ?? $item['price_min'] ?? '')) ?></li>
+        <li>レビュー: <?= e((string)($item['review_average'] ?? '-')) ?> (<?= e((string)($item['review_count'] ?? '0')) ?>)</li>
+      </ul>
     </div>
   </div>
-</div>
-<script>
-(() => {
-  const modal = document.getElementById('sample-movie-modal');
-  const frame = document.getElementById('sample-movie-frame');
-  const titleNode = document.getElementById('sample-movie-title');
-  if (!modal || !frame || !titleNode) return;
 
-  const openMovie = (url, title) => {
-    if (!url) return;
-    const normalizedTitle = String(title || '').trim();
-    titleNode.textContent = normalizedTitle !== '' ? normalizedTitle : 'サンプル動画';
-    frame.src = url;
-    modal.classList.add('is-open');
-    modal.setAttribute('aria-hidden', 'false');
-  };
+  <div class="card item-affiliate-block">
+    <button type="button" class="sample-button item-affiliate-block__button <?= $affiliateLink !== '' ? 'sample-button--enabled' : 'sample-button--disabled' ?>" <?= $affiliateLink === '' ? 'disabled' : '' ?> onclick="<?= $affiliateLink !== '' ? "window.open('" . e($affiliateLink) . "','_blank','noopener,noreferrer');" : 'return false;' ?>">アフィリエイトリンク</button>
+  </div>
 
-  const closeMovie = () => {
-    modal.classList.remove('is-open');
-    modal.setAttribute('aria-hidden', 'true');
-    frame.src = 'about:blank';
-    titleNode.textContent = 'サンプル動画';
-  };
+  <div class="card item-sample-images-block">
+    <h2>サンプル画像</h2>
+    <?php if ($sampleImages === []): ?>
+      <p>サンプル画像はありません。</p>
+    <?php else: ?>
+      <div class="item-sample-images-grid">
+        <?php foreach ($sampleImages as $index => $image): ?>
+          <button type="button" class="item-sample-image" onclick="window.open('<?= e(public_url('sample_images.php?content_id=' . rawurlencode((string)$item['content_id']))) ?>#image-<?= (int)($index + 1) ?>', '_blank', 'noopener,noreferrer')">
+            <img src="<?= e($image) ?>" alt="サンプル画像 <?= e((string)($index + 1)) ?>">
+          </button>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+  </div>
 
-  document.addEventListener('click', (event) => {
-    const trigger = event.target.closest('.sample-movie-trigger');
-    if (trigger) {
-      event.preventDefault();
-      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || <?= json_encode((string)$item['title'], JSON_UNESCAPED_UNICODE) ?>);
-      return;
-    }
+  <div class="card item-affiliate-block">
+    <button type="button" class="sample-button item-affiliate-block__button <?= $affiliateLink !== '' ? 'sample-button--enabled' : 'sample-button--disabled' ?>" <?= $affiliateLink === '' ? 'disabled' : '' ?> onclick="<?= $affiliateLink !== '' ? "window.open('" . e($affiliateLink) . "','_blank','noopener,noreferrer');" : 'return false;' ?>">購入する</button>
+  </div>
 
-    if (event.target.closest('[data-movie-close="1"]')) {
-      event.preventDefault();
-      closeMovie();
-    }
-  });
+  <?php if ($relatedItems !== []): ?>
+    <section class="rail-section">
+      <h2>関連商品</h2>
+      <div class="rail-row rail-row--180">
+        <?php foreach ($relatedItems as $related): ?>
+          <?php
+            $relatedRaw = item_decode_raw_json($related);
+            $relatedMovie = item_pick_sample_movie_url($related, $relatedRaw);
+            $relatedHasImages = item_has_sample_images($related);
+            $relatedAffiliate = item_affiliate_link($related);
+          ?>
+          <article class="card rail-card rail-card--180">
+            <?php if (!empty($related['image_small'])): ?>
+              <img class="thumb" src="<?= e((string)$related['image_small']) ?>" alt="<?= e((string)($related['title'] ?? '')) ?>">
+            <?php else: ?>
+              <div class="rail-card__noimage">画像なし</div>
+            <?php endif; ?>
+            <a class="rail-card__title" href="<?= e(public_url('item.php?id=' . (int)$related['id'])) ?>"><?= e((string)($related['title'] ?? '')) ?></a>
+            <div class="sample-buttons">
+              <button type="button" class="sample-button <?= $relatedMovie !== '' ? 'sample-button--enabled' : 'sample-button--disabled' ?>" <?= $relatedMovie === '' ? 'disabled' : '' ?> onclick="<?= $relatedMovie !== '' ? "window.open('" . e($relatedMovie) . "','_blank','noopener,noreferrer');" : 'return false;' ?>">サンプル動画</button>
+              <button type="button" class="sample-button <?= $relatedHasImages ? 'sample-button--enabled' : 'sample-button--disabled' ?>" <?= !$relatedHasImages ? 'disabled' : '' ?> onclick="<?= $relatedHasImages ? "window.open('" . e(public_url('sample_images.php?content_id=' . rawurlencode((string)$related['content_id']))) . "','_blank','noopener,noreferrer');" : 'return false;' ?>">サンプル画像</button>
+              <button type="button" class="sample-button <?= $relatedAffiliate !== '' ? 'sample-button--enabled' : 'sample-button--disabled' ?>" <?= $relatedAffiliate === '' ? 'disabled' : '' ?> onclick="<?= $relatedAffiliate !== '' ? "window.open('" . e($relatedAffiliate) . "','_blank','noopener,noreferrer');" : 'return false;' ?>">アフィリエイトリンク</button>
+            </div>
+          </article>
+        <?php endforeach; ?>
+      </div>
+    </section>
+  <?php endif; ?>
+</section>
 
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && modal.classList.contains('is-open')) {
-      closeMovie();
-    }
-  });
-})();
-</script>
 <?php require __DIR__ . '/partials/footer.php'; ?>
