@@ -24,7 +24,6 @@ if (!$item) {
     exit('not found');
 }
 
-
 try {
     $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
     $ipHash = $ip !== '' ? hash('sha256', $ip . date('Y-m-d')) : null;
@@ -46,9 +45,18 @@ try {
 update_items_view_count();
 $relatedItems = fetch_related_items((string)$item['content_id'], 12);
 
-
 $rels = [];
-foreach (['item_actresses' => 'actress_name', 'item_genres' => 'genre_name', 'item_labels' => 'label_name', 'item_campaigns' => 'campaign_name', 'item_directors' => 'director_name', 'item_makers' => 'maker_name', 'item_series' => 'series_name', 'item_authors' => 'author_name', 'item_actors' => 'actor_name'] as $t => $c) {
+foreach ([
+    'item_actresses' => 'actress_name',
+    'item_genres' => 'genre_name',
+    'item_labels' => 'label_name',
+    'item_campaigns' => 'campaign_name',
+    'item_directors' => 'director_name',
+    'item_makers' => 'maker_name',
+    'item_series' => 'series_name',
+    'item_authors' => 'author_name',
+    'item_actors' => 'actor_name',
+] as $t => $c) {
     $s = db()->prepare("SELECT {$c} FROM {$t} WHERE item_id = ?");
     $s->execute([(int)$item['id']]);
     $rels[$c] = $s->fetchAll(PDO::FETCH_COLUMN);
@@ -121,7 +129,6 @@ foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560'
     }
 }
 
-
 if ($sampleMovieUrl === '') {
     $sampleMovieUrl = pick_sample_movie_url_from_raw_item($raw);
 }
@@ -148,9 +155,9 @@ if (is_array($sampleImageUrl)) {
 $title = (string)$item['title'];
 require __DIR__ . '/partials/header.php';
 ?>
-<h2><?= e($item['title']) ?></h2>
-<?php if ($item['image_large']): ?>
-  <img src="<?= e($item['image_large']) ?>" style="max-width:320px" alt="<?= e($item['title']) ?>">
+<h2><?= e((string)$item['title']) ?></h2>
+<?php if (!empty($item['image_large'])): ?>
+  <img src="<?= e((string)$item['image_large']) ?>" style="max-width:320px" alt="<?= e((string)$item['title']) ?>">
 <?php else: ?>
   <p>画像なし</p>
 <?php endif; ?>
@@ -165,15 +172,17 @@ require __DIR__ . '/partials/header.php';
 </div>
 
 <ul>
-  <li>価格: <?= e($item['price_min_text'] ?? '') ?></li>
-  <li>発売日: <?= e($item['release_date'] ?? '') ?></li>
-  <li>レビュー: <?= e((string)$item['review_average']) ?> (<?= e((string)$item['review_count']) ?>)</li>
+  <li>価格: <?= e((string)($item['price_min_text'] ?? '')) ?></li>
+  <li>発売日: <?= e((string)($item['release_date'] ?? '')) ?></li>
+  <li>レビュー: <?= e((string)($item['review_average'] ?? '')) ?> (<?= e((string)($item['review_count'] ?? '')) ?>)</li>
 </ul>
+
 <?php foreach ($rels as $name => $vals): ?>
-  <p><?= e($name) ?>: <?= e(implode(', ', array_filter($vals))) ?></p>
+  <p><?= e((string)$name) ?>: <?= e(implode(', ', array_filter(array_map('strval', $vals)))) ?></p>
 <?php endforeach; ?>
-<?php if ($item['affiliate_url']): ?>
-  <p><a href="<?= e($item['affiliate_url']) ?>" target="_blank" rel="noopener noreferrer">FANZAで見る</a></p>
+
+<?php if (!empty($item['affiliate_url'])): ?>
+  <p><a href="<?= e((string)$item['affiliate_url']) ?>" target="_blank" rel="noopener noreferrer">FANZAで見る</a></p>
 <?php endif; ?>
 
 <?php if ($relatedItems !== []): ?>
@@ -181,9 +190,9 @@ require __DIR__ . '/partials/header.php';
   <div class="grid">
     <?php foreach ($relatedItems as $related): ?>
       <div class="card">
-        <a href="<?= e(public_url('item.php?id=' . (int)$related['id'])) ?>"><?= e((string)$related['title']) ?></a><br>
+        <a href="<?= e(public_url('item.php?id=' . (int)$related['id'])) ?>"><?= e((string)($related['title'] ?? '')) ?></a><br>
         <?php if (!empty($related['image_small'])): ?>
-          <img class="thumb" src="<?= e((string)$related['image_small']) ?>" alt="<?= e((string)$related['title']) ?>">
+          <img class="thumb" src="<?= e((string)$related['image_small']) ?>" alt="<?= e((string)($related['title'] ?? '')) ?>">
         <?php else: ?>
           画像なし
         <?php endif; ?>
@@ -192,12 +201,11 @@ require __DIR__ . '/partials/header.php';
   </div>
 <?php endif; ?>
 
-
 <div id="sample-movie-modal" class="sample-movie-modal" aria-hidden="true">
   <div class="sample-movie-modal__overlay" data-movie-close="1"></div>
   <div class="sample-movie-modal__dialog" role="dialog" aria-modal="true" aria-label="サンプル動画プレイヤー">
     <button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>
-    <div id="sample-movie-title" class="sample-movie-modal__title"></div>
+    <div id="sample-movie-title" class="sample-movie-modal__title">サンプル動画</div>
     <div class="sample-movie-modal__frame-wrap">
       <iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
     </div>
@@ -212,7 +220,8 @@ require __DIR__ . '/partials/header.php';
 
   const openMovie = (url, title) => {
     if (!url) return;
-    titleNode.textContent = title || '';
+    const normalizedTitle = String(title || '').trim();
+    titleNode.textContent = normalizedTitle !== '' ? normalizedTitle : 'サンプル動画';
     frame.src = url;
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
@@ -222,14 +231,14 @@ require __DIR__ . '/partials/header.php';
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
     frame.src = 'about:blank';
-    titleNode.textContent = '';
+    titleNode.textContent = 'サンプル動画';
   };
 
   document.addEventListener('click', (event) => {
     const trigger = event.target.closest('.sample-movie-trigger');
     if (trigger) {
       event.preventDefault();
-      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || '');
+      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || <?= json_encode((string)$item['title'], JSON_UNESCAPED_UNICODE) ?>);
       return;
     }
 
