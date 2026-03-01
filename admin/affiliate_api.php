@@ -507,11 +507,12 @@ require __DIR__ . '/includes/header.php';
 
   <?php if ($syncSummary !== null): ?>
     <div class="admin-card" style="margin-top:12px;">
-      <h2 style="margin-top:0;">同期結果</h2>
+      <h2 style="margin-top:0;">同期結果（DB保存）</h2>
       <p>結果: <?= !empty($syncSummary['sync_ok']) ? 'OK' : 'NG' ?></p>
-      <p>対象floor: <?= e((string)($syncSummary['target_floor_label'] ?? '-')) ?></p>
-      <p>HTTP/API status: HTTP <?= e((string)($syncSummary['http_status'] ?? '-')) ?> / <?= e((string)($syncSummary['error_type'] ?? '200')) ?></p>
+      <p>対象floor: <?= e((string)($syncSummary['target_floor_label'] ?? '-')) ?>（service: <?= e((string)($syncSummary['target_service_code'] ?? '-')) ?> / floor: <?= e((string)($syncSummary['target_floor_code'] ?? '-')) ?>）</p>
+      <p>HTTP/API status: HTTP <?= e((string)($syncSummary['http_status'] ?? '-')) ?> / API <?= e((string)($syncSummary['api_status'] ?? '-')) ?></p>
       <p>取得件数: <?= e((string)($syncSummary['fetched_items_count'] ?? 0)) ?> / 保存件数: <?= e((string)($syncSummary['saved_items_count'] ?? 0)) ?></p>
+      <p>保存内訳: 女優 <?= e((string)($syncSummary['saved_actresses_count'] ?? 0)) ?> / メーカー <?= e((string)($syncSummary['saved_makers_count'] ?? 0)) ?> / ジャンル <?= e((string)($syncSummary['saved_genres_count'] ?? 0)) ?> / レーベル <?= e((string)($syncSummary['saved_labels_count'] ?? 0)) ?></p>
       <p>reason: <?= e((string)($syncSummary['reason'] ?? '')) ?></p>
       <p>error_type: <?= e((string)($syncSummary['error_type'] ?? '')) ?></p>
       <?php if (!empty($syncSummary['warnings']) && is_array($syncSummary['warnings'])): ?>

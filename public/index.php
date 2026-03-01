@@ -186,6 +186,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
 
 $title = 'トップ';
 $itemCount = 0;
+$dbLoadState = 'ok';
 
 $latestTop = $latestBottom = $pickupTop = $pickupBottom = [];
 $actresses = [];
@@ -196,9 +197,22 @@ $authorSection = ['name' => '', 'url' => '', 'items' => []];
 
 try {
     $pdo = db();
-    $itemCount = (int)$pdo->query('SELECT COUNT(*) FROM items')->fetchColumn();
+} catch (Throwable $e) {
+    $dbLoadState = 'db_error';
+    error_log('public/index.php db connect failed: ' . $e->getMessage());
+    $pdo = null;
+}
+
+if ($pdo instanceof PDO) {
+    try {
+        $itemCount = (int)$pdo->query('SELECT COUNT(*) FROM items')->fetchColumn();
+    } catch (Throwable $e) {
+        error_log('public/index.php count query failed: ' . $e->getMessage());
+        $itemCount = 0;
+    }
 
     if ($itemCount > 0) {
+        try {
         $seedBase = intdiv(time(), 1800);
 
         $latestRows = fetch_items_with_order_fallback($pdo, [
@@ -220,7 +234,10 @@ try {
         $pickupBottom = array_slice($popularRows, 5, 15);
 
         if (db_table_exists($pdo, 'actresses')) {
-            $actressCandidates = $pdo->query('SELECT id,name,image_small FROM actresses ORDER BY (CASE WHEN image_small IS NULL OR image_small = "" THEN 1 ELSE 0 END), id DESC LIMIT 200')->fetchAll();
+            $actressCandidates = query_all_safe($pdo, 'SELECT id,name,image_small FROM actresses ORDER BY (CASE WHEN image_small IS NULL OR image_small = "" THEN 1 ELSE 0 END), id DESC LIMIT 200');
+            if ($actressCandidates === []) {
+                $actressCandidates = query_all_safe($pdo, 'SELECT id,name,NULL AS image_small FROM actresses ORDER BY id DESC LIMIT 200');
+            }
             $actresses = pick_random_items($actressCandidates, $seedBase + 10, 15);
         }
 
@@ -308,9 +325,11 @@ try {
                 ];
             }
         }
+        } catch (Throwable $e) {
+            // DB接続自体ではなく、スキーマ差異等の読み込み失敗は致命にしない
+            error_log('public/index.php data load failed: ' . $e->getMessage());
+        }
     }
-} catch (Throwable $e) {
-    error_log('public/index.php load failed: ' . $e->getMessage());
 }
 
 require __DIR__ . '/partials/header.php';
@@ -318,7 +337,9 @@ require __DIR__ . '/partials/header.php';
 <div class="only-pc"><?php include __DIR__ . '/partials/rss_text_widget.php'; ?></div>
 <?php render_ad('content_top', 'home', 'pc'); ?>
 
-<?php if ($itemCount === 0): ?>
+<?php if ($dbLoadState !== 'ok'): ?>
+  <div class="card"><p>DB接続に失敗しました（設定を確認してください）。管理画面のAPI設定で接続先をご確認ください。</p></div>
+<?php elseif ($itemCount === 0): ?>
   <div class="card"><p>まだ商品データが同期されていません。管理画面のAPI設定から「同期実行（DB保存）」を行ってください。</p></div>
 <?php else: ?>
   <section class="rail-section">

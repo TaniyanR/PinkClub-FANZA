@@ -9,9 +9,16 @@ if ($contentId === '') {
     exit('content_id が指定されていません。');
 }
 
-$stmt = db()->prepare('SELECT content_id, title, raw_json FROM items WHERE content_id = ? LIMIT 1');
-$stmt->execute([$contentId]);
-$item = $stmt->fetch(PDO::FETCH_ASSOC);
+try {
+    $stmt = db()->prepare('SELECT content_id, title, raw_json FROM items WHERE content_id = ? LIMIT 1');
+    $stmt->execute([$contentId]);
+    $item = $stmt->fetch(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+    error_log('public/sample_images.php load failed: ' . $e->getMessage());
+    http_response_code(500);
+    exit('DB接続に失敗しました（設定を確認してください）。');
+}
+
 if (!$item) {
     http_response_code(404);
     exit('指定の商品が見つかりません。');
@@ -49,8 +56,8 @@ if (is_array($decoded) && isset($decoded['sampleImageURL']) && is_array($decoded
     .sample-scroll { max-height: calc(100vh - 90px); overflow-y: auto; padding-right: 6px; }
     .sample-scroll::-webkit-scrollbar { width: 10px; }
     .sample-scroll::-webkit-scrollbar-thumb { background: #b9bdc5; border-radius: 8px; }
-    .sample-frame { width: 800px; max-width: 100%; height: 450px; background: #fff; border: 1px solid #dcdcde; margin: 10px auto; display: flex; align-items: center; justify-content: center; scroll-margin-top: 12px; }
-    .sample-frame img { width: 800px; height: 450px; object-fit: contain; display: block; }
+    .sample-frame { width: 800px; max-width: 100%; height: 450px; background: #fff; border: 1px solid #dcdcde; margin: 10px auto; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .sample-frame img { display: block; transform-origin: center center; }
   </style>
 </head>
 <body>
@@ -66,5 +73,23 @@ if (is_array($decoded) && isset($decoded['sampleImageURL']) && is_array($decoded
     <?php endforeach; ?>
   <?php endif; ?>
   </div>
+  <script>
+    (() => {
+      const frames = document.querySelectorAll('.sample-frame');
+      frames.forEach((frame) => {
+        const img = frame.querySelector('img');
+        if (!img) return;
+        img.addEventListener('load', () => {
+          const fw = 800;
+          const fh = 450;
+          const iw = img.naturalWidth || fw;
+          const ih = img.naturalHeight || fh;
+          const scale = Math.min(fw / iw, fh / ih);
+          img.style.width = `${Math.round(iw * scale)}px`;
+          img.style.height = `${Math.round(ih * scale)}px`;
+        });
+      });
+    })();
+  </script>
 </body>
 </html>
