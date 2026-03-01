@@ -16,9 +16,97 @@ $title = 'API設定';
 $resultMessage = null;
 $resultType = 'success';
 $testTitles = [];
+$masterTestResults = [];
 $syncSummary = null;
 $connectionSummary = null;
 $settings = settings_get();
+
+/**
+ * マスタAPIの10件テスト取得を実行し、表示しやすい配列へ整形する。
+ */
+function run_master_test_fetch(string $kind, array $cfg): array
+{
+    $labels = [
+        'actress' => '女優検索API',
+        'genre' => 'ジャンル検索API',
+        'maker' => 'メーカー検索API',
+        'series' => 'シリーズ検索API',
+        'author' => '作者検索API',
+    ];
+
+    $responseKeys = [
+        'actress' => 'actress',
+        'genre' => 'genre',
+        'maker' => 'maker',
+        'series' => 'series',
+        'author' => 'author',
+    ];
+
+    $nameKeys = [
+        'actress' => ['name', 'ruby'],
+        'genre' => ['name', 'ruby'],
+        'maker' => ['name', 'ruby'],
+        'series' => ['name', 'ruby'],
+        'author' => ['name', 'ruby'],
+    ];
+
+    if (!isset($labels[$kind])) {
+        throw new InvalidArgumentException('不明なAPI種別です: ' . $kind);
+    }
+
+    $floorId = trim((string)($cfg['master_floor_id'] ?? '43'));
+    $params = [
+        'hits' => 10,
+        'offset' => 1,
+    ];
+    if ($kind !== 'actress') {
+        $params['floor_id'] = $floorId;
+    }
+
+    $response = match ($kind) {
+        'actress' => dmm_client_from_settings()->searchActresses($params),
+        'genre' => dmm_client_from_settings()->searchGenres($params),
+        'maker' => dmm_client_from_settings()->searchMakers($params),
+        'series' => dmm_client_from_settings()->searchSeries($params),
+        'author' => dmm_client_from_settings()->searchAuthors($params),
+        default => throw new InvalidArgumentException('不明なAPI種別です: ' . $kind),
+    };
+
+    $result = $response['result'] ?? [];
+    $rows = $result[$responseKeys[$kind]] ?? [];
+    if (!is_array($rows)) {
+        $rows = [];
+    }
+    if (array_is_list($rows) === false && isset($rows['name'])) {
+        $rows = [$rows];
+    }
+
+    $sampleNames = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $name = trim((string)($row[$nameKeys[$kind][0]] ?? ''));
+        $ruby = trim((string)($row[$nameKeys[$kind][1]] ?? ''));
+        if ($name === '') {
+            continue;
+        }
+        $sampleNames[] = $ruby !== '' ? ($name . '（' . $ruby . '）') : $name;
+        if (count($sampleNames) >= 10) {
+            break;
+        }
+    }
+
+    return [
+        'kind' => $kind,
+        'label' => $labels[$kind],
+        'ok' => true,
+        'status' => (string)($result['status'] ?? '200'),
+        'count' => count($sampleNames),
+        'floor_id' => $kind === 'actress' ? '-' : $floorId,
+        'names' => $sampleNames,
+    ];
+}
 
 /**
  * 念のため：正規化関数が lib 側に無い場合でも落ちないようにフォールバック定義
@@ -202,6 +290,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($action === 'test_master_api') {
+        try {
+            $cfg = settings_get();
+            if ((string)($cfg['api_id'] ?? '') === '' || (string)($cfg['affiliate_id'] ?? '') === '') {
+                throw new RuntimeException('API ID / アフィリエイトID を保存してから実行してください。');
+            }
+
+            $kinds = ['actress', 'genre', 'maker', 'series', 'author'];
+            $masterTestResults = [];
+            foreach ($kinds as $kind) {
+                $masterTestResults[] = run_master_test_fetch($kind, $cfg);
+            }
+
+            $resultType = 'success';
+            $resultMessage = 'マスタAPIテスト取得が完了しました（各API 10件）。';
+        } catch (Throwable $e) {
+            $resultType = 'error';
+            $resultMessage = 'マスタAPIテスト取得に失敗しました: ' . $e->getMessage();
+        }
+    }
+
     if ($action === 'sync_db') {
         try {
             $cfg = fanza_normalize_api_config(settings_get());
@@ -351,9 +460,30 @@ require __DIR__ . '/includes/header.php';
       <button type="submit" name="action" value="save">保存</button>
       <button class="button-secondary" type="submit" name="action" value="test_connection">接続テスト</button>
       <button class="button-secondary" type="submit" name="action" value="test_items">商品情報を10件取得（手動）</button>
+      <button class="button-secondary" type="submit" name="action" value="test_master_api">マスタAPIを各10件テスト取得</button>
       <button type="submit" name="action" value="sync_db">同期実行（DB保存）</button>
     </div>
   </form>
+
+  <?php if ($masterTestResults !== []): ?>
+    <div class="admin-card" style="margin-top:12px;">
+      <h2 style="margin-top:0;">マスタAPI テスト取得結果（各10件）</h2>
+      <?php foreach ($masterTestResults as $testResult): ?>
+        <div style="padding:8px 0;border-top:1px solid #eee;">
+          <p style="margin:0 0 6px 0;"><strong><?= e((string)($testResult['label'] ?? '')) ?></strong> / status: <?= e((string)($testResult['status'] ?? '-')) ?> / 取得件数: <?= e((string)($testResult['count'] ?? 0)) ?> / floor_id: <?= e((string)($testResult['floor_id'] ?? '-')) ?></p>
+          <?php if (!empty($testResult['names']) && is_array($testResult['names'])): ?>
+            <ul style="margin:0;">
+              <?php foreach ($testResult['names'] as $name): ?>
+                <li><?= e((string)$name) ?></li>
+              <?php endforeach; ?>
+            </ul>
+          <?php else: ?>
+            <p style="margin:0;">表示可能なデータがありません。</p>
+          <?php endif; ?>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
 
   <?php if ($connectionSummary !== null): ?>
     <div class="admin-card" style="margin-top:12px;">
