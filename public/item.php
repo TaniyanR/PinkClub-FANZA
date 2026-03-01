@@ -157,7 +157,7 @@ require __DIR__ . '/partials/header.php';
 
 <div style="margin: 16px 0; display: flex; gap: 8px; flex-wrap: wrap;">
   <?php if ($sampleMovieUrl !== ''): ?>
-    <button type="button" class="sample-movie-trigger" data-movie-url="<?= e($sampleMovieUrl) ?>">サンプル動画</button>
+    <button type="button" class="sample-movie-trigger" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e((string)$item['title']) ?>">サンプル動画</button>
   <?php endif; ?>
   <?php if ($sampleImages !== []): ?>
     <button type="button" onclick="window.open('<?= e(public_url('sample_images.php?content_id=' . rawurlencode((string)$item['content_id']))) ?>', '_blank', 'noopener,noreferrer')">サンプル画像</button>
@@ -197,6 +197,7 @@ require __DIR__ . '/partials/header.php';
   <div class="sample-movie-modal__overlay" data-movie-close="1"></div>
   <div class="sample-movie-modal__dialog" role="dialog" aria-modal="true" aria-label="サンプル動画プレイヤー">
     <button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>
+    <div id="sample-movie-title" class="sample-movie-modal__title"></div>
     <div class="sample-movie-modal__frame-wrap">
       <iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
     </div>
@@ -206,10 +207,12 @@ require __DIR__ . '/partials/header.php';
 (() => {
   const modal = document.getElementById('sample-movie-modal');
   const frame = document.getElementById('sample-movie-frame');
-  if (!modal || !frame) return;
+  const titleNode = document.getElementById('sample-movie-title');
+  if (!modal || !frame || !titleNode) return;
 
-  const openMovie = (url) => {
+  const openMovie = (url, title) => {
     if (!url) return;
+    titleNode.textContent = title || '';
     frame.src = url;
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
@@ -219,13 +222,14 @@ require __DIR__ . '/partials/header.php';
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
     frame.src = 'about:blank';
+    titleNode.textContent = '';
   };
 
   document.addEventListener('click', (event) => {
     const trigger = event.target.closest('.sample-movie-trigger');
     if (trigger) {
       event.preventDefault();
-      openMovie(trigger.dataset.movieUrl || '');
+      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || '');
       return;
     }
 

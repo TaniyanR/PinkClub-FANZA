@@ -172,7 +172,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
       <?php endif; ?>
       <a class="rail-card__title" href="<?= e($itemUrl) ?>"><?= e($title) ?></a>
       <div class="sample-buttons">
-        <button type="button" class="<?= e($movieClass) ?> sample-movie-trigger" <?= $sample['movie_url'] === '' ? 'disabled' : '' ?> data-movie-url="<?= e((string)$sample['movie_url']) ?>">サンプル動画</button>
+        <button type="button" class="<?= e($movieClass) ?> sample-movie-trigger" <?= $sample['movie_url'] === '' ? 'disabled' : '' ?> data-movie-url="<?= e((string)$sample['movie_url']) ?>" data-movie-title="<?= e($title) ?>">サンプル動画</button>
         <button type="button" class="<?= e($imageClass) ?>" <?= !$sample['has_images'] ? 'disabled' : '' ?> onclick="<?= $sample['has_images'] ? "window.open('" . e(public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')))) . "','_blank','noopener,noreferrer,width=820,height=520');" : 'return false;' ?>">サンプル画像</button>
       </div>
       <?php if ($taxonomy !== null): ?>
@@ -341,6 +341,7 @@ require __DIR__ . '/partials/header.php';
   <div class="sample-movie-modal__overlay" data-movie-close="1"></div>
   <div class="sample-movie-modal__dialog" role="dialog" aria-modal="true" aria-label="サンプル動画プレイヤー">
     <button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>
+    <div id="sample-movie-title" class="sample-movie-modal__title"></div>
     <div class="sample-movie-modal__frame-wrap">
       <iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
     </div>
@@ -350,10 +351,12 @@ require __DIR__ . '/partials/header.php';
 (() => {
   const modal = document.getElementById('sample-movie-modal');
   const frame = document.getElementById('sample-movie-frame');
-  if (!modal || !frame) return;
+  const titleNode = document.getElementById('sample-movie-title');
+  if (!modal || !frame || !titleNode) return;
 
-  const openMovie = (url) => {
+  const openMovie = (url, title) => {
     if (!url) return;
+    titleNode.textContent = title || '';
     frame.src = url;
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
@@ -363,13 +366,14 @@ require __DIR__ . '/partials/header.php';
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
     frame.src = 'about:blank';
+    titleNode.textContent = '';
   };
 
   document.addEventListener('click', (event) => {
     const trigger = event.target.closest('.sample-movie-trigger');
     if (trigger && !trigger.disabled) {
       event.preventDefault();
-      openMovie(trigger.dataset.movieUrl || '');
+      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || '');
       return;
     }
 
