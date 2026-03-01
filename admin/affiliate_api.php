@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'fanza_affiliate_id' => trim((string)post('affiliate_id', '')),
             'fanza_site' => trim((string)post('site', 'FANZA')),
             'fanza_service' => trim((string)post('service', 'digital')),
-            'fanza_floor' => trim((string)post('floor', 'videoa')),
+            'fanza_floor' => trim((string)post('floor', 'video（videoa）')),
             'master_floor_id' => trim((string)post('master_floor_id', '43')),
             'item_sync_batch' => (string)$batch,
             'item_sync_enabled' => post('item_sync_enabled', '0') === '1' ? '1' : '0',
@@ -88,16 +88,16 @@ require __DIR__ . '/includes/header.php';
     <label>アフィリエイトID
       <input name="affiliate_id" value="<?= e((string)($settings['affiliate_id'] ?? '')) ?>">
     </label>
-    <label>site
+    <label>サイト
       <input name="site" value="<?= e((string)($settings['site'] ?? 'FANZA')) ?>">
     </label>
-    <label>service
+    <label>サービス（service）
       <input name="service" value="<?= e((string)($settings['service'] ?? 'digital')) ?>">
     </label>
     <label>フロア
       <?php if ($floorOptions !== []): ?>
         <select name="floor">
-          <?php $currentFloor = (string)($settings['floor'] ?? 'videoa'); ?>
+          <?php $currentFloor = (string)($settings['floor'] ?? 'video（videoa）'); ?>
           <?php foreach ($floorOptions as $option): ?>
             <?php
               $floorCode = (string)($option['floor_code'] ?? '');
@@ -111,7 +111,7 @@ require __DIR__ . '/includes/header.php';
           <?php endforeach; ?>
         </select>
       <?php else: ?>
-        <input name="floor" value="<?= e((string)($settings['floor'] ?? 'videoa')) ?>">
+        <input name="floor" value="<?= e((string)($settings['floor'] ?? 'video（videoa）')) ?>">
       <?php endif; ?>
     </label>
     <label>floor_id（Genre/Maker/Series/Author）
@@ -124,7 +124,7 @@ require __DIR__ . '/includes/header.php';
         <?php endforeach; ?>
       </select>
     </label>
-    <label>タイマー自動取得
+    <label>定期自動取得
       <select name="item_sync_enabled">
         <option value="1" <?= ((int)($settings['item_sync_enabled'] ?? 0) === 1) ? 'selected' : '' ?>>ON</option>
         <option value="0" <?= ((int)($settings['item_sync_enabled'] ?? 0) !== 1) ? 'selected' : '' ?>>OFF</option>
@@ -136,7 +136,6 @@ require __DIR__ . '/includes/header.php';
     <div class="admin-actions">
       <button type="submit" name="action" value="save">保存</button>
       <button class="button-secondary" type="submit" name="action" value="test_items">商品情報を10件取得（手動）</button>
-      <a class="button-secondary" href="<?= e(admin_url('auto_timer.php')) ?>">タイマー稼働ページを開く</a>
     </div>
   </form>
 
@@ -145,4 +144,17 @@ require __DIR__ . '/includes/header.php';
     <ul><?php foreach ($testTitles as $t): ?><li><?= e((string)$t) ?></li><?php endforeach; ?></ul>
   <?php endif; ?>
 </section>
+
+<script>
+(function(){
+  var floor=document.querySelector('select[name="floor"]');
+  var service=document.querySelector('input[name="service"]');
+  if(!floor||!service){return;}
+  floor.addEventListener('change',function(){
+    var opt=floor.options[floor.selectedIndex];
+    var code=opt ? opt.getAttribute('data-service-code') : '';
+    if(code){service.value=code;}
+  });
+})();
+</script>
 <?php require __DIR__ . '/includes/footer.php'; ?>

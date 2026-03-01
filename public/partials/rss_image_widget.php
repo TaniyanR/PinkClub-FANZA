@@ -13,7 +13,7 @@ if (!function_exists('e')) {
 
 $items = [];
 try {
-    $items = rss_pick_display_items(5, false, 14);
+    $items = rss_pick_display_items(5, true, 14);
 } catch (Throwable $e) {
     $items = [];
 }
