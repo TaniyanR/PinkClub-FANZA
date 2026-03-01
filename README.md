@@ -1,17 +1,17 @@
-# PinkClub FANZA
+# PinkClub F
 
 ## セットアップ（XAMPP）
-1. `C:\xampp\htdocs\pinkclub-fanza` に配置
+1. `C:\xampp\htdocs\pinkclub-f` に配置
 2. XAMPPで Apache / MySQL を起動
-3. `http://localhost/pinkclub-fanza/public/login0718.php` を開く
+3. `http://localhost/pinkclub-f/public/login0718.php` を開く
 
 初回は `login0718.php` へのアクセスだけで、DB自動セットアップ（DB作成→schema適用→seed適用→admin/settings保証）が実行されます。  
-失敗時のみ `http://localhost/pinkclub-fanza/public/setup_check.php` を開いて原因を確認してください。
+失敗時のみ `http://localhost/pinkclub-f/public/setup_check.php` を開いて原因を確認してください。
 
 ## 固定URL / 認証
-- 管理ログイン入口（固定）: `http://localhost/pinkclub-fanza/public/login0718.php`
-- 管理トップ: `http://localhost/pinkclub-fanza/admin/index.php`
-- 公開トップ: `http://localhost/pinkclub-fanza/public/`
+- 管理ログイン入口（固定）: `http://localhost/pinkclub-f/public/login0718.php`
+- 管理トップ: `http://localhost/pinkclub-f/admin/index.php`
+- 公開トップ: `http://localhost/pinkclub-f/public/`
 - 初期管理者: `admin` / `password`
 
 ## 失敗時の確認
@@ -28,25 +28,25 @@
 - インストール完了後、`api_logs` と `api_schedules` が作成されていれば正常です。
 
 ## 管理画面の追加URL
-- `http://localhost/pinkclub-fanza/admin/affiliate_api.php`（API設定 / テスト取得10件）
-- `http://localhost/pinkclub-fanza/admin/api_timer.php`（タイマー実行API）
-- `http://localhost/pinkclub-fanza/admin/auto_timer.php`（タイマー稼働ページ）
-- `http://localhost/pinkclub-fanza/admin/site_settings.php`
-- `http://localhost/pinkclub-fanza/admin/account_settings.php`
-- `http://localhost/pinkclub-fanza/admin/design_settings.php`
-- `http://localhost/pinkclub-fanza/admin/links_partner.php`
-- `http://localhost/pinkclub-fanza/admin/links_rss.php`
-- `http://localhost/pinkclub-fanza/admin/analytics.php`
-- `http://localhost/pinkclub-fanza/admin/affiliate_ads.php`
-- `http://localhost/pinkclub-fanza/admin/pages.php`
-- `http://localhost/pinkclub-fanza/admin/pages_new.php`
+- `http://localhost/pinkclub-f/admin/affiliate_api.php`（API設定 / テスト取得10件）
+- `http://localhost/pinkclub-f/admin/api_timer.php`（タイマー実行API）
+- `http://localhost/pinkclub-f/admin/auto_timer.php`（タイマー稼働ページ）
+- `http://localhost/pinkclub-f/admin/site_settings.php`
+- `http://localhost/pinkclub-f/admin/account_settings.php`
+- `http://localhost/pinkclub-f/admin/design_settings.php`
+- `http://localhost/pinkclub-f/admin/links_partner.php`
+- `http://localhost/pinkclub-f/admin/links_rss.php`
+- `http://localhost/pinkclub-f/admin/analytics.php`
+- `http://localhost/pinkclub-f/admin/affiliate_ads.php`
+- `http://localhost/pinkclub-f/admin/pages.php`
+- `http://localhost/pinkclub-f/admin/pages_new.php`
 
 ## API設定→テスト取得→自動タイマー取得 手順
-1. 管理画面 `http://localhost/pinkclub-fanza/admin/affiliate_api.php` を開きます。
+1. 管理画面 `http://localhost/pinkclub-f/admin/affiliate_api.php` を開きます。
 2. `APIID` と `アフィリエイトID` を入力し、`商品取得件数`（100/200/300/500/1000）を選んで保存します。
 3. `商品情報を10件取得（手動）` を押してテスト取得します（ItemList hits=10）。
 4. 自動取得を使う場合は `タイマー自動取得` を `ON`、`実行間隔（分）` を設定して保存します。
-5. `http://localhost/pinkclub-fanza/admin/auto_timer.php` を開いたままにすると、60秒ごとに `admin/timer_tick.php` を実行します（cron不要）。
+5. `http://localhost/pinkclub-f/admin/auto_timer.php` を開いたままにすると、60秒ごとに `admin/timer_tick.php` を実行します（cron不要）。
 6. tickごとに最大1種類のみ同期します（items → genres → makers → series → authors の順、各60分間隔）。
 7. 手動10件テストは `item_sync_test_offset` を使い、本番offset (`item_sync_offset`) は進めません。
 
@@ -69,11 +69,11 @@
 - リリースは一括で実施する
 
 ## 新規/更新された管理画面URL
-- `http://localhost/pinkclub-fanza/admin/site_settings.php`（サイト名/URL/キャッチフレーズ/キーワード）
-- `http://localhost/pinkclub-fanza/admin/links.php`（相互リンク管理）
-- `http://localhost/pinkclub-fanza/admin/rss.php`（RSS管理）
-- `http://localhost/pinkclub-fanza/admin/analytics.php`（アクセス解析）
-- `http://localhost/pinkclub-fanza/admin/affiliate_api.php`（API設定/手動10件取得/タイマー状態）
+- `http://localhost/pinkclub-f/admin/site_settings.php`（サイト名/URL/キャッチフレーズ/キーワード）
+- `http://localhost/pinkclub-f/admin/links.php`（相互リンク管理）
+- `http://localhost/pinkclub-f/admin/rss.php`（RSS管理）
+- `http://localhost/pinkclub-f/admin/analytics.php`（アクセス解析）
+- `http://localhost/pinkclub-f/admin/affiliate_api.php`（API設定/手動10件取得/タイマー状態）
 
 
 ## セットアップ確認で `settings(installer.ready=1)` が NG の場合
