@@ -3,6 +3,11 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../public/_bootstrap.php';
+
+// app共通（db(), settings_get(), auth_require_admin(), csrf_* など）
+require_once __DIR__ . '/../lib/app.php';
+
+// FANZA系ヘルパ（fanza_normalize_api_config, fanza_test_*, fanza_sync_items_to_db, fanza_api_timeout_config 等）
 require_once __DIR__ . '/../lib/fanza_api_config.php';
 
 auth_require_admin();
@@ -14,6 +19,36 @@ $testTitles = [];
 $syncSummary = null;
 $connectionSummary = null;
 $settings = settings_get();
+
+/**
+ * 念のため：正規化関数が lib 側に無い場合でも落ちないようにフォールバック定義
+ * （既に定義されている環境ではこちらは使われません）
+ */
+if (!function_exists('settings_normalize_token')) {
+    function settings_normalize_token(string $value, string $default = ''): string
+    {
+        $v = trim($value);
+        if ($v === '') {
+            return $default;
+        }
+        // 英数・_・- のみに制限（想定：service_code / floor_code）
+        $v = preg_replace('/[^a-zA-Z0-9_-]/', '', $v) ?? '';
+        return $v !== '' ? $v : $default;
+    }
+}
+
+if (!function_exists('settings_normalize_site')) {
+    function settings_normalize_site(string $value): string
+    {
+        $v = trim($value);
+        if ($v === '') {
+            return 'FANZA';
+        }
+        // site は基本 "FANZA" 想定。変な文字は除去し、英数と _- のみ許可
+        $v = preg_replace('/[^a-zA-Z0-9_-]/', '', $v) ?? 'FANZA';
+        return $v !== '' ? $v : 'FANZA';
+    }
+}
 
 $floorOptions = [];
 try {
@@ -43,9 +78,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // settings_get() 側で api_id / affiliate_id に正規化される前提（保存キーは fanza_*）
             'fanza_api_id' => trim((string)post('api_id', '')),
             'fanza_affiliate_id' => trim((string)post('affiliate_id', '')),
-            'fanza_site' => trim((string)post('site', 'FANZA')),
-            'fanza_service' => trim((string)post('service', 'digital')),
-            'fanza_floor' => trim((string)post('floor', 'videoa')),
+
+            // ここは入力を正規化して保存（安全・一貫性）
+            'fanza_site' => settings_normalize_site((string)post('site', 'FANZA')),
+            'fanza_service' => strtolower(settings_normalize_token((string)post('service', 'digital'), 'digital')),
+            'fanza_floor' => strtolower(settings_normalize_token((string)post('floor', 'videoa'), 'videoa')),
+
             'master_floor_id' => trim((string)post('master_floor_id', '43')),
             'item_sync_batch' => (string)$batch,
             'item_sync_enabled' => post('item_sync_enabled', '0') === '1' ? '1' : '0',
@@ -139,7 +177,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $offset = max(1, settings_int('item_sync_test_offset', 1));
-            $result = dmm_sync_service()->syncItemsBatch((string)$cfg['service'], (string)$cfg['floor'], 10, $offset);
+
+            // syncItemsBatch の引数を他の箇所と統一：(service, floor, limit, offset)
+            $result = dmm_sync_service()->syncItemsBatch(
+                (string)$cfg['service'],
+                (string)$cfg['floor'],
+                10,
+                $offset
+            );
+
             $nextOffset = (int)($result['next_offset'] ?? ($offset + 100));
             site_setting_set_many(['item_sync_test_offset' => (string)$nextOffset]);
 

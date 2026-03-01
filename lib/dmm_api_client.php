@@ -41,9 +41,9 @@ class DmmApiClient
         return $this->request('AuthorSearch', $params);
     }
 
-    public function fetchItems(string $service, string $floor, array $params = []): array
+    public function fetchItems(string $site, string $service, string $floor, array $params = []): array
     {
-        return $this->request('ItemList', array_merge($params, ['service' => $service, 'floor' => $floor]));
+        return $this->request('ItemList', array_merge($params, ['site' => $site, 'service' => $service, 'floor' => $floor]));
     }
 
     private function request(string $operation, array $params = []): array
