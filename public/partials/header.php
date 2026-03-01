@@ -63,4 +63,4 @@ $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
 </header>
 <div class="layout site-layout">
   <?php require __DIR__ . '/sidebar.php'; ?>
-  <main class="content site-main">
+  <main class="content site-main site-main--legacy">
