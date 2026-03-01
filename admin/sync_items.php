@@ -7,7 +7,7 @@ auth_require_admin();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate_or_fail(post('_csrf'));
     try {
-        $count = dmm_sync_service()->syncItems((string) post('service_code', 'digital'), (string) post('floor_code', 'videoa'));
+        $count = dmm_sync_service()->syncItems((string) post('site_code', 'FANZA'), (string) post('service_code', 'digital'), (string) post('floor_code', 'videoa'));
         flash_set('success', "商品同期: {$count}件");
     } catch (Throwable $e) {
         flash_set('error', '商品同期失敗: ' . $e->getMessage());

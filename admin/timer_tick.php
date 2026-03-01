@@ -81,6 +81,7 @@ $pdo = db();
 timer_seed_jobs($pdo);
 $interval = max(1, settings_int('item_sync_interval_minutes', 60));
 $masterFloorId = (string)($settings['master_floor_id'] ?? '43');
+$site = (string)($settings['site'] ?? 'FANZA');
 $service = (string)($settings['service'] ?? 'digital');
 $floor = (string)($settings['floor'] ?? 'videoa');
 $itemBatch = (int)($settings['item_sync_batch'] ?? 100);
@@ -89,8 +90,8 @@ if (!in_array($itemBatch, [100, 200, 300, 500, 1000], true)) {
 }
 
 $jobs = [
-    'items' => static function (DmmSyncService $sync, int $offset) use ($service, $floor, $itemBatch): array {
-        $result = $sync->syncItemsBatch($service, $floor, $itemBatch, $offset);
+    'items' => static function (DmmSyncService $sync, int $offset) use ($site, $service, $floor, $itemBatch): array {
+        $result = $sync->syncItemsBatch($site, $service, $floor, $itemBatch, $offset);
         return ['count' => (int)($result['synced_count'] ?? 0), 'next_offset' => (int)($result['next_offset'] ?? ($offset + 100)), 'message' => 'ItemListを同期しました'];
     },
     'genres' => static fn(DmmSyncService $sync, int $offset): array => ['count' => $sync->syncGenres($masterFloorId, null, 100, $offset), 'next_offset' => $offset + 100, 'message' => 'GenreSearchを同期しました'],

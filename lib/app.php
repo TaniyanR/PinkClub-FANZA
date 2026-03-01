@@ -7,6 +7,35 @@ require_once __DIR__ . '/dmm_sync_service.php';
 require_once __DIR__ . '/site_settings.php';
 require_once __DIR__ . '/config.php';
 
+
+function settings_normalize_token(string $value, string $fallback): string
+{
+    $trimmed = trim($value);
+    if ($trimmed === '') {
+        return $fallback;
+    }
+
+    if (preg_match_all('/[A-Za-z][A-Za-z0-9_.-]*/', $trimmed, $matches) === 1 && !empty($matches[0])) {
+        return (string)$matches[0][count($matches[0]) - 1];
+    }
+
+    return $fallback;
+}
+
+function settings_normalize_site(string $value): string
+{
+    $upper = strtoupper(trim($value));
+    if (str_contains($upper, 'FANZA')) {
+        return 'FANZA';
+    }
+    if (str_contains($upper, 'DMM')) {
+        return 'DMM.com';
+    }
+
+    return 'FANZA';
+}
+
+
 function settings_get(): array
 {
     $defaults = app_config()['dmm'] ?? [];
@@ -20,9 +49,9 @@ function settings_get(): array
     return [
         'api_id' => $dbApiId !== '' ? $dbApiId : ($envApiId !== '' ? $envApiId : ''),
         'affiliate_id' => $dbAffiliateId !== '' ? $dbAffiliateId : ($envAffiliateId !== '' ? $envAffiliateId : ''),
-        'site' => trim(site_setting_get('fanza_site', (string)($defaults['site'] ?? 'FANZA'))),
-        'service' => trim(site_setting_get('fanza_service', 'digital')),
-        'floor' => trim(site_setting_get('fanza_floor', 'videoa')),
+        'site' => settings_normalize_site((string)site_setting_get('fanza_site', (string)($defaults['site'] ?? 'FANZA'))),
+        'service' => strtolower(settings_normalize_token((string)site_setting_get('fanza_service', 'digital'), 'digital')),
+        'floor' => strtolower(settings_normalize_token((string)site_setting_get('fanza_floor', 'videoa'), 'videoa')),
         'master_floor_id' => trim(site_setting_get('master_floor_id', '43')),
         'item_sync_batch' => settings_int('item_sync_batch', 100),
         'item_sync_enabled' => settings_bool('item_sync_enabled', false),
