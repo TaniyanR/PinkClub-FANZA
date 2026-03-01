@@ -74,3 +74,8 @@
 - `http://localhost/pinkclub-fanza/admin/rss.php`（RSS管理）
 - `http://localhost/pinkclub-fanza/admin/analytics.php`（アクセス解析）
 - `http://localhost/pinkclub-fanza/admin/affiliate_api.php`（API設定/手動10件取得/タイマー状態）
+
+
+## セットアップ確認で `settings(installer.ready=1)` が NG の場合
+- `public/setup_check.php` を再読込してください（既存DBの設定テーブルが初回アクセス時に正規化される場合があります）。
+- それでもNGの場合は `public/login0718.php` にアクセスしてセットアップを再実行してください。
