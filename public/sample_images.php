@@ -50,7 +50,7 @@ if (is_array($decoded) && isset($decoded['sampleImageURL']) && is_array($decoded
     .sample-scroll::-webkit-scrollbar { width: 10px; }
     .sample-scroll::-webkit-scrollbar-thumb { background: #b9bdc5; border-radius: 8px; }
     .sample-frame { width: 800px; max-width: 100%; height: 450px; background: #fff; border: 1px solid #dcdcde; margin: 10px auto; display: flex; align-items: center; justify-content: center; scroll-margin-top: 12px; }
-    .sample-frame img { width: 800px; height: 450px; object-fit: contain; display: block; }
+    .sample-frame img { width: 800px; height: 450px; object-fit: cover; display: block; }
   </style>
 </head>
 <body>
@@ -60,7 +60,7 @@ if (is_array($decoded) && isset($decoded['sampleImageURL']) && is_array($decoded
     <p class="message">画像がありません</p>
   <?php else: ?>
     <?php foreach ($images as $index => $image): ?>
-      <div class="sample-frame">
+      <div class="sample-frame" id="image-<?= e((string)($index + 1)) ?>">
         <img src="<?= e($image) ?>" alt="サンプル画像 <?= e((string)($index + 1)) ?>">
       </div>
     <?php endforeach; ?>

@@ -304,3 +304,19 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .sample-movie-modal__title{color:#fff;font-size:14px;line-height:1.4;padding:12px 48px 8px 14px;min-height:20px;box-sizing:border-box}
 .sample-movie-modal__frame-wrap{width:100%;aspect-ratio:16 / 9;background:#000}
 .sample-movie-modal__frame{width:100%;height:100%;border:0;display:block;background:#000}
+
+/* Item detail layout */
+.item-page{display:grid;gap:14px}
+.item-top-video__placeholder{width:100%;aspect-ratio:16/5;background:#e5e7eb;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#4b5563;margin-bottom:10px}
+.item-main-block{display:grid;grid-template-columns:minmax(240px,320px) 1fr;gap:16px}
+.item-main-block__image .thumb{width:100%;max-width:320px}
+.item-main-block__info h1{margin:0 0 12px;font-size:26px}
+.item-main-block__info ul{margin:0;padding-left:18px;display:grid;gap:8px}
+.item-main-block__noimage{height:320px;background:#f0f0f1;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#646970}
+.item-affiliate-block__button{width:100%;padding:12px 14px;font-size:16px;font-weight:700}
+.item-sample-images-grid{display:flex;flex-wrap:wrap;gap:10px}
+.item-sample-image{border:0;background:transparent;padding:0;cursor:pointer;width:140px}
+.item-sample-image img{width:140px;height:90px;object-fit:cover;border-radius:6px;display:block}
+@media (max-width: 900px){
+  .item-main-block{grid-template-columns:1fr}
+}
