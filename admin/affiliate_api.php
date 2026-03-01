@@ -61,8 +61,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'credential' => $credentialTest,
                 'item' => $itemTest,
             ];
-            $resultType = (($credentialTest['ok'] ?? false) && ($itemTest['ok'] ?? false)) ? 'success' : 'error';
-            $resultMessage = $resultType === 'success' ? '接続テストに成功しました。' : '接続テストでエラーが発生しました。';
+
+            $allOk = (($credentialTest['ok'] ?? false) && ($itemTest['ok'] ?? false));
+            if ($allOk) {
+                $itemsCount = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+                if ($itemsCount === 0) {
+                    $autoSync = dmm_sync_service()->syncItemsBatch((string)$cfg['service'], (string)$cfg['floor'], 10, 1);
+                    $autoSynced = (int)($autoSync['synced_count'] ?? 0);
+                    $resultType = $autoSynced > 0 ? 'success' : 'error';
+                    $resultMessage = $autoSynced > 0
+                        ? '接続テストに成功し、未同期のため商品を自動同期しました（' . $autoSynced . '件）。'
+                        : '接続テストには成功しましたが、自動同期で0件でした。フロア設定またはAPI結果をご確認ください。';
+                } else {
+                    $resultType = 'success';
+                    $resultMessage = '接続テストに成功しました。';
+                }
+            } else {
+                $resultType = 'error';
+                $resultMessage = '接続テストでエラーが発生しました。';
+            }
         } catch (Throwable $e) {
             $resultType = 'error';
             $resultMessage = '接続テストに失敗しました: ' . $e->getMessage();
@@ -132,6 +149,15 @@ require __DIR__ . '/includes/header.php';
   <?php if ((string)($settings['api_id'] ?? '') === '' || (string)($settings['affiliate_id'] ?? '') === ''): ?>
     <div class="admin-notice admin-notice--error"><p>API ID / アフィリエイトID が未設定です。保存してから同期してください。</p></div>
   <?php endif; ?>
+  <?php
+    $currentItemsCount = 0;
+    try {
+        $currentItemsCount = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+    } catch (Throwable) {
+        $currentItemsCount = 0;
+    }
+  ?>
+  <div class="admin-notice <?= $currentItemsCount > 0 ? 'admin-notice--success' : 'admin-notice--error' ?>"><p>現在の items 件数: <?= e((string)$currentItemsCount) ?>件<?= $currentItemsCount === 0 ? '（未同期）' : '' ?></p></div>
 
   <div class="admin-card" style="margin-bottom:12px;">
     <h2 style="margin-top:0;">XAMPP向け DB設定ヘルプ</h2>
