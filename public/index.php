@@ -105,7 +105,6 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
 }
 
 $title = 'トップ';
-$dbMessage = '';
 $itemCount = 0;
 
 $latestTop = $latestBottom = $pickupTop = $pickupBottom = [];
@@ -180,7 +179,7 @@ try {
         }
     }
 } catch (Throwable $e) {
-    $dbMessage = 'DB接続に失敗しました（設定を確認してください）。管理画面のAPI設定から接続情報をご確認ください。';
+    error_log('public/index.php load failed: ' . $e->getMessage());
 }
 
 require __DIR__ . '/partials/header.php';
@@ -188,9 +187,7 @@ require __DIR__ . '/partials/header.php';
 <div class="only-pc"><?php include __DIR__ . '/partials/rss_text_widget.php'; ?></div>
 <?php render_ad('content_top', 'home', 'pc'); ?>
 
-<?php if ($dbMessage !== ''): ?>
-  <div class="card"><p><?= e($dbMessage) ?></p><p><a href="<?= e(app_url('admin/affiliate_api.php')) ?>">管理画面のAPI設定へ</a></p></div>
-<?php elseif ($itemCount === 0): ?>
+<?php if ($itemCount === 0): ?>
   <div class="card"><p>まだ商品データが同期されていません。管理画面のAPI設定から「同期実行（DB保存）」を行ってください。</p></div>
 <?php else: ?>
   <section class="rail-section">
