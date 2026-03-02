@@ -59,7 +59,7 @@ function timer_unlock_job(PDO $pdo, string $jobKey, bool $success, string $messa
 
 function timer_seed_jobs(PDO $pdo): void
 {
-    foreach (['items', 'genres', 'makers', 'series', 'authors'] as $jobKey) {
+    foreach (['items', 'genres', 'actresses', 'series'] as $jobKey) {
         $pdo->prepare('INSERT INTO sync_job_state (job_key, next_offset, updated_at) VALUES (:job_key, 1, NOW()) ON DUPLICATE KEY UPDATE updated_at = updated_at')
             ->execute([':job_key' => $jobKey]);
     }
@@ -73,9 +73,6 @@ csrf_validate_or_fail((string)post('_csrf', ''));
 
 $now = date('Y-m-d H:i:s');
 $settings = settings_get();
-if ((string)$settings['api_id'] === '' || (string)$settings['affiliate_id'] === '') {
-    timer_json(['ran' => false, 'saved_items' => 0, 'message' => 'API ID / アフィリエイトID を設定してください。', 'at' => $now]);
-}
 
 $pdo = db();
 timer_seed_jobs($pdo);
@@ -95,12 +92,11 @@ $jobs = [
         return ['count' => (int)($result['synced_count'] ?? 0), 'next_offset' => (int)($result['next_offset'] ?? ($offset + 100)), 'message' => 'ItemListを同期しました'];
     },
     'genres' => static fn(DmmSyncService $sync, int $offset): array => ['count' => $sync->syncGenres($masterFloorId, null, 100, $offset), 'next_offset' => $offset + 100, 'message' => 'GenreSearchを同期しました'],
-    'makers' => static fn(DmmSyncService $sync, int $offset): array => ['count' => $sync->syncMakers($masterFloorId, null, 100, $offset), 'next_offset' => $offset + 100, 'message' => 'MakerSearchを同期しました'],
+    'actresses' => static fn(DmmSyncService $sync, int $offset): array => ['count' => $sync->syncMaster('actress', null, $offset, 100), 'next_offset' => $offset + 100, 'message' => 'ActressSearchを同期しました'],
     'series' => static fn(DmmSyncService $sync, int $offset): array => ['count' => $sync->syncSeries($masterFloorId, null, 100, $offset), 'next_offset' => $offset + 100, 'message' => 'SeriesSearchを同期しました'],
-    'authors' => static fn(DmmSyncService $sync, int $offset): array => ['count' => $sync->syncAuthors($masterFloorId, null, 100, $offset), 'next_offset' => $offset + 100, 'message' => 'AuthorSearchを同期しました'],
 ];
 
-$stateStmt = $pdo->query("SELECT job_key, next_offset, last_run_at, lock_until FROM sync_job_state ORDER BY FIELD(job_key, 'items','genres','makers','series','authors')");
+$stateStmt = $pdo->query("SELECT job_key, next_offset, last_run_at, lock_until FROM sync_job_state ORDER BY FIELD(job_key, 'items','genres','actresses','series')");
 $states = $stateStmt ? $stateStmt->fetchAll(PDO::FETCH_ASSOC) : [];
 $stateMap = [];
 foreach ($states as $state) {
@@ -111,7 +107,6 @@ if (!settings_bool('item_sync_enabled', false)) {
     timer_json(['ran' => false, 'saved_items' => 0, 'message' => '自動取得はOFFです', 'at' => $now]);
 }
 
-$syncService = dmm_sync_service();
 foreach (array_keys($jobs) as $jobKey) {
     $state = $stateMap[$jobKey] ?? ['next_offset' => 1, 'last_run_at' => null];
     if (!timer_job_due($state, $interval)) {
@@ -124,6 +119,13 @@ foreach (array_keys($jobs) as $jobKey) {
 
     $offset = max(1, (int)($state['next_offset'] ?? 1));
     try {
+        $cred = api_credential_get($jobKey);
+        if (trim((string)($cred['api_id'] ?? '')) === '' || trim((string)($cred['affiliate_id'] ?? '')) === '') {
+            timer_unlock_job($pdo, $jobKey, false, 'API ID / アフィリエイトID 未設定のためスキップ', $offset, $now);
+            continue;
+        }
+
+        $syncService = dmm_sync_service($jobKey);
         $result = $jobs[$jobKey]($syncService, $offset);
         $nextOffset = max(1, (int)($result['next_offset'] ?? ($offset + 100)));
         if ($nextOffset > 50000) {

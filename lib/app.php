@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/dmm_api_client.php';
 require_once __DIR__ . '/dmm_sync_service.php';
 require_once __DIR__ . '/site_settings.php';
+require_once __DIR__ . '/api_credentials.php';
 require_once __DIR__ . '/config.php';
 
 
@@ -43,8 +44,9 @@ function settings_get(): array
     $envApiId = trim((string)(getenv('DMM_API_ID') ?: getenv('FANZA_API_ID') ?: ''));
     $envAffiliateId = trim((string)(getenv('DMM_AFFILIATE_ID') ?: getenv('FANZA_AFFILIATE_ID') ?: ''));
 
-    $dbApiId = trim(site_setting_get('fanza_api_id', ''));
-    $dbAffiliateId = trim(site_setting_get('fanza_affiliate_id', ''));
+    $itemCred = api_credential_get('items');
+    $dbApiId = trim((string)($itemCred['api_id'] ?? ''));
+    $dbAffiliateId = trim((string)($itemCred['affiliate_id'] ?? ''));
 
     return [
         'api_id' => $dbApiId !== '' ? $dbApiId : ($envApiId !== '' ? $envApiId : ''),
@@ -95,14 +97,19 @@ function settings_save(string $apiId, string $affiliateId, int $itemSyncBatch = 
     site_setting_set_many($payload);
 }
 
-function dmm_client_from_settings(): DmmApiClient
+function dmm_client_for_type(string $apiType): DmmApiClient
 {
-    $s = settings_get();
+    $cred = api_credential_get($apiType);
     $endpoint = app_config()['dmm']['endpoint'];
-    return new DmmApiClient((string)$s['api_id'], (string)$s['affiliate_id'], $endpoint);
+    return new DmmApiClient((string)($cred['api_id'] ?? ''), (string)($cred['affiliate_id'] ?? ''), $endpoint);
 }
 
-function dmm_sync_service(): DmmSyncService
+function dmm_client_from_settings(): DmmApiClient
 {
-    return new DmmSyncService(dmm_client_from_settings(), db());
+    return dmm_client_for_type('items');
+}
+
+function dmm_sync_service(?string $apiType = null): DmmSyncService
+{
+    return new DmmSyncService($apiType === null ? dmm_client_from_settings() : dmm_client_for_type($apiType), db());
 }
