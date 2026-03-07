@@ -242,8 +242,8 @@ try {
             }
         }
 
-        if (db_table_exists($pdo, 'series') && db_table_exists($pdo, 'item_series')) {
-            $seriesCandidates = $pdo->query('SELECT s.id,s.name,COUNT(isr.id) AS item_count FROM series s INNER JOIN item_series isr ON isr.series_id = s.id GROUP BY s.id,s.name HAVING COUNT(isr.id) > 0 ORDER BY item_count DESC,s.id DESC LIMIT 120')->fetchAll();
+        if (db_table_exists($pdo, 'series_master') && db_table_exists($pdo, 'item_series')) {
+            $seriesCandidates = $pdo->query('SELECT s.id,s.name,COUNT(isr.id) AS item_count FROM series_master s INNER JOIN item_series isr ON isr.series_id = s.id GROUP BY s.id,s.name HAVING COUNT(isr.id) > 0 ORDER BY item_count DESC,s.id DESC LIMIT 120')->fetchAll();
             if ($seriesCandidates !== []) {
                 $seriesCandidates = seeded_shuffle($seriesCandidates, $seedBase + 40);
                 $picked = $seriesCandidates[0];
