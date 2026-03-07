@@ -55,15 +55,44 @@ function collect_movie_urls_from_value(mixed $value, array &$urls): void
     }
 }
 
-function pick_sample_movie_url_from_raw(array $raw): string
+function is_likely_movie_url(string $url): bool
 {
+    $target = strtolower(trim($url));
+    if ($target === '' || (!str_starts_with($target, 'http://') && !str_starts_with($target, 'https://'))) {
+        return false;
+    }
+
+    foreach (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'] as $imageExt) {
+        if (str_contains($target, $imageExt)) {
+            return false;
+        }
+    }
+
+    foreach (['.mp4', '.m3u8', '.ism', '.ismv', '.flv', '.mov', '.webm'] as $movieExt) {
+        if (str_contains($target, $movieExt)) {
+            return true;
+        }
+    }
+
+    foreach (['video', 'samplemovie', 'litevideo', 'vrsample'] as $movieKeyword) {
+        if (str_contains($target, $movieKeyword)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function pick_sample_movie_urls_from_raw(array $raw): array
+{
+    $urls = [];
     foreach (['sampleMovieURL', 'sample_movie_url', 'sampleMovieUrl'] as $movieKeyName) {
         $rawMovie = $raw[$movieKeyName] ?? null;
 
         if (is_string($rawMovie)) {
             $candidate = trim($rawMovie);
             if ($candidate !== '') {
-                return $candidate;
+                $urls[] = $candidate;
             }
         }
 
@@ -71,19 +100,19 @@ function pick_sample_movie_url_from_raw(array $raw): string
             foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
                 $candidate = trim((string)($rawMovie[$movieKey] ?? ''));
                 if ($candidate !== '') {
-                    return $candidate;
+                    $urls[] = $candidate;
                 }
             }
 
-            $urls = [];
             collect_movie_urls_from_value($rawMovie, $urls);
-            if ($urls !== []) {
-                return $urls[0];
-            }
         }
     }
 
-    return '';
+    // APIの揺れで sampleMovieURL キーに入っていないケースもあるため、raw全体からも候補を拾う
+    collect_movie_urls_from_value($raw, $urls);
+
+    $urls = array_values(array_unique(array_filter(array_map(static fn($u) => trim((string)$u), $urls))));
+    return array_values(array_filter($urls, static fn(string $u): bool => is_likely_movie_url($u)));
 }
 
 function query_all_safe(PDO $pdo, string $sql, array $params = []): array
@@ -123,18 +152,16 @@ function fetch_items_with_order_fallback(PDO $pdo, array $orderByCandidates, int
 function item_sample_state(array $item): array
 {
     $raw = decode_item_raw($item);
-    $movie = '';
+    $movieUrls = [];
     foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $column) {
         $candidate = trim((string)($item[$column] ?? ''));
         if ($candidate !== '') {
-            $movie = $candidate;
-            break;
+            $movieUrls[] = $candidate;
         }
     }
 
-    if ($movie === '') {
-        $movie = pick_sample_movie_url_from_raw($raw);
-    }
+    $movieUrls = array_values(array_unique(array_merge($movieUrls, pick_sample_movie_urls_from_raw($raw))));
+    $firstMovieUrl = $movieUrls[0] ?? '';
 
     $hasImageSample = false;
     $sampleImageUrl = $raw['sampleImageURL'] ?? null;
@@ -152,7 +179,7 @@ function item_sample_state(array $item): array
         }
     }
 
-    return ['movie_url' => $movie, 'has_images' => $hasImageSample];
+    return ['movie_url' => $firstMovieUrl, 'movie_urls' => $movieUrls, 'has_images' => $hasImageSample];
 }
 
 function render_item_card(array $item, int $width = 180, ?array $taxonomy = null): void
@@ -164,6 +191,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     $imageClass = $sample['has_images'] ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
     $affiliateClass = $affiliateUrl !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
+    $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')));
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>">
       <?php if (!empty($item['image_small'])): ?>
@@ -174,8 +202,9 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
       <a class="rail-card__title" href="<?= e($itemUrl) ?>"><?= e($title) ?></a>
       <div class="sample-buttons">
         <button type="button" class="<?= e($movieClass) ?> sample-movie-trigger" <?= $sample['movie_url'] === '' ? 'disabled' : '' ?> data-movie-url="<?= e((string)$sample['movie_url']) ?>" data-movie-title="<?= e($title) ?>">サンプル動画</button>
-        <button type="button" class="<?= e($imageClass) ?>" <?= !$sample['has_images'] ? 'disabled' : '' ?> onclick="<?= $sample['has_images'] ? "window.open('" . e(public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')))) . "','_blank','noopener,noreferrer,width=820,height=520');" : 'return false;' ?>">サンプル画像</button>
-        <button type="button" class="<?= e($affiliateClass) ?>" <?= $affiliateUrl === '' ? 'disabled' : '' ?> onclick="<?= $affiliateUrl !== '' ? "window.open('" . e($affiliateUrl) . "','_blank','noopener,noreferrer');" : 'return false;' ?>">アフィリエイト</button>
+        <button type="button" class="<?= e($imageClass) ?>" <?= !$sample['has_images'] ? 'disabled' : '' ?> onclick="<?= $sample['has_images'] ? "window.open('" . e($sampleImagesUrl) . "','_blank','noopener,noreferrer,width=1200,height=760');" : 'return false;' ?>">サンプル画像</button>
+        <button type="button" class="sample-button sample-button--enabled" onclick="window.location.href='<?= e($itemUrl) ?>';">詳細ページ</button>
+        <button type="button" class="<?= e($affiliateClass) ?>" <?= $affiliateUrl === '' ? 'disabled' : '' ?> onclick="<?= $affiliateUrl !== '' ? "window.open('" . e($affiliateUrl) . "','_blank','noopener,noreferrer');" : 'return false;' ?>">購入はコチラ</button>
       </div>
       <?php if ($taxonomy !== null): ?>
         <a class="rail-card__meta" href="<?= e((string)$taxonomy['url']) ?>"><?= e((string)$taxonomy['name']) ?></a>
@@ -324,13 +353,13 @@ require __DIR__ . '/partials/header.php';
   <section class="rail-section">
     <h2>新着作品</h2>
     <div class="rail-row rail-row--300"><?php foreach ($latestTop as $item) { render_item_card($item, 300); } ?></div>
-    <div class="rail-row rail-row--180"><?php foreach ($latestBottom as $item) { render_item_card($item, 180); } ?></div>
+    <div class="rail-row rail-row--200"><?php foreach ($latestBottom as $item) { render_item_card($item, 200); } ?></div>
   </section>
 
   <section class="rail-section">
     <h2>ピックアップ（人気順）</h2>
     <div class="rail-row rail-row--300"><?php foreach ($pickupTop as $item) { render_item_card($item, 300); } ?></div>
-    <div class="rail-row rail-row--180"><?php foreach ($pickupBottom as $item) { render_item_card($item, 180); } ?></div>
+    <div class="rail-row rail-row--200"><?php foreach ($pickupBottom as $item) { render_item_card($item, 200); } ?></div>
   </section>
 
   <section class="rail-section">
