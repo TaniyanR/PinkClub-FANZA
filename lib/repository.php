@@ -242,6 +242,50 @@ function fetch_series(int $limit = 50, int $offset = 0, string $order = 'name'):
     return $stmt->fetchAll() ?: [];
 }
 
+function fetch_authors(int $limit = 50, int $offset = 0, string $order = 'name'): array
+{
+    $orderBy = normalize_order($order, ['name', 'created_at', 'updated_at'], 'name');
+    $limit = normalize_int($limit, 1, 200);
+    $offset = max(0, $offset);
+
+    $stmt = db()->prepare("SELECT * FROM authors ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->fetchAll() ?: [];
+}
+
+function fetch_author(int $authorId): ?array
+{
+    $authorId = max(1, $authorId);
+    $stmt = db()->prepare('SELECT * FROM authors WHERE id = :id LIMIT 1');
+    $stmt->bindValue(':id', $authorId, PDO::PARAM_INT);
+    $stmt->execute();
+    $row = $stmt->fetch();
+    return $row !== false ? $row : null;
+}
+
+function fetch_items_by_author(int $authorId, int $limit, int $offset = 0): array
+{
+    $authorId = max(1, $authorId);
+    $limit = normalize_int($limit, 1, 100);
+    $offset = max(0, $offset);
+
+    $stmt = db()->prepare(
+        'SELECT items.*
+         FROM items
+         INNER JOIN item_authors ON items.content_id = item_authors.content_id
+         WHERE item_authors.author_id = :id
+         ORDER BY date_published DESC
+         LIMIT :limit OFFSET :offset'
+    );
+    $stmt->bindValue(':id', $authorId, PDO::PARAM_INT);
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->fetchAll() ?: [];
+}
+
 
 function fetch_labels(int $limit = 50, int $offset = 0): array
 {

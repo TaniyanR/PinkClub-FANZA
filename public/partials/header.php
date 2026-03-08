@@ -35,6 +35,9 @@ $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
     <link rel="apple-touch-icon" href="<?= e($faviconUrl) ?>">
   <?php endif; ?>
   <link rel="stylesheet" href="<?= e(asset_url('css/style.css')) ?>">
+  <?php if (!empty($pageStyles) && is_array($pageStyles)): foreach ($pageStyles as $_ps): ?>
+  <link rel="stylesheet" href="<?= e((string)$_ps) ?>">
+  <?php endforeach; endif; ?>
 </head>
 <body>
 <header class="site-header">

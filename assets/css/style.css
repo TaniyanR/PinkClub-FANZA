@@ -338,6 +338,57 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .sample-button--enabled{background:#1d4ed8;color:#fff}
 .sample-button--disabled{background:#9ca3af;color:#fff;cursor:not-allowed}
 
+/* ===== Public taxonomy & product page components ===== */
+
+/* Section block wrapper */
+.block{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:16px;margin-bottom:16px}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.section-title{margin:0 0 14px;font-size:20px;font-weight:700;padding-bottom:6px;border-bottom:2px solid #e5e7eb}
+.section-head .section-title{margin-bottom:0;border-bottom:none}
+
+/* Product grid & cards (used in series_one, actress, genre, maker, etc.) */
+.product-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+.product-grid--4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:900px){.product-grid--4{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:480px){.product-grid--4{grid-template-columns:repeat(2,1fr)}}
+.product-card{display:flex;flex-direction:column;gap:6px;background:#fff;border:1px solid #dcdcde;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.04);transition:box-shadow .15s}
+.product-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1)}
+.product-card__media{display:block;width:100%;aspect-ratio:3/4;overflow:hidden;background:#f0f0f1}
+.product-card__media img{width:100%;height:100%;object-fit:cover;display:block}
+.product-card__body{padding:8px}
+.product-card__title{font-size:12px;font-weight:600;color:#1d2327;text-decoration:none;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.product-card__title:hover{color:#2271b1}
+
+/* Taxonomy grid & cards (used in series.php, actresses.php, genres.php, etc.) */
+.taxonomy-grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+.taxonomy-card{display:flex;flex-direction:column;text-decoration:none;color:#1d2327;background:#fff;border:1px solid #dcdcde;border-radius:8px;overflow:hidden;transition:box-shadow .15s}
+.taxonomy-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.1);color:#2271b1}
+.taxonomy-card__media{display:flex;align-items:center;justify-content:center;background:#f0f0f1;height:80px;font-size:22px;color:#9ca3af}
+.taxonomy-card__media img{width:100%;height:100%;object-fit:cover}
+.taxonomy-card__name{padding:8px;font-size:13px;font-weight:600;line-height:1.3;word-break:break-word}
+
+/* Pagination */
+.pagination{display:flex;align-items:center;justify-content:center;gap:6px;padding:16px 0}
+.page-btn{display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:36px;padding:0 10px;border:1px solid #dcdcde;border-radius:4px;background:#fff;color:#2271b1;text-decoration:none;font-size:14px;font-weight:600;cursor:pointer}
+.page-btn:hover{background:#f0f6fc;border-color:#2271b1}
+.page-btn.is-current{background:#2271b1;color:#fff;border-color:#2271b1;cursor:default}
+.page-btn[disabled],.page-btn span{color:#9ca3af;cursor:default;background:#f6f7f9}
+
+/* Taxonomy search form */
+.taxonomy-search{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.taxonomy-search__input{flex:1;min-width:0;padding:8px 10px;border:1px solid #c3c4c7;border-radius:4px;font-size:14px}
+.taxonomy-search__btn{padding:8px 14px;background:#2271b1;color:#fff;border:1px solid #2271b1;border-radius:4px;cursor:pointer;font-size:14px;white-space:nowrap}
+.taxonomy-search__btn:hover{background:#1a5fa0}
+
+/* Actress profile */
+.actress-profile{display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+.actress-profile__image{width:160px;height:200px;object-fit:cover;border-radius:8px;flex:0 0 160px}
+.actress-profile__info{flex:1;min-width:0}
+.actress-profile__info dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0}
+.actress-profile__info dt{font-weight:700;color:#50575e;font-size:13px}
+.actress-profile__info dd{margin:0;font-size:13px}
+@media (max-width:600px){.actress-profile{flex-direction:column}.actress-profile__image{width:100%;flex:none;height:auto;max-height:260px;object-fit:contain}}
+
 /* Sample movie modal player */
 .sample-movie-modal{position:fixed;inset:0;display:none;z-index:9999}
 .sample-movie-modal.is-open{display:block}

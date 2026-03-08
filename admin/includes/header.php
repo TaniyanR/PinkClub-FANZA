@@ -8,6 +8,7 @@ if (!function_exists('e') || !function_exists('asset_url')) {
 $currentScript = basename((string)($_SERVER['SCRIPT_NAME'] ?? 'index.php'));
 $menuGroups = [
     ['label' => 'ダッシュボード', 'file' => 'index.php'],
+    ['label' => '診断', 'file' => 'diagnostics.php'],
     ['label' => '設定', 'children' => [
         ['label' => 'サイト設定', 'file' => 'site_settings.php'],
     ]],
