@@ -49,8 +49,8 @@ if (is_array($decoded) && isset($decoded['sampleImageURL']) && is_array($decoded
     .sample-scroll { display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden; padding-bottom: 6px; }
     .sample-scroll::-webkit-scrollbar { height: 10px; }
     .sample-scroll::-webkit-scrollbar-thumb { background: #b9bdc5; border-radius: 8px; }
-    .sample-frame { width: 800px; flex: 0 0 800px; max-width: none; height: 450px; background: #fff; border: 1px solid #dcdcde; margin: 0; display: flex; align-items: center; justify-content: center; }
-    .sample-frame img { width: 800px; height: 450px; object-fit: contain; display: block; }
+    .sample-frame { width: min(720px, 88vw); flex: 0 0 min(720px, 88vw); max-width: none; background: #fff; border: 1px solid #dcdcde; margin: 0; display: flex; align-items: center; justify-content: center; }
+    .sample-frame img { width: 100%; height: auto; object-fit: contain; display: block; }
   </style>
 </head>
 <body>
