@@ -35,7 +35,19 @@ function app_url(string $path = ''): string
 
 function asset_url(string $path): string
 {
-    return rtrim(BASE_URL, '/') . '/assets/' . ltrim($path, '/');
+    $normalized = ltrim($path, '/');
+    $url = rtrim(BASE_URL, '/') . '/assets/' . $normalized;
+
+    $assetPath = __DIR__ . '/../assets/' . $normalized;
+    if (is_file($assetPath)) {
+        $version = (string)filemtime($assetPath);
+        if ($version !== '') {
+            $separator = str_contains($url, '?') ? '&' : '?';
+            $url .= $separator . 'v=' . rawurlencode($version);
+        }
+    }
+
+    return $url;
 }
 
 if (!function_exists('login_url')) {
