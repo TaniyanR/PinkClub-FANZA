@@ -154,70 +154,142 @@ if ($sampleMovieUrl === '') {
 $sampleImages = [];
 $sampleImageUrl = $raw['sampleImageURL'] ?? null;
 if (is_array($sampleImageUrl)) {
-    foreach (['sample_l', 'sample_s'] as $sampleKey) {
-        $images = $sampleImageUrl[$sampleKey]['image'] ?? null;
-        if (is_array($images)) {
-            foreach ($images as $image) {
-                $url = trim((string)($image ?? ''));
-                if ($url !== '') {
-                    $sampleImages[] = $url;
-                }
+    $largeImages = [];
+    $smallImages = [];
+    $rawLargeImages = $sampleImageUrl['sample_l']['image'] ?? null;
+    $rawSmallImages = $sampleImageUrl['sample_s']['image'] ?? null;
+
+    if (is_array($rawLargeImages)) {
+        foreach ($rawLargeImages as $image) {
+            $url = trim((string)($image ?? ''));
+            if ($url !== '') {
+                $largeImages[] = $url;
             }
-            if ($sampleImages !== []) {
-                break;
+        }
+    }
+
+    if (is_array($rawSmallImages)) {
+        foreach ($rawSmallImages as $image) {
+            $url = trim((string)($image ?? ''));
+            if ($url !== '') {
+                $smallImages[] = $url;
+            }
+        }
+    }
+
+    if ($largeImages !== [] || $smallImages !== []) {
+        $maxCount = max(count($largeImages), count($smallImages));
+        for ($i = 0; $i < $maxCount; $i++) {
+            $large = $largeImages[$i] ?? ($smallImages[$i] ?? '');
+            $small = $smallImages[$i] ?? ($largeImages[$i] ?? '');
+            if ($large !== '' || $small !== '') {
+                $sampleImages[] = [
+                    'large' => $large,
+                    'small' => $small,
+                ];
             }
         }
     }
 }
 
-$title = (string)$item['title'];
+$descriptionText = trim((string)($item['description'] ?? ''));
+if ($descriptionText === '') {
+    $descriptionText = trim((string)($item['iteminfo'] ?? ''));
+}
+if ($descriptionText === '') {
+    $descriptionText = '商品説明は準備中です。';
+}
+
+$itemTitle = trim((string)($item['title'] ?? $item['name'] ?? $item['product_title'] ?? ''));
+if ($itemTitle === '') {
+    $itemTitle = trim((string)($item['content_id'] ?? '商品詳細'));
+}
+
+$isDirectMovieFile = (bool)preg_match('/\.(mp4|m3u8)(?:$|[?#])/i', $sampleMovieUrl);
+
+$title = $itemTitle;
 require __DIR__ . '/partials/header.php';
 ?>
-<h2><?= e((string)$item['title']) ?></h2>
-<?php if (!empty($item['image_large'])): ?>
-  <img src="<?= e((string)$item['image_large']) ?>" style="max-width:320px" alt="<?= e((string)$item['title']) ?>">
-<?php else: ?>
-  <p>画像なし</p>
-<?php endif; ?>
+<h2><?= e($itemTitle) ?></h2>
+<article class="item-article">
+  <section class="item-article__movie">
+    <?php if ($sampleMovieUrl !== ''): ?>
+      <?php if ($isDirectMovieFile): ?>
+        <video controls playsinline preload="metadata" class="item-article__movie-video" src="<?= e($sampleMovieUrl) ?>"></video>
+      <?php else: ?>
+        <iframe src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" loading="lazy" title="<?= e($itemTitle) ?> サンプル動画"></iframe>
+      <?php endif; ?>
+      <a class="item-article__movie-link" href="<?= e($sampleMovieUrl) ?>" target="_blank" rel="noopener noreferrer">サンプル動画を別タブで開く</a>
+    <?php else: ?>
+      <p class="item-article__movie-empty">この商品にはサンプル動画がありません。</p>
+    <?php endif; ?>
+  </section>
 
-<div style="margin: 16px 0; display: flex; gap: 8px; flex-wrap: wrap;">
-  <?php if ($sampleMovieUrl !== ''): ?>
-    <button type="button" class="sample-movie-trigger" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e((string)$item['title']) ?>">サンプル動画</button>
-  <?php endif; ?>
+  <section class="item-article__summary">
+    <div class="item-article__left">
+      <?php if (!empty($item['image_large'])): ?>
+        <img class="item-article__package" src="<?= e((string)$item['image_large']) ?>" alt="<?= e($itemTitle) ?>">
+      <?php else: ?>
+        <div class="item-article__package item-article__package--empty">画像なし</div>
+      <?php endif; ?>
+
+      <?php if (!empty($item['affiliate_url'])): ?>
+        <a class="item-article__affiliate" href="<?= e((string)$item['affiliate_url']) ?>" target="_blank" rel="noopener noreferrer">商品購入ページへ（FANZA）</a>
+      <?php endif; ?>
+    </div>
+
+    <div class="item-article__description">
+      <p class="item-article__description-text"><?= nl2br(e($descriptionText)) ?></p>
+      <ul>
+        <li>価格: <?= e((string)($item['price_min_text'] ?? '')) ?></li>
+        <li>発売日: <?= e((string)($item['release_date'] ?? '')) ?></li>
+        <li>レビュー: <?= e((string)($item['review_average'] ?? '')) ?> (<?= e((string)($item['review_count'] ?? '')) ?>)</li>
+      </ul>
+      <?php foreach ($rels as $name => $vals): ?>
+        <?php $relatedText = implode(', ', array_filter(array_map('strval', $vals))); ?>
+        <?php if ($relatedText !== ''): ?>
+          <p><?= e((string)$name) ?>: <?= e($relatedText) ?></p>
+        <?php endif; ?>
+      <?php endforeach; ?>
+    </div>
+  </section>
+
   <?php if ($sampleImages !== []): ?>
-    <button type="button" onclick="window.open('<?= e(public_url('sample_images.php?content_id=' . rawurlencode((string)$item['content_id']))) ?>', '_blank', 'noopener,noreferrer,width=760,height=540')">サンプル画像</button>
+    <section class="item-article__samples">
+      <?php foreach ($sampleImages as $sampleImage): ?>
+        <button type="button" class="item-article__sample-button" data-sample-image="<?= e((string)$sampleImage['large']) ?>" aria-label="サンプル画像を拡大表示">
+          <img class="item-article__sample-thumb" src="<?= e((string)$sampleImage['small']) ?>" alt="<?= e($itemTitle) ?> サンプル画像">
+        </button>
+      <?php endforeach; ?>
+    </section>
   <?php endif; ?>
-</div>
-
-<ul>
-  <li>価格: <?= e((string)($item['price_min_text'] ?? '')) ?></li>
-  <li>発売日: <?= e((string)($item['release_date'] ?? '')) ?></li>
-  <li>レビュー: <?= e((string)($item['review_average'] ?? '')) ?> (<?= e((string)($item['review_count'] ?? '')) ?>)</li>
-</ul>
-
-<?php foreach ($rels as $name => $vals): ?>
-  <p><?= e((string)$name) ?>: <?= e(implode(', ', array_filter(array_map('strval', $vals)))) ?></p>
-<?php endforeach; ?>
-
-<?php if (!empty($item['affiliate_url'])): ?>
-  <p><a href="<?= e((string)$item['affiliate_url']) ?>" target="_blank" rel="noopener noreferrer">FANZAで見る</a></p>
-<?php endif; ?>
+</article>
 
 <?php if ($relatedItems !== []): ?>
   <h3>関連作品</h3>
-  <div class="grid">
+  <div class="rail-row rail-row--no-scroll">
     <?php foreach ($relatedItems as $related): ?>
-      <div class="card">
-        <a href="<?= e(public_url('item.php?id=' . (int)$related['id'])) ?>"><?= e((string)($related['title'] ?? '')) ?></a><br>
+      <article class="card rail-card rail-card--180">
         <?php if (!empty($related['image_small'])): ?>
-          <img class="thumb" src="<?= e((string)$related['image_small']) ?>" alt="<?= e((string)($related['title'] ?? '')) ?>">
+          <a href="<?= e(public_url('item.php?id=' . (int)$related['id'])) ?>">
+            <img class="thumb" src="<?= e((string)$related['image_small']) ?>" alt="<?= e((string)($related['title'] ?? '')) ?>">
+          </a>
         <?php else: ?>
-          画像なし
+          <div class="rail-card__noimage">画像なし</div>
         <?php endif; ?>
-      </div>
+        <a class="rail-card__title" href="<?= e(public_url('item.php?id=' . (int)$related['id'])) ?>"><?= e((string)($related['title'] ?? '')) ?></a>
+      </article>
     <?php endforeach; ?>
   </div>
 <?php endif; ?>
+
+<div id="sample-image-modal" class="sample-image-modal" aria-hidden="true">
+  <div class="sample-image-modal__overlay" data-image-close="1"></div>
+  <div class="sample-image-modal__dialog" role="dialog" aria-modal="true" aria-label="サンプル画像プレビュー">
+    <button type="button" class="sample-image-modal__close" data-image-close="1" aria-label="閉じる">×</button>
+    <img id="sample-image-modal-img" class="sample-image-modal__img" src="" alt="サンプル画像拡大">
+  </div>
+</div>
 
 <div id="sample-movie-modal" class="sample-movie-modal" aria-hidden="true">
   <div class="sample-movie-modal__overlay" data-movie-close="1"></div>
@@ -259,7 +331,7 @@ require __DIR__ . '/partials/header.php';
     const trigger = event.target.closest('.sample-movie-trigger');
     if (trigger) {
       event.preventDefault();
-      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || <?= json_encode((string)$item['title'], JSON_UNESCAPED_UNICODE) ?>);
+      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || <?= json_encode($itemTitle, JSON_UNESCAPED_UNICODE) ?>);
       return;
     }
 
@@ -272,6 +344,43 @@ require __DIR__ . '/partials/header.php';
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && modal.classList.contains('is-open')) {
       closeMovie();
+    }
+  });
+
+  const imageModal = document.getElementById('sample-image-modal');
+  const imageNode = document.getElementById('sample-image-modal-img');
+  if (!imageModal || !imageNode) return;
+
+  const openImage = (url) => {
+    if (!url) return;
+    imageNode.src = url;
+    imageModal.classList.add('is-open');
+    imageModal.setAttribute('aria-hidden', 'false');
+  };
+
+  const closeImage = () => {
+    imageModal.classList.remove('is-open');
+    imageModal.setAttribute('aria-hidden', 'true');
+    imageNode.src = '';
+  };
+
+  document.addEventListener('click', (event) => {
+    const imageTrigger = event.target.closest('[data-sample-image]');
+    if (imageTrigger) {
+      event.preventDefault();
+      openImage(imageTrigger.getAttribute('data-sample-image') || '');
+      return;
+    }
+
+    if (event.target.closest('[data-image-close="1"]')) {
+      event.preventDefault();
+      closeImage();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && imageModal.classList.contains('is-open')) {
+      closeImage();
     }
   });
 })();
