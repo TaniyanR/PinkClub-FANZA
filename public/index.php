@@ -338,13 +338,13 @@ require __DIR__ . '/partials/header.php';
 <?php else: ?>
   <section class="rail-section">
     <h2>新着作品</h2>
-    <div class="rail-row rail-row--100"><?php foreach ($latestTop as $item) { render_item_card($item, 100); } ?></div>
+    <div class="rail-row rail-row--250 rail-row--no-scroll"><?php foreach ($latestTop as $item) { render_item_card($item, 250); } ?></div>
     <div class="rail-row rail-row--200"><?php foreach ($latestBottom as $item) { render_item_card($item, 200); } ?></div>
   </section>
 
   <section class="rail-section">
     <h2>ピックアップ（人気順）</h2>
-    <div class="rail-row rail-row--100"><?php foreach ($pickupTop as $item) { render_item_card($item, 100); } ?></div>
+    <div class="rail-row rail-row--250 rail-row--no-scroll"><?php foreach ($pickupTop as $item) { render_item_card($item, 250); } ?></div>
     <div class="rail-row rail-row--200"><?php foreach ($pickupBottom as $item) { render_item_card($item, 200); } ?></div>
   </section>
 
