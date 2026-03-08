@@ -142,12 +142,13 @@ function fetch_related_series_by_actress(int $actressId, int $limit = 50): array
     $limit = normalize_int($limit, 1, 200);
 
     $stmt = db()->prepare(
-        'SELECT DISTINCT series.* 
-         FROM series
-         INNER JOIN item_series ON series.id = item_series.series_id
-         INNER JOIN item_actresses ON item_series.content_id = item_actresses.content_id
-         WHERE item_actresses.actress_id = :id
-         ORDER BY series.name ASC
+        'SELECT DISTINCT sm.*
+         FROM series_master sm
+         INNER JOIN item_series isr ON isr.dmm_id = sm.dmm_id
+         INNER JOIN item_actresses ia ON ia.item_id = isr.item_id
+         INNER JOIN actresses a ON a.dmm_id = ia.dmm_id
+         WHERE a.id = :id
+         ORDER BY sm.name ASC
          LIMIT :limit'
     );
     $stmt->bindValue(':id', $actressId, PDO::PARAM_INT);
@@ -162,12 +163,13 @@ function fetch_related_makers_by_actress(int $actressId, int $limit = 50): array
     $limit = normalize_int($limit, 1, 200);
 
     $stmt = db()->prepare(
-        'SELECT DISTINCT makers.* 
-         FROM makers
-         INNER JOIN item_makers ON makers.id = item_makers.maker_id
-         INNER JOIN item_actresses ON item_makers.content_id = item_actresses.content_id
-         WHERE item_actresses.actress_id = :id
-         ORDER BY makers.name ASC
+        'SELECT DISTINCT m.*
+         FROM makers m
+         INNER JOIN item_makers im ON im.dmm_id = m.dmm_id
+         INNER JOIN item_actresses ia ON ia.item_id = im.item_id
+         INNER JOIN actresses a ON a.dmm_id = ia.dmm_id
+         WHERE a.id = :id
+         ORDER BY m.name ASC
          LIMIT :limit'
     );
     $stmt->bindValue(':id', $actressId, PDO::PARAM_INT);
@@ -197,7 +199,7 @@ function fetch_maker(int $makerId): ?array
 function fetch_series_one(int $seriesId): ?array
 {
     $seriesId = max(1, $seriesId);
-    $stmt = db()->prepare('SELECT * FROM series WHERE id = :id LIMIT 1');
+    $stmt = db()->prepare('SELECT * FROM series_master WHERE id = :id LIMIT 1');
     $stmt->execute([':id' => $seriesId]);
     $series = $stmt->fetch();
     return $series ?: null;
@@ -235,7 +237,7 @@ function fetch_series(int $limit = 50, int $offset = 0, string $order = 'name'):
     $limit = normalize_int($limit, 1, 200);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare("SELECT * FROM series ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+    $stmt = db()->prepare("SELECT * FROM series_master ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
     $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
@@ -294,11 +296,12 @@ function fetch_items_by_actress(int $actressId, int $limit, int $offset = 0): ar
     $offset = max(0, $offset);
 
     $stmt = db()->prepare(
-        'SELECT items.* 
-         FROM items 
-         INNER JOIN item_actresses ON items.content_id = item_actresses.content_id
-         WHERE item_actresses.actress_id = :id 
-         ORDER BY date_published DESC
+        'SELECT i.*
+         FROM items i
+         INNER JOIN item_actresses ia ON ia.item_id = i.id
+         INNER JOIN actresses a ON a.dmm_id = ia.dmm_id
+         WHERE a.id = :id
+         ORDER BY i.release_date DESC, i.id DESC
          LIMIT :limit OFFSET :offset'
     );
     $stmt->bindValue(':id', $actressId, PDO::PARAM_INT);
@@ -316,11 +319,12 @@ function fetch_items_by_genre(int $genreId, int $limit, int $offset = 0): array
     $offset = max(0, $offset);
 
     $stmt = db()->prepare(
-        'SELECT items.* 
-         FROM items 
-         INNER JOIN item_genres ON items.content_id = item_genres.content_id
-         WHERE item_genres.genre_id = :id
-         ORDER BY date_published DESC
+        'SELECT i.*
+         FROM items i
+         INNER JOIN item_genres ig ON ig.item_id = i.id
+         INNER JOIN genres g ON g.dmm_id = ig.dmm_id
+         WHERE g.id = :id
+         ORDER BY i.release_date DESC, i.id DESC
          LIMIT :limit OFFSET :offset'
     );
     $stmt->bindValue(':id', $genreId, PDO::PARAM_INT);
@@ -338,11 +342,12 @@ function fetch_items_by_maker(int $makerId, int $limit, int $offset = 0): array
     $offset = max(0, $offset);
 
     $stmt = db()->prepare(
-        'SELECT items.* 
-         FROM items 
-         INNER JOIN item_makers ON items.content_id = item_makers.content_id
-         WHERE item_makers.maker_id = :id
-         ORDER BY date_published DESC
+        'SELECT i.*
+         FROM items i
+         INNER JOIN item_makers im ON im.item_id = i.id
+         INNER JOIN makers m ON m.dmm_id = im.dmm_id
+         WHERE m.id = :id
+         ORDER BY i.release_date DESC, i.id DESC
          LIMIT :limit OFFSET :offset'
     );
     $stmt->bindValue(':id', $makerId, PDO::PARAM_INT);
@@ -360,11 +365,12 @@ function fetch_items_by_series(int $seriesId, int $limit, int $offset = 0): arra
     $offset = max(0, $offset);
 
     $stmt = db()->prepare(
-        'SELECT items.* 
-         FROM items
-         INNER JOIN item_series ON items.content_id = item_series.content_id
-         WHERE item_series.series_id = :id
-         ORDER BY date_published DESC
+        'SELECT i.*
+         FROM items i
+         INNER JOIN item_series isr ON isr.item_id = i.id
+         INNER JOIN series_master sm ON sm.dmm_id = isr.dmm_id
+         WHERE sm.id = :id
+         ORDER BY i.release_date DESC, i.id DESC
          LIMIT :limit OFFSET :offset'
     );
     $stmt->bindValue(':id', $seriesId, PDO::PARAM_INT);
@@ -384,11 +390,12 @@ function fetch_item_actresses(string $contentId): array
     }
 
     $stmt = db()->prepare(
-        'SELECT actresses.*
-         FROM actresses
-         INNER JOIN item_actresses ON actresses.id = item_actresses.actress_id
-         WHERE item_actresses.content_id = :cid
-         ORDER BY actresses.name ASC'
+        'SELECT DISTINCT a.*
+         FROM actresses a
+         INNER JOIN item_actresses ia ON ia.dmm_id = a.dmm_id
+         INNER JOIN items i ON i.id = ia.item_id
+         WHERE i.content_id = :cid
+         ORDER BY a.name ASC'
     );
     $stmt->execute([':cid' => $cid]);
     return $stmt->fetchAll() ?: [];
@@ -402,11 +409,12 @@ function fetch_item_genres(string $contentId): array
     }
 
     $stmt = db()->prepare(
-        'SELECT genres.*
-         FROM genres
-         INNER JOIN item_genres ON genres.id = item_genres.genre_id
-         WHERE item_genres.content_id = :cid
-         ORDER BY genres.name ASC'
+        'SELECT DISTINCT g.*
+         FROM genres g
+         INNER JOIN item_genres ig ON ig.dmm_id = g.dmm_id
+         INNER JOIN items i ON i.id = ig.item_id
+         WHERE i.content_id = :cid
+         ORDER BY g.name ASC'
     );
     $stmt->execute([':cid' => $cid]);
     return $stmt->fetchAll() ?: [];
@@ -420,11 +428,12 @@ function fetch_item_makers(string $contentId): array
     }
 
     $stmt = db()->prepare(
-        'SELECT makers.*
-         FROM makers
-         INNER JOIN item_makers ON makers.id = item_makers.maker_id
-         WHERE item_makers.content_id = :cid
-         ORDER BY makers.name ASC'
+        'SELECT DISTINCT m.*
+         FROM makers m
+         INNER JOIN item_makers im ON im.dmm_id = m.dmm_id
+         INNER JOIN items i ON i.id = im.item_id
+         WHERE i.content_id = :cid
+         ORDER BY m.name ASC'
     );
     $stmt->execute([':cid' => $cid]);
     return $stmt->fetchAll() ?: [];
@@ -438,11 +447,12 @@ function fetch_item_series(string $contentId): array
     }
 
     $stmt = db()->prepare(
-        'SELECT series.*
-         FROM series
-         INNER JOIN item_series ON series.id = item_series.series_id
-         WHERE item_series.content_id = :cid
-         ORDER BY series.name ASC'
+        'SELECT DISTINCT sm.*
+         FROM series_master sm
+         INNER JOIN item_series isr ON isr.dmm_id = sm.dmm_id
+         INNER JOIN items i ON i.id = isr.item_id
+         WHERE i.content_id = :cid
+         ORDER BY sm.name ASC'
     );
     $stmt->execute([':cid' => $cid]);
     return $stmt->fetchAll() ?: [];
@@ -467,7 +477,7 @@ function fetch_item_labels(string $contentId): array
 
 function fetch_taxonomy_by_id(string $table, string $idField, int $id): ?array
 {
-    $table = normalize_table($table, ['genres', 'makers', 'series']);
+    $table = normalize_table($table, ['genres', 'makers', 'series_master']);
     $idField = normalize_order($idField, ['id'], 'id'); // いまは 'id' のみ許可
     $id = max(1, $id);
 

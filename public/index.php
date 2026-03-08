@@ -240,14 +240,15 @@ try {
         }
 
         if (db_table_exists($pdo, 'genres') && db_table_exists($pdo, 'item_genres')) {
-            $genreCandidates = $pdo->query('SELECT g.id,g.name,COUNT(ig.id) AS item_count FROM genres g INNER JOIN item_genres ig ON ig.genre_id = g.id GROUP BY g.id,g.name HAVING COUNT(ig.id) > 0 ORDER BY item_count DESC,g.id DESC LIMIT 120')->fetchAll();
+            $genreCandidates = $pdo->query('SELECT g.id,g.name,COUNT(ig.id) AS item_count FROM genres g INNER JOIN item_genres ig ON ig.dmm_id = g.dmm_id GROUP BY g.id,g.name HAVING COUNT(ig.id) > 0 ORDER BY item_count DESC,g.id DESC LIMIT 120')->fetchAll();
             $genreCandidates = seeded_shuffle($genreCandidates, $seedBase + 20);
             foreach (array_slice($genreCandidates, 0, 3) as $index => $genre) {
                 $stmt = $pdo->prepare(
                     'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
                      FROM items i
-                     INNER JOIN item_genres ig ON ig.content_id = i.content_id
-                     WHERE ig.genre_id = :id
+                     INNER JOIN item_genres ig ON ig.item_id = i.id
+                     INNER JOIN genres g ON g.dmm_id = ig.dmm_id
+                     WHERE g.id = :id
                      ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC
                      LIMIT 120'
                 );
@@ -257,16 +258,17 @@ try {
             }
         }
 
-        if (db_table_exists($pdo, 'series') && db_table_exists($pdo, 'item_series')) {
-            $seriesCandidates = $pdo->query('SELECT s.id,s.name,COUNT(isr.id) AS item_count FROM series s INNER JOIN item_series isr ON isr.series_id = s.id GROUP BY s.id,s.name HAVING COUNT(isr.id) > 0 ORDER BY item_count DESC,s.id DESC LIMIT 120')->fetchAll();
+        if (db_table_exists($pdo, 'series_master') && db_table_exists($pdo, 'item_series')) {
+            $seriesCandidates = $pdo->query('SELECT s.id,s.name,COUNT(isr.id) AS item_count FROM series_master s INNER JOIN item_series isr ON isr.dmm_id = s.dmm_id GROUP BY s.id,s.name HAVING COUNT(isr.id) > 0 ORDER BY item_count DESC,s.id DESC LIMIT 120')->fetchAll();
             if ($seriesCandidates !== []) {
                 $seriesCandidates = seeded_shuffle($seriesCandidates, $seedBase + 40);
                 $picked = $seriesCandidates[0];
                 $stmt = $pdo->prepare(
                     'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
                      FROM items i
-                     INNER JOIN item_series isr ON isr.content_id = i.content_id
-                     WHERE isr.series_id = :id
+                     INNER JOIN item_series isr ON isr.item_id = i.id
+                     INNER JOIN series_master s ON s.dmm_id = isr.dmm_id
+                     WHERE s.id = :id
                      ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC
                      LIMIT 120'
                 );
@@ -280,15 +282,16 @@ try {
         }
 
         if (db_table_exists($pdo, 'makers') && db_table_exists($pdo, 'item_makers')) {
-            $makerCandidates = $pdo->query('SELECT m.id,m.name,COUNT(im.id) AS item_count FROM makers m INNER JOIN item_makers im ON im.maker_id = m.id GROUP BY m.id,m.name HAVING COUNT(im.id) > 0 ORDER BY item_count DESC,m.id DESC LIMIT 120')->fetchAll();
+            $makerCandidates = $pdo->query('SELECT m.id,m.name,COUNT(im.id) AS item_count FROM makers m INNER JOIN item_makers im ON im.dmm_id = m.dmm_id GROUP BY m.id,m.name HAVING COUNT(im.id) > 0 ORDER BY item_count DESC,m.id DESC LIMIT 120')->fetchAll();
             if ($makerCandidates !== []) {
                 $makerCandidates = seeded_shuffle($makerCandidates, $seedBase + 50);
                 $picked = $makerCandidates[0];
                 $stmt = $pdo->prepare(
                     'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
                      FROM items i
-                     INNER JOIN item_makers im ON im.content_id = i.content_id
-                     WHERE im.maker_id = :id
+                     INNER JOIN item_makers im ON im.item_id = i.id
+                     INNER JOIN makers m ON m.dmm_id = im.dmm_id
+                     WHERE m.id = :id
                      ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC
                      LIMIT 120'
                 );
