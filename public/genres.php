@@ -38,7 +38,7 @@ include __DIR__ . '/partials/header.php';
                 <input class="taxonomy-search__input" type="search" name="q" value="<?php echo e($q); ?>" placeholder="ジャンル名で検索…" maxlength="100">
                 <button class="taxonomy-search__btn" type="submit">検索</button>
                 <?php if ($q !== ''): ?>
-                    <a class="page-btn" href="/genres.php">クリア</a>
+                    <a class="page-btn" href="<?php echo e(build_url('/genres.php')); ?>">クリア</a>
                 <?php endif; ?>
             </form>
             <div class="taxonomy-grid">
