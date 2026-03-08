@@ -288,7 +288,7 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .rail-card--300{flex:0 0 300px;max-width:300px}
 .rail-card--180{flex:0 0 180px;max-width:180px}
 .rail-card--200{flex:0 0 200px;max-width:200px}
-.rail-card__title{width:100%;max-width:100%;font-weight:600;font-size:12px;line-height:1.4;text-decoration:none;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;word-break:break-word;overflow-wrap:anywhere}
+.rail-card__title{width:100%;max-width:100%;font-weight:600;font-size:12px;line-height:1.4;min-height:calc(1.4em * 3);max-height:calc(1.4em * 3);text-decoration:none;white-space:normal;display:block;display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;word-break:break-all;overflow-wrap:anywhere;line-break:anywhere}
 .rail-card__meta{font-size:13px;color:#2271b1;text-decoration:none}
 .rail-card__noimage{height:180px;display:flex;align-items:center;justify-content:center;background:#f0f0f1;border-radius:6px;color:#646970}
 .sample-buttons{display:flex;flex-direction:column;gap:6px;width:100%;max-width:100%;overflow:visible}
