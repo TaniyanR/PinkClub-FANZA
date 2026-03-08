@@ -179,11 +179,11 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     $affiliateClass = $affiliateUrl !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')));
     ?>
-    <article class="card rail-card rail-card--<?= (int)$width ?>">
+    <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
       <?php if (!empty($item['image_small'])): ?>
-        <img class="thumb" src="<?= e((string)$item['image_small']) ?>" alt="<?= e($title) ?>">
+        <img class="thumb" src="<?= e((string)$item['image_small']) ?>" alt="<?= e($title) ?>" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
       <?php else: ?>
-        <div class="rail-card__noimage">画像なし</div>
+        <div class="rail-card__noimage" style="width:<?= (int)$width ?>px;height:<?= (int)$width ?>px;">画像なし</div>
       <?php endif; ?>
       <a class="rail-card__title" href="<?= e($itemUrl) ?>"><?= e($title) ?></a>
       <div class="sample-buttons">
@@ -353,7 +353,7 @@ require __DIR__ . '/partials/header.php';
     <div class="rail-row rail-row--180">
       <?php foreach ($actresses as $actress): ?>
         <article class="card rail-card rail-card--180">
-          <?php if (!empty($actress['image_small'])): ?><img class="thumb" src="<?= e((string)$actress['image_small']) ?>" alt="<?= e((string)$actress['name']) ?>"><?php else: ?><div class="rail-card__noimage">画像なし</div><?php endif; ?>
+          <?php if (!empty($actress['image_small'])): ?><img class="thumb" src="<?= e((string)$actress['image_small']) ?>" alt="<?= e((string)$actress['name']) ?>"><?php else: ?><div class="rail-card__noimage" style="width:180px;height:180px;">画像なし</div><?php endif; ?>
           <a class="rail-card__title" href="<?= e(app_url('public/actress.php?id=' . (int)$actress['id'])) ?>"><?= e((string)$actress['name']) ?></a>
         </article>
       <?php endforeach; ?>

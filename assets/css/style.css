@@ -286,6 +286,10 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
   .site-main--legacy .thumb{max-width:100%}
 }
 
+.site-main--legacy .rail-card{padding:0;box-sizing:border-box}
+.site-main--legacy .rail-card .rail-card__title,
+.site-main--legacy .rail-card .sample-buttons,
+.site-main--legacy .rail-card .rail-card__meta{padding:0 10px 10px}
 /* Home rails */
 .rail-section{margin-bottom:28px}
 .rail-section h3{margin:0 0 10px;font-size:20px}
@@ -296,8 +300,8 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .rail-card--200{flex:0 0 200px;min-width:200px;max-width:200px}
 .rail-row--300 .rail-card{flex:0 0 300px !important;min-width:300px !important;max-width:300px !important}
 .rail-row--200 .rail-card{flex:0 0 200px !important;min-width:200px !important;max-width:200px !important}
-.rail-row--300 .rail-card .thumb,.rail-row--300 .rail-card .rail-card__noimage{width:300px !important}
-.rail-row--200 .rail-card .thumb,.rail-row--200 .rail-card .rail-card__noimage{width:200px !important}
+.rail-row--300 .rail-card .thumb,.rail-row--300 .rail-card .rail-card__noimage{width:300px !important;max-width:300px !important}
+.rail-row--200 .rail-card .thumb,.rail-row--200 .rail-card .rail-card__noimage{width:200px !important;max-width:200px !important}
 .rail-card--300 .rail-card__noimage{height:300px}
 .rail-card--200 .rail-card__noimage{height:200px}
 .rail-card--180 .rail-card__noimage{height:180px}
