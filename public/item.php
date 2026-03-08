@@ -70,11 +70,29 @@ if (is_string($item['raw_json'] ?? null) && $item['raw_json'] !== '') {
     }
 }
 
+function normalize_movie_url_item(string $url): string
+{
+    $url = trim($url);
+    if ($url === '') {
+        return '';
+    }
+
+    if (str_starts_with($url, '//')) {
+        return 'https:' . $url;
+    }
+
+    if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+        return $url;
+    }
+
+    return '';
+}
+
 function collect_movie_urls_from_value_item(mixed $value, array &$urls): void
 {
     if (is_string($value)) {
-        $candidate = trim($value);
-        if ($candidate !== '' && (str_starts_with($candidate, 'http://') || str_starts_with($candidate, 'https://'))) {
+        $candidate = normalize_movie_url_item($value);
+        if ($candidate !== '') {
             $urls[] = $candidate;
         }
         return;
@@ -95,7 +113,7 @@ function pick_sample_movie_url_from_raw_item(array $raw): string
         $rawMovie = $raw[$movieKeyName] ?? null;
 
         if (is_string($rawMovie)) {
-            $candidate = trim($rawMovie);
+            $candidate = normalize_movie_url_item($rawMovie);
             if ($candidate !== '') {
                 return $candidate;
             }
@@ -103,7 +121,7 @@ function pick_sample_movie_url_from_raw_item(array $raw): string
 
         if (is_array($rawMovie)) {
             foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
-                $candidate = trim((string)($rawMovie[$movieKey] ?? ''));
+                $candidate = normalize_movie_url_item((string)($rawMovie[$movieKey] ?? ''));
                 if ($candidate !== '') {
                     return $candidate;
                 }
@@ -122,7 +140,7 @@ function pick_sample_movie_url_from_raw_item(array $raw): string
 
 $sampleMovieUrl = '';
 foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $movieColumn) {
-    $candidate = trim((string)($item[$movieColumn] ?? ''));
+    $candidate = normalize_movie_url_item((string)($item[$movieColumn] ?? ''));
     if ($candidate !== '') {
         $sampleMovieUrl = $candidate;
         break;
@@ -167,7 +185,7 @@ require __DIR__ . '/partials/header.php';
     <button type="button" class="sample-movie-trigger" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e((string)$item['title']) ?>">サンプル動画</button>
   <?php endif; ?>
   <?php if ($sampleImages !== []): ?>
-    <button type="button" onclick="window.open('<?= e(public_url('sample_images.php?content_id=' . rawurlencode((string)$item['content_id']))) ?>', '_blank', 'noopener,noreferrer')">サンプル画像</button>
+    <button type="button" onclick="window.open('<?= e(public_url('sample_images.php?content_id=' . rawurlencode((string)$item['content_id']))) ?>', '_blank', 'noopener,noreferrer,width=760,height=540')">サンプル画像</button>
   <?php endif; ?>
 </div>
 
@@ -218,10 +236,12 @@ require __DIR__ . '/partials/header.php';
   const titleNode = document.getElementById('sample-movie-title');
   if (!modal || !frame || !titleNode) return;
 
-  const openMovie = (url, title) => {
+  const openMovie = (url, title, movieWidth = 0) => {
     if (!url) return;
     const normalizedTitle = String(title || '').trim();
     titleNode.textContent = normalizedTitle !== '' ? normalizedTitle : 'サンプル動画';
+    const normalizedWidth = Number.isFinite(movieWidth) ? Math.max(320, Math.min(900, Math.round(movieWidth))) : 900;
+    modal.style.setProperty('--movie-modal-width', `${normalizedWidth}px`);
     frame.src = url;
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
@@ -231,6 +251,7 @@ require __DIR__ . '/partials/header.php';
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
     frame.src = 'about:blank';
+    modal.style.removeProperty('--movie-modal-width');
     titleNode.textContent = 'サンプル動画';
   };
 
