@@ -36,11 +36,29 @@ function decode_item_raw(array $item): array
     return $raw;
 }
 
+function normalize_movie_url(string $url): string
+{
+    $url = trim($url);
+    if ($url === '') {
+        return '';
+    }
+
+    if (str_starts_with($url, '//')) {
+        return 'https:' . $url;
+    }
+
+    if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+        return $url;
+    }
+
+    return '';
+}
+
 function collect_movie_urls_from_value(mixed $value, array &$urls): void
 {
     if (is_string($value)) {
-        $candidate = trim($value);
-        if ($candidate !== '' && (str_starts_with($candidate, 'http://') || str_starts_with($candidate, 'https://'))) {
+        $candidate = normalize_movie_url($value);
+        if ($candidate !== '') {
             $urls[] = $candidate;
         }
         return;
@@ -62,7 +80,7 @@ function pick_sample_movie_urls_from_raw(array $raw): array
         $rawMovie = $raw[$movieKeyName] ?? null;
 
         if (is_string($rawMovie)) {
-            $candidate = trim($rawMovie);
+            $candidate = normalize_movie_url($rawMovie);
             if ($candidate !== '') {
                 $urls[] = $candidate;
             }
@@ -70,7 +88,7 @@ function pick_sample_movie_urls_from_raw(array $raw): array
 
         if (is_array($rawMovie)) {
             foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
-                $candidate = trim((string)($rawMovie[$movieKey] ?? ''));
+                $candidate = normalize_movie_url((string)($rawMovie[$movieKey] ?? ''));
                 if ($candidate !== '') {
                     $urls[] = $candidate;
                 }
@@ -170,7 +188,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
       <a class="rail-card__title" href="<?= e($itemUrl) ?>"><?= e($title) ?></a>
       <div class="sample-buttons">
         <button type="button" class="<?= e($movieClass) ?> sample-movie-trigger" <?= $sample['movie_url'] === '' ? 'disabled' : '' ?> data-movie-url="<?= e((string)$sample['movie_url']) ?>" data-movie-title="<?= e($title) ?>">サンプル動画</button>
-        <button type="button" class="<?= e($imageClass) ?>" <?= !$sample['has_images'] ? 'disabled' : '' ?> onclick="<?= $sample['has_images'] ? "window.open('" . e($sampleImagesUrl) . "','_blank','noopener,noreferrer,width=1200,height=760');" : 'return false;' ?>">サンプル画像</button>
+        <button type="button" class="<?= e($imageClass) ?>" <?= !$sample['has_images'] ? 'disabled' : '' ?> onclick="<?= $sample['has_images'] ? "window.open('" . e($sampleImagesUrl) . "','_blank','noopener,noreferrer,width=860,height=620');" : 'return false;' ?>">サンプル画像</button>
         <button type="button" class="sample-button sample-button--enabled" onclick="window.location.href='<?= e($itemUrl) ?>';">詳細ページ</button>
         <button type="button" class="<?= e($affiliateClass) ?>" <?= $affiliateUrl === '' ? 'disabled' : '' ?> onclick="<?= $affiliateUrl !== '' ? "window.open('" . e($affiliateUrl) . "','_blank','noopener,noreferrer');" : 'return false;' ?>">購入はコチラ</button>
       </div>
@@ -394,10 +412,12 @@ require __DIR__ . '/partials/header.php';
   const titleNode = document.getElementById('sample-movie-title');
   if (!modal || !frame || !titleNode) return;
 
-  const openMovie = (url, title) => {
+  const openMovie = (url, title, movieWidth = 0) => {
     if (!url) return;
     const normalizedTitle = String(title || '').trim();
     titleNode.textContent = normalizedTitle !== '' ? normalizedTitle : 'サンプル動画';
+    const normalizedWidth = Number.isFinite(movieWidth) ? Math.max(320, Math.min(900, Math.round(movieWidth))) : 900;
+    modal.style.setProperty('--movie-modal-width', `${normalizedWidth}px`);
     frame.src = url;
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
@@ -407,6 +427,7 @@ require __DIR__ . '/partials/header.php';
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
     frame.src = 'about:blank';
+    modal.style.removeProperty('--movie-modal-width');
     titleNode.textContent = 'サンプル動画';
   };
 
@@ -416,7 +437,9 @@ require __DIR__ . '/partials/header.php';
       event.preventDefault();
       const card = trigger.closest('.rail-card');
       const fallbackTitle = card ? (card.querySelector('.rail-card__title')?.textContent || '') : '';
-      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || fallbackTitle);
+      const mediaNode = card ? card.querySelector('.thumb, .rail-card__noimage') : null;
+      const mediaWidth = mediaNode ? mediaNode.getBoundingClientRect().width : 0;
+      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || fallbackTitle, mediaWidth);
       return;
     }
 

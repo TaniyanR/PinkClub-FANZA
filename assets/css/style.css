@@ -272,8 +272,14 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
   box-shadow:none;
   padding:10px;
 }
-.site-main--legacy .thumb{
-  max-width:180px;
+.site-main--legacy .thumb{max-width:180px}
+.site-main--legacy .rail-card .thumb,
+.site-main--legacy .rail-card .rail-card__noimage{
+  width:100%;
+  max-width:100%;
+}
+.site-main--legacy .rail-card .thumb{
+  border-radius:6px;
 }
 @media (max-width: 900px){
   .site-main--legacy{padding:12px}
@@ -288,6 +294,9 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .rail-card--300{flex:0 0 300px;max-width:300px}
 .rail-card--180{flex:0 0 180px;max-width:180px}
 .rail-card--200{flex:0 0 200px;max-width:200px}
+.rail-card--300 .rail-card__noimage{height:300px}
+.rail-card--200 .rail-card__noimage{height:200px}
+.rail-card--180 .rail-card__noimage{height:180px}
 .rail-card__title{width:100%;max-width:100%;font-weight:600;font-size:12px;line-height:1.4;text-decoration:none;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;word-break:break-word;overflow-wrap:anywhere}
 .rail-card__meta{font-size:13px;color:#2271b1;text-decoration:none}
 .rail-card__noimage{height:180px;display:flex;align-items:center;justify-content:center;background:#f0f0f1;border-radius:6px;color:#646970}
@@ -300,7 +309,7 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .sample-movie-modal{position:fixed;inset:0;display:none;z-index:9999}
 .sample-movie-modal.is-open{display:block}
 .sample-movie-modal__overlay{position:absolute;inset:0;background:rgba(0,0,0,.6)}
-.sample-movie-modal__dialog{position:relative;width:min(96vw,900px);margin:5vh auto 0;background:#000;border-radius:8px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.sample-movie-modal__dialog{position:relative;width:min(96vw,var(--movie-modal-width,900px));margin:5vh auto 0;background:#000;border-radius:8px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4)}
 .sample-movie-modal__close{position:absolute;top:6px;right:10px;border:none;background:transparent;color:#fff;font-size:36px;line-height:1;cursor:pointer;z-index:2}
 .sample-movie-modal__title{color:#fff;font-size:14px;line-height:1.4;padding:12px 48px 8px 14px;min-height:20px;box-sizing:border-box}
 .sample-movie-modal__frame-wrap{width:100%;aspect-ratio:16 / 9;background:#000}
