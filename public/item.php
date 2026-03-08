@@ -218,10 +218,12 @@ require __DIR__ . '/partials/header.php';
   const titleNode = document.getElementById('sample-movie-title');
   if (!modal || !frame || !titleNode) return;
 
-  const openMovie = (url, title) => {
+  const openMovie = (url, title, movieWidth = 0) => {
     if (!url) return;
     const normalizedTitle = String(title || '').trim();
     titleNode.textContent = normalizedTitle !== '' ? normalizedTitle : 'サンプル動画';
+    const normalizedWidth = Number.isFinite(movieWidth) ? Math.max(320, Math.min(900, Math.round(movieWidth))) : 900;
+    modal.style.setProperty('--movie-modal-width', `${normalizedWidth}px`);
     frame.src = url;
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
@@ -231,6 +233,7 @@ require __DIR__ . '/partials/header.php';
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
     frame.src = 'about:blank';
+    modal.style.removeProperty('--movie-modal-width');
     titleNode.textContent = 'サンプル動画';
   };
 
