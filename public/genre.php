@@ -5,18 +5,48 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 
 $id = (int)get('id', 0);
-$row = fetch_genre($id);
-if ($row === null) {
+$name = trim((string)get('name', ''));
+
+$row = null;
+if ($id > 0) {
+    $row = fetch_genre($id);
+}
+
+if ($row === null && $name !== '') {
+    $stmt = db()->prepare('SELECT * FROM genres WHERE name = :name ORDER BY id ASC LIMIT 1');
+    $stmt->execute([':name' => $name]);
+    $row = $stmt->fetch() ?: null;
+}
+
+$displayName = $name;
+if (is_array($row)) {
+    $displayName = (string)($row['name'] ?? $displayName);
+}
+
+if ($displayName === '') {
     http_response_code(404);
     exit('not found');
 }
 
-$list = fetch_items_by_genre((int)$row['id'], 100, 0);
+if (is_array($row) && isset($row['id'])) {
+    $list = fetch_items_by_genre((int)$row['id'], 100, 0);
+} else {
+    $stmt = db()->prepare(
+        'SELECT i.*
+         FROM items i
+         INNER JOIN item_genres ig ON ig.item_id = i.id
+         WHERE ig.genre_name = :name
+         ORDER BY i.release_date DESC, i.id DESC
+         LIMIT 100'
+    );
+    $stmt->execute([':name' => $displayName]);
+    $list = $stmt->fetchAll() ?: [];
+}
 
 $title = 'ジャンル詳細';
 require __DIR__ . '/partials/header.php';
 ?>
-<h2><?= e((string)$row['name']) ?></h2>
+<h2><?= e($displayName) ?></h2>
 <h3>商品一覧</h3>
 <ul>
   <?php foreach ($list as $item): ?>

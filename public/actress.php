@@ -5,22 +5,54 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 
 $id = (int)get('id', 0);
-$row = fetch_actress($id);
-if ($row === null) {
+$name = trim((string)get('name', ''));
+
+$row = null;
+if ($id > 0) {
+    $row = fetch_actress($id);
+}
+
+if ($row === null && $name !== '') {
+    $stmt = db()->prepare('SELECT * FROM actresses WHERE name = :name ORDER BY id ASC LIMIT 1');
+    $stmt->execute([':name' => $name]);
+    $row = $stmt->fetch() ?: null;
+}
+
+$displayName = $name;
+if (is_array($row)) {
+    $displayName = (string)($row['name'] ?? $displayName);
+}
+
+if ($displayName === '') {
     http_response_code(404);
     exit('not found');
 }
 
-$list = fetch_items_by_actress((int)$row['id'], 100, 0);
+if (is_array($row) && isset($row['id'])) {
+    $list = fetch_items_by_actress((int)$row['id'], 100, 0);
+} else {
+    $stmt = db()->prepare(
+        'SELECT i.*
+         FROM items i
+         INNER JOIN item_actresses ia ON ia.item_id = i.id
+         WHERE ia.actress_name = :name
+         ORDER BY i.release_date DESC, i.id DESC
+         LIMIT 100'
+    );
+    $stmt->execute([':name' => $displayName]);
+    $list = $stmt->fetchAll() ?: [];
+}
 
 $title = '女優詳細';
 require __DIR__ . '/partials/header.php';
 ?>
-<h2><?= e((string)$row['name']) ?></h2>
-<p>誕生日: <?= e((string)($row['birthday'] ?? '')) ?></p>
-<p>出身: <?= e((string)($row['prefectures'] ?? '')) ?></p>
-<?php if (!empty($row['image_url'])): ?>
-  <img src="<?= e((string)$row['image_url']) ?>" class="thumb" alt="<?= e((string)$row['name']) ?>">
+<h2><?= e($displayName) ?></h2>
+<?php if (is_array($row)): ?>
+  <p>誕生日: <?= e((string)($row['birthday'] ?? '')) ?></p>
+  <p>出身: <?= e((string)($row['prefectures'] ?? '')) ?></p>
+  <?php if (!empty($row['image_url'])): ?>
+    <img src="<?= e((string)$row['image_url']) ?>" class="thumb" alt="<?= e($displayName) ?>">
+  <?php endif; ?>
 <?php endif; ?>
 <h3>関連商品</h3>
 <ul>

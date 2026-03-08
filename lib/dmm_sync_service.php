@@ -247,14 +247,35 @@ class DmmSyncService
             if (!is_array($row)) {
                 continue;
             }
-            $dmmId = (string) ($row['id'] ?? '0');
-            $name = (string) ($row['name'] ?? '');
+            $dmmIdRaw = trim((string)($row['id'] ?? ''));
+            $dmmId = $dmmIdRaw !== '' && $dmmIdRaw !== '0' ? $dmmIdRaw : null;
+            $name = trim((string)($row['name'] ?? ''));
             if ($name === '') {
                 continue;
             }
+
+            $this->upsertMasterFromRelation($table, $dmmId, $name);
             $this->pdo->prepare("INSERT IGNORE INTO {$table}(item_id,dmm_id,{$nameCol}) VALUES(?,?,?)")
                 ->execute([$itemId, $dmmId, $name]);
         }
+    }
+
+    private function upsertMasterFromRelation(string $relationTable, ?string $dmmId, string $name): void
+    {
+        $masterTable = match ($relationTable) {
+            'item_actresses' => 'actresses',
+            'item_genres' => 'genres',
+            'item_makers' => 'makers',
+            'item_series' => 'series_master',
+            default => null,
+        };
+
+        if ($masterTable === null || $dmmId === null || $dmmId === '') {
+            return;
+        }
+
+        $this->pdo->prepare("INSERT INTO {$masterTable}(dmm_id,name,created_at,updated_at) VALUES(:dmm_id,:name,NOW(),NOW()) ON DUPLICATE KEY UPDATE name=VALUES(name),updated_at=NOW()")
+            ->execute([':dmm_id' => $dmmId, ':name' => $name]);
     }
 
     public function logSync(string $type, int $isSuccess, int $count, string $message): void
