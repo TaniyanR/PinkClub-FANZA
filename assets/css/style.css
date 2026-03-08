@@ -275,7 +275,7 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .site-main--legacy .thumb{max-width:180px}
 .site-main--legacy .rail-card .thumb,
 .site-main--legacy .rail-card .rail-card__noimage{
-  width:var(--rail-card-width,100%);
+  width:100%;
   max-width:100%;
 }
 .site-main--legacy .rail-card .thumb{
@@ -290,12 +290,14 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .rail-section{margin-bottom:28px}
 .rail-section h3{margin:0 0 10px;font-size:20px}
 .rail-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:10px}
-.rail-card{display:flex;flex-direction:column;gap:8px;flex:0 0 var(--rail-card-width,180px);max-width:var(--rail-card-width,180px)}
-.rail-card--300{flex:0 0 300px;max-width:300px}
-.rail-card--180{flex:0 0 180px;max-width:180px}
-.rail-card--200{flex:0 0 200px;max-width:200px}
-.rail-row--300 .rail-card{--rail-card-width:300px}
-.rail-row--200 .rail-card{--rail-card-width:200px}
+.rail-card{display:flex;flex-direction:column;gap:8px;flex:0 0 180px;min-width:180px;max-width:180px}
+.rail-card--300{flex:0 0 300px;min-width:300px;max-width:300px}
+.rail-card--180{flex:0 0 180px;min-width:180px;max-width:180px}
+.rail-card--200{flex:0 0 200px;min-width:200px;max-width:200px}
+.rail-row--300 .rail-card{flex:0 0 300px !important;min-width:300px !important;max-width:300px !important}
+.rail-row--200 .rail-card{flex:0 0 200px !important;min-width:200px !important;max-width:200px !important}
+.rail-row--300 .rail-card .thumb,.rail-row--300 .rail-card .rail-card__noimage{width:300px !important}
+.rail-row--200 .rail-card .thumb,.rail-row--200 .rail-card .rail-card__noimage{width:200px !important}
 .rail-card--300 .rail-card__noimage{height:300px}
 .rail-card--200 .rail-card__noimage{height:200px}
 .rail-card--180 .rail-card__noimage{height:180px}

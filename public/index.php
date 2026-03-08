@@ -179,7 +179,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     $affiliateClass = $affiliateUrl !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')));
     ?>
-    <article class="card rail-card rail-card--<?= (int)$width ?>" style="--rail-card-width:<?= (int)$width ?>px;">
+    <article class="card rail-card rail-card--<?= (int)$width ?>">
       <?php if (!empty($item['image_small'])): ?>
         <img class="thumb" src="<?= e((string)$item['image_small']) ?>" alt="<?= e($title) ?>">
       <?php else: ?>
