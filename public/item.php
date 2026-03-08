@@ -170,54 +170,117 @@ if (is_array($sampleImageUrl)) {
     }
 }
 
-$title = (string)$item['title'];
+$packageImage = '';
+foreach (['image_large', 'image_list', 'image_small'] as $imgCol) {
+    $candidate = trim((string)($item[$imgCol] ?? ''));
+    if ($candidate !== '') {
+        $packageImage = $candidate;
+        break;
+    }
+}
+
+$affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
+
+$desc = '';
+foreach (['comment', 'description', 'caption'] as $descKey) {
+    if (isset($raw[$descKey]) && is_string($raw[$descKey]) && trim($raw[$descKey]) !== '') {
+        $desc = trim($raw[$descKey]);
+        break;
+    }
+}
+if ($desc === '') {
+    $desc = trim((string)($item['description'] ?? ''));
+}
+
+title = (string)$item['title'];
 require __DIR__ . '/partials/header.php';
 ?>
-<h2><?= e((string)$item['title']) ?></h2>
-<?php if (!empty($item['image_large'])): ?>
-  <img src="<?= e((string)$item['image_large']) ?>" style="max-width:320px" alt="<?= e((string)$item['title']) ?>">
-<?php else: ?>
-  <p>画像なし</p>
-<?php endif; ?>
 
-<div style="margin: 16px 0; display: flex; gap: 8px; flex-wrap: wrap;">
+<article class="item-detail">
+  <h2 class="item-detail__title"><?= e((string)$item['title']) ?></h2>
+
   <?php if ($sampleMovieUrl !== ''): ?>
-    <button type="button" class="sample-movie-trigger" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e((string)$item['title']) ?>">サンプル動画</button>
+    <section class="item-detail__movie">
+      <button type="button" class="sample-movie-trigger item-detail__movie-trigger" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e((string)$item['title']) ?>">
+        サンプル動画を再生
+      </button>
+    </section>
   <?php endif; ?>
-  <?php if ($sampleImages !== []): ?>
-    <button type="button" onclick="window.open('<?= e(public_url('sample_images.php?content_id=' . rawurlencode((string)$item['content_id']))) ?>', '_blank', 'noopener,noreferrer,width=760,height=540')">サンプル画像</button>
-  <?php endif; ?>
-</div>
 
-<ul>
-  <li>価格: <?= e((string)($item['price_min_text'] ?? '')) ?></li>
-  <li>発売日: <?= e((string)($item['release_date'] ?? '')) ?></li>
-  <li>レビュー: <?= e((string)($item['review_average'] ?? '')) ?> (<?= e((string)($item['review_count'] ?? '')) ?>)</li>
-</ul>
+  <section class="item-detail__top">
+    <div class="item-detail__left">
+      <?php if ($packageImage !== ''): ?>
+        <img class="item-detail__package" src="<?= e($packageImage) ?>" alt="<?= e((string)$item['title']) ?>">
+      <?php else: ?>
+        <div class="item-detail__package item-detail__package--noimage">画像なし</div>
+      <?php endif; ?>
 
-<?php foreach ($rels as $name => $vals): ?>
-  <p><?= e((string)$name) ?>: <?= e(implode(', ', array_filter(array_map('strval', $vals)))) ?></p>
-<?php endforeach; ?>
+      <?php if ($affiliateUrl !== ''): ?>
+        <a class="item-detail__affiliate" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">商品購入ページへ（FANZA）</a>
+      <?php endif; ?>
+    </div>
 
-<?php if (!empty($item['affiliate_url'])): ?>
-  <p><a href="<?= e((string)$item['affiliate_url']) ?>" target="_blank" rel="noopener noreferrer">FANZAで見る</a></p>
-<?php endif; ?>
+    <div class="item-detail__right">
+      <?php if ($desc !== ''): ?>
+        <div class="item-detail__desc"><?= nl2br(e($desc)) ?></div>
+      <?php endif; ?>
 
-<?php if ($relatedItems !== []): ?>
-  <h3>関連作品</h3>
-  <div class="grid">
-    <?php foreach ($relatedItems as $related): ?>
-      <div class="card">
-        <a href="<?= e(public_url('item.php?id=' . (int)$related['id'])) ?>"><?= e((string)($related['title'] ?? '')) ?></a><br>
-        <?php if (!empty($related['image_small'])): ?>
-          <img class="thumb" src="<?= e((string)$related['image_small']) ?>" alt="<?= e((string)($related['title'] ?? '')) ?>">
-        <?php else: ?>
-          画像なし
+      <ul class="item-detail__meta">
+        <?php if (!empty($item['price_min_text'])): ?><li>価格: <?= e((string)$item['price_min_text']) ?></li><?php endif; ?>
+        <?php if (!empty($item['release_date'])): ?><li>発売日: <?= e((string)$item['release_date']) ?></li><?php endif; ?>
+        <?php if (!empty($item['review_average']) || !empty($item['review_count'])): ?>
+          <li>レビュー: <?= e((string)($item['review_average'] ?? '')) ?> (<?= e((string)($item['review_count'] ?? '')) ?>)</li>
         <?php endif; ?>
+      </ul>
+
+      <?php foreach ($rels as $name => $vals): ?>
+        <?php $text = implode(', ', array_filter(array_map('strval', $vals))); ?>
+        <?php if (trim($text) !== ''): ?>
+          <p class="item-detail__rel"><span class="item-detail__rel-name"><?= e((string)$name) ?>:</span> <?= e($text) ?></p>
+        <?php endif; ?>
+      <?php endforeach; ?>
+    </div>
+  </section>
+
+  <?php if ($sampleImages !== []): ?>
+    <section class="item-detail__samples">
+      <h3 class="item-detail__section-title">サンプル画像</h3>
+
+      <div class="item-samples" data-sample-gallery="1">
+        <div class="item-samples__viewer">
+          <img id="sample-viewer" class="item-samples__viewer-img" src="<?= e((string)$sampleImages[0]) ?>" alt="サンプル画像（拡大）">
+        </div>
+
+        <div class="item-samples__thumbs">
+          <?php foreach ($sampleImages as $index => $image): ?>
+            <button type="button" class="item-samples__thumb" data-sample-src="<?= e($image) ?>" aria-label="サンプル画像 <?= e((string)($index + 1)) ?>">
+              <img src="<?= e($image) ?>" alt="サンプル画像 <?= e((string)($index + 1)) ?>">
+            </button>
+          <?php endforeach; ?>
+        </div>
       </div>
-    <?php endforeach; ?>
-  </div>
-<?php endif; ?>
+    </section>
+  <?php endif; ?>
+
+  <?php if ($relatedItems !== []): ?>
+    <section class="item-detail__related">
+      <h3 class="item-detail__section-title">関連作品</h3>
+
+      <div class="grid">
+        <?php foreach ($relatedItems as $related): ?>
+          <div class="card">
+            <a href="<?= e(public_url('item.php?id=' . (int)$related['id'])) ?>"><?= e((string)($related['title'] ?? '')) ?></a><br>
+            <?php if (!empty($related['image_small'])): ?>
+              <img class="thumb" src="<?= e((string)$related['image_small']) ?>" alt="<?= e((string)($related['title'] ?? '')) ?>">
+            <?php else: ?>
+              画像なし
+            <?php endif; ?>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </section>
+  <?php endif; ?>
+</article>
 
 <div id="sample-movie-modal" class="sample-movie-modal" aria-hidden="true">
   <div class="sample-movie-modal__overlay" data-movie-close="1"></div>
@@ -229,14 +292,16 @@ require __DIR__ . '/partials/header.php';
     </div>
   </div>
 </div>
+
 <script>
 (() => {
+  // sample movie modal
   const modal = document.getElementById('sample-movie-modal');
   const frame = document.getElementById('sample-movie-frame');
   const titleNode = document.getElementById('sample-movie-title');
-  if (!modal || !frame || !titleNode) return;
 
   const openMovie = (url, title, movieWidth = 0) => {
+    if (!modal || !frame || !titleNode) return;
     if (!url) return;
     const normalizedTitle = String(title || '').trim();
     titleNode.textContent = normalizedTitle !== '' ? normalizedTitle : 'サンプル動画';
@@ -248,6 +313,7 @@ require __DIR__ . '/partials/header.php';
   };
 
   const closeMovie = () => {
+    if (!modal || !frame || !titleNode) return;
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
     frame.src = 'about:blank';
@@ -267,13 +333,24 @@ require __DIR__ . '/partials/header.php';
       event.preventDefault();
       closeMovie();
     }
+
+    const thumb = event.target.closest('.item-samples__thumb');
+    if (thumb) {
+      event.preventDefault();
+      const src = thumb.dataset.sampleSrc || '';
+      const viewer = document.getElementById('sample-viewer');
+      if (viewer && src) {
+        viewer.src = src;
+      }
+    }
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && modal.classList.contains('is-open')) {
+    if (event.key === 'Escape' && modal && modal.classList.contains('is-open')) {
       closeMovie();
     }
   });
 })();
 </script>
+
 <?php require __DIR__ . '/partials/footer.php'; ?>
