@@ -170,7 +170,7 @@ function item_sample_state(array $item): array
 
 function render_item_card(array $item, int $width = 180, ?array $taxonomy = null): void
 {
-    $itemUrl = app_url('public/item.php?id=' . (int)$item['id']);
+    $itemUrl = public_url('item.php?id=' . (int)$item['id']);
     $title = (string)($item['title'] ?? '');
     $sample = item_sample_state($item);
     $movieClass = $sample['movie_url'] !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
@@ -188,9 +188,9 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
       <a class="rail-card__title" href="<?= e($itemUrl) ?>"><?= e($title) ?></a>
       <div class="sample-buttons">
         <button type="button" class="<?= e($movieClass) ?> sample-movie-trigger" <?= $sample['movie_url'] === '' ? 'disabled' : '' ?> data-movie-url="<?= e((string)$sample['movie_url']) ?>" data-movie-title="<?= e($title) ?>">サンプル動画</button>
-        <button type="button" class="<?= e($imageClass) ?>" <?= !$sample['has_images'] ? 'disabled' : '' ?> onclick="<?= $sample['has_images'] ? "window.open('" . e($sampleImagesUrl) . "','_blank','noopener,noreferrer,width=760,height=540');" : 'return false;' ?>">サンプル画像</button>
-        <button type="button" class="sample-button sample-button--enabled" onclick="window.location.href='<?= e($itemUrl) ?>';">詳細ページ</button>
-        <button type="button" class="<?= e($affiliateClass) ?>" <?= $affiliateUrl === '' ? 'disabled' : '' ?> onclick="<?= $affiliateUrl !== '' ? "window.open('" . e($affiliateUrl) . "','_blank','noopener,noreferrer');" : 'return false;' ?>">購入はコチラ</button>
+        <button type="button" class="<?= e($imageClass) ?>" <?= !$sample['has_images'] ? 'disabled' : '' ?><?= $sample['has_images'] ? ' data-open-url="' . e($sampleImagesUrl) . '" data-open-features="noopener,noreferrer,width=760,height=540"' : '' ?>>サンプル画像</button>
+        <button type="button" class="sample-button sample-button--enabled" data-nav-url="<?= e($itemUrl) ?>">詳細ページ</button>
+        <button type="button" class="<?= e($affiliateClass) ?>" <?= $affiliateUrl === '' ? 'disabled' : '' ?><?= $affiliateUrl !== '' ? ' data-open-url="' . e($affiliateUrl) . '" data-open-features="noopener,noreferrer"' : '' ?>>購入はコチラ</button>
       </div>
       <?php if ($taxonomy !== null): ?>
         <a class="rail-card__meta" href="<?= e((string)$taxonomy['url']) ?>"><?= e((string)$taxonomy['name']) ?></a>
@@ -273,7 +273,7 @@ try {
                 $stmt->execute([':id' => (int)$picked['id']]);
                 $seriesSection = [
                     'name' => (string)$picked['name'],
-                    'url' => app_url('public/series_one.php?id=' . (int)$picked['id']),
+                    'url' => public_url('series_one.php?id=' . (int)$picked['id']),
                     'items' => pick_random_items($stmt->fetchAll(), $seedBase + 41, 15),
                 ];
             }
@@ -295,7 +295,7 @@ try {
                 $stmt->execute([':id' => (int)$picked['id']]);
                 $makerSection = [
                     'name' => (string)$picked['name'],
-                    'url' => app_url('public/maker.php?id=' . (int)$picked['id']),
+                    'url' => public_url('maker.php?id=' . (int)$picked['id']),
                     'items' => pick_random_items($stmt->fetchAll(), $seedBase + 51, 15),
                 ];
             }
@@ -318,7 +318,7 @@ try {
                 $stmt->execute([':id' => (int)$picked['id']]);
                 $authorSection = [
                     'name' => (string)$picked['name'],
-                    'url' => app_url('public/author.php?id=' . (int)$picked['id']),
+                    'url' => public_url('author.php?id=' . (int)$picked['id']),
                     'items' => pick_random_items($stmt->fetchAll(), $seedBase + 61, 15),
                 ];
             }
@@ -354,7 +354,7 @@ require __DIR__ . '/partials/header.php';
       <?php foreach ($actresses as $actress): ?>
         <article class="card rail-card rail-card--180">
           <?php if (!empty($actress['image_small'])): ?><img class="thumb" src="<?= e((string)$actress['image_small']) ?>" alt="<?= e((string)$actress['name']) ?>"><?php else: ?><div class="rail-card__noimage" style="width:180px;height:180px;">画像なし</div><?php endif; ?>
-          <a class="rail-card__title" href="<?= e(app_url('public/actress.php?id=' . (int)$actress['id'])) ?>"><?= e((string)$actress['name']) ?></a>
+          <a class="rail-card__title" href="<?= e(public_url('actress.php?id=' . (int)$actress['id'])) ?>"><?= e((string)$actress['name']) ?></a>
         </article>
       <?php endforeach; ?>
     </div>
@@ -363,9 +363,9 @@ require __DIR__ . '/partials/header.php';
   <section class="rail-section">
     <h2>ジャンル</h2>
     <?php foreach ($genreRows as $genre): ?>
-      <h3><a href="<?= e(app_url('public/genre.php?id=' . (int)$genre['id'])) ?>"><?= e((string)$genre['name']) ?></a></h3>
+      <h3><a href="<?= e(public_url('genre.php?id=' . (int)$genre['id'])) ?>"><?= e((string)$genre['name']) ?></a></h3>
       <div class="rail-row rail-row--180">
-        <?php foreach ($genre['items'] as $item) { render_item_card($item, 180, ['name' => (string)$genre['name'], 'url' => app_url('public/genre.php?id=' . (int)$genre['id'])]); } ?>
+        <?php foreach ($genre['items'] as $item) { render_item_card($item, 180, ['name' => (string)$genre['name'], 'url' => public_url('genre.php?id=' . (int)$genre['id'])]); } ?>
       </div>
     <?php endforeach; ?>
   </section>
@@ -432,6 +432,23 @@ require __DIR__ . '/partials/header.php';
   };
 
   document.addEventListener('click', (event) => {
+    const openBtn = event.target.closest('[data-open-url]');
+    if (openBtn && !openBtn.disabled) {
+      event.preventDefault();
+      const url = openBtn.dataset.openUrl || '';
+      const features = openBtn.dataset.openFeatures || 'noopener,noreferrer';
+      if (url) window.open(url, '_blank', features);
+      return;
+    }
+
+    const navBtn = event.target.closest('[data-nav-url]');
+    if (navBtn && !navBtn.disabled) {
+      event.preventDefault();
+      const url = navBtn.dataset.navUrl || '';
+      if (url) window.location.href = url;
+      return;
+    }
+
     const trigger = event.target.closest('.sample-movie-trigger');
     if (trigger && !trigger.disabled) {
       event.preventDefault();

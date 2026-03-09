@@ -192,7 +192,7 @@ if ($desc === '') {
     $desc = trim((string)($item['description'] ?? ''));
 }
 
-title = (string)$item['title'];
+$title = (string)$item['title'];
 require __DIR__ . '/partials/header.php';
 ?>
 
