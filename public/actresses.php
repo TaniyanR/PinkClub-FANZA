@@ -1,6 +1,45 @@
-<?php declare(strict_types=1); require_once __DIR__ . '/_bootstrap.php';
-$page=max(1,(int)get('page',1));$per=20;$total=(int)db()->query('SELECT COUNT(*) FROM actresses')->fetchColumn();$pg=paginate($total,$page,$per);
-$s=db()->prepare('SELECT * FROM actresses ORDER BY name LIMIT :l OFFSET :o');$s->bindValue(':l',$pg['perPage'],PDO::PARAM_INT);$s->bindValue(':o',$pg['offset'],PDO::PARAM_INT);$s->execute();$rows=$s->fetchAll();
-$title='女優一覧'; require __DIR__ . '/partials/header.php'; ?>
-<h2>女優一覧</h2><ul><?php foreach($rows as $r):?><li><a href="<?=e(app_url('public/actress.php?id='.$r['id']))?>"><?=e($r['name'])?></a></li><?php endforeach;?></ul>
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/repository.php';
+require_once __DIR__ . '/partials/public_ui.php';
+
+$page = max(1, (int)get('page', 1));
+$per = 24;
+$total = (int)db()->query('SELECT COUNT(*) FROM actresses')->fetchColumn();
+$pg = paginate($total, $page, $per);
+$rows = fetch_actresses((int)$pg['perPage'], (int)$pg['offset'], 'name');
+
+$title = '女優一覧';
+require __DIR__ . '/partials/header.php';
+?>
+<?php pcf_render_hero('女優一覧', '気になる女優のプロフィールと出演作品へ。'); ?>
+
+<?php if ($rows !== []): ?>
+  <section class="pcf-grid">
+    <?php foreach ($rows as $r): ?>
+      <?php
+      $name = trim((string)($r['name'] ?? '名前未設定'));
+      $birthday = trim((string)($r['birthday'] ?? ''));
+      $pref = trim((string)($r['prefectures'] ?? ''));
+      $img = trim((string)($r['image_url'] ?? ''));
+      ?>
+      <article class="pcf-card pcf-list-card">
+        <img class="pcf-item-card__thumb" src="<?= e($img !== '' ? $img : pcf_placeholder_data_uri('No Photo')) ?>" alt="<?= e($name) ?>" loading="lazy">
+        <h3 class="pcf-list-card__title"><?= e($name) ?></h3>
+        <div class="pcf-list-card__meta">
+          <?php if ($birthday !== ''): ?><div>誕生日: <?= e(format_date($birthday)) ?></div><?php endif; ?>
+          <?php if ($pref !== ''): ?><div>出身: <?= e($pref) ?></div><?php endif; ?>
+        </div>
+        <p><a class="pcf-btn" href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>">詳細を見る</a></p>
+      </article>
+    <?php endforeach; ?>
+  </section>
+  <?php pcf_render_pagination($pg, public_url('actresses.php')); ?>
+<?php else: ?>
+  <?php pcf_render_empty('女優データが見つかりませんでした。'); ?>
+<?php endif; ?>
+
 <?php require __DIR__ . '/partials/footer.php'; ?>
