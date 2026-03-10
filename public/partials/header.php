@@ -35,6 +35,7 @@ $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
     <link rel="apple-touch-icon" href="<?= e($faviconUrl) ?>">
   <?php endif; ?>
   <link rel="stylesheet" href="<?= e(asset_url('css/style.css')) ?>">
+  <link rel="stylesheet" href="<?= e(asset_url('css/public-ui.css')) ?>">
 </head>
 <body>
 <header class="site-header">
