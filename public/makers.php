@@ -6,7 +6,12 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
-$rows = fetch_makers(500, 0, 'name');
+$rows = [];
+try {
+    $rows = fetch_makers(500, 0, 'name');
+} catch (Throwable) {
+    $rows = [];
+}
 $title = 'メーカー一覧';
 require __DIR__ . '/partials/header.php';
 ?>

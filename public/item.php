@@ -13,18 +13,21 @@ if ($contentId === '' && $cid !== '') {
     $contentId = $cid;
 }
 
-if ($id > 0) {
-    $stmt = db()->prepare('SELECT * FROM items WHERE id = ?');
-    $stmt->execute([$id]);
-} elseif ($contentId !== '') {
-    $stmt = db()->prepare('SELECT * FROM items WHERE content_id = ?');
-    $stmt->execute([$contentId]);
-} else {
-    http_response_code(404);
-    exit('not found');
+$item = false;
+try {
+    if ($id > 0) {
+        $stmt = db()->prepare('SELECT * FROM items WHERE id = ?');
+        $stmt->execute([$id]);
+        $item = $stmt->fetch();
+    } elseif ($contentId !== '') {
+        $stmt = db()->prepare('SELECT * FROM items WHERE content_id = ?');
+        $stmt->execute([$contentId]);
+        $item = $stmt->fetch();
+    }
+} catch (Throwable) {
+    $item = false;
 }
 
-$item = $stmt->fetch();
 if (!$item) {
     http_response_code(404);
     exit('not found');
@@ -44,18 +47,40 @@ try {
     error_log('page view logging failed: ' . $e->getMessage());
 }
 
-update_items_view_count();
-$relatedItems = fetch_related_items((string)$item['content_id'], 12);
-$actresses = fetch_item_actresses((string)$item['content_id']);
-$genres = fetch_item_genres((string)$item['content_id']);
-$makers = fetch_item_makers((string)$item['content_id']);
-$seriesList = fetch_item_series((string)$item['content_id']);
-
+$relatedItems = [];
+$actresses = [];
+$genres = [];
+$makers = [];
+$seriesList = [];
 $authors = [];
+
+try {
+    update_items_view_count();
+} catch (Throwable) {
+}
+
+try {
+    $relatedItems = fetch_related_items((string)$item['content_id'], 12);
+    $actresses = fetch_item_actresses((string)$item['content_id']);
+    $genres = fetch_item_genres((string)$item['content_id']);
+    $makers = fetch_item_makers((string)$item['content_id']);
+    $seriesList = fetch_item_series((string)$item['content_id']);
+} catch (Throwable) {
+    $relatedItems = [];
+    $actresses = [];
+    $genres = [];
+    $makers = [];
+    $seriesList = [];
+}
+
 if (db_table_exists('item_authors')) {
-    $authorStmt = db()->prepare('SELECT author_id AS id, author_name AS name FROM item_authors WHERE content_id = ? ORDER BY author_name');
-    $authorStmt->execute([(string)$item['content_id']]);
-    $authors = $authorStmt->fetchAll() ?: [];
+    try {
+        $authorStmt = db()->prepare('SELECT author_id AS id, author_name AS name FROM item_authors WHERE content_id = ? ORDER BY author_name');
+        $authorStmt->execute([(string)$item['content_id']]);
+        $authors = $authorStmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        $authors = [];
+    }
 }
 
 $raw = [];

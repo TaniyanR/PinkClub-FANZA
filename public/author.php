@@ -7,9 +7,16 @@ require_once __DIR__ . '/partials/public_ui.php';
 require_once __DIR__ . '/../lib/repository.php';
 
 $id = (int)get('id', 0);
-$stmt = db()->prepare('SELECT * FROM authors WHERE id = ?');
-$stmt->execute([$id]);
-$row = $stmt->fetch();
+$row = false;
+try {
+    if (db_table_exists('authors')) {
+        $stmt = db()->prepare('SELECT * FROM authors WHERE id = ?');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+    }
+} catch (Throwable) {
+    $row = false;
+}
 if (!$row) {
     http_response_code(404);
     exit('not found');
