@@ -97,13 +97,6 @@ if (!function_exists('pcf_render_item_card')) {
 if (!function_exists('pcf_render_taxonomy_card')) {
     function pcf_render_taxonomy_card(string $name, string $url, mixed $count = null): void
     {
-        echo '<a class="taxonomy-card pcf-taxonomy-card" href="' . e($url) . '">';
-        echo '<div class="taxonomy-card__media">分類</div>';
-        echo '<div class="taxonomy-card__name">' . e($name) . '</div>';
-        if ($count !== null && (string)$count !== '' && (int)$count > 0) {
-            echo '<div class="pcf-list-card__meta">作品数: ' . e((string)$count) . '</div>';
-        }
-        echo '</a>';
         $title = trim($name);
         if ($title === '') {
             $title = '名称未設定';
