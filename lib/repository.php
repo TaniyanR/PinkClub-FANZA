@@ -141,19 +141,46 @@ function fetch_related_series_by_actress(int $actressId, int $limit = 50): array
     $actressId = max(1, $actressId);
     $limit = normalize_int($limit, 1, 200);
 
-    $stmt = db()->prepare(
-        'SELECT DISTINCT series.* 
-         FROM series
-         INNER JOIN item_series ON series.id = item_series.series_id
-         INNER JOIN item_actresses ON item_series.content_id = item_actresses.content_id
-         WHERE item_actresses.actress_id = :id
-         ORDER BY series.name ASC
-         LIMIT :limit'
-    );
-    $stmt->bindValue(':id', $actressId, PDO::PARAM_INT);
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->execute();
-    return $stmt->fetchAll() ?: [];
+    // legacy schema path
+    try {
+        $stmt = db()->prepare(
+            'SELECT DISTINCT series.*
+             FROM series
+             INNER JOIN item_series ON series.id = item_series.series_id
+             INNER JOIN item_actresses ON item_series.content_id = item_actresses.content_id
+             WHERE item_actresses.actress_id = :id
+             ORDER BY series.name ASC
+             LIMIT :limit'
+        );
+        $stmt->bindValue(':id', $actressId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll() ?: [];
+        if ($rows !== []) {
+            return $rows;
+        }
+    } catch (Throwable) {
+    }
+
+    // current sync schema path (item_id + dmm_id)
+    try {
+        $stmt = db()->prepare(
+            'SELECT DISTINCT series_master.id, series_master.name, series_master.ruby
+             FROM actresses
+             INNER JOIN item_actresses ON item_actresses.dmm_id = actresses.dmm_id
+             INNER JOIN item_series ON item_series.item_id = item_actresses.item_id
+             INNER JOIN series_master ON series_master.dmm_id = item_series.dmm_id
+             WHERE actresses.id = :id
+             ORDER BY series_master.name ASC
+             LIMIT :limit'
+        );
+        $stmt->bindValue(':id', $actressId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
+    }
 }
 
 function fetch_related_makers_by_actress(int $actressId, int $limit = 50): array
@@ -161,19 +188,46 @@ function fetch_related_makers_by_actress(int $actressId, int $limit = 50): array
     $actressId = max(1, $actressId);
     $limit = normalize_int($limit, 1, 200);
 
-    $stmt = db()->prepare(
-        'SELECT DISTINCT makers.* 
-         FROM makers
-         INNER JOIN item_makers ON makers.id = item_makers.maker_id
-         INNER JOIN item_actresses ON item_makers.content_id = item_actresses.content_id
-         WHERE item_actresses.actress_id = :id
-         ORDER BY makers.name ASC
-         LIMIT :limit'
-    );
-    $stmt->bindValue(':id', $actressId, PDO::PARAM_INT);
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->execute();
-    return $stmt->fetchAll() ?: [];
+    // legacy schema path
+    try {
+        $stmt = db()->prepare(
+            'SELECT DISTINCT makers.*
+             FROM makers
+             INNER JOIN item_makers ON makers.id = item_makers.maker_id
+             INNER JOIN item_actresses ON item_makers.content_id = item_actresses.content_id
+             WHERE item_actresses.actress_id = :id
+             ORDER BY makers.name ASC
+             LIMIT :limit'
+        );
+        $stmt->bindValue(':id', $actressId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll() ?: [];
+        if ($rows !== []) {
+            return $rows;
+        }
+    } catch (Throwable) {
+    }
+
+    // current sync schema path (item_id + dmm_id)
+    try {
+        $stmt = db()->prepare(
+            'SELECT DISTINCT makers.id, makers.name, makers.ruby
+             FROM actresses
+             INNER JOIN item_actresses ON item_actresses.dmm_id = actresses.dmm_id
+             INNER JOIN item_makers ON item_makers.item_id = item_actresses.item_id
+             INNER JOIN makers ON makers.dmm_id = item_makers.dmm_id
+             WHERE actresses.id = :id
+             ORDER BY makers.name ASC
+             LIMIT :limit'
+        );
+        $stmt->bindValue(':id', $actressId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
+    }
 }
 
 function fetch_genre(int $genreId): ?array
@@ -197,10 +251,25 @@ function fetch_maker(int $makerId): ?array
 function fetch_series_one(int $seriesId): ?array
 {
     $seriesId = max(1, $seriesId);
-    $stmt = db()->prepare('SELECT * FROM series WHERE id = :id LIMIT 1');
-    $stmt->execute([':id' => $seriesId]);
-    $series = $stmt->fetch();
-    return $series ?: null;
+
+    try {
+        $stmt = db()->prepare('SELECT * FROM series WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => $seriesId]);
+        $series = $stmt->fetch();
+        if ($series) {
+            return $series;
+        }
+    } catch (Throwable) {
+    }
+
+    try {
+        $stmt = db()->prepare('SELECT * FROM series_master WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => $seriesId]);
+        $series = $stmt->fetch();
+        return $series ?: null;
+    } catch (Throwable) {
+        return null;
+    }
 }
 
 function fetch_genres(int $limit = 50, int $offset = 0, string $order = 'name'): array
@@ -235,11 +304,27 @@ function fetch_series(int $limit = 50, int $offset = 0, string $order = 'name'):
     $limit = normalize_int($limit, 1, 200);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare("SELECT * FROM series ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $stmt->execute();
-    return $stmt->fetchAll() ?: [];
+    try {
+        $stmt = db()->prepare("SELECT * FROM series ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll() ?: [];
+        if ($rows !== []) {
+            return $rows;
+        }
+    } catch (Throwable) {
+    }
+
+    try {
+        $stmt = db()->prepare("SELECT * FROM series_master ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
+    }
 }
 
 
@@ -293,20 +378,46 @@ function fetch_items_by_actress(int $actressId, int $limit, int $offset = 0): ar
     $limit = normalize_int($limit, 1, 100);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare(
-        'SELECT items.* 
-         FROM items 
-         INNER JOIN item_actresses ON items.content_id = item_actresses.content_id
-         WHERE item_actresses.actress_id = :id 
-         ORDER BY date_published DESC
-         LIMIT :limit OFFSET :offset'
-    );
-    $stmt->bindValue(':id', $actressId, PDO::PARAM_INT);
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $stmt->execute();
+    // legacy schema path
+    try {
+        $stmt = db()->prepare(
+            'SELECT items.*
+             FROM items
+             INNER JOIN item_actresses ON items.content_id = item_actresses.content_id
+             WHERE item_actresses.actress_id = :id
+             ORDER BY date_published DESC
+             LIMIT :limit OFFSET :offset'
+        );
+        $stmt->bindValue(':id', $actressId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll() ?: [];
+        if ($rows !== []) {
+            return $rows;
+        }
+    } catch (Throwable) {
+    }
 
-    return $stmt->fetchAll() ?: [];
+    // current sync schema path (item_id + dmm_id)
+    try {
+        $stmt = db()->prepare(
+            'SELECT items.*
+             FROM items
+             INNER JOIN actresses ON actresses.id = :id
+             INNER JOIN item_actresses ON item_actresses.dmm_id = actresses.dmm_id
+             WHERE items.id = item_actresses.item_id
+             ORDER BY items.release_date DESC, items.id DESC
+             LIMIT :limit OFFSET :offset'
+        );
+        $stmt->bindValue(':id', $actressId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
+    }
 }
 
 function fetch_items_by_genre(int $genreId, int $limit, int $offset = 0): array
@@ -315,20 +426,46 @@ function fetch_items_by_genre(int $genreId, int $limit, int $offset = 0): array
     $limit = normalize_int($limit, 1, 100);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare(
-        'SELECT items.* 
-         FROM items 
-         INNER JOIN item_genres ON items.content_id = item_genres.content_id
-         WHERE item_genres.genre_id = :id
-         ORDER BY date_published DESC
-         LIMIT :limit OFFSET :offset'
-    );
-    $stmt->bindValue(':id', $genreId, PDO::PARAM_INT);
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $stmt->execute();
+    // legacy schema path
+    try {
+        $stmt = db()->prepare(
+            'SELECT items.*
+             FROM items
+             INNER JOIN item_genres ON items.content_id = item_genres.content_id
+             WHERE item_genres.genre_id = :id
+             ORDER BY date_published DESC
+             LIMIT :limit OFFSET :offset'
+        );
+        $stmt->bindValue(':id', $genreId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll() ?: [];
+        if ($rows !== []) {
+            return $rows;
+        }
+    } catch (Throwable) {
+    }
 
-    return $stmt->fetchAll() ?: [];
+    // current sync schema path (item_id + dmm_id)
+    try {
+        $stmt = db()->prepare(
+            'SELECT items.*
+             FROM items
+             INNER JOIN genres ON genres.id = :id
+             INNER JOIN item_genres ON item_genres.dmm_id = genres.dmm_id
+             WHERE items.id = item_genres.item_id
+             ORDER BY items.release_date DESC, items.id DESC
+             LIMIT :limit OFFSET :offset'
+        );
+        $stmt->bindValue(':id', $genreId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
+    }
 }
 
 function fetch_items_by_maker(int $makerId, int $limit, int $offset = 0): array
@@ -337,20 +474,46 @@ function fetch_items_by_maker(int $makerId, int $limit, int $offset = 0): array
     $limit = normalize_int($limit, 1, 100);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare(
-        'SELECT items.* 
-         FROM items 
-         INNER JOIN item_makers ON items.content_id = item_makers.content_id
-         WHERE item_makers.maker_id = :id
-         ORDER BY date_published DESC
-         LIMIT :limit OFFSET :offset'
-    );
-    $stmt->bindValue(':id', $makerId, PDO::PARAM_INT);
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $stmt->execute();
+    // legacy schema path
+    try {
+        $stmt = db()->prepare(
+            'SELECT items.*
+             FROM items
+             INNER JOIN item_makers ON items.content_id = item_makers.content_id
+             WHERE item_makers.maker_id = :id
+             ORDER BY date_published DESC
+             LIMIT :limit OFFSET :offset'
+        );
+        $stmt->bindValue(':id', $makerId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll() ?: [];
+        if ($rows !== []) {
+            return $rows;
+        }
+    } catch (Throwable) {
+    }
 
-    return $stmt->fetchAll() ?: [];
+    // current sync schema path (item_id + dmm_id)
+    try {
+        $stmt = db()->prepare(
+            'SELECT items.*
+             FROM items
+             INNER JOIN makers ON makers.id = :id
+             INNER JOIN item_makers ON item_makers.dmm_id = makers.dmm_id
+             WHERE items.id = item_makers.item_id
+             ORDER BY items.release_date DESC, items.id DESC
+             LIMIT :limit OFFSET :offset'
+        );
+        $stmt->bindValue(':id', $makerId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
+    }
 }
 
 function fetch_items_by_series(int $seriesId, int $limit, int $offset = 0): array
@@ -359,20 +522,46 @@ function fetch_items_by_series(int $seriesId, int $limit, int $offset = 0): arra
     $limit = normalize_int($limit, 1, 100);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare(
-        'SELECT items.* 
-         FROM items
-         INNER JOIN item_series ON items.content_id = item_series.content_id
-         WHERE item_series.series_id = :id
-         ORDER BY date_published DESC
-         LIMIT :limit OFFSET :offset'
-    );
-    $stmt->bindValue(':id', $seriesId, PDO::PARAM_INT);
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $stmt->execute();
+    // legacy schema path
+    try {
+        $stmt = db()->prepare(
+            'SELECT items.*
+             FROM items
+             INNER JOIN item_series ON items.content_id = item_series.content_id
+             WHERE item_series.series_id = :id
+             ORDER BY date_published DESC
+             LIMIT :limit OFFSET :offset'
+        );
+        $stmt->bindValue(':id', $seriesId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll() ?: [];
+        if ($rows !== []) {
+            return $rows;
+        }
+    } catch (Throwable) {
+    }
 
-    return $stmt->fetchAll() ?: [];
+    // current sync schema path (item_id + dmm_id)
+    try {
+        $stmt = db()->prepare(
+            'SELECT items.*
+             FROM items
+             INNER JOIN series_master ON series_master.id = :id
+             INNER JOIN item_series ON item_series.dmm_id = series_master.dmm_id
+             WHERE items.id = item_series.item_id
+             ORDER BY items.release_date DESC, items.id DESC
+             LIMIT :limit OFFSET :offset'
+        );
+        $stmt->bindValue(':id', $seriesId, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
+    }
 }
 
 
@@ -383,15 +572,38 @@ function fetch_item_actresses(string $contentId): array
         return [];
     }
 
-    $stmt = db()->prepare(
-        'SELECT actresses.*
-         FROM actresses
-         INNER JOIN item_actresses ON actresses.id = item_actresses.actress_id
-         WHERE item_actresses.content_id = :cid
-         ORDER BY actresses.name ASC'
-    );
-    $stmt->execute([':cid' => $cid]);
-    return $stmt->fetchAll() ?: [];
+    // legacy schema path
+    try {
+        $stmt = db()->prepare(
+            'SELECT actresses.*
+             FROM actresses
+             INNER JOIN item_actresses ON actresses.id = item_actresses.actress_id
+             WHERE item_actresses.content_id = :cid
+             ORDER BY actresses.name ASC'
+        );
+        $stmt->execute([':cid' => $cid]);
+        $rows = $stmt->fetchAll() ?: [];
+        if ($rows !== []) {
+            return $rows;
+        }
+    } catch (Throwable) {
+    }
+
+    // current sync schema path
+    try {
+        $stmt = db()->prepare(
+            'SELECT DISTINCT actresses.id, actresses.name, actresses.ruby, actresses.birthday, actresses.prefectures, actresses.image_url
+             FROM items
+             INNER JOIN item_actresses ON items.id = item_actresses.item_id
+             INNER JOIN actresses ON actresses.dmm_id = item_actresses.dmm_id
+             WHERE items.content_id = :cid
+             ORDER BY actresses.name ASC'
+        );
+        $stmt->execute([':cid' => $cid]);
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
+    }
 }
 
 function fetch_item_genres(string $contentId): array
@@ -401,15 +613,38 @@ function fetch_item_genres(string $contentId): array
         return [];
     }
 
-    $stmt = db()->prepare(
-        'SELECT genres.*
-         FROM genres
-         INNER JOIN item_genres ON genres.id = item_genres.genre_id
-         WHERE item_genres.content_id = :cid
-         ORDER BY genres.name ASC'
-    );
-    $stmt->execute([':cid' => $cid]);
-    return $stmt->fetchAll() ?: [];
+    // legacy schema path
+    try {
+        $stmt = db()->prepare(
+            'SELECT genres.*
+             FROM genres
+             INNER JOIN item_genres ON genres.id = item_genres.genre_id
+             WHERE item_genres.content_id = :cid
+             ORDER BY genres.name ASC'
+        );
+        $stmt->execute([':cid' => $cid]);
+        $rows = $stmt->fetchAll() ?: [];
+        if ($rows !== []) {
+            return $rows;
+        }
+    } catch (Throwable) {
+    }
+
+    // current sync schema path
+    try {
+        $stmt = db()->prepare(
+            'SELECT DISTINCT genres.id, genres.name, genres.ruby
+             FROM items
+             INNER JOIN item_genres ON items.id = item_genres.item_id
+             INNER JOIN genres ON genres.dmm_id = item_genres.dmm_id
+             WHERE items.content_id = :cid
+             ORDER BY genres.name ASC'
+        );
+        $stmt->execute([':cid' => $cid]);
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
+    }
 }
 
 function fetch_item_makers(string $contentId): array
@@ -419,15 +654,38 @@ function fetch_item_makers(string $contentId): array
         return [];
     }
 
-    $stmt = db()->prepare(
-        'SELECT makers.*
-         FROM makers
-         INNER JOIN item_makers ON makers.id = item_makers.maker_id
-         WHERE item_makers.content_id = :cid
-         ORDER BY makers.name ASC'
-    );
-    $stmt->execute([':cid' => $cid]);
-    return $stmt->fetchAll() ?: [];
+    // legacy schema path
+    try {
+        $stmt = db()->prepare(
+            'SELECT makers.*
+             FROM makers
+             INNER JOIN item_makers ON makers.id = item_makers.maker_id
+             WHERE item_makers.content_id = :cid
+             ORDER BY makers.name ASC'
+        );
+        $stmt->execute([':cid' => $cid]);
+        $rows = $stmt->fetchAll() ?: [];
+        if ($rows !== []) {
+            return $rows;
+        }
+    } catch (Throwable) {
+    }
+
+    // current sync schema path
+    try {
+        $stmt = db()->prepare(
+            'SELECT DISTINCT makers.id, makers.name, makers.ruby
+             FROM items
+             INNER JOIN item_makers ON items.id = item_makers.item_id
+             INNER JOIN makers ON makers.dmm_id = item_makers.dmm_id
+             WHERE items.content_id = :cid
+             ORDER BY makers.name ASC'
+        );
+        $stmt->execute([':cid' => $cid]);
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
+    }
 }
 
 function fetch_item_series(string $contentId): array
@@ -437,15 +695,38 @@ function fetch_item_series(string $contentId): array
         return [];
     }
 
-    $stmt = db()->prepare(
-        'SELECT series.*
-         FROM series
-         INNER JOIN item_series ON series.id = item_series.series_id
-         WHERE item_series.content_id = :cid
-         ORDER BY series.name ASC'
-    );
-    $stmt->execute([':cid' => $cid]);
-    return $stmt->fetchAll() ?: [];
+    // legacy schema path
+    try {
+        $stmt = db()->prepare(
+            'SELECT series.*
+             FROM series
+             INNER JOIN item_series ON series.id = item_series.series_id
+             WHERE item_series.content_id = :cid
+             ORDER BY series.name ASC'
+        );
+        $stmt->execute([':cid' => $cid]);
+        $rows = $stmt->fetchAll() ?: [];
+        if ($rows !== []) {
+            return $rows;
+        }
+    } catch (Throwable) {
+    }
+
+    // current sync schema path
+    try {
+        $stmt = db()->prepare(
+            'SELECT DISTINCT series_master.id, series_master.name, series_master.ruby
+             FROM items
+             INNER JOIN item_series ON items.id = item_series.item_id
+             INNER JOIN series_master ON series_master.dmm_id = item_series.dmm_id
+             WHERE items.content_id = :cid
+             ORDER BY series_master.name ASC'
+        );
+        $stmt->execute([':cid' => $cid]);
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
+    }
 }
 
 function fetch_item_labels(string $contentId): array
