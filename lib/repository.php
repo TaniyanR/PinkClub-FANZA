@@ -48,8 +48,7 @@ function backfill_master_from_relation(string $masterTable, string $relationTabl
     $relationTable = normalize_table($relationTable, ['item_actresses', 'item_genres', 'item_makers', 'item_series', 'item_authors']);
     $nameColumn   = normalize_order($nameColumn, ['actress_name', 'genre_name', 'maker_name', 'series_name', 'author_name'], $nameColumn);
 
-    $sql = "INSERT INTO {
-        $masterTable}(dmm_id,name,created_at,updated_at)
+    $sql = "INSERT INTO {$masterTable}(dmm_id,name,created_at,updated_at)
              SELECT
                CASE
                  WHEN TRIM(COALESCE(r.{$nameColumn}, '')) = '' THEN NULL
@@ -60,7 +59,7 @@ function backfill_master_from_relation(string $masterTable, string $relationTabl
                NOW(), NOW()
              FROM {$relationTable} r
              WHERE TRIM(COALESCE(r.{$nameColumn}, '')) <> ''
-             ON DUPLICATE KEY UPDATE name=VALUES(name), updated_at=NOW();
+             ON DUPLICATE KEY UPDATE name=VALUES(name), updated_at=NOW();";
 
     try {
         db()->exec($sql);
@@ -87,8 +86,7 @@ function fetch_items(string $orderBy = 'date_published_desc', int $limit = 10, i
     $limit  = normalize_int($limit, 1, 100);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare("SELECT * FROM items ORDER BY {
-        $orderBySql} LIMIT :limit OFFSET :offset");
+    $stmt = db()->prepare("SELECT * FROM items ORDER BY {$orderBySql} LIMIT :limit OFFSET :offset");
     $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
@@ -142,8 +140,7 @@ function fetch_actresses(int $limit = 50, int $offset = 0, string $order = 'name
     $offset  = max(0, $offset);
 
     try {
-        $stmt = db()->prepare("SELECT * FROM actresses ORDER BY {
-            $orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM actresses ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -157,8 +154,7 @@ function fetch_actresses(int $limit = 50, int $offset = 0, string $order = 'name
     backfill_master_from_relation('actresses', 'item_actresses', 'actress_name');
 
     try {
-        $stmt = db()->prepare("SELECT * FROM actresses ORDER BY {
-            $orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM actresses ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -181,26 +177,6 @@ function fetch_related_series_by_actress(int $actressId, int $limit = 50): array
 {
     $actressId = max(1, $actressId);
     $limit     = normalize_int($limit, 1, 200);
-
-    try {
-        $stmt = db()->prepare(
-            'SELECT DISTINCT series.*
-             FROM series
-             INNER JOIN item_series   ON series.id = item_series.series_id
-             INNER JOIN item_actresses ON item_series.content_id = item_actresses.content_id
-             WHERE item_actresses.actress_id = :id
-             ORDER BY series.name ASC
-             LIMIT :limit'
-        );
-        $stmt->bindValue(':id',    $actressId, PDO::PARAM_INT);
-        $stmt->bindValue(':limit', $limit,     PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll() ?: [];
-        if ($rows !== []) {
-            return $rows;
-        }
-    } catch (Throwable) {
-    }
 
     try {
         $stmt = db()->prepare(
@@ -316,8 +292,7 @@ function fetch_genres(int $limit = 50, int $offset = 0, string $order = 'name'):
     $offset  = max(0, $offset);
 
     try {
-        $stmt = db()->prepare("SELECT * FROM genres ORDER BY {
-            $orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM genres ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -331,8 +306,7 @@ function fetch_genres(int $limit = 50, int $offset = 0, string $order = 'name'):
     backfill_master_from_relation('genres', 'item_genres', 'genre_name');
 
     try {
-        $stmt = db()->prepare("SELECT * FROM genres ORDER BY {
-            $orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM genres ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -349,8 +323,7 @@ function fetch_makers(int $limit = 50, int $offset = 0, string $order = 'name'):
     $offset  = max(0, $offset);
 
     try {
-        $stmt = db()->prepare("SELECT * FROM makers ORDER BY {
-            $orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM makers ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -364,8 +337,7 @@ function fetch_makers(int $limit = 50, int $offset = 0, string $order = 'name'):
     backfill_master_from_relation('makers', 'item_makers', 'maker_name');
 
     try {
-        $stmt = db()->prepare("SELECT * FROM makers ORDER BY {
-            $orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM makers ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -382,8 +354,7 @@ function fetch_series(int $limit = 50, int $offset = 0, string $order = 'name'):
     $offset  = max(0, $offset);
 
     try {
-        $stmt = db()->prepare("SELECT * FROM series ORDER BY {
-            $orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM series ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -395,8 +366,7 @@ function fetch_series(int $limit = 50, int $offset = 0, string $order = 'name'):
     }
 
     try {
-        $stmt = db()->prepare("SELECT * FROM series_master ORDER BY {
-            $orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM series_master ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -410,8 +380,7 @@ function fetch_series(int $limit = 50, int $offset = 0, string $order = 'name'):
     backfill_master_from_relation('series_master', 'item_series', 'series_name');
 
     try {
-        $stmt = db()->prepare("SELECT * FROM series_master ORDER BY {
-            $orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM series_master ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -958,72 +927,50 @@ function upsert_actress(array $actress): string
     $pdo = db();
     $now = now();
 
-    $id   = (int)($actress['id'] ?? 0);
-    $name = (string)($actress['name'] ?? '');
-    if ($id <= 0 || $name === '') {
-        throw new InvalidArgumentException('actress id/name required');
+    $dmm_id = (string)($actress['dmm_id'] ?? '');
+    $name   = (string)($actress['name']   ?? '');
+    if ($dmm_id === '' || $name === '') {
+        throw new InvalidArgumentException('actress dmm_id/name required');
     }
 
-    $stmt = $pdo->prepare('SELECT id FROM actresses WHERE id = :id');
-    $stmt->execute([':id' => $id]);
+    $stmt = $pdo->prepare('SELECT id FROM actresses WHERE dmm_id = :dmm_id');
+    $stmt->execute([':dmm_id' => $dmm_id]);
     $exists = $stmt->fetchColumn();
 
     $payload = [
-        ':id'              => $id,
-        ':name'            => $name,
-        ':ruby'            => $actress['ruby']            ?? null,
-        ':bust'            => $actress['bust']            ?? null,
-        ':cup'             => $actress['cup']             ?? null,
-        ':waist'           => $actress['waist']           ?? null,
-        ':hip'             => $actress['hip']             ?? null,
-        ':height'          => $actress['height']          ?? null,
-        ':birthday'        => $actress['birthday']        ?? null,
-        ':blood_type'      => $actress['blood_type']      ?? null,
-        ':hobby'           => $actress['hobby']           ?? null,
-        ':prefectures'     => $actress['prefectures']     ?? null,
-        ':image_url'       => $actress['image_large']     ?? $actress['image_small'] ?? $actress['image_url'] ?? null,
-        ':image_small'     => $actress['image_small']     ?? null,
-        ':image_large'     => $actress['image_large']     ?? null,
-        ':listurl_digital' => $actress['listurl_digital'] ?? null,
-        ':listurl_monthly' => $actress['listurl_monthly'] ?? null,
-        ':listurl_mono'    => $actress['listurl_mono']    ?? null,
-        ':updated_at'      => $now,
+        ':dmm_id'      => $dmm_id,
+        ':name'        => $name,
+        ':ruby'        => $actress['ruby']        ?? null,
+        ':birthday'    => $actress['birthday']    ?? null,
+        ':prefectures' => $actress['prefectures'] ?? null,
+        ':image_url'   => $actress['image_url']   ?? null,
+        ':image_small' => $actress['image_small'] ?? null,
+        ':image_large' => $actress['image_large'] ?? null,
+        ':updated_at'  => $now,
     ];
 
     if ($exists) {
         $sql = 'UPDATE actresses
-                SET name            = :name,
-                    ruby            = :ruby,
-                    bust            = :bust,
-                    cup             = :cup,
-                    waist           = :waist,
-                    hip             = :hip,
-                    height          = :height,
-                    birthday        = :birthday,
-                    blood_type      = :blood_type,
-                    hobby           = :hobby,
-                    prefectures     = :prefectures,
-                    image_url       = :image_url,
-                    image_small     = :image_small,
-                    image_large     = :image_large,
-                    listurl_digital = :listurl_digital,
-                    listurl_monthly = :listurl_monthly,
-                    listurl_mono    = :listurl_mono,
-                    updated_at      = :updated_at
-                WHERE id = :id';
+                SET name        = :name,
+                    ruby        = :ruby,
+                    birthday    = :birthday,
+                    prefectures = :prefectures,
+                    image_url   = :image_url,
+                    image_small = :image_small,
+                    image_large = :image_large,
+                    updated_at  = :updated_at
+                WHERE dmm_id = :dmm_id';
         $stmt = $pdo->prepare($sql);
         $stmt->execute($payload);
         return 'updated';
     }
 
     $sql = 'INSERT INTO actresses
-            (id, name, ruby, bust, cup, waist, hip, height, birthday, blood_type, hobby, prefectures,
-             image_url, image_small, image_large, listurl_digital, listurl_monthly, listurl_mono,
-             created_at, updated_at)
+            (dmm_id, name, ruby, birthday, prefectures,
+             image_url, image_small, image_large, created_at, updated_at)
             VALUES
-            (:id, :name, :ruby, :bust, :cup, :waist, :hip, :height, :birthday, :blood_type, :hobby, :prefectures,
-             :image_url, :image_small, :image_large, :listurl_digital, :listurl_monthly, :listurl_mono,
-             :created_at, :updated_at)';
+            (:dmm_id, :name, :ruby, :birthday, :prefectures,
+             :image_url, :image_small, :image_large, :created_at, :updated_at)';
     $stmt = $pdo->prepare($sql);
     $payload[':created_at'] = $now;
     $payload[':updated_at'] = $now;
