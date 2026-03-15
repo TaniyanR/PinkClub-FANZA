@@ -995,6 +995,7 @@ function upsert_actress(array $actress): string
         ':prefectures' => $actress['prefectures'] ?? null,
         ':image_small' => $actress['image_small'] ?? null,
         ':image_large' => $actress['image_large'] ?? null,
+        ':image_url' => $actress['image_large'] ?? $actress['image_small'] ?? $actress['image_url'] ?? null,
         ':listurl_digital' => $actress['listurl_digital'] ?? null,
         ':listurl_monthly' => $actress['listurl_monthly'] ?? null,
         ':listurl_mono' => $actress['listurl_mono'] ?? null,
@@ -1005,7 +1006,7 @@ function upsert_actress(array $actress): string
         $sql = 'UPDATE actresses
                 SET name = :name, ruby = :ruby, bust = :bust, cup = :cup, waist = :waist, hip = :hip, height = :height,
                     birthday = :birthday, blood_type = :blood_type, hobby = :hobby, prefectures = :prefectures,
-                    image_small = :image_small, image_large = :image_large,
+                    image_small = :image_small, image_large = :image_large, image_url = :image_url,
                     listurl_digital = :listurl_digital, listurl_monthly = :listurl_monthly, listurl_mono = :listurl_mono,
                     updated_at = :updated_at
                 WHERE id = :id';
@@ -1015,9 +1016,9 @@ function upsert_actress(array $actress): string
     }
 
     $sql = 'INSERT INTO actresses
-            (id, name, ruby, bust, cup, waist, hip, height, birthday, blood_type, hobby, prefectures, image_small, image_large, listurl_digital, listurl_monthly, listurl_mono, created_at, updated_at)
+            (id, name, ruby, bust, cup, waist, hip, height, birthday, blood_type, hobby, prefectures, image_small, image_large, image_url, listurl_digital, listurl_monthly, listurl_mono, created_at, updated_at)
             VALUES
-            (:id, :name, :ruby, :bust, :cup, :waist, :hip, :height, :birthday, :blood_type, :hobby, :prefectures, :image_small, :image_large, :listurl_digital, :listurl_monthly, :listurl_mono, :created_at, :updated_at)';
+            (:id, :name, :ruby, :bust, :cup, :waist, :hip, :height, :birthday, :blood_type, :hobby, :prefectures, :image_small, :image_large, :image_url, :listurl_digital, :listurl_monthly, :listurl_mono, :created_at, :updated_at)';
     $stmt = $pdo->prepare($sql);
     $payload[':created_at'] = $now;
     $payload[':updated_at'] = $now;
