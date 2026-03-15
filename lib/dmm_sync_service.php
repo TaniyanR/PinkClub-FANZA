@@ -243,17 +243,36 @@ class DmmSyncService
 
     private function insertRelation(int $itemId, string $table, string $nameCol, array $rows): void
     {
+        $masterMap = [
+            'item_actresses' => 'actresses',
+            'item_genres' => 'genres',
+            'item_makers' => 'makers',
+            'item_series' => 'series_master',
+            'item_authors' => 'authors',
+        ];
+
         foreach ($rows as $row) {
             if (!is_array($row)) {
                 continue;
             }
-            $dmmId = (string) ($row['id'] ?? '0');
+            $dmmId = trim((string)($row['id'] ?? ''));
             $name = (string) ($row['name'] ?? '');
             if ($name === '') {
                 continue;
             }
+
+            if ($dmmId === '') {
+                $dmmId = 'name:' . sha1(mb_strtolower($name, 'UTF-8'));
+            }
+
             $this->pdo->prepare("INSERT IGNORE INTO {$table}(item_id,dmm_id,{$nameCol}) VALUES(?,?,?)")
                 ->execute([$itemId, $dmmId, $name]);
+
+            $masterTable = $masterMap[$table] ?? null;
+            if (is_string($masterTable) && $masterTable !== '' && $dmmId !== '') {
+                $this->pdo->prepare("INSERT INTO {$masterTable}(dmm_id,name,updated_at) VALUES(?,?,NOW()) ON DUPLICATE KEY UPDATE name=VALUES(name), updated_at=NOW()")
+                    ->execute([$dmmId, $name]);
+            }
         }
     }
 
