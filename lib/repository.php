@@ -50,18 +50,26 @@ function backfill_master_from_relation(string $masterTable, string $relationTabl
     $relationTable = normalize_table($relationTable, ['item_actresses', 'item_genres', 'item_makers', 'item_series', 'item_authors']);
     $nameColumn = normalize_order($nameColumn, ['actress_name', 'genre_name', 'maker_name', 'series_name', 'author_name'], $nameColumn);
 
-    $sql = "INSERT INTO {$masterTable}(dmm_id,name,created_at,updated_at)
+    $sql = "INSERT INTO {".$masterTable."}(dmm_id,name,created_at,updated_at)
             SELECT
               CASE
-                WHEN TRIM(COALESCE(r.{$nameColumn}, '')) = '' THEN NULL
+                WHEN TRIM(COALESCE(r.{".
+                {$nameColumn}.
+                "}, '')) = '' THEN NULL
                 WHEN TRIM(COALESCE(r.dmm_id, '')) <> '' THEN TRIM(r.dmm_id)
-                ELSE CONCAT('name:', SHA1(LOWER(TRIM(r.{$nameColumn}))))
+                ELSE CONCAT('name:', SHA1(LOWER(TRIM(r.{".
+                {$nameColumn}.
+                "}))))
               END AS mapped_dmm_id,
-              TRIM(r.{$nameColumn}) AS mapped_name,
+              TRIM(r.{".
+                {$nameColumn}.
+                "}) AS mapped_name,
               NOW(), NOW()
-            FROM {$relationTable} r
-            WHERE TRIM(COALESCE(r.{$nameColumn}, '')) <> ''
-            ON DUPLICATE KEY UPDATE name=VALUES(name), updated_at=NOW()";
+            FROM {".$relationTable."} r
+            WHERE TRIM(COALESCE(r.{".
+                {$nameColumn}.
+                "}, '')) <> ''
+            ON DUPLICATE KEY UPDATE name=VALUES(name), updated_at=NOW();";
 
     try {
         db()->exec($sql);
@@ -88,7 +96,7 @@ function fetch_items(string $orderBy = 'date_published_desc', int $limit = 10, i
     $limit = normalize_int($limit, 1, 100);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare("SELECT * FROM items ORDER BY {$orderBySql} LIMIT :limit OFFSET :offset");
+    $stmt = db()->prepare("SELECT * FROM items ORDER BY {".$orderBySql."} LIMIT :limit OFFSET :offset");
     $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
@@ -146,7 +154,7 @@ function fetch_actresses(int $limit = 50, int $offset = 0, string $order = 'name
     $offset = max(0, $offset);
 
     try {
-        $stmt = db()->prepare("SELECT * FROM actresses ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM actresses ORDER BY {".$orderBy."} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -160,7 +168,7 @@ function fetch_actresses(int $limit = 50, int $offset = 0, string $order = 'name
     backfill_master_from_relation('actresses', 'item_actresses', 'actress_name');
 
     try {
-        $stmt = db()->prepare("SELECT * FROM actresses ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM actresses ORDER BY {".$orderBy."} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -322,7 +330,7 @@ function fetch_genres(int $limit = 50, int $offset = 0, string $order = 'name'):
     $offset = max(0, $offset);
 
     try {
-        $stmt = db()->prepare("SELECT * FROM genres ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM genres ORDER BY {".$orderBy."} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -336,7 +344,7 @@ function fetch_genres(int $limit = 50, int $offset = 0, string $order = 'name'):
     backfill_master_from_relation('genres', 'item_genres', 'genre_name');
 
     try {
-        $stmt = db()->prepare("SELECT * FROM genres ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM genres ORDER BY {".$orderBy."} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -353,7 +361,7 @@ function fetch_makers(int $limit = 50, int $offset = 0, string $order = 'name'):
     $offset = max(0, $offset);
 
     try {
-        $stmt = db()->prepare("SELECT * FROM makers ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM makers ORDER BY {".$orderBy."} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -367,7 +375,7 @@ function fetch_makers(int $limit = 50, int $offset = 0, string $order = 'name'):
     backfill_master_from_relation('makers', 'item_makers', 'maker_name');
 
     try {
-        $stmt = db()->prepare("SELECT * FROM makers ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM makers ORDER BY {".$orderBy."} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -384,7 +392,7 @@ function fetch_series(int $limit = 50, int $offset = 0, string $order = 'name'):
     $offset = max(0, $offset);
 
     try {
-        $stmt = db()->prepare("SELECT * FROM series ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM series ORDER BY {".$orderBy."} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -396,7 +404,7 @@ function fetch_series(int $limit = 50, int $offset = 0, string $order = 'name'):
     }
 
     try {
-        $stmt = db()->prepare("SELECT * FROM series_master ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM series_master ORDER BY {".$orderBy."} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -410,7 +418,7 @@ function fetch_series(int $limit = 50, int $offset = 0, string $order = 'name'):
     backfill_master_from_relation('series_master', 'item_series', 'series_name');
 
     try {
-        $stmt = db()->prepare("SELECT * FROM series_master ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare("SELECT * FROM series_master ORDER BY {".$orderBy."} ASC LIMIT :limit OFFSET :offset");
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -845,7 +853,7 @@ function fetch_taxonomy_by_id(string $table, string $idField, int $id): ?array
     $idField = normalize_order($idField, ['id'], 'id'); // いまは 'id' のみ許可
     $id = max(1, $id);
 
-    $stmt = db()->prepare("SELECT * FROM {$table} WHERE {$idField} = :id LIMIT 1");
+    $stmt = db()->prepare("SELECT * FROM {".$table."} WHERE {".$idField."} = :id LIMIT 1");
     $stmt->execute([':id' => $id]);
     $data = $stmt->fetch();
     return $data ?: null;
@@ -981,33 +989,31 @@ function upsert_actress(array $actress): string
     $exists = $stmt->fetchColumn();
 
     $payload = [
-        ':id' => $id,
-        ':name' => $name,
-        ':ruby' => $actress['ruby'] ?? null,
-        ':bust' => $actress['bust'] ?? null,
-        ':cup' => $actress['cup'] ?? null,
-        ':waist' => $actress['waist'] ?? null,
-        ':hip' => $actress['hip'] ?? null,
-        ':height' => $actress['height'] ?? null,
-        ':birthday' => $actress['birthday'] ?? null,
-        ':blood_type' => $actress['blood_type'] ?? null,
-        ':hobby' => $actress['hobby'] ?? null,
-        ':prefectures' => $actress['prefectures'] ?? null,
-        ':image_url'   => $actress['image_large'] ?? $actress['image_small'] ?? $actress['image_url'] ?? null,
-        ':image_small' => $actress['image_small'] ?? null,
-        ':image_large' => $actress['image_large'] ?? null,
-        ':image_url' => $actress['image_large'] ?? $actress['image_small'] ?? $actress['image_url'] ?? null,
+        ':id'              => $id,
+        ':name'            => $name,
+        ':ruby'            => $actress['ruby'] ?? null,
+        ':bust'            => $actress['bust'] ?? null,
+        ':cup'             => $actress['cup'] ?? null,
+        ':waist'           => $actress['waist'] ?? null,
+        ':hip'             => $actress['hip'] ?? null,
+        ':height'          => $actress['height'] ?? null,
+        ':birthday'        => $actress['birthday'] ?? null,
+        ':blood_type'      => $actress['blood_type'] ?? null,
+        ':hobby'           => $actress['hobby'] ?? null,
+        ':prefectures'     => $actress['prefectures'] ?? null,
+        ':image_url'       => $actress['image_large'] ?? $actress['image_small'] ?? $actress['image_url'] ?? null,
+        ':image_small'     => $actress['image_small'] ?? null,
+        ':image_large'     => $actress['image_large'] ?? null,
         ':listurl_digital' => $actress['listurl_digital'] ?? null,
         ':listurl_monthly' => $actress['listurl_monthly'] ?? null,
-        ':listurl_mono' => $actress['listurl_mono'] ?? null,
-        ':updated_at' => $now,
+        ':listurl_mono'    => $actress['listurl_mono'] ?? null,
+        ':updated_at'      => $now,
     ];
 
     if ($exists) {
         $sql = 'UPDATE actresses
                 SET name = :name, ruby = :ruby, bust = :bust, cup = :cup, waist = :waist, hip = :hip, height = :height,
                     birthday = :birthday, blood_type = :blood_type, hobby = :hobby, prefectures = :prefectures,
-                    image_small = :image_small, image_large = :image_large, image_url = :image_url,
                     image_url = :image_url, image_small = :image_small, image_large = :image_large,
                     listurl_digital = :listurl_digital, listurl_monthly = :listurl_monthly, listurl_mono = :listurl_mono,
                     updated_at = :updated_at
@@ -1018,9 +1024,6 @@ function upsert_actress(array $actress): string
     }
 
     $sql = 'INSERT INTO actresses
-            (id, name, ruby, bust, cup, waist, hip, height, birthday, blood_type, hobby, prefectures, image_small, image_large, image_url, listurl_digital, listurl_monthly, listurl_mono, created_at, updated_at)
-            VALUES
-            (:id, :name, :ruby, :bust, :cup, :waist, :hip, :height, :birthday, :blood_type, :hobby, :prefectures, :image_small, :image_large, :image_url, :listurl_digital, :listurl_monthly, :listurl_mono, :created_at, :updated_at)';
             (id, name, ruby, bust, cup, waist, hip, height, birthday, blood_type, hobby, prefectures, image_url, image_small, image_large, listurl_digital, listurl_monthly, listurl_mono, created_at, updated_at)
             VALUES
             (:id, :name, :ruby, :bust, :cup, :waist, :hip, :height, :birthday, :blood_type, :hobby, :prefectures, :image_url, :image_small, :image_large, :listurl_digital, :listurl_monthly, :listurl_mono, :created_at, :updated_at)';
@@ -1047,7 +1050,7 @@ function upsert_taxonomy(string $table, string $idField, array $data): string
         throw new InvalidArgumentException('taxonomy id/name required');
     }
 
-    $stmt = $pdo->prepare("SELECT {$idField} FROM {$table} WHERE {$idField} = :id");
+    $stmt = $pdo->prepare("SELECT {".$idField."} FROM {".$table."} WHERE {".$idField."} = :id");
     $stmt->execute([':id' => $id]);
     $exists = $stmt->fetchColumn();
 
@@ -1064,18 +1067,20 @@ function upsert_taxonomy(string $table, string $idField, array $data): string
     ];
 
     if ($exists) {
-        $sql = "UPDATE {$table}
+        $sql = "UPDATE {".$table."}
                 SET name = :name, ruby = :ruby, list_url = :list_url,
                     site_code = :site_code, service_code = :service_code, floor_id = :floor_id, floor_code = :floor_code,
                     updated_at = :updated_at
-                WHERE {$idField} = :id";
+                WHERE {".$idField."} = :id";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($payload);
         return 'updated';
     }
 
-    $sql = "INSERT INTO {$table}
-            ({$idField}, name, ruby, list_url, site_code, service_code, floor_id, floor_code, created_at, updated_at)
+    $sql = "INSERT INTO {".$table."}
+            ({".
+                $idField.
+                "}, name, ruby, list_url, site_code, service_code, floor_id, floor_code, created_at, updated_at)
             VALUES
             (:id, :name, :ruby, :list_url, :site_code, :service_code, :floor_id, :floor_code, :created_at, :updated_at)";
     $stmt = $pdo->prepare($sql);
@@ -1097,14 +1102,14 @@ function replace_item_relations(string $contentId, array $relationIds, string $t
 
     $pdo = db();
 
-    $delete = $pdo->prepare("DELETE FROM {$table} WHERE content_id = :content_id");
+    $delete = $pdo->prepare("DELETE FROM {".$table."} WHERE content_id = :content_id");
     $delete->execute([':content_id' => $contentId]);
 
     if (!$relationIds) {
         return;
     }
 
-    $sql = "INSERT INTO {$table} (content_id, {$column}) VALUES (:content_id, :rel_id)";
+    $sql = "INSERT INTO {".$table."} (content_id, {".$column."}) VALUES (:content_id, :rel_id)";
     $stmt = $pdo->prepare($sql);
 
     foreach ($relationIds as $id) {
@@ -1222,7 +1227,7 @@ function fetch_related_items(string $contentId, int $limit = 6): array
                 FROM item_actresses ia
                 INNER JOIN item_actresses base
                     ON (
-                        (base.dmm_id IS NOT NULL AND base.dmm_id != \'\' AND ia.dmm_id = base.dmm_id)
+                        (base.dmm_id IS NOT NULL AND base.dmm_id != '' AND ia.dmm_id = base.dmm_id)
                         OR ia.actress_name = base.actress_name
                     )
                 WHERE base.item_id = :item_id1
@@ -1233,7 +1238,7 @@ function fetch_related_items(string $contentId, int $limit = 6): array
                 FROM item_series isr
                 INNER JOIN item_series base
                     ON (
-                        (base.dmm_id IS NOT NULL AND base.dmm_id != \'\' AND isr.dmm_id = base.dmm_id)
+                        (base.dmm_id IS NOT NULL AND base.dmm_id != '' AND isr.dmm_id = base.dmm_id)
                         OR isr.series_name = base.series_name
                     )
                 WHERE base.item_id = :item_id2
@@ -1244,7 +1249,7 @@ function fetch_related_items(string $contentId, int $limit = 6): array
                 FROM item_genres ig
                 INNER JOIN item_genres base
                     ON (
-                        (base.dmm_id IS NOT NULL AND base.dmm_id != \'\' AND ig.dmm_id = base.dmm_id)
+                        (base.dmm_id IS NOT NULL AND base.dmm_id != '' AND ig.dmm_id = base.dmm_id)
                         OR ig.genre_name = base.genre_name
                     )
                 WHERE base.item_id = :item_id3
@@ -1268,7 +1273,7 @@ function fetch_related_items(string $contentId, int $limit = 6): array
         if (count($related) < $limit) {
             $remaining = $limit - count($related);
             $stmt2 = db()->prepare(
-                'SELECT * FROM items 
+                'SELECT * FROM items
                  WHERE id != :item_id
                  ORDER BY release_date DESC, id DESC
                  LIMIT :limit'
@@ -1277,7 +1282,7 @@ function fetch_related_items(string $contentId, int $limit = 6): array
             $stmt2->bindValue(':limit', $remaining, PDO::PARAM_INT);
             $stmt2->execute();
             $newItems = $stmt2->fetchAll() ?: [];
-            
+
             // Merge and deduplicate
             $existingIds = array_column($related, 'content_id');
             foreach ($newItems as $item) {
@@ -1306,32 +1311,32 @@ function generate_item_tags(string $contentId, string $title, string $category =
 
     try {
         $pdo = db();
-        
+
         // Extract keywords from title and category
         $text = $title . ' ' . $category;
         $keywords = extract_tag_keywords($text);
-        
+
         if (empty($keywords)) {
             return;
         }
-        
+
         // Insert tags and get their IDs
         $tagIds = [];
         foreach ($keywords as $keyword) {
             // Insert or get existing tag
             $stmt = $pdo->prepare(
-                'INSERT INTO tags (name, created_at) 
-                 VALUES (:name, NOW()) 
+                'INSERT INTO tags (name, created_at)
+                 VALUES (:name, NOW())
                  ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)'
             );
             $stmt->execute([':name' => $keyword]);
             $tagId = (int)$pdo->lastInsertId();
-            
+
             if ($tagId > 0) {
                 $tagIds[] = $tagId;
             }
         }
-        
+
         $itemStmt = $pdo->prepare('SELECT id FROM items WHERE content_id = :cid LIMIT 1');
         $itemStmt->execute([':cid' => $cid]);
         $itemId = (int)$itemStmt->fetchColumn();
@@ -1342,14 +1347,14 @@ function generate_item_tags(string $contentId, string $title, string $category =
         // Delete existing tag associations for this item
         $stmt = $pdo->prepare('DELETE FROM item_tags WHERE item_id = :item_id');
         $stmt->execute([':item_id' => $itemId]);
-        
+
         // Insert new tag associations
         if (!empty($tagIds)) {
             $stmt = $pdo->prepare(
-                'INSERT IGNORE INTO item_tags (item_id, tag_id) 
+                'INSERT IGNORE INTO item_tags (item_id, tag_id)
                  VALUES (:item_id, :tag_id)'
             );
-            
+
             foreach ($tagIds as $tagId) {
                 $stmt->execute([':item_id' => $itemId, ':tag_id' => $tagId]);
             }
@@ -1367,7 +1372,7 @@ function extract_tag_keywords(string $text): array
 {
     $text = mb_strtolower($text);
     $keywords = [];
-    
+
     // Common patterns for adult content tags (basic version)
     $patterns = [
         '巨乳', '爆乳', '美乳', '貧乳',
@@ -1383,13 +1388,13 @@ function extract_tag_keywords(string $text): array
         '野外', '露出', '温泉',
         'コスプレ', 'レズ', '女優',
     ];
-    
+
     foreach ($patterns as $pattern) {
         if (mb_strpos($text, $pattern) !== false) {
             $keywords[] = $pattern;
         }
     }
-    
+
     // Limit to top 10 tags
     return array_slice(array_unique($keywords), 0, 10);
 }
@@ -1406,7 +1411,7 @@ function fetch_item_tags(string $contentId): array
 
     try {
         $stmt = db()->prepare(
-            'SELECT tags.* 
+            'SELECT tags.*
              FROM tags
              INNER JOIN item_tags ON tags.id = item_tags.tag_id
              INNER JOIN items ON items.id = item_tags.item_id
