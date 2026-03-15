@@ -44,6 +44,31 @@ function normalize_content_id(string $contentId): string
     return $contentId;
 }
 
+function backfill_master_from_relation(string $masterTable, string $relationTable, string $nameColumn): void
+{
+    $masterTable = normalize_table($masterTable, ['actresses', 'genres', 'makers', 'series_master', 'authors']);
+    $relationTable = normalize_table($relationTable, ['item_actresses', 'item_genres', 'item_makers', 'item_series', 'item_authors']);
+    $nameColumn = normalize_order($nameColumn, ['actress_name', 'genre_name', 'maker_name', 'series_name', 'author_name'], $nameColumn);
+
+    $sql = "INSERT INTO {$masterTable}(dmm_id,name,created_at,updated_at)
+            SELECT
+              CASE
+                WHEN TRIM(COALESCE(r.{$nameColumn}, '')) = '' THEN NULL
+                WHEN TRIM(COALESCE(r.dmm_id, '')) <> '' THEN TRIM(r.dmm_id)
+                ELSE CONCAT('name:', SHA1(LOWER(TRIM(r.{$nameColumn}))))
+              END AS mapped_dmm_id,
+              TRIM(r.{$nameColumn}) AS mapped_name,
+              NOW(), NOW()
+            FROM {$relationTable} r
+            WHERE TRIM(COALESCE(r.{$nameColumn}, '')) <> ''
+            ON DUPLICATE KEY UPDATE name=VALUES(name), updated_at=NOW()";
+
+    try {
+        db()->exec($sql);
+    } catch (Throwable) {
+    }
+}
+
 function fetch_items(string $orderBy = 'date_published_desc', int $limit = 10, int $offset = 0): array
 {
     $allowedOrders = [
@@ -120,11 +145,29 @@ function fetch_actresses(int $limit = 50, int $offset = 0, string $order = 'name
     $limit = normalize_int($limit, 1, 200);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare("SELECT * FROM actresses ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $stmt->execute();
-    return $stmt->fetchAll() ?: [];
+    try {
+        $stmt = db()->prepare("SELECT * FROM actresses ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll() ?: [];
+        if ($rows !== []) {
+            return $rows;
+        }
+    } catch (Throwable) {
+    }
+
+    backfill_master_from_relation('actresses', 'item_actresses', 'actress_name');
+
+    try {
+        $stmt = db()->prepare("SELECT * FROM actresses ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
+    }
 }
 
 function fetch_actress(int $id): ?array
@@ -278,11 +321,29 @@ function fetch_genres(int $limit = 50, int $offset = 0, string $order = 'name'):
     $limit = normalize_int($limit, 1, 200);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare("SELECT * FROM genres ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $stmt->execute();
-    return $stmt->fetchAll() ?: [];
+    try {
+        $stmt = db()->prepare("SELECT * FROM genres ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll() ?: [];
+        if ($rows !== []) {
+            return $rows;
+        }
+    } catch (Throwable) {
+    }
+
+    backfill_master_from_relation('genres', 'item_genres', 'genre_name');
+
+    try {
+        $stmt = db()->prepare("SELECT * FROM genres ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
+    }
 }
 
 function fetch_makers(int $limit = 50, int $offset = 0, string $order = 'name'): array
@@ -291,11 +352,29 @@ function fetch_makers(int $limit = 50, int $offset = 0, string $order = 'name'):
     $limit = normalize_int($limit, 1, 200);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare("SELECT * FROM makers ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $stmt->execute();
-    return $stmt->fetchAll() ?: [];
+    try {
+        $stmt = db()->prepare("SELECT * FROM makers ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll() ?: [];
+        if ($rows !== []) {
+            return $rows;
+        }
+    } catch (Throwable) {
+    }
+
+    backfill_master_from_relation('makers', 'item_makers', 'maker_name');
+
+    try {
+        $stmt = db()->prepare("SELECT * FROM makers ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
+    }
 }
 
 function fetch_series(int $limit = 50, int $offset = 0, string $order = 'name'): array
@@ -315,6 +394,20 @@ function fetch_series(int $limit = 50, int $offset = 0, string $order = 'name'):
         }
     } catch (Throwable) {
     }
+
+    try {
+        $stmt = db()->prepare("SELECT * FROM series_master ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll() ?: [];
+        if ($rows !== []) {
+            return $rows;
+        }
+    } catch (Throwable) {
+    }
+
+    backfill_master_from_relation('series_master', 'item_series', 'series_name');
 
     try {
         $stmt = db()->prepare("SELECT * FROM series_master ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
