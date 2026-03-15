@@ -104,6 +104,18 @@ if (!function_exists('pcf_render_taxonomy_card')) {
             echo '<div class="pcf-list-card__meta">作品数: ' . e((string)$count) . '</div>';
         }
         echo '</a>';
+        $title = trim($name);
+        if ($title === '') {
+            $title = '名称未設定';
+        }
+
+        echo '<article class="pcf-card pcf-list-card pcf-taxonomy-card">';
+        echo '<h3 class="pcf-list-card__title pcf-taxonomy-card__title">' . e($title) . '</h3>';
+        if ($count !== null && (string)$count !== '' && (int)$count > 0) {
+            echo '<div class="pcf-list-card__meta">作品数: ' . e((string)$count) . '</div>';
+        }
+        echo '<p><a class="pcf-btn" href="' . e($url) . '">詳細を見る</a></p>';
+        echo '</article>';
     }
 }
 

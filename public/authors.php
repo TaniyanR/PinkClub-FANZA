@@ -15,6 +15,10 @@ if (db_table_exists('authors')) {
         } catch (Throwable) {
             try {
                 $rows = db()->query('SELECT a.*, COUNT(ia.item_id) AS item_count FROM authors a LEFT JOIN item_authors ia ON a.id = ia.author_id GROUP BY a.id ORDER BY a.name LIMIT 500')->fetchAll() ?: [];
+            $rows = db()->query('SELECT a.*, COUNT(ia.item_id) AS item_count FROM authors a LEFT JOIN item_authors ia ON ia.dmm_id = a.dmm_id GROUP BY a.id ORDER BY a.name LIMIT 500')->fetchAll() ?: [];
+        } catch (Throwable) {
+            try {
+                $rows = db()->query('SELECT a.*, COUNT(ia.item_id) AS item_count FROM authors a LEFT JOIN item_authors ia ON ia.author_name = a.name GROUP BY a.id ORDER BY a.name LIMIT 500')->fetchAll() ?: [];
             } catch (Throwable) {
                 $rows = db()->query('SELECT * FROM authors ORDER BY name LIMIT 500')->fetchAll() ?: [];
             }
