@@ -41,7 +41,11 @@ require __DIR__ . '/partials/header.php';
       $name = trim((string)($r['name'] ?? '名前未設定'));
       $birthday = trim((string)($r['birthday'] ?? ''));
       $pref = trim((string)($r['prefectures'] ?? ''));
-      $img = trim((string)($r['image_large'] ?? $r['image_small'] ?? $r['image_url'] ?? ''));
+      $img = '';
+      foreach (['image_large', 'image_small', 'image_url'] as $key) {
+          $val = trim((string)($r[$key] ?? ''));
+          if ($val !== '') { $img = $val; break; }
+      }
       ?>
       <article class="pcf-card pcf-list-card">
         <img class="pcf-item-card__thumb" src="<?= e($img !== '' ? $img : pcf_placeholder_data_uri('No Photo')) ?>" alt="<?= e($name) ?>" loading="lazy">
