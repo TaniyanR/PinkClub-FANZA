@@ -55,6 +55,18 @@ try {
       <?php endif; ?>
     </section>
 
+    <section class="sidebar-block">
+      <h2 class="sidebar-block__title">API一覧</h2>
+      <ul class="sidebar-links">
+        <li><a href="<?= e(public_url('items.php')) ?>">商品一覧</a></li>
+        <li><a href="<?= e(public_url('actresses.php')) ?>">女優一覧</a></li>
+        <li><a href="<?= e(public_url('genres.php')) ?>">ジャンル一覧</a></li>
+        <li><a href="<?= e(public_url('makers.php')) ?>">メーカー一覧</a></li>
+        <li><a href="<?= e(public_url('series_list.php')) ?>">シリーズ一覧</a></li>
+        <li><a href="<?= e(public_url('authors.php')) ?>">作者一覧</a></li>
+      </ul>
+    </section>
+
     <section class="sidebar-block only-pc">
         <h2 class="sidebar-block__title">相互リンク</h2>
         <?php if ($partnerLinks === []) : ?>
@@ -69,7 +81,12 @@ try {
     </section>
 
     <section class="sidebar-block only-pc">
-      <h2 class="sidebar-block__title">RSS</h2>
+      <h2 class="sidebar-block__title">サイトRSS</h2>
+      <?php include __DIR__ . '/rss_text_widget.php'; ?>
+    </section>
+
+    <section class="sidebar-block only-pc">
+      <h2 class="sidebar-block__title">提携RSS</h2>
       <?php if ($rssLinks === []): ?>
         <p class="sidebar-empty">RSS（未設定）</p>
       <?php else: ?>
@@ -84,5 +101,9 @@ try {
     <section class="sidebar-block only-pc">
       <h2 class="sidebar-block__title">画像RSS</h2>
       <?php include __DIR__ . '/rss_image_widget.php'; ?>
+    </section>
+
+    <section class="sidebar-block only-pc">
+      <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; render_ad('sidebar_bottom', $pageType, 'pc'); ?>
     </section>
 </aside>

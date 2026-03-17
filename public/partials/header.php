@@ -42,17 +42,17 @@ $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
   <div class="site-header__top">
     <div class="header-left site-header__left">
       <?php if ($logoPath !== ''): ?>
-        <div class="site-logo-wrap"><img src="<?= e(asset_url($logoPath)) ?>" alt="<?= e($siteName) ?>" class="site-logo"></div>
+        <div class="site-logo-wrap">
+          <a href="<?= e(public_url('')) ?>" class="site-title-link"><img src="<?= e(asset_url($logoPath)) ?>" alt="<?= e($siteName) ?>" class="site-logo"></a>
+        </div>
       <?php else: ?>
-        <div class="site-title"><?= e($siteName) ?></div>
+        <div class="site-title"><a href="<?= e(public_url('')) ?>" class="site-title-link"><?= e($siteName) ?></a></div>
       <?php endif; ?>
       <div class="site-disclaimer"><strong>当サイトはアフィリエイト広告を利用しています。</strong></div>
     </div>
     <div class="header-right site-header__right">
       <?php if ($headerAdHtml !== '') : ?>
         <div class="site-ad"><?= $headerAdHtml ?></div>
-      <?php elseif (should_show_ad('header_right', $pageType, 'pc')) : ?>
-        <div class="site-ad"><?php render_ad('header_right', $pageType, 'pc'); ?></div>
       <?php elseif (should_show_ad('header_left_728x90', $pageType, 'pc')) : ?>
         <div class="site-ad"><?php render_ad('header_left_728x90', $pageType, 'pc'); ?></div>
       <?php endif; ?>
