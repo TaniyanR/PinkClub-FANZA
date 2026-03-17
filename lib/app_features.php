@@ -157,6 +157,60 @@ function user_logout(): void
     unset($_SESSION['front_user_id'], $_SESSION['front_user_email']);
 }
 
+
+function rss_extract_first_image_url(SimpleXMLElement $item): string
+{
+    $namespaces = $item->getNameSpaces(true);
+
+    if (isset($namespaces['media'])) {
+        $media = $item->children($namespaces['media']);
+        if (isset($media->content)) {
+            foreach ($media->content as $content) {
+                $attrs = $content->attributes();
+                $url = trim((string)($attrs['url'] ?? ''));
+                if ($url !== '') {
+                    return $url;
+                }
+            }
+        }
+        if (isset($media->thumbnail)) {
+            foreach ($media->thumbnail as $thumb) {
+                $attrs = $thumb->attributes();
+                $url = trim((string)($attrs['url'] ?? ''));
+                if ($url !== '') {
+                    return $url;
+                }
+            }
+        }
+    }
+
+    if (isset($item->enclosure)) {
+        foreach ($item->enclosure as $enclosure) {
+            $attrs = $enclosure->attributes();
+            $type = strtolower(trim((string)($attrs['type'] ?? '')));
+            $url = trim((string)($attrs['url'] ?? ''));
+            if ($url !== '' && ($type === '' || str_contains($type, 'image/'))) {
+                return $url;
+            }
+        }
+    }
+
+    $description = (string)($item->description ?? '');
+    if ($description !== '' && preg_match("/<img[^>]+src=['\"]([^'\"]+)['\"]/i", $description, $matches) === 1) {
+        return trim((string)($matches[1] ?? ''));
+    }
+
+    if (isset($namespaces['content'])) {
+        $content = $item->children($namespaces['content']);
+        $encoded = (string)($content->encoded ?? '');
+        if ($encoded !== '' && preg_match("/<img[^>]+src=['\"]([^'\"]+)['\"]/i", $encoded, $matches) === 1) {
+            return trim((string)($matches[1] ?? ''));
+        }
+    }
+
+    return '';
+}
+
 function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
 {
     $pdo = db();
@@ -183,7 +237,14 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
     $ngTagWords = array_values(array_filter(array_map('trim', $ngTagWords), static fn(string $v): bool => $v !== ''));
 
     $items = $xml->channel->item ?? [];
-    $insert = $pdo->prepare('INSERT IGNORE INTO rss_items (source_id,title,url,published_at,summary,guid,created_at) VALUES (:sid,:title,:url,:pub,:summary,:guid,NOW())');
+    $insertWithImage = null;
+    $insertWithoutImage = null;
+    try {
+        $insertWithImage = $pdo->prepare('INSERT IGNORE INTO rss_items (source_id,title,url,published_at,summary,guid,image_url,created_at) VALUES (:sid,:title,:url,:pub,:summary,:guid,:image,NOW())');
+    } catch (Throwable $e) {
+        $insertWithImage = null;
+    }
+    $insertWithoutImage = $pdo->prepare('INSERT IGNORE INTO rss_items (source_id,title,url,published_at,summary,guid,created_at) VALUES (:sid,:title,:url,:pub,:summary,:guid,NOW())');
     foreach ($items as $item) {
         $guid = (string)($item->guid ?? $item->link ?? '');
         if ($guid === '') {
@@ -216,14 +277,25 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
             continue;
         }
 
-        $insert->execute([
+        $imageUrl = rss_extract_first_image_url($item);
+        $params = [
             ':sid' => $sourceId,
             ':title' => mb_substr((string)($item->title ?? ''), 0, 255),
             ':url' => mb_substr((string)($item->link ?? ''), 0, 500),
             ':pub' => date('Y-m-d H:i:s', strtotime((string)($item->pubDate ?? 'now'))),
             ':summary' => mb_substr(strip_tags((string)($item->description ?? '')), 0, 2000),
             ':guid' => mb_substr($guid, 0, 500),
-        ]);
+        ];
+
+        if ($insertWithImage instanceof PDOStatement) {
+            try {
+                $insertWithImage->execute($params + [':image' => mb_substr($imageUrl, 0, 1000)]);
+                continue;
+            } catch (Throwable $e) {
+            }
+        }
+
+        $insertWithoutImage->execute($params);
     }
     $pdo->prepare('UPDATE rss_sources SET last_fetched_at=NOW() WHERE id=:id')->execute([':id' => $sourceId]);
     return ['ok' => true, 'message' => 'updated'];
@@ -238,20 +310,38 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
 
     $days = max(1, $days);
     $pdo = db();
-    $stmt = $pdo->prepare(
-        'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.published_at, ri.image_url
+    $rows = [];
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.published_at, ri.image_url
 '
-        . 'FROM rss_items ri
+            . 'FROM rss_items ri
 '
-        . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id
+            . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id
 '
-        . 'WHERE rs.is_enabled = 1 AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY)
+            . 'WHERE rs.is_enabled = 1 AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY)
 '
-        . 'ORDER BY ri.published_at DESC, ri.id DESC'
-    );
-    $stmt->bindValue(':days', $days, PDO::PARAM_INT);
-    $stmt->execute();
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            . 'ORDER BY ri.published_at DESC, ri.id DESC'
+        );
+        $stmt->bindValue(':days', $days, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        $stmt = $pdo->prepare(
+            'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.published_at
+'
+            . 'FROM rss_items ri
+'
+            . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id
+'
+            . 'WHERE rs.is_enabled = 1 AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY)
+'
+            . 'ORDER BY ri.published_at DESC, ri.id DESC'
+        );
+        $stmt->bindValue(':days', $days, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
     if (!is_array($rows) || $rows === []) {
         return [];
     }
