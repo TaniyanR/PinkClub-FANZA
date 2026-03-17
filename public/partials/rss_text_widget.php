@@ -3,13 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/app_features.php';
-
-if (!function_exists('e')) {
-    function e(string $value): string
-    {
-        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
-    }
-}
+require_once __DIR__ . '/../../lib/db.php';
 
 $items = [];
 try {
@@ -17,12 +11,24 @@ try {
 } catch (Throwable $e) {
     $items = [];
 }
+
+if ($items === []) {
+    try {
+        $sources = db()->query("SELECT id,last_fetched_at FROM rss_sources WHERE is_enabled=1 ORDER BY COALESCE(last_fetched_at, '1970-01-01 00:00:00') ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        foreach ($sources as $source) {
+            $lastFetched = strtotime((string)($source['last_fetched_at'] ?? '')) ?: 0;
+            if ($lastFetched < time() - 900) {
+                rss_fetch_source((int)$source['id'], 2);
+                break;
+            }
+        }
+        $items = rss_pick_display_items(50, false, 14);
+    } catch (Throwable $e) {
+        $items = [];
+    }
+}
 ?>
 <div class="rss-widget rss-widget--text block">
-    <div class="section-head">
-        <h2 class="section-title">RSS</h2>
-        <span class="section-sub">最新14日 / 最大50件</span>
-    </div>
     <div class="rss-box">
         <?php if ($items !== []) : ?>
             <ul class="rss-list">
@@ -33,6 +39,8 @@ try {
                     </li>
                 <?php endforeach; ?>
             </ul>
+        <?php else : ?>
+            <p class="sidebar-empty">テキストRSSの記事がありません。</p>
         <?php endif; ?>
     </div>
 </div>
