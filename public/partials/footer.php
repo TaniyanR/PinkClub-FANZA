@@ -11,6 +11,32 @@ if ($siteName === '') {
 if ($siteName === '') {
     $siteName = 'PinkClub FANZA';
 }
+
+$copyrightStartYear = (int)date('Y');
+try {
+    $pdo = db();
+    $startDate = null;
+    foreach (['date_published', 'release_date', 'created_at'] as $column) {
+        $stmt = $pdo->query("SELECT MIN(" . $column . ") FROM items WHERE " . $column . " IS NOT NULL AND " . $column . " <> ''");
+        $value = $stmt ? trim((string)$stmt->fetchColumn()) : '';
+        if ($value !== '') {
+            $startDate = $value;
+            break;
+        }
+    }
+    if ($startDate !== null) {
+        $timestamp = strtotime($startDate);
+        if ($timestamp !== false) {
+            $copyrightStartYear = (int)date('Y', $timestamp);
+        }
+    }
+} catch (Throwable $e) {
+}
+$currentYear = (int)date('Y');
+$copyrightYears = $copyrightStartYear >= $currentYear
+    ? (string)$currentYear
+    : $copyrightStartYear . '-' . $currentYear;
+
 ?>
   </main>
 </div>
@@ -18,7 +44,8 @@ if ($siteName === '') {
   <div class="site-footer__credit">
     <a href="https://affiliate.dmm.com/api/"><img src="https://p.dmm.co.jp/p/affiliate/web_service/r18_135_17.gif" width="135" height="17" alt="WEB SERVICE BY FANZA" /></a>
   </div>
-  <div class="site-footer__copy">© 2024-<?= e(date('Y')) ?> <?= e($siteName) ?></div>
+  <div class="site-footer__copy">© <?= e($copyrightYears) ?> <?= e($siteName) ?></div>
+  <div class="only-sp"><?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; render_ad('sp_footer_above', $pageType, 'sp'); ?></div>
 </footer>
 </body>
 </html>

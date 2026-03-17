@@ -4,13 +4,6 @@ declare(strict_types=1);
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/app_features.php';
 
-if (!function_exists('e')) {
-    function e(string $value): string
-    {
-        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
-    }
-}
-
 $items = [];
 try {
     $items = rss_pick_display_items(5, true, 14);
@@ -19,6 +12,7 @@ try {
 }
 ?>
 <div class="rss-widget rss-widget--image">
+    <?php if ($items !== []) : ?>
     <ul class="rss-image-list">
         <?php foreach ($items as $item) : ?>
             <li class="rss-image-list__item">
@@ -30,4 +24,7 @@ try {
             </li>
         <?php endforeach; ?>
     </ul>
+    <?php else : ?>
+        <p class="sidebar-empty">画像RSSの記事がありません。</p>
+    <?php endif; ?>
 </div>
