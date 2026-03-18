@@ -55,7 +55,8 @@ try {
       <?php endif; ?>
     </section>
 
-    <section class="sidebar-block only-pc">
+
+    <section class="sidebar-block">
         <h2 class="sidebar-block__title">相互リンク</h2>
         <?php if ($partnerLinks === []) : ?>
             <p class="sidebar-empty">相互リンク（未設定）</p>
@@ -68,8 +69,13 @@ try {
         <?php endif; ?>
     </section>
 
-    <section class="sidebar-block only-pc">
-      <h2 class="sidebar-block__title">RSS</h2>
+    <section class="sidebar-block">
+      <h2 class="sidebar-block__title">テキストRSS</h2>
+      <?php include __DIR__ . '/rss_text_widget.php'; ?>
+    </section>
+
+    <section class="sidebar-block">
+      <h2 class="sidebar-block__title">提携RSS</h2>
       <?php if ($rssLinks === []): ?>
         <p class="sidebar-empty">RSS（未設定）</p>
       <?php else: ?>
@@ -81,8 +87,12 @@ try {
       <?php endif; ?>
     </section>
 
-    <section class="sidebar-block only-pc">
+    <section class="sidebar-block">
       <h2 class="sidebar-block__title">画像RSS</h2>
       <?php include __DIR__ . '/rss_image_widget.php'; ?>
+    </section>
+
+    <section class="sidebar-block">
+      <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; render_ad('sidebar_bottom', $pageType, ad_current_device()); ?>
     </section>
 </aside>
