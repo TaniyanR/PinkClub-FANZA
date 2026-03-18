@@ -190,9 +190,9 @@ if (!function_exists('ad_default_display_rules')) {
         return [
             'pc' => [
                 'header_left_728x90' => ['all' => true],
-                'sidebar_bottom' => ['home' => true, 'list' => false, 'item' => false, 'page' => false],
-                'content_top' => ['home' => false, 'list' => false, 'item' => true, 'page' => false],
-                'content_bottom' => ['home' => false, 'list' => false, 'item' => true, 'page' => false],
+                'sidebar_bottom' => ['all' => true],
+                'content_top' => ['all' => true],
+                'content_bottom' => ['all' => true],
             ],
             'sp' => [
                 'sp_header_below' => ['home' => true, 'list' => true, 'item' => true, 'page' => true],
@@ -310,19 +310,25 @@ if (!function_exists('should_show_ad')) {
         if (get_ad_code($position_key) === null) {
             return false;
         }
+
+        $alwaysVisiblePositions = ['header_left_728x90', 'sidebar_bottom', 'content_top', 'content_bottom'];
+        if ($device === 'pc' && in_array($position_key, $alwaysVisiblePositions, true)) {
+            return true;
+        }
+
         $rules = ad_display_rules();
         $deviceRules = $rules[$device] ?? null;
         if (!is_array($deviceRules)) {
-            return false;
+            return true;
         }
         $positionRules = $deviceRules[$position_key] ?? null;
         if (!is_array($positionRules)) {
-            return false;
+            return true;
         }
         if (array_key_exists('all', $positionRules)) {
             return (bool)$positionRules['all'];
         }
-        return (bool)($positionRules[$page_type] ?? false);
+        return (bool)($positionRules[$page_type] ?? ($positionRules['home'] ?? true));
     }
 }
 
