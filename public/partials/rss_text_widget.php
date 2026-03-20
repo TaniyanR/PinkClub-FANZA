@@ -37,6 +37,7 @@ try {
     }
 } catch (Throwable $e) {
 }
+rss_widget_bootstrap();
 
 $items = [];
 try {

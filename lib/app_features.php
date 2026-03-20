@@ -302,6 +302,103 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
 }
 
 
+function rss_ensure_tables(): void
+{
+    $pdo = db();
+    $pdo->exec('CREATE TABLE IF NOT EXISTS rss_sources (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,name VARCHAR(255) NOT NULL,feed_url VARCHAR(1000) NOT NULL,is_enabled TINYINT(1) NOT NULL DEFAULT 1,last_fetched_at DATETIME NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,UNIQUE KEY uk_rss_source_feed (feed_url)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    $pdo->exec('CREATE TABLE IF NOT EXISTS rss_items (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,source_id BIGINT UNSIGNED NOT NULL,title VARCHAR(255) NOT NULL,url VARCHAR(500) NOT NULL,published_at DATETIME NULL,summary TEXT NULL,guid VARCHAR(500) NOT NULL,image_url TEXT NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE KEY uk_rss_guid (source_id,guid),INDEX idx_rss_pub (published_at),CONSTRAINT fk_rss_items_source FOREIGN KEY (source_id) REFERENCES rss_sources(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+}
+
+function rss_sync_partner_sources(): void
+{
+    $pdo = db();
+    $partnerFeeds = $pdo->query('SELECT ps.name, pr.feed_url FROM partner_rss pr INNER JOIN partner_sites ps ON ps.id = pr.partner_site_id WHERE COALESCE(pr.show_rss, pr.is_enabled, 1)=1')->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $find = $pdo->prepare('SELECT id FROM rss_sources WHERE feed_url = :feed LIMIT 1');
+    $insert = $pdo->prepare('INSERT INTO rss_sources(name,feed_url,is_enabled,created_at,updated_at) VALUES(:name,:feed,1,NOW(),NOW())');
+    $update = $pdo->prepare('UPDATE rss_sources SET name=:name,is_enabled=1,updated_at=NOW() WHERE id=:id');
+
+    foreach ($partnerFeeds as $feed) {
+        $feedUrl = trim((string)($feed['feed_url'] ?? ''));
+        if ($feedUrl === '') {
+            continue;
+        }
+        $name = trim((string)($feed['name'] ?? 'RSS'));
+        $find->execute([':feed' => $feedUrl]);
+        $id = (int)($find->fetchColumn() ?: 0);
+        if ($id > 0) {
+            $update->execute([':name' => $name, ':id' => $id]);
+            continue;
+        }
+        $insert->execute([':name' => $name, ':feed' => $feedUrl]);
+    }
+}
+
+function rss_refresh_stale_sources(int $maxSources = 1, int $staleAfterSec = 900, int $fetchTimeoutSec = 2): void
+{
+    $pdo = db();
+    $stmt = $pdo->query('SELECT id,last_fetched_at FROM rss_sources WHERE is_enabled=1 ORDER BY COALESCE(last_fetched_at, "1970-01-01 00:00:00") ASC, id ASC');
+    $sources = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    $refreshed = 0;
+
+    foreach ($sources as $source) {
+        $lastFetched = strtotime((string)($source['last_fetched_at'] ?? '')) ?: 0;
+        if ($lastFetched >= time() - max(60, $staleAfterSec)) {
+            continue;
+        }
+        rss_fetch_source((int)$source['id'], $fetchTimeoutSec);
+        $refreshed++;
+        if ($refreshed >= max(1, $maxSources)) {
+            break;
+        }
+    }
+}
+
+function rss_widget_bootstrap(): void
+{
+    static $bootstrapped = false;
+    if ($bootstrapped) {
+        return;
+    }
+    $bootstrapped = true;
+
+    try {
+        rss_ensure_tables();
+        rss_sync_partner_sources();
+    } catch (Throwable $e) {
+        error_log('[rss] sidebar bootstrap skipped: ' . $e->getMessage());
+    }
+}
+
+function rss_normalize_url(string $url): string
+{
+    $trimmed = trim($url);
+    if ($trimmed === '') {
+        return '';
+    }
+
+    $parts = parse_url($trimmed);
+    if ($parts === false) {
+        return mb_strtolower($trimmed);
+    }
+
+    $scheme = strtolower((string)($parts['scheme'] ?? ''));
+    $host = strtolower((string)($parts['host'] ?? ''));
+    $path = isset($parts['path']) ? rtrim((string)$parts['path'], '/') : '';
+    $query = isset($parts['query']) ? (string)$parts['query'] : '';
+
+    return $scheme . '|' . $host . '|' . $path . '|' . $query;
+}
+
+function rss_normalize_display_key(array $item): string
+{
+    $link = rss_normalize_url((string)($item['link'] ?? ''));
+    if ($link !== '') {
+        return $link;
+    }
+
+    return mb_strtolower(trim((string)($item['title'] ?? '')));
+}
+
 function rss_pick_display_items(int $limit, bool $requireImage = false, int $days = 14): array
 {
     if ($limit <= 0) {
@@ -314,6 +411,25 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
     try {
         $stmt = $pdo->prepare(
             'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.published_at, ri.image_url
+'
+            . 'FROM rss_items ri
+'
+            . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id
+'
+            . 'WHERE rs.is_enabled = 1 AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY)
+'
+            . 'ORDER BY ri.published_at DESC, ri.id DESC'
+        );
+        $stmt->bindValue(':days', $days, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        $stmt = $pdo->prepare(
+            'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.published_at
+'
+            . 'FROM rss_items ri
+'
+            . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id
 '
             . 'FROM rss_items ri
 '
@@ -347,6 +463,7 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
     }
 
     $seedBase = random_int(1, PHP_INT_MAX);
+    $seenKeys = [];
     $sourceBuckets = [];
     foreach ($rows as $row) {
         $sourceId = (int)($row['source_id'] ?? 0);
@@ -357,10 +474,7 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
         if ($requireImage && $imageUrl === '') {
             continue;
         }
-        if (!isset($sourceBuckets[$sourceId])) {
-            $sourceBuckets[$sourceId] = [];
-        }
-        $sourceBuckets[$sourceId][] = [
+        $item = [
             'title' => (string)($row['title'] ?? ''),
             'link' => (string)($row['url'] ?? ''),
             'published_at' => (string)($row['published_at'] ?? ''),
@@ -368,6 +482,17 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
             'source_id' => $sourceId,
             'source_name' => (string)($row['source_name'] ?? ''),
         ];
+        $dedupeKey = rss_normalize_display_key($item);
+        if ($dedupeKey !== '' && isset($seenKeys[$dedupeKey])) {
+            continue;
+        }
+        if ($dedupeKey !== '') {
+            $seenKeys[$dedupeKey] = true;
+        }
+        if (!isset($sourceBuckets[$sourceId])) {
+            $sourceBuckets[$sourceId] = [];
+        }
+        $sourceBuckets[$sourceId][] = $item;
     }
 
     if ($sourceBuckets === []) {

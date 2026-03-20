@@ -264,6 +264,35 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .rss-image-list{list-style:none;padding:0;margin:0;display:grid;gap:8px}
 .rss-image-list__item img{width:100%;height:180px;object-fit:cover;object-position:center;display:block;border-radius:4px}
 
+/* Sidebar RSS / link visual tuning */
+.rss-widget--text .rss-box{
+  background:#33363c;
+  border:1px solid #595c63;
+  max-height:300px;
+  overflow-y:auto;
+}
+.rss-list{list-style:none;margin:0;padding:0}
+.rss-list__item{padding:10px 12px;border-bottom:1px solid #595c63}
+.rss-list__item:last-child{border-bottom:none}
+.rss-list__item a{display:block;color:#d9952f;text-decoration:none;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rss-list__item small{display:block;color:#b8b9be;font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.sidebar-links--scroll{
+  width:100%;
+  height:500px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  background:#33363c;
+  border:1px solid #595c63;
+  padding:8px;
+  box-sizing:border-box;
+}
+.sidebar-links--scroll li{border-bottom:1px solid #595c63;padding:8px 4px}
+.sidebar-links--scroll li:last-child{border-bottom:none}
+.sidebar-links--scroll li a{color:#d9952f;font-weight:700;text-decoration:none;display:block}
+.sidebar-links--scroll li a::before{content:''}
+
+
 /* Legacy main content style while keeping current sidebar UI */
 .site-main--legacy{
   background:#ffffff;

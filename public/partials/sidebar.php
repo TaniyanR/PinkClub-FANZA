@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../lib/db.php';
+require_once __DIR__ . '/../../lib/app_features.php';
 require_once __DIR__ . '/_helpers.php';
 
 $sortMode = site_setting_get('link.sort_mode', 'registered');
@@ -14,14 +15,32 @@ $fixedPages = [];
 
 try {
     $stmt = db()->query("SELECT ps.id, ps.name, ps.url, COALESCE(ps.show_link, ps.is_enabled, 1) AS show_link FROM partner_sites ps WHERE COALESCE(ps.show_link, ps.is_enabled, 1) = 1 ORDER BY {$orderBy}");
-    $partnerLinks = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    $seenPartnerUrls = [];
+    foreach ($rows as $row) {
+        $url = rss_normalize_url((string)($row['url'] ?? ''));
+        if ($url === '' || isset($seenPartnerUrls[$url])) {
+            continue;
+        }
+        $seenPartnerUrls[$url] = true;
+        $partnerLinks[] = $row;
+    }
 } catch (Throwable $e) {
     $partnerLinks = [];
 }
 
 try {
     $stmt = db()->query('SELECT pr.feed_url, ps.name FROM partner_rss pr INNER JOIN partner_sites ps ON ps.id = pr.partner_site_id WHERE COALESCE(pr.show_rss, pr.is_enabled, 1)=1 ORDER BY pr.id DESC');
-    $rssLinks = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    $seenFeeds = [];
+    foreach ($rows as $row) {
+        $feedUrl = rss_normalize_url((string)($row['feed_url'] ?? ''));
+        if ($feedUrl === '' || isset($seenFeeds[$feedUrl])) {
+            continue;
+        }
+        $seenFeeds[$feedUrl] = true;
+        $rssLinks[] = $row;
+    }
 } catch (Throwable $e) {
     $rssLinks = [];
 }
@@ -82,6 +101,7 @@ try {
         <?php endif; ?>
     </section>
 
+
     <section class="sidebar-block only-pc">
       <h2 class="sidebar-block__title">サイトRSS</h2>
       <?php include __DIR__ . '/rss_text_widget.php'; ?>
@@ -111,10 +131,13 @@ try {
       <?php include __DIR__ . '/rss_image_widget.php'; ?>
     </section>
 
+
     <section class="sidebar-block only-pc">
       <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; render_ad('sidebar_bottom', $pageType, 'pc'); ?>
     <section class="sidebar-block">
       <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; render_ad('sidebar_bottom', $pageType, ad_current_device()); ?>
 
+    <section class="sidebar-block">
+      <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; render_ad('sidebar_bottom', $pageType, ad_current_device()); ?>
     </section>
 </aside>

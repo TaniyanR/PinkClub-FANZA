@@ -335,11 +335,18 @@ if (!function_exists('should_show_ad')) {
 if (!function_exists('render_ad')) {
     function render_ad(string $position_key, string $page_type, string $device): void
     {
-        if (!should_show_ad($position_key, $page_type, $device)) {
-            return;
-        }
         $html = get_ad_code($position_key);
         if ($html === null) {
+            return;
+        }
+
+        $alwaysVisiblePositions = ['header_left_728x90', 'sidebar_bottom', 'content_top', 'content_bottom'];
+        if ($device === 'pc' && in_array($position_key, $alwaysVisiblePositions, true)) {
+            echo $html;
+            return;
+        }
+
+        if (!should_show_ad($position_key, $page_type, $device)) {
             return;
         }
         echo $html;
