@@ -65,7 +65,7 @@ require __DIR__ . '/includes/header.php';
 <section class="admin-card admin-card--form">
   <h1>相互リンク管理</h1>
   <?php if ($message): ?><p><?= e($message) ?></p><?php endif; ?>
-  <form method="post">
+  <form method="post" class="admin-form--compact">
     <?= csrf_input() ?>
     <input type="hidden" name="action" value="create">
     <label>サイト名<input name="name" required></label>
@@ -103,10 +103,6 @@ require __DIR__ . '/includes/header.php';
     <?php endforeach; ?>
   </table>
 
-  <form method="post"><?= csrf_input() ?><input type="hidden" name="action" value="sort_mode">
-    <label><input type="radio" name="sort_mode" value="registered" <?= $sortMode !== 'kana' ? 'checked' : '' ?>> 登録順</label>
-    <label><input type="radio" name="sort_mode" value="kana" <?= $sortMode === 'kana' ? 'checked' : '' ?>> あいうえお順</label>
-    <button type="submit" class="button-secondary">表示順を保存</button>
-  </form>
+
 </section>
 <?php require __DIR__ . '/includes/footer.php'; ?>
