@@ -199,10 +199,29 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     <?php
 }
 
+function safe_include_partial(string $filePath): void
+{
+    try {
+        include $filePath;
+    } catch (Throwable $e) {
+        error_log('public/index.php include failed: ' . $filePath . ' ' . $e->getMessage());
+    }
+}
+
+function safe_render_home_ad(string $positionKey): void
+{
+    try {
+        render_ad($positionKey, 'home', 'pc');
+    } catch (Throwable $e) {
+        error_log('public/index.php ad render failed: ' . $positionKey . ' ' . $e->getMessage());
+    }
+}
+
 $title = 'トップ';
 $itemCount = 0;
 
 $latestTop = $latestBottom = $pickupTop = $pickupBottom = [];
+$fallbackItems = [];
 $actresses = [];
 $genreRows = [];
 $seriesSection = ['name' => '', 'url' => '', 'items' => []];
@@ -224,6 +243,7 @@ try {
         ], 20);
         $latestTop = array_slice($latestRows, 0, 5);
         $latestBottom = array_slice($latestRows, 5, 15);
+        $fallbackItems = array_slice($latestRows, 0, 12);
 
         $popularRows = fetch_items_with_order_fallback($pdo, [
             'view_count DESC, release_date DESC, id DESC',
@@ -329,12 +349,33 @@ try {
 }
 
 require __DIR__ . '/partials/header.php';
+$hasHomeContent = $latestTop !== []
+    || $latestBottom !== []
+    || $pickupTop !== []
+    || $pickupBottom !== []
+    || $actresses !== []
+    || $genreRows !== []
+    || $seriesSection['items'] !== []
+    || $makerSection['items'] !== []
+    || $authorSection['items'] !== [];
 ?>
-<div class="only-pc"><?php include __DIR__ . '/partials/rss_text_widget.php'; ?></div>
-<?php render_ad('content_top', 'home', 'pc'); ?>
+<div class="only-pc"><?php safe_include_partial(__DIR__ . '/partials/rss_text_widget.php'); ?></div>
+<?php safe_render_home_ad('content_top'); ?>
 
 <?php if ($itemCount === 0): ?>
   <div class="card"><p>まだ商品データが同期されていません。管理画面のAPI設定から「同期実行（DB保存）」を行ってください。</p></div>
+<?php elseif (!$hasHomeContent): ?>
+  <div class="card">
+    <h2>表示できる本文データがまだありません</h2>
+    <p>商品データは存在しますが、トップページに表示するセクションを組み立てられませんでした。下の作品一覧から確認してください。</p>
+    <p><a class="button button--primary" href="<?= e(public_url('items.php')) ?>">商品一覧を見る</a></p>
+  </div>
+  <?php if ($fallbackItems !== []): ?>
+    <section class="rail-section">
+      <h2>取得できた作品</h2>
+      <div class="rail-row rail-row--180"><?php foreach ($fallbackItems as $item) { render_item_card($item, 180); } ?></div>
+    </section>
+  <?php endif; ?>
 <?php else: ?>
   <section class="rail-section">
     <h2>新着作品</h2>
@@ -392,8 +433,8 @@ require __DIR__ . '/partials/header.php';
   </section>
 <?php endif; ?>
 
-<?php render_ad('content_bottom', 'home', 'pc'); ?>
-<div class="only-pc"><?php include __DIR__ . '/partials/rss_text_widget.php'; ?></div>
+<?php safe_render_home_ad('content_bottom'); ?>
+<div class="only-pc"><?php safe_include_partial(__DIR__ . '/partials/rss_text_widget.php'); ?></div>
 
 <div id="sample-movie-modal" class="sample-movie-modal" aria-hidden="true">
   <div class="sample-movie-modal__overlay" data-movie-close="1"></div>

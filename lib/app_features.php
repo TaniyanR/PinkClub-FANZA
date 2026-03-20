@@ -437,6 +437,11 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
 '
             . 'WHERE rs.is_enabled = 1 AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY)
 '
+'
+            . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id
+'
+            . 'WHERE rs.is_enabled = 1 AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY)
+'
             . 'ORDER BY ri.published_at DESC, ri.id DESC'
         );
         $stmt->bindValue(':days', $days, PDO::PARAM_INT);
@@ -445,6 +450,13 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
     } catch (Throwable $e) {
         $stmt = $pdo->prepare(
             'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.published_at
+'
+            . 'FROM rss_items ri
+'
+            . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id
+'
+            . 'WHERE rs.is_enabled = 1 AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY)
+'
 '
             . 'FROM rss_items ri
 '
