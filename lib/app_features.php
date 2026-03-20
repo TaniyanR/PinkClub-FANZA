@@ -157,6 +157,60 @@ function user_logout(): void
     unset($_SESSION['front_user_id'], $_SESSION['front_user_email']);
 }
 
+
+function rss_extract_first_image_url(SimpleXMLElement $item): string
+{
+    $namespaces = $item->getNameSpaces(true);
+
+    if (isset($namespaces['media'])) {
+        $media = $item->children($namespaces['media']);
+        if (isset($media->content)) {
+            foreach ($media->content as $content) {
+                $attrs = $content->attributes();
+                $url = trim((string)($attrs['url'] ?? ''));
+                if ($url !== '') {
+                    return $url;
+                }
+            }
+        }
+        if (isset($media->thumbnail)) {
+            foreach ($media->thumbnail as $thumb) {
+                $attrs = $thumb->attributes();
+                $url = trim((string)($attrs['url'] ?? ''));
+                if ($url !== '') {
+                    return $url;
+                }
+            }
+        }
+    }
+
+    if (isset($item->enclosure)) {
+        foreach ($item->enclosure as $enclosure) {
+            $attrs = $enclosure->attributes();
+            $type = strtolower(trim((string)($attrs['type'] ?? '')));
+            $url = trim((string)($attrs['url'] ?? ''));
+            if ($url !== '' && ($type === '' || str_contains($type, 'image/'))) {
+                return $url;
+            }
+        }
+    }
+
+    $description = (string)($item->description ?? '');
+    if ($description !== '' && preg_match("/<img[^>]+src=['\"]([^'\"]+)['\"]/i", $description, $matches) === 1) {
+        return trim((string)($matches[1] ?? ''));
+    }
+
+    if (isset($namespaces['content'])) {
+        $content = $item->children($namespaces['content']);
+        $encoded = (string)($content->encoded ?? '');
+        if ($encoded !== '' && preg_match("/<img[^>]+src=['\"]([^'\"]+)['\"]/i", $encoded, $matches) === 1) {
+            return trim((string)($matches[1] ?? ''));
+        }
+    }
+
+    return '';
+}
+
 function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
 {
     $pdo = db();
@@ -183,7 +237,14 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
     $ngTagWords = array_values(array_filter(array_map('trim', $ngTagWords), static fn(string $v): bool => $v !== ''));
 
     $items = $xml->channel->item ?? [];
-    $insert = $pdo->prepare('INSERT IGNORE INTO rss_items (source_id,title,url,published_at,summary,guid,created_at) VALUES (:sid,:title,:url,:pub,:summary,:guid,NOW())');
+    $insertWithImage = null;
+    $insertWithoutImage = null;
+    try {
+        $insertWithImage = $pdo->prepare('INSERT IGNORE INTO rss_items (source_id,title,url,published_at,summary,guid,image_url,created_at) VALUES (:sid,:title,:url,:pub,:summary,:guid,:image,NOW())');
+    } catch (Throwable $e) {
+        $insertWithImage = null;
+    }
+    $insertWithoutImage = $pdo->prepare('INSERT IGNORE INTO rss_items (source_id,title,url,published_at,summary,guid,created_at) VALUES (:sid,:title,:url,:pub,:summary,:guid,NOW())');
     foreach ($items as $item) {
         $guid = (string)($item->guid ?? $item->link ?? '');
         if ($guid === '') {
@@ -216,19 +277,88 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
             continue;
         }
 
-        $insert->execute([
+        $imageUrl = rss_extract_first_image_url($item);
+        $params = [
             ':sid' => $sourceId,
             ':title' => mb_substr((string)($item->title ?? ''), 0, 255),
             ':url' => mb_substr((string)($item->link ?? ''), 0, 500),
             ':pub' => date('Y-m-d H:i:s', strtotime((string)($item->pubDate ?? 'now'))),
             ':summary' => mb_substr(strip_tags((string)($item->description ?? '')), 0, 2000),
             ':guid' => mb_substr($guid, 0, 500),
-        ]);
+        ];
+
+        if ($insertWithImage instanceof PDOStatement) {
+            try {
+                $insertWithImage->execute($params + [':image' => mb_substr($imageUrl, 0, 1000)]);
+                continue;
+            } catch (Throwable $e) {
+            }
+        }
+
+        $insertWithoutImage->execute($params);
     }
     $pdo->prepare('UPDATE rss_sources SET last_fetched_at=NOW() WHERE id=:id')->execute([':id' => $sourceId]);
     return ['ok' => true, 'message' => 'updated'];
 }
 
+
+function rss_widget_bootstrap(int $refreshWindowSec = 900, int $fetchTimeoutSec = 2): void
+{
+    static $bootstrapped = false;
+    if ($bootstrapped) {
+        return;
+    }
+    $bootstrapped = true;
+
+    try {
+        $pdo = db();
+        $pdo->exec('CREATE TABLE IF NOT EXISTS rss_sources (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,name VARCHAR(255) NOT NULL,feed_url VARCHAR(1000) NOT NULL,is_enabled TINYINT(1) NOT NULL DEFAULT 1,last_fetched_at DATETIME NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,UNIQUE KEY uk_rss_source_feed (feed_url)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        $pdo->exec('CREATE TABLE IF NOT EXISTS rss_items (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,source_id BIGINT UNSIGNED NOT NULL,title VARCHAR(255) NOT NULL,url VARCHAR(500) NOT NULL,published_at DATETIME NULL,summary TEXT NULL,guid VARCHAR(500) NOT NULL,image_url TEXT NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE KEY uk_rss_guid (source_id,guid),INDEX idx_rss_pub (published_at),CONSTRAINT fk_rss_items_source FOREIGN KEY (source_id) REFERENCES rss_sources(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+
+        $partnerFeeds = $pdo->query('SELECT ps.name, pr.feed_url FROM partner_rss pr INNER JOIN partner_sites ps ON ps.id = pr.partner_site_id WHERE COALESCE(pr.show_rss, pr.is_enabled, 1)=1')->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $find = $pdo->prepare('SELECT id FROM rss_sources WHERE feed_url = :feed LIMIT 1');
+        $insert = $pdo->prepare('INSERT INTO rss_sources(name,feed_url,is_enabled,created_at,updated_at) VALUES(:name,:feed,1,NOW(),NOW())');
+        $update = $pdo->prepare('UPDATE rss_sources SET name=:name,is_enabled=1,updated_at=NOW() WHERE id=:id');
+
+        foreach ($partnerFeeds as $feed) {
+            $feedUrl = trim((string)($feed['feed_url'] ?? ''));
+            if ($feedUrl === '') {
+                continue;
+            }
+            $name = trim((string)($feed['name'] ?? 'RSS'));
+            $find->execute([':feed' => $feedUrl]);
+            $id = (int)($find->fetchColumn() ?: 0);
+            if ($id > 0) {
+                $update->execute([':name' => $name, ':id' => $id]);
+            } else {
+                $insert->execute([':name' => $name, ':feed' => $feedUrl]);
+            }
+        }
+
+        $sources = $pdo->query('SELECT id,last_fetched_at FROM rss_sources WHERE is_enabled=1 ORDER BY id ASC')->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        foreach ($sources as $source) {
+            $lastFetched = strtotime((string)($source['last_fetched_at'] ?? '')) ?: 0;
+            if ($lastFetched < time() - max(60, $refreshWindowSec)) {
+                rss_fetch_source((int)$source['id'], $fetchTimeoutSec);
+            }
+        }
+    } catch (Throwable $e) {
+    }
+}
+
+function rss_normalize_display_key(array $item): string
+{
+    $link = trim((string)($item['link'] ?? ''));
+    if ($link !== '') {
+        $parts = parse_url($link);
+        $host = strtolower((string)($parts['host'] ?? ''));
+        $path = isset($parts['path']) ? rtrim((string)$parts['path'], '/') : '';
+        $query = isset($parts['query']) ? (string)$parts['query'] : '';
+        return $host . '|' . $path . '|' . $query;
+    }
+
+    return mb_strtolower(trim((string)($item['title'] ?? '')));
+}
 
 function rss_pick_display_items(int $limit, bool $requireImage = false, int $days = 14): array
 {
@@ -238,25 +368,44 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
 
     $days = max(1, $days);
     $pdo = db();
-    $stmt = $pdo->prepare(
-        'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.published_at, ri.image_url
+    $rows = [];
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.published_at, ri.image_url
 '
-        . 'FROM rss_items ri
+            . 'FROM rss_items ri
 '
-        . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id
+            . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id
 '
-        . 'WHERE rs.is_enabled = 1 AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY)
+            . 'WHERE rs.is_enabled = 1 AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY)
 '
-        . 'ORDER BY ri.published_at DESC, ri.id DESC'
-    );
-    $stmt->bindValue(':days', $days, PDO::PARAM_INT);
-    $stmt->execute();
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            . 'ORDER BY ri.published_at DESC, ri.id DESC'
+        );
+        $stmt->bindValue(':days', $days, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        $stmt = $pdo->prepare(
+            'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.published_at
+'
+            . 'FROM rss_items ri
+'
+            . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id
+'
+            . 'WHERE rs.is_enabled = 1 AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY)
+'
+            . 'ORDER BY ri.published_at DESC, ri.id DESC'
+        );
+        $stmt->bindValue(':days', $days, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
     if (!is_array($rows) || $rows === []) {
         return [];
     }
 
-    $seedBase = crc32((string)date('Y-m-d'));
+    $seedBase = random_int(1, PHP_INT_MAX);
+    $seenKeys = [];
     $sourceBuckets = [];
     foreach ($rows as $row) {
         $sourceId = (int)($row['source_id'] ?? 0);
@@ -267,10 +416,7 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
         if ($requireImage && $imageUrl === '') {
             continue;
         }
-        if (!isset($sourceBuckets[$sourceId])) {
-            $sourceBuckets[$sourceId] = [];
-        }
-        $sourceBuckets[$sourceId][] = [
+        $item = [
             'title' => (string)($row['title'] ?? ''),
             'link' => (string)($row['url'] ?? ''),
             'published_at' => (string)($row['published_at'] ?? ''),
@@ -278,6 +424,17 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
             'source_id' => $sourceId,
             'source_name' => (string)($row['source_name'] ?? ''),
         ];
+        $dedupeKey = rss_normalize_display_key($item);
+        if ($dedupeKey !== '' && isset($seenKeys[$dedupeKey])) {
+            continue;
+        }
+        if ($dedupeKey !== '') {
+            $seenKeys[$dedupeKey] = true;
+        }
+        if (!isset($sourceBuckets[$sourceId])) {
+            $sourceBuckets[$sourceId] = [];
+        }
+        $sourceBuckets[$sourceId][] = $item;
     }
 
     if ($sourceBuckets === []) {

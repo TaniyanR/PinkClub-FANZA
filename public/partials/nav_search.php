@@ -16,8 +16,9 @@ $navItems = [
 ];
 ?>
 <nav class="site-nav" aria-label="グローバルナビゲーション">
-    <?php foreach ($navItems as $item) : ?>
+    <?php foreach ($navItems as $index => $item) : ?>
         <?php $isActive = $path === parse_url($item['href'], PHP_URL_PATH); ?>
+        <?php if ($index > 0): ?><span class="site-nav__sep" aria-hidden="true"> | </span><?php endif; ?>
         <a class="<?= $isActive ? 'is-active' : '' ?>" href="<?= e($item['href']) ?>"><?= e($item['label']) ?></a>
     <?php endforeach; ?>
 </nav>
