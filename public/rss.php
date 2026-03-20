@@ -6,14 +6,8 @@ require_once __DIR__ . '/../lib/db.php';
 require_once __DIR__ . '/../lib/app_features.php';
 require_once __DIR__ . '/partials/_helpers.php';
 
-$pdo = db();
-$sources = $pdo->query('SELECT * FROM rss_sources WHERE is_enabled=1')->fetchAll(PDO::FETCH_ASSOC);
-foreach ($sources as $source) {
-    if (empty($source['last_fetched_at']) || strtotime((string)$source['last_fetched_at']) < time() - 900) {
-        rss_fetch_source((int)$source['id'], 2);
-        break;
-    }
-}
+rss_widget_bootstrap();
+rss_refresh_stale_sources(1, 900, 2);
 
 $rows = [];
 try {
