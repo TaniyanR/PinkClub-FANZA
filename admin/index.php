@@ -48,15 +48,23 @@ require __DIR__ . '/includes/header.php';
 </section>
 
 <section class="admin-card">
-  <h2>件数サマリ</h2>
-  <div class="admin-status-grid">
-    <?php foreach ($counts as $name => $count): ?>
-      <article class="admin-card admin-status-card">
-        <strong><?= e($labels[$name] ?? $name) ?></strong>
-        <p><?= e((string) $count) ?></p>
-      </article>
+  <h2>同期対象データ件数</h2>
+  <table class="admin-table">
+    <tr><th>項目</th><th>件数</th></tr>
+    <?php foreach ($counts as $key => $count): ?>
+      <tr><td><?= e($labels[$key] ?? $key) ?></td><td><?= e((string)$count) ?></td></tr>
     <?php endforeach; ?>
-  </div>
+  </table>
+</section>
+
+<section class="admin-card">
+  <h2>API一覧</h2>
+  <ul>
+    <li><a href="<?= e(admin_url('api_items.php')) ?>">商品情報API設定</a></li>
+    <li><a href="<?= e(admin_url('api_genres.php')) ?>">ジャンルAPI設定</a></li>
+    <li><a href="<?= e(admin_url('api_actresses.php')) ?>">女優API設定</a></li>
+    <li><a href="<?= e(admin_url('api_series.php')) ?>">シリーズAPI設定</a></li>
+  </ul>
 </section>
 
 <section class="admin-card">
