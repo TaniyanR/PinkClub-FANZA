@@ -13,14 +13,17 @@ try {
     $find = db()->prepare('SELECT id FROM rss_sources WHERE feed_url = :feed LIMIT 1');
     $insert = db()->prepare('INSERT INTO rss_sources(name,feed_url,is_enabled,created_at,updated_at) VALUES(:name,:feed,1,NOW(),NOW())');
     $update = db()->prepare('UPDATE rss_sources SET name=:name,is_enabled=1,updated_at=NOW() WHERE id=:id');
+
     foreach ($partnerFeeds as $feed) {
         $feedUrl = trim((string)($feed['feed_url'] ?? ''));
         if ($feedUrl === '') {
             continue;
         }
+
         $name = trim((string)($feed['name'] ?? 'RSS'));
         $find->execute([':feed' => $feedUrl]);
         $id = (int)($find->fetchColumn() ?: 0);
+
         if ($id > 0) {
             $update->execute([':name' => $name, ':id' => $id]);
         } else {
@@ -28,7 +31,7 @@ try {
         }
     }
 
-    $sources = db()->query("SELECT id,last_fetched_at FROM rss_sources WHERE is_enabled=1 ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $sources = db()->query('SELECT id,last_fetched_at FROM rss_sources WHERE is_enabled=1 ORDER BY id ASC')->fetchAll(PDO::FETCH_ASSOC) ?: [];
     foreach ($sources as $source) {
         $lastFetched = strtotime((string)($source['last_fetched_at'] ?? '')) ?: 0;
         if ($lastFetched < time() - 900) {
@@ -37,6 +40,7 @@ try {
     }
 } catch (Throwable $e) {
 }
+
 rss_widget_bootstrap();
 
 $items = [];

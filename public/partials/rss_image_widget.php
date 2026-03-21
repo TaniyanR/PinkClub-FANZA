@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/app_features.php';
 require_once __DIR__ . '/../../lib/db.php';
-main
+
 try {
     db()->exec('CREATE TABLE IF NOT EXISTS rss_sources (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,name VARCHAR(255) NOT NULL,feed_url VARCHAR(1000) NOT NULL,is_enabled TINYINT(1) NOT NULL DEFAULT 1,last_fetched_at DATETIME NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,UNIQUE KEY uk_rss_source_feed (feed_url)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
     db()->exec('CREATE TABLE IF NOT EXISTS rss_items (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,source_id BIGINT UNSIGNED NOT NULL,title VARCHAR(255) NOT NULL,url VARCHAR(500) NOT NULL,published_at DATETIME NULL,summary TEXT NULL,guid VARCHAR(500) NOT NULL,image_url TEXT NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE KEY uk_rss_guid (source_id,guid),INDEX idx_rss_pub (published_at),CONSTRAINT fk_rss_items_source FOREIGN KEY (source_id) REFERENCES rss_sources(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
@@ -13,6 +13,7 @@ try {
     $find = db()->prepare('SELECT id FROM rss_sources WHERE feed_url = :feed LIMIT 1');
     $insert = db()->prepare('INSERT INTO rss_sources(name,feed_url,is_enabled,created_at,updated_at) VALUES(:name,:feed,1,NOW(),NOW())');
     $update = db()->prepare('UPDATE rss_sources SET name=:name,is_enabled=1,updated_at=NOW() WHERE id=:id');
+
     foreach ($partnerFeeds as $feed) {
         $feedUrl = trim((string)($feed['feed_url'] ?? ''));
         if ($feedUrl === '') {
@@ -28,7 +29,7 @@ try {
         }
     }
 
-    $sources = db()->query("SELECT id,last_fetched_at FROM rss_sources WHERE is_enabled=1 ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $sources = db()->query('SELECT id,last_fetched_at FROM rss_sources WHERE is_enabled=1 ORDER BY id ASC')->fetchAll(PDO::FETCH_ASSOC) ?: [];
     foreach ($sources as $source) {
         $lastFetched = strtotime((string)($source['last_fetched_at'] ?? '')) ?: 0;
         if ($lastFetched < time() - 900) {
@@ -37,6 +38,7 @@ try {
     }
 } catch (Throwable $e) {
 }
+
 rss_widget_bootstrap();
 
 $items = [];
