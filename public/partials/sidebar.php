@@ -10,7 +10,6 @@ $sortMode = site_setting_get('link.sort_mode', 'registered');
 $orderBy = $sortMode === 'kana' ? 'ps.name ASC, ps.id ASC' : 'ps.id DESC';
 
 $partnerLinks = [];
-$rssLinks = [];
 $fixedPages = [];
 
 try {
@@ -27,22 +26,6 @@ try {
     }
 } catch (Throwable $e) {
     $partnerLinks = [];
-}
-
-try {
-    $stmt = db()->query('SELECT pr.feed_url, ps.name FROM partner_rss pr INNER JOIN partner_sites ps ON ps.id = pr.partner_site_id WHERE COALESCE(pr.show_rss, pr.is_enabled, 1)=1 ORDER BY pr.id DESC');
-    $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
-    $seenFeeds = [];
-    foreach ($rows as $row) {
-        $feedUrl = rss_normalize_url((string)($row['feed_url'] ?? ''));
-        if ($feedUrl === '' || isset($seenFeeds[$feedUrl])) {
-            continue;
-        }
-        $seenFeeds[$feedUrl] = true;
-        $rssLinks[] = $row;
-    }
-} catch (Throwable $e) {
-    $rssLinks = [];
 }
 
 try {
@@ -75,18 +58,6 @@ try {
     </section>
 
     <section class="sidebar-block">
-        <h2 class="sidebar-block__title">API一覧</h2>
-        <ul class="sidebar-links">
-            <li><a href="<?= e(public_url('items.php')) ?>">商品一覧</a></li>
-            <li><a href="<?= e(public_url('actresses.php')) ?>">女優一覧</a></li>
-            <li><a href="<?= e(public_url('genres.php')) ?>">ジャンル一覧</a></li>
-            <li><a href="<?= e(public_url('makers.php')) ?>">メーカー一覧</a></li>
-            <li><a href="<?= e(public_url('series_list.php')) ?>">シリーズ一覧</a></li>
-            <li><a href="<?= e(public_url('authors.php')) ?>">作者一覧</a></li>
-        </ul>
-    </section>
-
-    <section class="sidebar-block">
         <h2 class="sidebar-block__title">相互リンク</h2>
         <?php if ($partnerLinks === []) : ?>
             <p class="sidebar-empty">相互リンク（未設定）</p>
@@ -105,24 +76,13 @@ try {
     </section>
 
     <section class="sidebar-block">
-        <h2 class="sidebar-block__title">提携RSS</h2>
-        <?php if ($rssLinks === []): ?>
-            <p class="sidebar-empty">RSS（未設定）</p>
-        <?php else: ?>
-            <ul class="sidebar-links sidebar-links--scroll">
-                <?php foreach ($rssLinks as $rss): ?>
-                    <li><a href="<?= e((string)$rss['feed_url']) ?>" target="_blank" rel="noopener noreferrer"><?= e((string)$rss['name']) ?> RSS</a></li>
-                <?php endforeach; ?>
-            </ul>
-        <?php endif; ?>
-    </section>
-
-    <section class="sidebar-block">
         <h2 class="sidebar-block__title">画像RSS</h2>
         <?php include __DIR__ . '/rss_image_widget.php'; ?>
     </section>
 
+    <?php if (get_ad_code('sidebar_bottom') !== null): ?>
     <section class="sidebar-block">
-        <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; render_ad('sidebar_bottom', $pageType, ad_current_device()); ?>
+        <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?><div class="site-ad"><?php render_ad('sidebar_bottom', $pageType, ad_current_device()); ?></div>
     </section>
+    <?php endif; ?>
 </aside>
