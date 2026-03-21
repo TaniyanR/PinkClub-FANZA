@@ -5,6 +5,41 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
+function item_unique_rows(array $rows, array $keys): array
+{
+    $unique = [];
+    $seen = [];
+
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+
+        $parts = [];
+        foreach ($keys as $key) {
+            $value = trim((string)($row[$key] ?? ''));
+            if ($value !== '') {
+                $parts[] = $value;
+            }
+        }
+
+        if ($parts === []) {
+            $unique[] = $row;
+            continue;
+        }
+
+        $signature = implode('|', $parts);
+        if (isset($seen[$signature])) {
+            continue;
+        }
+
+        $seen[$signature] = true;
+        $unique[] = $row;
+    }
+
+    return $unique;
+}
+
 $id = (int)get('id', 0);
 $contentId = trim((string)get('content_id', ''));
 $cid = trim((string)get('cid', ''));
@@ -82,6 +117,13 @@ if (db_table_exists('item_authors')) {
         $authors = [];
     }
 }
+
+$relatedItems = item_unique_rows($relatedItems, ['content_id', 'id']);
+$actresses = item_unique_rows($actresses, ['id', 'name']);
+$genres = item_unique_rows($genres, ['id', 'name']);
+$makers = item_unique_rows($makers, ['id', 'name']);
+$seriesList = item_unique_rows($seriesList, ['id', 'name']);
+$authors = item_unique_rows($authors, ['id', 'name']);
 
 $raw = [];
 if (is_string($item['raw_json'] ?? null) && $item['raw_json'] !== '') {

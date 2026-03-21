@@ -266,30 +266,31 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 
 /* Sidebar RSS / link visual tuning */
 .rss-widget--text .rss-box{
-  background:#33363c;
-  border:1px solid #595c63;
+  background:#f6f7f7;
+  border:1px solid #dcdcde;
   max-height:300px;
   overflow-y:auto;
 }
 .rss-list{list-style:none;margin:0;padding:0}
-.rss-list__item{padding:10px 12px;border-bottom:1px solid #595c63}
+.rss-list__item{padding:10px 12px;border-bottom:1px solid #dcdcde}
 .rss-list__item:last-child{border-bottom:none}
-.rss-list__item a{display:block;color:#d9952f;text-decoration:none;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rss-list__item small{display:block;color:#b8b9be;font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rss-list__item a{display:block;color:#2271b1;text-decoration:none;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rss-list__item small{display:block;color:#646970;font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .sidebar-links--scroll{
   width:100%;
   height:500px;
   overflow-y:auto;
   overflow-x:hidden;
-  background:#33363c;
-  border:1px solid #595c63;
+  background:#f6f7f7;
+  border:1px solid #dcdcde;
+  border-radius:4px;
   padding:8px;
   box-sizing:border-box;
 }
-.sidebar-links--scroll li{border-bottom:1px solid #595c63;padding:8px 4px}
+.sidebar-links--scroll li{border-bottom:1px solid #dcdcde;padding:8px 4px}
 .sidebar-links--scroll li:last-child{border-bottom:none}
-.sidebar-links--scroll li a{color:#d9952f;font-weight:700;text-decoration:none;display:block}
+.sidebar-links--scroll li a{color:#2271b1;font-weight:700;text-decoration:none;display:block}
 .sidebar-links--scroll li a::before{content:''}
 
 
@@ -358,6 +359,19 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .rail-card--300 .rail-card__noimage{height:300px}
 .rail-card--200 .rail-card__noimage{height:200px}
 .rail-card--180 .rail-card__noimage{height:180px}
+.rail-row--wide-thumb .rail-card{flex:0 0 300px !important;min-width:300px !important;max-width:300px !important}
+.rail-row--wide-thumb .rail-card .thumb{
+  width:300px !important;
+  max-width:300px !important;
+  aspect-ratio:16 / 9;
+  object-fit:contain;
+  background:#fff;
+}
+.rail-row--wide-thumb .rail-card .rail-card__noimage{
+  width:300px !important;
+  max-width:300px !important;
+  height:168px !important;
+}
 .rail-card__title{
   width:100%;
   max-width:100%;
