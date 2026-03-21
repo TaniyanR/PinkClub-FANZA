@@ -157,7 +157,6 @@ function user_logout(): void
     unset($_SESSION['front_user_id'], $_SESSION['front_user_email']);
 }
 
-
 function rss_extract_first_image_url(SimpleXMLElement $item): string
 {
     $namespaces = $item->getNameSpaces(true);
@@ -231,6 +230,7 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
     if ($xml === false) {
         return ['ok' => false, 'message' => 'xml parse failed'];
     }
+
     $ngCategoryWords = preg_split('/\R+/', site_setting_get('rss.ng_category_words', '')) ?: [];
     $ngTagWords = preg_split('/\R+/', site_setting_get('rss.ng_tag_words', '')) ?: [];
     $ngCategoryWords = array_values(array_filter(array_map('trim', $ngCategoryWords), static fn(string $v): bool => $v !== ''));
@@ -239,12 +239,15 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
     $items = $xml->channel->item ?? [];
     $insertWithImage = null;
     $insertWithoutImage = null;
+
     try {
         $insertWithImage = $pdo->prepare('INSERT IGNORE INTO rss_items (source_id,title,url,published_at,summary,guid,image_url,created_at) VALUES (:sid,:title,:url,:pub,:summary,:guid,:image,NOW())');
     } catch (Throwable $e) {
         $insertWithImage = null;
     }
+
     $insertWithoutImage = $pdo->prepare('INSERT IGNORE INTO rss_items (source_id,title,url,published_at,summary,guid,created_at) VALUES (:sid,:title,:url,:pub,:summary,:guid,NOW())');
+
     foreach ($items as $item) {
         $guid = (string)($item->guid ?? $item->link ?? '');
         if ($guid === '') {
@@ -255,6 +258,7 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
         foreach ($item->category ?? [] as $c) {
             $categories[] = trim((string)$c);
         }
+
         $isBlocked = false;
         foreach ($ngCategoryWords as $ng) {
             foreach ($categories as $cat) {
@@ -264,6 +268,7 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
                 }
             }
         }
+
         if (!$isBlocked) {
             $tagsText = trim((string)($item->keywords ?? ''));
             foreach ($ngTagWords as $ng) {
@@ -273,6 +278,7 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
                 }
             }
         }
+
         if ($isBlocked) {
             continue;
         }
@@ -297,10 +303,11 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
 
         $insertWithoutImage->execute($params);
     }
+
     $pdo->prepare('UPDATE rss_sources SET last_fetched_at=NOW() WHERE id=:id')->execute([':id' => $sourceId]);
+
     return ['ok' => true, 'message' => 'updated'];
 }
-
 
 function rss_ensure_tables(): void
 {
@@ -408,11 +415,13 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
     $days = max(1, $days);
     $pdo = db();
     $rows = [];
+
     $sqlWithImage = 'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.published_at, ri.image_url '
         . 'FROM rss_items ri '
         . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id '
         . 'WHERE rs.is_enabled = 1 AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY) '
         . 'ORDER BY ri.published_at DESC, ri.id DESC';
+
     $sqlWithoutImage = 'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.published_at '
         . 'FROM rss_items ri '
         . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id '
@@ -430,6 +439,7 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
         $stmt->execute();
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
     if (!is_array($rows) || $rows === []) {
         return [];
     }
@@ -437,15 +447,18 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
     $seedBase = random_int(1, PHP_INT_MAX);
     $seenKeys = [];
     $sourceBuckets = [];
+
     foreach ($rows as $row) {
         $sourceId = (int)($row['source_id'] ?? 0);
         if ($sourceId <= 0) {
             continue;
         }
+
         $imageUrl = trim((string)($row['image_url'] ?? ''));
         if ($requireImage && $imageUrl === '') {
             continue;
         }
+
         $item = [
             'title' => (string)($row['title'] ?? ''),
             'link' => (string)($row['url'] ?? ''),
@@ -454,6 +467,7 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
             'source_id' => $sourceId,
             'source_name' => (string)($row['source_name'] ?? ''),
         ];
+
         $dedupeKey = rss_normalize_display_key($item);
         if ($dedupeKey !== '' && isset($seenKeys[$dedupeKey])) {
             continue;
@@ -461,6 +475,7 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
         if ($dedupeKey !== '') {
             $seenKeys[$dedupeKey] = true;
         }
+
         if (!isset($sourceBuckets[$sourceId])) {
             $sourceBuckets[$sourceId] = [];
         }
