@@ -371,24 +371,12 @@ if (!function_exists('render_shared_content_ad_row')) {
             return;
         }
 
-        $rssHtml = '';
-        if ($position_key === 'content_top') {
-            ob_start();
-            include __DIR__ . '/rss_text_widget.php';
-            $rssHtml = trim((string)ob_get_clean());
-        }
-
-        ob_start();
-        render_ad($position_key, $page_type, 'pc');
-        $adHtml = trim((string)ob_get_clean());
-
-        if ($rssHtml === '' && $adHtml === '') {
+        if (get_ad_code($position_key) === null) {
             return;
         }
 
-        echo '<div class="content-ad-row only-pc">';
-        echo '<div class="content-ad-row__ad"><div class="site-ad site-ad--rectangle">' . $adHtml . '</div></div>';
-        echo '<div class="content-ad-row__rss">' . $rssHtml . '</div>';
+        echo '<div class="site-ad only-pc">';
+        render_ad($position_key, $page_type, 'pc');
         echo '</div>';
     }
 }

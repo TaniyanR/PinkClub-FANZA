@@ -80,8 +80,10 @@ try {
         <?php include __DIR__ . '/rss_image_widget.php'; ?>
     </section>
 
+    <?php if (get_ad_code('sidebar_bottom') !== null): ?>
     <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
-    <section class="sidebar-block sidebar-block--ad only-pc">
-        <div class="site-ad site-ad--rectangle"><?php render_ad('sidebar_bottom', $pageType, 'pc'); ?></div>
+    <section class="sidebar-block only-pc">
+        <div class="site-ad"><?php render_ad('sidebar_bottom', $pageType, 'pc'); ?></div>
     </section>
+    <?php endif; ?>
 </aside>
