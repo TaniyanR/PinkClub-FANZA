@@ -292,15 +292,67 @@ if (!function_exists('ad_snippet_rows')) {
 }
 
 if (!function_exists('get_ad_code')) {
+    function ad_fallback_setting_keys(string $position_key): array
+    {
+        $map = [
+            'header_left_728x90' => ['header_left_728x90', 'header_left_728x90_html', 'header_ad_html'],
+            'sidebar_bottom' => ['sidebar_bottom', 'sidebar_bottom_html', 'sidebar_ad_html'],
+            'content_top' => ['content_top', 'content_top_html', 'content_top_ad_html'],
+            'content_bottom' => ['content_bottom', 'content_bottom_html', 'content_bottom_ad_html'],
+            'sp_header_below' => ['sp_header_below', 'sp_header_below_html', 'sp_header_ad_html'],
+            'sp_footer_above' => ['sp_footer_above', 'sp_footer_above_html', 'sp_footer_ad_html'],
+        ];
+
+        return $map[$position_key] ?? [$position_key, $position_key . '_html'];
+    }
+
+    function ad_fallback_setting_code(string $position_key): ?string
+    {
+        foreach (ad_fallback_setting_keys($position_key) as $settingKey) {
+            $html = trim((string)app_setting_get($settingKey, ''));
+            if ($html !== '') {
+                return $html;
+            }
+
+            try {
+                $siteHtml = trim((string)setting($settingKey, ''));
+                if ($siteHtml !== '') {
+                    return $siteHtml;
+                }
+            } catch (Throwable) {
+            }
+        }
+
+        if (in_array($position_key, ['sidebar_bottom', 'content_top', 'content_bottom'], true)) {
+            $headerHtml = trim((string)app_setting_get('header_ad_html', ''));
+            if ($headerHtml !== '') {
+                return $headerHtml;
+            }
+
+            try {
+                $siteHeaderHtml = trim((string)setting('header_ad_html', ''));
+                if ($siteHeaderHtml !== '') {
+                    return $siteHeaderHtml;
+                }
+            } catch (Throwable) {
+            }
+        }
+
+        return null;
+    }
+
     function get_ad_code(string $position_key): ?string
     {
         $rows = ad_snippet_rows();
         $row = $rows[$position_key] ?? null;
-        if (!is_array($row) || $row['is_enabled'] !== true) {
-            return null;
+        if (is_array($row) && $row['is_enabled'] === true) {
+            $html = trim((string)$row['snippet_html']);
+            if ($html !== '') {
+                return $html;
+            }
         }
-        $html = trim((string)$row['snippet_html']);
-        return $html !== '' ? $html : null;
+
+        return ad_fallback_setting_code($position_key);
     }
 }
 
@@ -350,6 +402,24 @@ if (!function_exists('render_ad')) {
             return;
         }
         echo $html;
+    }
+}
+
+if (!function_exists('render_front_ad')) {
+    function render_front_ad(string $position_key, string $page_type, string $device): void
+    {
+        $html = trim((string)ad_fallback_setting_code($position_key));
+        if ($html === '') {
+            ob_start();
+            render_ad($position_key, $page_type, $device);
+            $html = trim((string)ob_get_clean());
+        }
+
+        if ($html === '') {
+            return;
+        }
+
+        echo '<div class="site-ad">' . $html . '</div>';
     }
 }
 
