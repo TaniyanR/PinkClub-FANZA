@@ -44,7 +44,7 @@ $canonicalUrl = canonical_url('/posts.php', [
 include __DIR__ . '/partials/header.php';
 ?>
         <div class="only-pc"><?php include __DIR__ . '/partials/rss_text_widget.php'; ?></div>
-        <div class="site-ad"><?php render_ad('content_top', 'list', 'pc'); ?></div>
+        <?php if (get_ad_code('content_top') !== null): ?><div class="site-ad"><?php render_ad('content_top', 'list', 'pc'); ?></div><?php endif; ?>
         <section class="block">
             <div class="section-head">
                 <h1 class="section-title">作品一覧</h1>
@@ -118,6 +118,6 @@ include __DIR__ . '/partials/header.php';
                 <span class="page-btn">次へ</span>
             <?php endif; ?>
         </nav>
-        <div class="site-ad"><?php render_ad('content_bottom', 'list', 'pc'); ?></div>
+        <?php if (get_ad_code('content_bottom') !== null): ?><div class="site-ad"><?php render_ad('content_bottom', 'list', 'pc'); ?></div><?php endif; ?>
         <div class="only-pc"><?php include __DIR__ . '/partials/rss_text_widget.php'; ?></div>
 <?php include __DIR__ . '/partials/footer.php'; ?>

@@ -242,6 +242,10 @@ function safe_include_partial(string $filePath): void
 function safe_render_home_ad(string $positionKey): void
 {
     try {
+        if (get_ad_code($positionKey) === null) {
+            return;
+        }
+
         echo '<div class="site-ad">';
         render_ad($positionKey, 'home', 'pc');
         echo '</div>';
