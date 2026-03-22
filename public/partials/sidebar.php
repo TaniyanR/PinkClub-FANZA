@@ -49,7 +49,7 @@ try {
         <?php if ($fixedPages === []): ?>
             <p class="sidebar-empty">固定ページ（未設定）</p>
         <?php else: ?>
-            <ul class="sidebar-links">
+            <ul class="sidebar-links sidebar-links--pages">
                 <?php foreach ($fixedPages as $page): ?>
                     <li><a href="<?= e(public_url('page.php?slug=' . (string)$page['slug'])) ?>"><?= e((string)$page['title']) ?></a></li>
                 <?php endforeach; ?>
@@ -62,7 +62,7 @@ try {
         <?php if ($partnerLinks === []) : ?>
             <p class="sidebar-empty">相互リンク（未設定）</p>
         <?php else : ?>
-            <ul class="sidebar-links sidebar-links--scroll">
+            <ul class="sidebar-links sidebar-links--partners sidebar-links--scroll">
                 <?php foreach ($partnerLinks as $link) : ?>
                     <li><a href="<?= e((string)$link['url']) ?>" target="_blank" rel="noopener noreferrer"><?= e((string)$link['name']) ?></a></li>
                 <?php endforeach; ?>

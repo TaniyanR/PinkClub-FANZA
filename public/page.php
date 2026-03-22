@@ -113,8 +113,6 @@ $pageDescription = (string)($p['seo_description'] ?? '');
 
 include __DIR__ . '/partials/header.php';
 ?>
-        <div class="only-pc"><?php include __DIR__ . '/partials/rss_text_widget.php'; ?></div>
-        <?php if (get_ad_code('content_top') !== null): ?><div class="site-ad"><?php render_ad('content_top', 'page', 'pc'); ?></div><?php endif; ?>
         <section class="block">
             <h1 class="section-title"><?php echo e((string)$p['title']); ?></h1>
             <?php echo nl2br(e((string)$p['body'])); ?>
@@ -150,6 +148,4 @@ include __DIR__ . '/partials/header.php';
             </section>
         <?php endif; ?>
 
-        <?php if (get_ad_code('content_bottom') !== null): ?><div class="site-ad"><?php render_ad('content_bottom', 'page', 'pc'); ?></div><?php endif; ?>
-        <div class="only-pc"><?php include __DIR__ . '/partials/rss_text_widget.php'; ?></div>
 <?php include __DIR__ . '/partials/footer.php'; ?>
