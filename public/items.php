@@ -40,7 +40,6 @@ foreach ($orderSqlCandidates as $orderSql) {
 $title = '商品一覧';
 require __DIR__ . '/partials/header.php';
 ?>
-<?php if (get_ad_code('content_top') !== null): ?><div class="site-ad"><?php render_ad('content_top', 'list', 'pc'); ?></div><?php endif; ?>
 <?php pcf_render_hero('商品一覧', '最新の作品を一覧でチェックできます。'); ?>
 
 <?php if ($rows !== []): ?>
@@ -54,5 +53,4 @@ require __DIR__ . '/partials/header.php';
   <?php pcf_render_empty('商品データがまだ登録されていません。'); ?>
 <?php endif; ?>
 
-<?php if (get_ad_code('content_bottom') !== null): ?><div class="site-ad"><?php render_ad('content_bottom', 'list', 'pc'); ?></div><?php endif; ?>
 <?php require __DIR__ . '/partials/footer.php'; ?>
