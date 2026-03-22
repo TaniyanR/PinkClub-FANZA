@@ -65,3 +65,4 @@ $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
 <div class="layout site-layout">
   <?php require __DIR__ . '/sidebar.php'; ?>
   <main class="content site-main site-main--legacy">
+    <?php render_shared_content_ad_row('content_top', $pageType); ?>
