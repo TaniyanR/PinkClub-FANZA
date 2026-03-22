@@ -177,8 +177,8 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
   box-sizing:border-box;
 }
 .site-sidebar{
-  width:250px;
-  flex:0 0 250px;
+  width:300px;
+  flex:0 0 300px;
   display:grid;
   gap:12px;
 }
@@ -262,7 +262,7 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 
 /* Front UI unified layout */
 .layout{display:flex;align-items:flex-start;gap:16px;width:100%;padding:16px;box-sizing:border-box}
-.sidebar{width:250px;flex:0 0 250px}
+.sidebar{width:300px;flex:0 0 300px}
 .content{flex:1;min-width:0}
 .header-site-name{font-size:12px;color:#646970;font-weight:700}
 .site-nav a.is-active{background:#ff4da6;color:#fff;text-decoration:none}
