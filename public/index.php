@@ -54,6 +54,28 @@ function normalize_movie_url(string $url): string
     return '';
 }
 
+function parse_index_image_urls(?string $value): array
+{
+    if ($value === null || trim($value) === '') {
+        return [];
+    }
+
+    $trimmed = trim($value);
+    if ($trimmed !== '' && $trimmed[0] === '[') {
+        $decoded = json_decode($trimmed, true);
+        if (is_array($decoded)) {
+            return array_values(array_filter(array_map('strval', $decoded)));
+        }
+    }
+
+    $parts = preg_split('/[\r\n,|\s]+/', $value);
+    if (!is_array($parts)) {
+        return [];
+    }
+
+    return array_values(array_filter(array_map('trim', $parts), static fn(string $v): bool => $v !== ''));
+}
+
 function collect_movie_urls_from_value(mixed $value, array &$urls): void
 {
     if (is_string($value)) {
@@ -165,6 +187,15 @@ function item_sample_state(array $item): array
         }
     }
 
+    if (!$hasImageSample) {
+        foreach (parse_index_image_urls((string)($item['image_list'] ?? '')) as $image) {
+            if (trim((string)$image) !== '') {
+                $hasImageSample = true;
+                break;
+            }
+        }
+    }
+
     return ['movie_url' => $firstMovieUrl, 'movie_urls' => $movieUrls, 'has_images' => $hasImageSample];
 }
 
@@ -211,7 +242,9 @@ function safe_include_partial(string $filePath): void
 function safe_render_home_ad(string $positionKey): void
 {
     try {
+        echo '<div class="site-ad">';
         render_ad($positionKey, 'home', 'pc');
+        echo '</div>';
     } catch (Throwable $e) {
         error_log('public/index.php ad render failed: ' . $positionKey . ' ' . $e->getMessage());
     }
@@ -380,13 +413,13 @@ $hasHomeContent = $latestTop !== []
   <section class="rail-section">
     <h2>新着作品</h2>
     <div class="rail-row rail-row--220 rail-row--no-scroll"><?php foreach ($latestTop as $item) { render_item_card($item, 220); } ?></div>
-    <div class="rail-row rail-row--200"><?php foreach ($latestBottom as $item) { render_item_card($item, 200); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb"><?php foreach ($latestBottom as $item) { render_item_card($item, 200); } ?></div>
   </section>
 
   <section class="rail-section">
     <h2>ピックアップ（人気順）</h2>
     <div class="rail-row rail-row--220 rail-row--no-scroll"><?php foreach ($pickupTop as $item) { render_item_card($item, 220); } ?></div>
-    <div class="rail-row rail-row--200"><?php foreach ($pickupBottom as $item) { render_item_card($item, 200); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb"><?php foreach ($pickupBottom as $item) { render_item_card($item, 200); } ?></div>
   </section>
 
   <section class="rail-section">
@@ -453,12 +486,11 @@ $hasHomeContent = $latestTop !== []
   const titleNode = document.getElementById('sample-movie-title');
   if (!modal || !frame || !titleNode) return;
 
-  const openMovie = (url, title, movieWidth = 0) => {
+  const openMovie = (url, title) => {
     if (!url) return;
     const normalizedTitle = String(title || '').trim();
     titleNode.textContent = normalizedTitle !== '' ? normalizedTitle : 'サンプル動画';
-    const normalizedWidth = Number.isFinite(movieWidth) ? Math.max(320, Math.min(900, Math.round(movieWidth))) : 900;
-    modal.style.setProperty('--movie-modal-width', `${normalizedWidth}px`);
+    modal.style.setProperty('--movie-modal-width', '900px');
     frame.src = url;
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
@@ -478,9 +510,7 @@ $hasHomeContent = $latestTop !== []
       event.preventDefault();
       const card = trigger.closest('.rail-card');
       const fallbackTitle = card ? (card.querySelector('.rail-card__title')?.textContent || '') : '';
-      const mediaNode = card ? card.querySelector('.thumb, .rail-card__noimage') : null;
-      const mediaWidth = mediaNode ? mediaNode.getBoundingClientRect().width : 0;
-      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || fallbackTitle, mediaWidth);
+      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || fallbackTitle);
       return;
     }
 

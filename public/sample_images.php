@@ -3,13 +3,35 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
 
+function sample_images_parse_list(?string $value): array
+{
+    if ($value === null || trim($value) === '') {
+        return [];
+    }
+
+    $trimmed = trim($value);
+    if ($trimmed !== '' && $trimmed[0] === '[') {
+        $decoded = json_decode($trimmed, true);
+        if (is_array($decoded)) {
+            return array_values(array_filter(array_map('strval', $decoded)));
+        }
+    }
+
+    $parts = preg_split('/[\r\n,|\s]+/', $value);
+    if (!is_array($parts)) {
+        return [];
+    }
+
+    return array_values(array_filter(array_map('trim', $parts), static fn(string $v): bool => $v !== ''));
+}
+
 $contentId = trim((string)get('content_id', ''));
 if ($contentId === '') {
     http_response_code(404);
     exit('content_id が指定されていません。');
 }
 
-$stmt = db()->prepare('SELECT content_id, title, raw_json FROM items WHERE content_id = ? LIMIT 1');
+$stmt = db()->prepare('SELECT content_id, title, raw_json, image_list FROM items WHERE content_id = ? LIMIT 1');
 $stmt->execute([$contentId]);
 $item = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$item) {
@@ -34,6 +56,10 @@ if (is_array($decoded) && isset($decoded['sampleImageURL']) && is_array($decoded
             }
         }
     }
+}
+$images = array_values(array_unique($images));
+if ($images === []) {
+    $images = array_values(array_unique(sample_images_parse_list((string)($item['image_list'] ?? ''))));
 }
 ?>
 <!doctype html>
