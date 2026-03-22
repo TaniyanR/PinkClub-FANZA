@@ -296,11 +296,22 @@ if (!function_exists('get_ad_code')) {
     {
         $rows = ad_snippet_rows();
         $row = $rows[$position_key] ?? null;
-        if (!is_array($row) || $row['is_enabled'] !== true) {
-            return null;
+        if (is_array($row) && $row['is_enabled'] === true) {
+            $html = trim((string)$row['snippet_html']);
+            if ($html !== '') {
+                return $html;
+            }
         }
-        $html = trim((string)$row['snippet_html']);
-        return $html !== '' ? $html : null;
+
+        $legacyKeys = [$position_key . '_html', $position_key];
+        foreach ($legacyKeys as $legacyKey) {
+            $legacyHtml = trim((string)app_setting_get($legacyKey, ''));
+            if ($legacyHtml !== '') {
+                return $legacyHtml;
+            }
+        }
+
+        return null;
     }
 }
 
