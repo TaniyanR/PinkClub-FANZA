@@ -177,7 +177,10 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
   box-sizing:border-box;
 }
 .site-sidebar{
+  box-sizing:border-box;
   width:300px;
+  min-width:300px;
+  max-width:300px;
   flex:0 0 300px;
   display:grid;
   gap:12px;
@@ -247,7 +250,7 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
   .site-header__right{align-items:flex-start;max-width:100%}
   .site-name{text-align:left}
   .site-layout{flex-direction:column}
-  .site-sidebar{width:100%;flex:1 1 auto}
+  .site-sidebar{width:100%;min-width:0;max-width:none;flex:1 1 auto}
   .site-footer{flex-direction:column;align-items:flex-start}
   .site-footer__copy{text-align:left}
   .content-ad-row{flex-direction:column}
@@ -262,7 +265,7 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 
 /* Front UI unified layout */
 .layout{display:flex;align-items:flex-start;gap:16px;width:100%;padding:16px;box-sizing:border-box}
-.sidebar{width:300px;flex:0 0 300px}
+.sidebar{box-sizing:border-box;width:300px;min-width:300px;max-width:300px;flex:0 0 300px}
 .content{flex:1;min-width:0}
 .header-site-name{font-size:12px;color:#646970;font-weight:700}
 .site-nav a.is-active{background:#ff4da6;color:#fff;text-decoration:none}
@@ -271,7 +274,7 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .site-footer{width:100%;box-sizing:border-box}
 @media (max-width: 900px){
   .layout{display:block}
-  .sidebar{width:100%;margin-bottom:12px}
+  .sidebar{width:100%;min-width:0;max-width:none;margin-bottom:12px}
 }
 
 .site-logo{display:block;max-width:400px;min-width:250px;max-height:100px;min-height:50px;height:auto;width:auto;object-fit:contain}
