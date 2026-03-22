@@ -49,7 +49,7 @@ try {
         <?php if ($fixedPages === []): ?>
             <p class="sidebar-empty">固定ページ（未設定）</p>
         <?php else: ?>
-            <ul class="sidebar-links">
+            <ul class="sidebar-links sidebar-links--pages">
                 <?php foreach ($fixedPages as $page): ?>
                     <li><a href="<?= e(public_url('page.php?slug=' . (string)$page['slug'])) ?>"><?= e((string)$page['title']) ?></a></li>
                 <?php endforeach; ?>
@@ -62,7 +62,7 @@ try {
         <?php if ($partnerLinks === []) : ?>
             <p class="sidebar-empty">相互リンク（未設定）</p>
         <?php else : ?>
-            <ul class="sidebar-links sidebar-links--scroll">
+            <ul class="sidebar-links sidebar-links--partners sidebar-links--scroll">
                 <?php foreach ($partnerLinks as $link) : ?>
                     <li><a href="<?= e((string)$link['url']) ?>" target="_blank" rel="noopener noreferrer"><?= e((string)$link['name']) ?></a></li>
                 <?php endforeach; ?>
@@ -80,13 +80,8 @@ try {
         <?php include __DIR__ . '/rss_image_widget.php'; ?>
     </section>
 
-    <?php ob_start(); ?>
-    <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
-    <?php render_ad('sidebar_bottom', $pageType, ad_current_device()); ?>
-    <?php $sidebarBottomAd = trim((string)ob_get_clean()); ?>
-    <?php if ($sidebarBottomAd !== ''): ?>
-    <section class="sidebar-block">
-        <div class="site-ad"><?= $sidebarBottomAd ?></div>
+    <?php $sidebarBottomAd = (string)(get_ad_code('sidebar_bottom') ?? ''); ?>
+    <section class="sidebar-block sidebar-block--ad only-pc">
+        <div class="site-ad site-ad--rectangle"><?= $sidebarBottomAd ?></div>
     </section>
-    <?php endif; ?>
 </aside>

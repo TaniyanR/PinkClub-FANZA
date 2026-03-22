@@ -396,8 +396,6 @@ $hasHomeContent = $latestTop !== []
     || $makerSection['items'] !== []
     || $authorSection['items'] !== [];
 ?>
-<div class="only-pc"><?php safe_include_partial(__DIR__ . '/partials/rss_text_widget.php'); ?></div>
-<?php safe_render_home_ad('content_top'); ?>
 
 <?php if ($itemCount === 0): ?>
   <div class="card"><p>まだ商品データが同期されていません。管理画面のAPI設定から「同期実行（DB保存）」を行ってください。</p></div>
@@ -470,8 +468,6 @@ $hasHomeContent = $latestTop !== []
   </section>
 <?php endif; ?>
 
-<?php safe_render_home_ad('content_bottom'); ?>
-<div class="only-pc"><?php safe_include_partial(__DIR__ . '/partials/rss_text_widget.php'); ?></div>
 
 <div id="sample-movie-modal" class="sample-movie-modal" aria-hidden="true">
   <div class="sample-movie-modal__overlay" data-movie-close="1"></div>
