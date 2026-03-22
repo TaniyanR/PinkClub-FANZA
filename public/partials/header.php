@@ -56,7 +56,7 @@ $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
       <?php elseif (should_show_ad('header_left_728x90', $pageType, 'pc')) : ?>
         <div class="site-ad"><?php render_ad('header_left_728x90', $pageType, 'pc'); ?></div>
       <?php endif; ?>
-      <div class="only-sp"><?php render_ad('sp_header_below', $pageType, 'sp'); ?></div>
+      <div class="only-sp"><?php render_front_ad('sp_header_below', $pageType, 'sp'); ?></div>
     </div>
   </div>
 
