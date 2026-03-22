@@ -245,6 +245,7 @@ function safe_render_home_ad(string $positionKey): void
         if (get_ad_code($positionKey) === null) {
             return;
         }
+
         echo '<div class="site-ad">';
         render_ad($positionKey, 'home', 'pc');
         echo '</div>';
@@ -489,12 +490,11 @@ $hasHomeContent = $latestTop !== []
   const titleNode = document.getElementById('sample-movie-title');
   if (!modal || !frame || !titleNode) return;
 
-  const openMovie = (url, title, movieWidth = 0) => {
+  const openMovie = (url, title) => {
     if (!url) return;
     const normalizedTitle = String(title || '').trim();
     titleNode.textContent = normalizedTitle !== '' ? normalizedTitle : 'サンプル動画';
-    const normalizedWidth = Number.isFinite(movieWidth) ? Math.max(320, Math.min(900, Math.round(movieWidth))) : 900;
-    modal.style.setProperty('--movie-modal-width', `${normalizedWidth}px`);
+    modal.style.setProperty('--movie-modal-width', '900px');
     frame.src = url;
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
@@ -514,9 +514,7 @@ $hasHomeContent = $latestTop !== []
       event.preventDefault();
       const card = trigger.closest('.rail-card');
       const fallbackTitle = card ? (card.querySelector('.rail-card__title')?.textContent || '') : '';
-      const mediaNode = card ? card.querySelector('.thumb, .rail-card__noimage') : null;
-      const mediaWidth = mediaNode ? mediaNode.getBoundingClientRect().width : 0;
-      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || fallbackTitle, mediaWidth);
+      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || fallbackTitle);
       return;
     }
 

@@ -80,9 +80,13 @@ try {
         <?php include __DIR__ . '/rss_image_widget.php'; ?>
     </section>
 
-    <?php if (get_ad_code('sidebar_bottom') !== null): ?>
+    <?php ob_start(); ?>
+    <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
+    <?php render_ad('sidebar_bottom', $pageType, ad_current_device()); ?>
+    <?php $sidebarBottomAd = trim((string)ob_get_clean()); ?>
+    <?php if ($sidebarBottomAd !== ''): ?>
     <section class="sidebar-block">
-        <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?><div class="site-ad"><?php render_ad('sidebar_bottom', $pageType, ad_current_device()); ?></div>
+        <div class="site-ad"><?= $sidebarBottomAd ?></div>
     </section>
     <?php endif; ?>
 </aside>

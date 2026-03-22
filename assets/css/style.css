@@ -156,6 +156,7 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
 .site-name{font-size:16px;font-weight:700;text-align:right}
 .site-ad{max-width:100%}
 .site-ad img{max-width:100%;height:auto;display:block}
+.site-ad iframe,.site-ad ins,.site-ad video{max-width:100%;display:block}
 
 .site-nav{
   margin-top:12px;
@@ -163,7 +164,8 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
   flex-wrap:wrap;
   gap:8px 14px;
 }
-.site-nav a{color:#fff;text-decoration:none;font-weight:600}
+.site-nav a{display:inline-block;color:#ffe4f1;text-decoration:none;font-weight:600;padding:4px 8px;border-radius:4px;transition:background-color .2s ease,color .2s ease}
+.site-nav a:hover,.site-nav a:focus-visible{background:#ffffff;color:#d63384;outline:none}
 .site-nav__sep{color:#fff}
 
 .site-layout{
@@ -175,8 +177,8 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
   box-sizing:border-box;
 }
 .site-sidebar{
-  width:250px;
-  flex:0 0 250px;
+  width:220px;
+  flex:0 0 220px;
   display:grid;
   gap:12px;
 }
@@ -246,10 +248,10 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 
 /* Front UI unified layout */
 .layout{display:flex;align-items:flex-start;gap:16px;width:100%;padding:16px;box-sizing:border-box}
-.sidebar{width:250px;flex:0 0 250px}
+.sidebar{width:220px;flex:0 0 220px}
 .content{flex:1;min-width:0}
 .header-site-name{font-size:12px;color:#646970;font-weight:700}
-.site-nav a.is-active{text-decoration:underline}
+.site-nav a.is-active{background:#ff4da6;color:#fff;text-decoration:none}
 .sidebar-ad-html img,.sidebar-ad-html iframe,.sidebar-ad-html video{max-width:100%;height:auto}
 .sidebar-image-links img{max-width:100%;height:auto}
 .site-footer{width:100%;box-sizing:border-box}

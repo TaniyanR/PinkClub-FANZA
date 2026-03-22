@@ -5,6 +5,71 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
+function item_normalize_movie_url(string $url): string
+{
+    $url = trim($url);
+    if ($url === '') {
+        return '';
+    }
+
+    if (str_starts_with($url, '//')) {
+        return 'https:' . $url;
+    }
+
+    if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+        return $url;
+    }
+
+    return '';
+}
+
+function item_collect_movie_urls(mixed $value, array &$urls): void
+{
+    if (is_string($value)) {
+        $candidate = item_normalize_movie_url($value);
+        if ($candidate !== '') {
+            $urls[] = $candidate;
+        }
+        return;
+    }
+
+    if (!is_array($value)) {
+        return;
+    }
+
+    foreach ($value as $child) {
+        item_collect_movie_urls($child, $urls);
+    }
+}
+
+function item_pick_movie_urls_from_raw(array $raw): array
+{
+    $urls = [];
+    foreach (['sampleMovieURL', 'sample_movie_url', 'sampleMovieUrl'] as $movieKeyName) {
+        $rawMovie = $raw[$movieKeyName] ?? null;
+
+        if (is_string($rawMovie)) {
+            $candidate = item_normalize_movie_url($rawMovie);
+            if ($candidate !== '') {
+                $urls[] = $candidate;
+            }
+        }
+
+        if (is_array($rawMovie)) {
+            foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
+                $candidate = item_normalize_movie_url((string)($rawMovie[$movieKey] ?? ''));
+                if ($candidate !== '') {
+                    $urls[] = $candidate;
+                }
+            }
+
+            item_collect_movie_urls($rawMovie, $urls);
+        }
+    }
+
+    return array_values(array_unique(array_filter(array_map(static fn($u) => trim((string)$u), $urls))));
+}
+
 function item_unique_rows(array $rows, array $keys): array
 {
     $unique = [];
@@ -137,9 +202,13 @@ $sampleMovieUrl = '';
 foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $movieColumn) {
     $candidate = trim((string)($item[$movieColumn] ?? ''));
     if ($candidate !== '') {
-        $sampleMovieUrl = str_starts_with($candidate, '//') ? ('https:' . $candidate) : $candidate;
+        $sampleMovieUrl = item_normalize_movie_url($candidate);
         break;
     }
+}
+if ($sampleMovieUrl === '') {
+    $sampleMovieUrls = item_pick_movie_urls_from_raw($raw);
+    $sampleMovieUrl = (string)($sampleMovieUrls[0] ?? '');
 }
 
 $sampleImages = [];
