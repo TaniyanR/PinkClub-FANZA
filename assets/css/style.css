@@ -156,6 +156,7 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
 .site-name{font-size:16px;font-weight:700;text-align:right}
 .site-ad{max-width:100%}
 .site-ad img{max-width:100%;height:auto;display:block}
+.site-ad iframe,.site-ad ins,.site-ad video{max-width:100%;display:block}
 
 .site-nav{
   margin-top:12px;
@@ -163,7 +164,8 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
   flex-wrap:wrap;
   gap:8px 14px;
 }
-.site-nav a{color:#fff;text-decoration:none;font-weight:600}
+.site-nav a{display:inline-block;color:#ffe4f1;text-decoration:none;font-weight:600;padding:4px 8px;border-radius:4px;transition:background-color .2s ease,color .2s ease}
+.site-nav a:hover,.site-nav a:focus-visible{background:#ffffff;color:#d63384;outline:none}
 .site-nav__sep{color:#fff}
 
 .site-layout{
@@ -175,8 +177,8 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
   box-sizing:border-box;
 }
 .site-sidebar{
-  width:250px;
-  flex:0 0 250px;
+  width:220px;
+  flex:0 0 220px;
   display:grid;
   gap:12px;
 }
@@ -246,10 +248,10 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 
 /* Front UI unified layout */
 .layout{display:flex;align-items:flex-start;gap:16px;width:100%;padding:16px;box-sizing:border-box}
-.sidebar{width:250px;flex:0 0 250px}
+.sidebar{width:220px;flex:0 0 220px}
 .content{flex:1;min-width:0}
 .header-site-name{font-size:12px;color:#646970;font-weight:700}
-.site-nav a.is-active{text-decoration:underline}
+.site-nav a.is-active{background:#ff4da6;color:#fff;text-decoration:none}
 .sidebar-ad-html img,.sidebar-ad-html iframe,.sidebar-ad-html video{max-width:100%;height:auto}
 .sidebar-image-links img{max-width:100%;height:auto}
 .site-footer{width:100%;box-sizing:border-box}
@@ -266,30 +268,31 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 
 /* Sidebar RSS / link visual tuning */
 .rss-widget--text .rss-box{
-  background:#33363c;
-  border:1px solid #595c63;
+  background:#f6f7f7;
+  border:1px solid #dcdcde;
   max-height:300px;
   overflow-y:auto;
 }
 .rss-list{list-style:none;margin:0;padding:0}
-.rss-list__item{padding:10px 12px;border-bottom:1px solid #595c63}
+.rss-list__item{padding:10px 12px;border-bottom:1px solid #dcdcde}
 .rss-list__item:last-child{border-bottom:none}
-.rss-list__item a{display:block;color:#d9952f;text-decoration:none;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rss-list__item small{display:block;color:#b8b9be;font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rss-list__item a{display:block;color:#2271b1;text-decoration:none;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rss-list__item small{display:block;color:#646970;font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .sidebar-links--scroll{
   width:100%;
   height:500px;
   overflow-y:auto;
   overflow-x:hidden;
-  background:#33363c;
-  border:1px solid #595c63;
+  background:#f6f7f7;
+  border:1px solid #dcdcde;
+  border-radius:4px;
   padding:8px;
   box-sizing:border-box;
 }
-.sidebar-links--scroll li{border-bottom:1px solid #595c63;padding:8px 4px}
+.sidebar-links--scroll li{border-bottom:1px solid #dcdcde;padding:8px 4px}
 .sidebar-links--scroll li:last-child{border-bottom:none}
-.sidebar-links--scroll li a{color:#d9952f;font-weight:700;text-decoration:none;display:block}
+.sidebar-links--scroll li a{color:#2271b1;font-weight:700;text-decoration:none;display:block}
 .sidebar-links--scroll li a::before{content:''}
 
 
@@ -358,6 +361,19 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .rail-card--300 .rail-card__noimage{height:300px}
 .rail-card--200 .rail-card__noimage{height:200px}
 .rail-card--180 .rail-card__noimage{height:180px}
+.rail-row--wide-thumb .rail-card{flex:0 0 300px !important;min-width:300px !important;max-width:300px !important}
+.rail-row--wide-thumb .rail-card .thumb{
+  width:300px !important;
+  max-width:300px !important;
+  aspect-ratio:16 / 9;
+  object-fit:contain;
+  background:#fff;
+}
+.rail-row--wide-thumb .rail-card .rail-card__noimage{
+  width:300px !important;
+  max-width:300px !important;
+  height:168px !important;
+}
 .rail-card__title{
   width:100%;
   max-width:100%;
