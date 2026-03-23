@@ -70,6 +70,17 @@ if ($error === null) {
             }
             $rows[$key] = $row;
         }
+        if ($rows !== []) {
+            $legacySettings = [];
+            foreach ($positions as $slot => $label) {
+                $current = $rows[$slot] ?? ['snippet_html' => '', 'is_enabled' => 0];
+                $legacySettings[$slot . '_html'] = ((int)($current['is_enabled'] ?? 0) === 1)
+                    ? trim((string)($current['snippet_html'] ?? ''))
+                    : '';
+            }
+            app_setting_set_many($legacySettings);
+            site_setting_set_many($legacySettings);
+        }
     } catch (Throwable $e) {
         $error = '広告コードの読み込みに失敗しました。';
     }
