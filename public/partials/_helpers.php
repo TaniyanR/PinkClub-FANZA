@@ -266,27 +266,27 @@ if (!function_exists('ad_snippet_rows')) {
         if (is_array($cache)) {
             return $cache;
         }
+
+        $cache = [];
         try {
             $stmt = db()->query('SELECT slot_key,snippet_html,is_enabled FROM code_snippets');
             $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            foreach ($rows as $row) {
+                $slotKey = (string)($row['slot_key'] ?? '');
+                if ($slotKey === '') {
+                    continue;
+                }
+                $cache[$slotKey] = [
+                    'snippet_html' => (string)($row['snippet_html'] ?? ''),
+                    'is_enabled' => (int)($row['is_enabled'] ?? 0) === 1,
+                ];
+            }
         } catch (Throwable $e) {
             if (function_exists('app_log_error')) {
                 app_log_error('ad_snippet_rows failed', $e);
             }
-            $cache = [];
-            return $cache;
         }
-        $cache = [];
-        foreach ($rows as $row) {
-            $slotKey = (string)($row['slot_key'] ?? '');
-            if ($slotKey === '') {
-                continue;
-            }
-            $cache[$slotKey] = [
-                'snippet_html' => (string)($row['snippet_html'] ?? ''),
-                'is_enabled' => (int)($row['is_enabled'] ?? 0) === 1,
-            ];
-        }
+
         return $cache;
     }
 }
@@ -294,20 +294,31 @@ if (!function_exists('ad_snippet_rows')) {
 if (!function_exists('get_ad_code')) {
     function get_ad_code(string $position_key): ?string
     {
+        $settingsHtml = trim((string)site_setting_get($position_key . '_html', site_setting_get($position_key, '')));
+        $settingsEnabled = trim((string)site_setting_get($position_key . '_enabled', ''));
+        $isEnabled = $settingsEnabled === '' ? ($settingsHtml !== '') : ($settingsEnabled === '1');
+        if ($isEnabled && $settingsHtml !== '') {
+            return $settingsHtml;
+        }
+
+        $legacyKeys = [$position_key . '_html', $position_key];
+        foreach ($legacyKeys as $legacyKey) {
+            $legacyHtml = trim((string)setting($legacyKey, ''));
+            if ($legacyHtml !== '') {
+                return $legacyHtml;
+            }
+            $legacyHtml = trim((string)app_setting_get($legacyKey, ''));
+            if ($legacyHtml !== '') {
+                return $legacyHtml;
+            }
+        }
+
         $rows = ad_snippet_rows();
         $row = $rows[$position_key] ?? null;
         if (is_array($row) && $row['is_enabled'] === true) {
             $html = trim((string)$row['snippet_html']);
             if ($html !== '') {
                 return $html;
-            }
-        }
-
-        $legacyKeys = [$position_key . '_html', $position_key];
-        foreach ($legacyKeys as $legacyKey) {
-            $legacyHtml = trim((string)app_setting_get($legacyKey, ''));
-            if ($legacyHtml !== '') {
-                return $legacyHtml;
             }
         }
 

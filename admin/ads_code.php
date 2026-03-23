@@ -16,7 +16,32 @@ $positions = [
     'sp_footer_above' => 'SPフッター上',
 ];
 
-try {
+/**
+ * @return array<string, array{snippet_html: string, is_enabled: int}>
+ */
+function ads_code_rows_from_settings(array $positions): array
+{
+    $rows = [];
+    foreach ($positions as $slot => $_label) {
+        $html = trim(site_setting_get($slot . '_html', site_setting_get($slot, '')));
+        $enabledSetting = trim(site_setting_get($slot . '_enabled', ''));
+        if ($enabledSetting === '') {
+            $enabled = $html !== '' ? 1 : 0;
+        } else {
+            $enabled = $enabledSetting === '1' ? 1 : 0;
+        }
+
+        $rows[$slot] = [
+            'snippet_html' => $html,
+            'is_enabled' => $enabled,
+        ];
+    }
+
+    return $rows;
+}
+
+function ads_code_ensure_table(): void
+{
     db()->exec('CREATE TABLE IF NOT EXISTS code_snippets (
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         slot_key VARCHAR(100) NOT NULL UNIQUE,
@@ -25,25 +50,43 @@ try {
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-} catch (Throwable $e) {
-    $error = '広告コード保存用テーブルの初期化に失敗しました。';
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $error === null) {
+function ads_code_mirror_to_code_snippets(PDO $pdo, array $rows): void
+{
+    ads_code_ensure_table();
+
+    $stmt = $pdo->prepare('INSERT INTO code_snippets(slot_key,snippet_html,is_enabled,created_at,updated_at) VALUES(:slot,:html,:enabled,NOW(),NOW()) ON DUPLICATE KEY UPDATE snippet_html=VALUES(snippet_html),is_enabled=VALUES(is_enabled),updated_at=NOW()');
+    foreach ($rows as $slot => $row) {
+        $stmt->execute([
+            ':slot' => $slot,
+            ':html' => (string)($row['snippet_html'] ?? ''),
+            ':enabled' => (int)($row['is_enabled'] ?? 0),
+        ]);
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate_or_fail((string)post('_csrf', ''));
     $pdo = db();
     $pdo->beginTransaction();
     try {
-        $stmt = $pdo->prepare('INSERT INTO code_snippets(slot_key,snippet_html,is_enabled,created_at,updated_at) VALUES(:slot,:html,:enabled,NOW(),NOW()) ON DUPLICATE KEY UPDATE snippet_html=VALUES(snippet_html),is_enabled=VALUES(is_enabled),updated_at=NOW()');
+        $settingsUpdates = [];
+        $rows = [];
         foreach ($positions as $slot => $label) {
             $html = trim((string)post('code_' . $slot, ''));
             $enabled = post('enabled_' . $slot, '0') === '1' ? 1 : 0;
-            $stmt->execute([
-                ':slot' => $slot,
-                ':html' => $html,
-                ':enabled' => $enabled,
-            ]);
+            $rows[$slot] = [
+                'snippet_html' => $html,
+                'is_enabled' => $enabled,
+            ];
+            $settingsUpdates[$slot . '_html'] = $html;
+            $settingsUpdates[$slot] = $html;
+            $settingsUpdates[$slot . '_enabled'] = (string)$enabled;
         }
+
+        site_setting_set_many($settingsUpdates);
+        ads_code_mirror_to_code_snippets($pdo, $rows);
         $pdo->commit();
         $message = '広告コードを保存しました。';
     } catch (Throwable $e) {
@@ -54,21 +97,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $error === null) {
     }
 }
 
-$rows = [];
-if ($error === null) {
-    try {
-        $stmt = db()->query('SELECT slot_key,snippet_html,is_enabled FROM code_snippets');
-        $list = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
-        foreach ($list as $row) {
-            $key = (string)($row['slot_key'] ?? '');
-            if ($key === '') {
-                continue;
-            }
-            $rows[$key] = $row;
-        }
-    } catch (Throwable $e) {
-        $error = '広告コードの読み込みに失敗しました。';
-    }
+try {
+    $rows = ads_code_rows_from_settings($positions);
+} catch (Throwable $e) {
+    $rows = [];
+    $error = '広告コードの読み込みに失敗しました。';
 }
 
 require __DIR__ . '/includes/header.php';
