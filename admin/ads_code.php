@@ -35,6 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $error === null) {
     $pdo->beginTransaction();
     try {
         $stmt = $pdo->prepare('INSERT INTO code_snippets(slot_key,snippet_html,is_enabled,created_at,updated_at) VALUES(:slot,:html,:enabled,NOW(),NOW()) ON DUPLICATE KEY UPDATE snippet_html=VALUES(snippet_html),is_enabled=VALUES(is_enabled),updated_at=NOW()');
+        $legacySettings = [];
         foreach ($positions as $slot => $label) {
             $html = trim((string)post('code_' . $slot, ''));
             $enabled = post('enabled_' . $slot, '0') === '1' ? 1 : 0;
@@ -43,7 +44,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $error === null) {
                 ':html' => $html,
                 ':enabled' => $enabled,
             ]);
+            $legacySettings[$slot . '_html'] = $enabled === 1 ? $html : '';
         }
+        site_setting_set_many($legacySettings);
         $pdo->commit();
         $message = '広告コードを保存しました。';
     } catch (Throwable $e) {
