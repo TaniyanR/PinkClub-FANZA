@@ -305,6 +305,10 @@ if (!function_exists('get_ad_code')) {
 
         $legacyKeys = [$position_key . '_html', $position_key];
         foreach ($legacyKeys as $legacyKey) {
+            $legacyHtml = trim((string)setting($legacyKey, ''));
+            if ($legacyHtml !== '') {
+                return $legacyHtml;
+            }
             $legacyHtml = trim((string)app_setting_get($legacyKey, ''));
             if ($legacyHtml !== '') {
                 return $legacyHtml;
