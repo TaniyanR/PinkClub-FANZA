@@ -419,7 +419,7 @@ function fetch_items_by_label_name(string $labelName, int $limit, int $offset = 
     $offset = max(0, $offset);
 
     $stmt = db()->prepare(
-        'SELECT items.*
+        'SELECT DISTINCT items.*
          FROM items
          INNER JOIN item_labels ON items.content_id = item_labels.content_id
          WHERE item_labels.label_name = :label_name
@@ -442,7 +442,7 @@ function fetch_items_by_actress(int $actressId, int $limit, int $offset = 0): ar
 
     try {
         $stmt = db()->prepare(
-            'SELECT items.*
+            'SELECT DISTINCT items.*
              FROM items
              INNER JOIN item_actresses ON items.content_id = item_actresses.content_id
              WHERE item_actresses.actress_id = :id
@@ -462,7 +462,7 @@ function fetch_items_by_actress(int $actressId, int $limit, int $offset = 0): ar
 
     try {
         $stmt = db()->prepare(
-            'SELECT items.*
+            'SELECT DISTINCT items.*
              FROM items
              INNER JOIN actresses     ON actresses.id          = :id
              INNER JOIN item_actresses ON item_actresses.dmm_id = actresses.dmm_id
@@ -488,7 +488,7 @@ function fetch_items_by_genre(int $genreId, int $limit, int $offset = 0): array
 
     try {
         $stmt = db()->prepare(
-            'SELECT items.*
+            'SELECT DISTINCT items.*
              FROM items
              INNER JOIN item_genres ON items.content_id = item_genres.content_id
              WHERE item_genres.genre_id = :id
@@ -508,7 +508,7 @@ function fetch_items_by_genre(int $genreId, int $limit, int $offset = 0): array
 
     try {
         $stmt = db()->prepare(
-            'SELECT items.*
+            'SELECT DISTINCT items.*
              FROM items
              INNER JOIN genres      ON genres.id          = :id
              INNER JOIN item_genres ON item_genres.dmm_id = genres.dmm_id
@@ -534,7 +534,7 @@ function fetch_items_by_maker(int $makerId, int $limit, int $offset = 0): array
 
     try {
         $stmt = db()->prepare(
-            'SELECT items.*
+            'SELECT DISTINCT items.*
              FROM items
              INNER JOIN item_makers ON items.content_id = item_makers.content_id
              WHERE item_makers.maker_id = :id
@@ -554,7 +554,7 @@ function fetch_items_by_maker(int $makerId, int $limit, int $offset = 0): array
 
     try {
         $stmt = db()->prepare(
-            'SELECT items.*
+            'SELECT DISTINCT items.*
              FROM items
              INNER JOIN makers      ON makers.id          = :id
              INNER JOIN item_makers ON item_makers.dmm_id = makers.dmm_id
@@ -580,7 +580,7 @@ function fetch_items_by_series(int $seriesId, int $limit, int $offset = 0): arra
 
     try {
         $stmt = db()->prepare(
-            'SELECT items.*
+            'SELECT DISTINCT items.*
              FROM items
              INNER JOIN item_series ON items.content_id = item_series.content_id
              WHERE item_series.series_id = :id
@@ -600,7 +600,7 @@ function fetch_items_by_series(int $seriesId, int $limit, int $offset = 0): arra
 
     try {
         $stmt = db()->prepare(
-            'SELECT items.*
+            'SELECT DISTINCT items.*
              FROM items
              INNER JOIN series_master ON series_master.id       = :id
              INNER JOIN item_series   ON item_series.dmm_id     = series_master.dmm_id
