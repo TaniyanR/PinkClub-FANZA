@@ -294,20 +294,24 @@ if (!function_exists('ad_snippet_rows')) {
 if (!function_exists('get_ad_code')) {
     function get_ad_code(string $position_key): ?string
     {
+        $legacyKeys = [$position_key . '_html', $position_key];
+        foreach ($legacyKeys as $legacyKey) {
+            $legacyHtml = trim((string)setting($legacyKey, ''));
+            if ($legacyHtml !== '') {
+                return $legacyHtml;
+            }
+            $legacyHtml = trim((string)app_setting_get($legacyKey, ''));
+            if ($legacyHtml !== '') {
+                return $legacyHtml;
+            }
+        }
+
         $rows = ad_snippet_rows();
         $row = $rows[$position_key] ?? null;
         if (is_array($row) && $row['is_enabled'] === true) {
             $html = trim((string)$row['snippet_html']);
             if ($html !== '') {
                 return $html;
-            }
-        }
-
-        $legacyKeys = [$position_key . '_html', $position_key];
-        foreach ($legacyKeys as $legacyKey) {
-            $legacyHtml = trim((string)app_setting_get($legacyKey, ''));
-            if ($legacyHtml !== '') {
-                return $legacyHtml;
             }
         }
 
@@ -371,12 +375,9 @@ if (!function_exists('render_shared_content_ad_row')) {
             return;
         }
 
-        $rssHtml = '';
-        if ($position_key === 'content_top') {
-            ob_start();
-            include __DIR__ . '/rss_text_widget.php';
-            $rssHtml = trim((string)ob_get_clean());
-        }
+        ob_start();
+        include __DIR__ . '/rss_text_widget.php';
+        $rssHtml = trim((string)ob_get_clean());
 
         ob_start();
         render_ad($position_key, $page_type, 'pc');
