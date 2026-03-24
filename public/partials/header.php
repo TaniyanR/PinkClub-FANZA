@@ -56,6 +56,7 @@ $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
       <?php elseif (should_show_ad('header_left_728x90', $pageType, 'pc')) : ?>
         <div class="site-ad"><?php render_ad('header_left_728x90', $pageType, 'pc'); ?></div>
       <?php endif; ?>
+      <div class="only-sp"><?php render_ad('sp_footer_above', $pageType, 'sp'); ?></div>
       <div class="only-sp"><?php render_ad('sp_header_below', $pageType, 'sp'); ?></div>
     </div>
   </div>
@@ -65,4 +66,12 @@ $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
 <div class="layout site-layout">
   <?php require __DIR__ . '/sidebar.php'; ?>
   <main class="content site-main site-main--legacy">
+    <?php $scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? '')); ?>
+    <?php $autoBreadcrumbSkip = ['item.php', 'genre.php', 'series_detail.php', 'author.php', 'maker.php', 'actress.php']; ?>
+    <?php if ($scriptName !== 'index.php' && !in_array($scriptName, $autoBreadcrumbSkip, true)): ?>
+      <nav class="pcf-breadcrumb" aria-label="パンくず">
+        <span class="pcf-breadcrumb__item"><a href="<?= e(public_url('')) ?>">ホーム</a></span>
+        <span class="pcf-breadcrumb__item"><?= e($titleText) ?></span>
+      </nav>
+    <?php endif; ?>
     <?php render_shared_content_ad_row('content_top', $pageType); ?>

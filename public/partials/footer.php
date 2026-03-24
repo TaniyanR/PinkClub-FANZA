@@ -38,8 +38,6 @@ $copyrightYears = $copyrightStartYear >= $currentYear
     : $copyrightStartYear . '-' . $currentYear;
 
 ?>
-  <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
-  <?php render_shared_content_ad_row('content_bottom', $pageType); ?>
   </main>
 </div>
 <footer class="site-footer">
@@ -47,7 +45,6 @@ $copyrightYears = $copyrightStartYear >= $currentYear
     <a href="https://affiliate.dmm.com/api/"><img src="https://p.dmm.co.jp/p/affiliate/web_service/r18_135_17.gif" width="135" height="17" alt="WEB SERVICE BY FANZA" /></a>
   </div>
   <div class="site-footer__copy">© <?= e($copyrightYears) ?> <?= e($siteName) ?></div>
-  <div class="only-sp"><?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; render_ad('sp_footer_above', $pageType, 'sp'); ?></div>
 </footer>
 </body>
 </html>
