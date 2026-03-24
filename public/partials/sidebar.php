@@ -36,6 +36,7 @@ try {
 }
 ?>
 <aside class="sidebar site-sidebar">
+    <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
     <section class="sidebar-block">
         <h2 class="sidebar-block__title">検索</h2>
         <form method="get" action="<?= e(public_url('posts.php')) ?>" class="sidebar-search-form">
@@ -57,22 +58,9 @@ try {
         <?php endif; ?>
     </section>
 
-    <section class="sidebar-block">
-        <h2 class="sidebar-block__title">相互リンク</h2>
-        <?php if ($partnerLinks === []) : ?>
-            <p class="sidebar-empty">相互リンク（未設定）</p>
-        <?php else : ?>
-            <ul class="sidebar-links sidebar-links--partners sidebar-links--scroll">
-                <?php foreach ($partnerLinks as $link) : ?>
-                    <li><a href="<?= e((string)$link['url']) ?>" target="_blank" rel="noopener noreferrer"><?= e((string)$link['name']) ?></a></li>
-                <?php endforeach; ?>
-            </ul>
-        <?php endif; ?>
-    </section>
-
-    <section class="sidebar-block">
-        <h2 class="sidebar-block__title">テキストRSS</h2>
-        <?php include __DIR__ . '/rss_text_widget.php'; ?>
+    <section class="sidebar-block sidebar-block--ad only-pc">
+        <h2 class="sidebar-block__title">サイド広告１</h2>
+        <div class="site-ad site-ad--rectangle"><?php render_ad('sidebar_bottom', $pageType, 'pc'); ?></div>
     </section>
 
     <section class="sidebar-block">
@@ -80,8 +68,26 @@ try {
         <?php include __DIR__ . '/rss_image_widget.php'; ?>
     </section>
 
-    <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
+    <section class="sidebar-block">
+        <h2 class="sidebar-block__title">テキストRSS</h2>
+        <?php include __DIR__ . '/rss_text_widget.php'; ?>
+    </section>
+
     <section class="sidebar-block sidebar-block--ad only-pc">
-        <div class="site-ad site-ad--rectangle"><?php render_ad('sidebar_bottom', $pageType, 'pc'); ?></div>
+        <h2 class="sidebar-block__title">サイド広告２</h2>
+        <div class="site-ad site-ad--rectangle"><?php render_ad('content_bottom', $pageType, 'pc'); ?></div>
+    </section>
+
+    <section class="sidebar-block">
+        <h2 class="sidebar-block__title">相互リンク</h2>
+        <?php if ($partnerLinks === []) : ?>
+            <p class="sidebar-empty">相互リンク（未設定）</p>
+        <?php else : ?>
+            <ul class="sidebar-links sidebar-links--partners sidebar-links--scroll">
+                <?php foreach ($partnerLinks as $link) : ?>
+                    <li><a href="<?= e((string)$link['url']) ?>" target="_blank" rel="noopener noreferrer">・ <?= e((string)$link['name']) ?></a></li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
     </section>
 </aside>
