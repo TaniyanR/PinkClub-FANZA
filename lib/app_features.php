@@ -398,6 +398,11 @@ function rss_normalize_url(string $url): string
 
 function rss_normalize_display_key(array $item): string
 {
+    $guid = trim((string)($item['guid'] ?? ''));
+    if ($guid !== '') {
+        return 'guid|' . mb_strtolower($guid);
+    }
+
     $link = rss_normalize_url((string)($item['link'] ?? ''));
     if ($link !== '') {
         return $link;
@@ -416,13 +421,13 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
     $pdo = db();
     $rows = [];
 
-    $sqlWithImage = 'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.published_at, ri.image_url '
+    $sqlWithImage = 'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.guid, ri.published_at, ri.image_url '
         . 'FROM rss_items ri '
         . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id '
         . 'WHERE rs.is_enabled = 1 AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY) '
         . 'ORDER BY ri.published_at DESC, ri.id DESC';
 
-    $sqlWithoutImage = 'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.published_at '
+    $sqlWithoutImage = 'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.guid, ri.published_at '
         . 'FROM rss_items ri '
         . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id '
         . 'WHERE rs.is_enabled = 1 AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY) '
@@ -462,6 +467,7 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
         $item = [
             'title' => (string)($row['title'] ?? ''),
             'link' => (string)($row['url'] ?? ''),
+            'guid' => (string)($row['guid'] ?? ''),
             'published_at' => (string)($row['published_at'] ?? ''),
             'image_url' => $imageUrl,
             'source_id' => $sourceId,
