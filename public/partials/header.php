@@ -19,6 +19,7 @@ $faviconPath = trim(front_safe_text_setting('site.favicon_path', ''));
 
 $headerAdHtml = trim((string)app_setting_get('header_ad_html', ''));
 $titleText = (string)($title ?? $pageTitle ?? $siteName);
+$metaDescription = (string)($pageDescription ?? $tagline);
 $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
 ?>
 <!doctype html>
@@ -27,7 +28,7 @@ $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= e($titleText) ?></title>
-  <?php if ($tagline !== ''): ?><meta name="description" content="<?= e($tagline) ?>"><?php endif; ?>
+  <?php if ($metaDescription !== ''): ?><meta name="description" content="<?= e($metaDescription) ?>"><?php endif; ?>
   <?php if ($keywords !== ''): ?><meta name="keywords" content="<?= e($keywords) ?>"><?php endif; ?>
   <?php if ($faviconUrl !== ''): ?>
     <link rel="icon" href="<?= e($faviconUrl) ?>" sizes="any" type="image/x-icon">

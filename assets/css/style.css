@@ -302,7 +302,7 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 
 .sidebar-links--scroll{
   width:100%;
-  height:500px;
+  height:250px;
   overflow-y:auto;
   overflow-x:hidden;
   background:#f6f7f7;
@@ -315,6 +315,12 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .sidebar-links--scroll li:last-child{border-bottom:none}
 .sidebar-links--scroll li a{color:#2271b1;font-weight:700;text-decoration:none;display:block}
 .sidebar-links--scroll li a::before{content:''}
+.sidebar-links--partners.sidebar-links--scroll{padding:20px 8px}
+.sidebar-links--partners.sidebar-links--scroll::before,.sidebar-links--partners.sidebar-links--scroll::after{content:"- - - - - - - - - - - - - - - - - - - - - - - - - - -";display:block;color:#646970;white-space:nowrap;overflow:hidden}
+.sidebar-links--partners.sidebar-links--scroll li{border-bottom:none;padding:4px 4px}
+.content-ad-row__rss .rss-widget--text .rss-box{max-height:250px}
+.fixed-page__text{max-height:250px;overflow-y:auto;padding:12px;border:1px solid #dcdcde;border-radius:4px;background:#f6f7f7;margin-bottom:16px;box-sizing:border-box}
+.fixed-page__body{margin-bottom:16px}
 
 
 /* Legacy main content style while keeping current sidebar UI */

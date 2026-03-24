@@ -6,6 +6,7 @@ require_once __DIR__ . '/../lib/db.php';
 require_once __DIR__ . '/../lib/csrf.php';
 require_once __DIR__ . '/../lib/admin_auth.php';
 require_once __DIR__ . '/partials/_helpers.php';
+require_once __DIR__ . '/partials/public_ui.php';
 
 function contact_destination_email(?int $currentUserId): array
 {
@@ -25,6 +26,39 @@ function contact_destination_email(?int $currentUserId): array
     }
 
     return ['', 'verified admin email not found'];
+}
+
+function page_split_body_sections(string $body): array
+{
+    $normalized = str_replace(["\r\n", "\r"], "\n", $body);
+    $markers = ['top' => '[[BODY_TOP]]', 'main' => '[[BODY_MAIN]]', 'bottom' => '[[BODY_BOTTOM]]'];
+
+    if (str_contains($normalized, $markers['top']) || str_contains($normalized, $markers['main']) || str_contains($normalized, $markers['bottom'])) {
+        $sections = ['top' => '', 'main' => '', 'bottom' => ''];
+        $current = 'main';
+
+        foreach (explode("\n", $normalized) as $line) {
+            $trimmed = trim($line);
+            if ($trimmed === $markers['top']) {
+                $current = 'top';
+                continue;
+            }
+            if ($trimmed === $markers['main']) {
+                $current = 'main';
+                continue;
+            }
+            if ($trimmed === $markers['bottom']) {
+                $current = 'bottom';
+                continue;
+            }
+
+            $sections[$current] .= ($sections[$current] === '' ? '' : "\n") . $line;
+        }
+
+        return $sections;
+    }
+
+    return ['top' => '', 'main' => $body, 'bottom' => ''];
 }
 
 $slug = trim((string)($_GET['slug'] ?? ''));
@@ -110,12 +144,25 @@ if ($slug === 'contact' && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST')) {
 
 $pageTitle = (string)((($p['seo_title'] ?? '') !== '') ? $p['seo_title'] : $p['title']);
 $pageDescription = (string)($p['seo_description'] ?? '');
+$bodySections = page_split_body_sections((string)($p['body'] ?? ''));
 
 include __DIR__ . '/partials/header.php';
 ?>
+        <?php pcf_render_breadcrumbs([
+            ['label' => 'トップ', 'url' => public_url('index.php')],
+            ['label' => (string)$p['title']],
+        ]); ?>
         <section class="block">
             <h1 class="section-title"><?php echo e((string)$p['title']); ?></h1>
-            <?php echo nl2br(e((string)$p['body'])); ?>
+            <?php if ($bodySections['top'] !== '') : ?>
+                <div class="fixed-page__text fixed-page__text--top"><?php echo nl2br(e((string)$bodySections['top'])); ?></div>
+            <?php endif; ?>
+            <?php if ($bodySections['main'] !== '') : ?>
+                <div class="fixed-page__body"><?php echo nl2br(e((string)$bodySections['main'])); ?></div>
+            <?php endif; ?>
+            <?php if ($bodySections['bottom'] !== '') : ?>
+                <div class="fixed-page__text fixed-page__text--bottom"><?php echo nl2br(e((string)$bodySections['bottom'])); ?></div>
+            <?php endif; ?>
         </section>
 
         <?php if ($slug === 'contact') : ?>

@@ -372,7 +372,7 @@ if (!function_exists('render_shared_content_ad_row')) {
         }
 
         $rssHtml = '';
-        if ($position_key === 'content_top') {
+        if ($position_key === 'content_bottom') {
             ob_start();
             include __DIR__ . '/rss_text_widget.php';
             $rssHtml = trim((string)ob_get_clean());

@@ -70,10 +70,6 @@ try {
         <?php endif; ?>
     </section>
 
-    <section class="sidebar-block">
-        <h2 class="sidebar-block__title">テキストRSS</h2>
-        <?php include __DIR__ . '/rss_text_widget.php'; ?>
-    </section>
 
     <section class="sidebar-block">
         <h2 class="sidebar-block__title">画像RSS</h2>

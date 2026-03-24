@@ -89,6 +89,7 @@ require __DIR__ . '/includes/header.php';
     <input type="hidden" name="id" value="<?= e((string)$edit['id']) ?>">
     <label>タイトル<input name="title" value="<?= e((string)$edit['title']) ?>" required></label>
     <label>本文<textarea name="body" rows="12" required><?= e((string)$edit['body']) ?></textarea></label>
+    <p class="admin-form-note">必要な場合は <code>[[BODY_TOP]]</code> / <code>[[BODY_MAIN]]</code> / <code>[[BODY_BOTTOM]]</code> を本文内に記載すると、固定ページを「本文上 / 本文 / 本文下」に分けて表示できます。</p>
     <label>SEOタイトル<input name="seo_title" value="<?= e((string)($edit['seo_title'] ?? '')) ?>"></label>
     <label>SEO説明<textarea name="seo_description" rows="3"><?= e((string)($edit['seo_description'] ?? '')) ?></textarea></label>
     <label><input type="checkbox" name="is_published" value="1" <?= ((int)$edit['is_published'] === 1) ? 'checked' : '' ?>> 公開する</label>
