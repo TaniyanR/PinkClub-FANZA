@@ -36,12 +36,18 @@ try {
 }
 ?>
 <aside class="sidebar site-sidebar">
+    <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
     <section class="sidebar-block">
         <h2 class="sidebar-block__title">検索</h2>
         <form method="get" action="<?= e(public_url('posts.php')) ?>" class="sidebar-search-form">
             <input type="text" name="q" value="<?= e((string)($_GET['q'] ?? '')) ?>" placeholder="タイトル/説明を検索" class="sidebar-search-form__input">
             <button type="submit" class="sidebar-search-form__button">検索</button>
         </form>
+    </section>
+
+    <section class="sidebar-block sidebar-block--ad only-pc">
+        <h2 class="sidebar-block__title">広告</h2>
+        <div class="site-ad site-ad--rectangle"><?php render_ad('header_left_728x90', $pageType, 'pc'); ?></div>
     </section>
 
     <section class="sidebar-block">
@@ -57,6 +63,26 @@ try {
         <?php endif; ?>
     </section>
 
+    <section class="sidebar-block sidebar-block--ad only-pc">
+        <h2 class="sidebar-block__title">サイド広告１</h2>
+        <div class="site-ad site-ad--rectangle"><?php render_ad('sidebar_bottom', $pageType, 'pc'); ?></div>
+    </section>
+
+    <section class="sidebar-block">
+        <h2 class="sidebar-block__title">画像RSS</h2>
+        <?php include __DIR__ . '/rss_image_widget.php'; ?>
+    </section>
+
+    <section class="sidebar-block">
+        <h2 class="sidebar-block__title">テキストRSS</h2>
+        <?php include __DIR__ . '/rss_text_widget.php'; ?>
+    </section>
+
+    <section class="sidebar-block sidebar-block--ad only-pc">
+        <h2 class="sidebar-block__title">サイド広告２</h2>
+        <div class="site-ad site-ad--rectangle"><?php render_ad('content_bottom', $pageType, 'pc'); ?></div>
+    </section>
+
     <section class="sidebar-block">
         <h2 class="sidebar-block__title">相互リンク</h2>
         <?php if ($partnerLinks === []) : ?>
@@ -68,20 +94,5 @@ try {
                 <?php endforeach; ?>
             </ul>
         <?php endif; ?>
-    </section>
-
-    <section class="sidebar-block">
-        <h2 class="sidebar-block__title">テキストRSS</h2>
-        <?php include __DIR__ . '/rss_text_widget.php'; ?>
-    </section>
-
-    <section class="sidebar-block">
-        <h2 class="sidebar-block__title">画像RSS</h2>
-        <?php include __DIR__ . '/rss_image_widget.php'; ?>
-    </section>
-
-    <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
-    <section class="sidebar-block sidebar-block--ad only-pc">
-        <div class="site-ad site-ad--rectangle"><?php render_ad('sidebar_bottom', $pageType, 'pc'); ?></div>
     </section>
 </aside>
