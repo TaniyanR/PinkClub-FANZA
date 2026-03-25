@@ -46,11 +46,6 @@ try {
         </form>
     </section>
 
-    <section class="sidebar-block sidebar-block--ad only-pc">
-        <h2 class="sidebar-block__title">広告</h2>
-        <div class="site-ad site-ad--rectangle"><?php render_ad('header_left_728x90', $pageType, 'pc'); ?></div>
-    </section>
-
     <section class="sidebar-block">
         <h2 class="sidebar-block__title">固定ページ</h2>
         <?php if ($fixedPages === []): ?>

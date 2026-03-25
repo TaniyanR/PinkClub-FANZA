@@ -6,6 +6,28 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/partials/_helpers.php';
 require_once __DIR__ . '/../lib/repository.php';
 
+function dedupe_items_for_list(array $items): array
+{
+    $seen = [];
+    $result = [];
+    foreach ($items as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        $contentId = trim((string)($item['content_id'] ?? ''));
+        $id = (string)($item['id'] ?? '');
+        $key = $contentId !== '' ? 'content_id:' . $contentId : ($id !== '' ? 'id:' . $id : '');
+        if ($key !== '' && isset($seen[$key])) {
+            continue;
+        }
+        if ($key !== '') {
+            $seen[$key] = true;
+        }
+        $result[] = $item;
+    }
+    return $result;
+}
+
 $orderParam = safe_str($_GET['order'] ?? 'date_desc', 20);
 $orderMap = [
     'date_desc' => 'date_published_desc',
@@ -31,6 +53,7 @@ $rows = $q !== ''
     ? search_items($q, $limit + 1, $offset)
     : fetch_items($order, $limit + 1, $offset);
 [$items, $hasNext] = paginate_items($rows, $limit);
+$items = dedupe_items_for_list($items);
 
 $pageTitle = $q !== '' ? sprintf('検索結果: %s', $q) : '作品一覧';
 $pageDescription = $q !== '' ? sprintf('「%s」の検索結果です。', $q) : 'FANZA作品一覧。検索・並び替え・ページング対応。';
