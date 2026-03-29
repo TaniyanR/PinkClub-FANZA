@@ -398,14 +398,14 @@ function rss_normalize_url(string $url): string
 
 function rss_normalize_display_key(array $item): string
 {
-    $guid = trim((string)($item['guid'] ?? ''));
-    if ($guid !== '') {
-        return 'guid|' . mb_strtolower($guid);
-    }
-
     $link = rss_normalize_url((string)($item['link'] ?? ''));
     if ($link !== '') {
         return $link;
+    }
+
+    $guid = trim((string)($item['guid'] ?? ''));
+    if ($guid !== '') {
+        return 'guid|' . mb_strtolower($guid);
     }
 
     return mb_strtolower(trim((string)($item['title'] ?? '')));

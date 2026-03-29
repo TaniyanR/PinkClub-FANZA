@@ -384,7 +384,11 @@ if (!function_exists('render_shared_content_ad_row')) {
 
         echo '<div class="content-ad-row only-pc">';
         echo '<div class="content-ad-row__rss">' . $rssHtml . '</div>';
-        echo '<div class="content-ad-row__rss">' . $rssHtml . '</div>';
+        if (get_ad_code($position_key) !== null) {
+            echo '<div class="content-ad-row__ad">';
+            render_ad($position_key, $page_type, 'pc');
+            echo '</div>';
+        }
         echo '</div>';
     }
 }
