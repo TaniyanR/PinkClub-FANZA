@@ -32,6 +32,49 @@ if ($name === '' || pcf_is_noise_name($name) || str_starts_with($dmmId, 'name:')
     exit('not found');
 }
 
+if (
+    trim((string)($row['image_large'] ?? '')) === '' &&
+    trim((string)($row['image_small'] ?? '')) === '' &&
+    trim((string)($row['image_url'] ?? '')) === ''
+) {
+    try {
+        $client = dmm_client_for_type('actresses');
+        $response = $client->searchActresses(['keyword' => $name, 'hits' => 20, 'offset' => 1]);
+        $apiRows = DmmNormalizer::toList($response['result']['actress'] ?? []);
+        foreach ($apiRows as $apiRow) {
+            if (!is_array($apiRow)) {
+                continue;
+            }
+            $apiId = trim((string)($apiRow['id'] ?? ''));
+            $apiName = trim((string)($apiRow['name'] ?? ''));
+            if ($apiId !== $dmmId && $apiName !== $name) {
+                continue;
+            }
+            $row['ruby'] = $apiRow['ruby'] ?? ($row['ruby'] ?? null);
+            $row['birthday'] = $apiRow['birthday'] ?? ($row['birthday'] ?? null);
+            $row['prefectures'] = $apiRow['prefectures'] ?? ($row['prefectures'] ?? null);
+            $row['image_url'] = $apiRow['imageURL']['large'] ?? ($apiRow['image_url'] ?? ($row['image_url'] ?? null));
+            $row['image_small'] = $apiRow['imageURL']['small'] ?? ($apiRow['image_small'] ?? ($row['image_small'] ?? null));
+            $row['image_large'] = $apiRow['imageURL']['large'] ?? ($apiRow['image_large'] ?? ($row['image_large'] ?? null));
+            try {
+                upsert_actress([
+                    'dmm_id' => $dmmId,
+                    'name' => $name,
+                    'ruby' => $row['ruby'] ?? null,
+                    'birthday' => $row['birthday'] ?? null,
+                    'prefectures' => $row['prefectures'] ?? null,
+                    'image_url' => $row['image_url'] ?? null,
+                    'image_small' => $row['image_small'] ?? null,
+                    'image_large' => $row['image_large'] ?? null,
+                ]);
+            } catch (Throwable) {
+            }
+            break;
+        }
+    } catch (Throwable) {
+    }
+}
+
 try {
     $list = fetch_items_by_actress((int)$row['id'], 100, 0);
 } catch (Throwable) {
