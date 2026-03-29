@@ -200,7 +200,7 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
 .sidebar-links--partners li a{text-decoration:none}
 .sidebar-links--partners li a::before{content:"・ ";}
 .site-title-link{color:inherit;text-decoration:none}
-.site-title-link:hover{text-decoration:underline}
+.site-title-link:hover,.site-title-link:focus-visible{color:inherit;text-decoration:none;opacity:1}
 
 
 .site-main{
