@@ -20,6 +20,12 @@ require __DIR__ . '/partials/header.php';
 <?php if ($rows !== []): ?>
   <section class="taxonomy-grid pcf-grid"> 
     <?php foreach ($rows as $r): ?>
+      <?php
+      $dmmId = trim((string)($r['dmm_id'] ?? ''));
+      if (str_starts_with($dmmId, 'name:')) {
+          continue;
+      }
+      ?>
       <?php pcf_render_taxonomy_card((string)($r['name'] ?? ''), public_url('genre.php?id=' . (int)($r['id'] ?? 0)), $r['item_count'] ?? null); ?>
     <?php endforeach; ?>
   </section>
