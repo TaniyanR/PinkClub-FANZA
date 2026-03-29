@@ -8,6 +8,7 @@ require_once __DIR__ . '/partials/public_ui.php';
 
 $rows = [];
 $displayRows = [];
+
 backfill_master_from_relation('authors', 'item_authors', 'author_name');
 if (db_table_exists('authors')) {
     if (db_table_exists('item_authors')) {

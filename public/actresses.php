@@ -93,6 +93,7 @@ foreach ($kanaGroups as &$rowsByKana) {
     $sortByName($rowsByKana);
 }
 unset($rowsByKana);
+
 ksort($alphaGroups);
 foreach ($alphaGroups as &$rowsByAlpha) {
     $sortByName($rowsByAlpha);
@@ -102,32 +103,39 @@ unset($rowsByAlpha);
 <?php pcf_render_hero('女優一覧', '気になる女優のプロフィールと出演作品へ。'); ?>
 
 <?php if ($displayRows !== []): ?>
-  <div class="pcf-actress-directory">
-  <?php foreach ($kanaGroups as $kana => $groupRows): ?>
-    <?php if ($groupRows === []): continue; endif; ?>
-    <section class="pcf-index-block" id="actress-kana-<?= e(rawurlencode($kana)) ?>">
-      <h2 class="pcf-section-title"><?= e($kana) ?>行</h2>
-      <div class="pcf-list-card__meta">
-        <?php foreach ($groupRows as $i => $r): ?>
-          <?php if ($i > 0): ?>　<?php endif; ?><a href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>"><?= e((string)($r['name'] ?? '')) ?></a>
-        <?php endforeach; ?>
-      </div>
-    </section>
-  <?php endforeach; ?>
+  <nav class="pcf-index-nav">
+    <?php foreach ($kanaOrder as $kana): ?>
+      <a class="pcf-index-nav__item" href="#actress-kana-<?= e(rawurlencode($kana)) ?>"><?= e($kana) ?></a>
+    <?php endforeach; ?>
+    <?php if ($alphaGroups !== []): ?><a class="pcf-index-nav__item" href="#actress-alpha">A-Z</a><?php endif; ?>
+  </nav>
 
-  <?php if ($alphaGroups !== []): ?>
-    <section class="pcf-index-block" id="actress-alpha">
-      <h2 class="pcf-section-title">A~Z</h2>
-      <?php foreach ($alphaGroups as $letter => $groupRows): ?>
+  <div class="pcf-actress-directory">
+    <?php foreach ($kanaGroups as $kana => $groupRows): ?>
+      <?php if ($groupRows === []): continue; endif; ?>
+      <section class="pcf-index-block" id="actress-kana-<?= e(rawurlencode($kana)) ?>">
+        <h2 class="pcf-section-title"><?= e($kana) ?>行</h2>
         <div class="pcf-list-card__meta">
-          <strong><?= e($letter) ?></strong>
           <?php foreach ($groupRows as $i => $r): ?>
             <?php if ($i > 0): ?>　<?php endif; ?><a href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>"><?= e((string)($r['name'] ?? '')) ?></a>
           <?php endforeach; ?>
         </div>
-      <?php endforeach; ?>
-    </section>
-  <?php endif; ?>
+      </section>
+    <?php endforeach; ?>
+
+    <?php if ($alphaGroups !== []): ?>
+      <section class="pcf-index-block" id="actress-alpha">
+        <h2 class="pcf-section-title">A-Z</h2>
+        <?php foreach ($alphaGroups as $letter => $groupRows): ?>
+          <div class="pcf-list-card__meta">
+            <strong><?= e($letter) ?></strong>
+            <?php foreach ($groupRows as $i => $r): ?>
+              <?php if ($i > 0): ?>　<?php endif; ?><a href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>"><?= e((string)($r['name'] ?? '')) ?></a>
+            <?php endforeach; ?>
+          </div>
+        <?php endforeach; ?>
+      </section>
+    <?php endif; ?>
   </div>
 <?php else: ?>
   <?php pcf_render_empty('女優データが見つかりませんでした。'); ?>
