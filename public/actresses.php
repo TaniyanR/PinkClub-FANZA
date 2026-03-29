@@ -6,25 +6,12 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
-$page = max(1, (int)get('page', 1));
-$per = 24;
-$total = 0;
 $rows = [];
 $displayRows = [];
 
 if (db_table_exists('actresses')) {
     try {
-        $total = (int)db()->query('SELECT COUNT(*) FROM actresses')->fetchColumn();
-    } catch (Throwable) {
-        $total = 0;
-    }
-}
-
-$pg = paginate($total, $page, $per);
-
-if (db_table_exists('actresses')) {
-    try {
-        $rows = fetch_actresses((int)$pg['perPage'], (int)$pg['offset'], 'name');
+        $rows = fetch_actresses(10000, 0, 'name');
     } catch (Throwable) {
         $rows = [];
     }
@@ -106,6 +93,7 @@ foreach ($kanaGroups as &$rowsByKana) {
     $sortByName($rowsByKana);
 }
 unset($rowsByKana);
+
 ksort($alphaGroups);
 foreach ($alphaGroups as &$rowsByAlpha) {
     $sortByName($rowsByAlpha);
@@ -122,33 +110,33 @@ unset($rowsByAlpha);
     <?php if ($alphaGroups !== []): ?><a class="pcf-index-nav__item" href="#actress-alpha">A-Z</a><?php endif; ?>
   </nav>
 
-  <?php foreach ($kanaGroups as $kana => $groupRows): ?>
-    <?php if ($groupRows === []): continue; endif; ?>
-    <section class="pcf-index-block" id="actress-kana-<?= e(rawurlencode($kana)) ?>">
-      <h2 class="pcf-section-title"><?= e($kana) ?>行</h2>
-      <div class="pcf-list-card__meta">
-        <?php foreach ($groupRows as $i => $r): ?>
-          <?php if ($i > 0): ?>　<?php endif; ?><a href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>"><?= e((string)($r['name'] ?? '')) ?></a>
-        <?php endforeach; ?>
-      </div>
-    </section>
-  <?php endforeach; ?>
-
-  <?php if ($alphaGroups !== []): ?>
-    <section class="pcf-index-block" id="actress-alpha">
-      <h2 class="pcf-section-title">英字</h2>
-      <?php foreach ($alphaGroups as $letter => $groupRows): ?>
+  <div class="pcf-actress-directory">
+    <?php foreach ($kanaGroups as $kana => $groupRows): ?>
+      <?php if ($groupRows === []): continue; endif; ?>
+      <section class="pcf-index-block" id="actress-kana-<?= e(rawurlencode($kana)) ?>">
+        <h2 class="pcf-section-title"><?= e($kana) ?>行</h2>
         <div class="pcf-list-card__meta">
-          <strong><?= e($letter) ?></strong>
           <?php foreach ($groupRows as $i => $r): ?>
             <?php if ($i > 0): ?>　<?php endif; ?><a href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>"><?= e((string)($r['name'] ?? '')) ?></a>
           <?php endforeach; ?>
         </div>
-      <?php endforeach; ?>
-    </section>
-  <?php endif; ?>
+      </section>
+    <?php endforeach; ?>
 
-  <?php pcf_render_pagination($pg, public_url('actresses.php')); ?>
+    <?php if ($alphaGroups !== []): ?>
+      <section class="pcf-index-block" id="actress-alpha">
+        <h2 class="pcf-section-title">A-Z</h2>
+        <?php foreach ($alphaGroups as $letter => $groupRows): ?>
+          <div class="pcf-list-card__meta">
+            <strong><?= e($letter) ?></strong>
+            <?php foreach ($groupRows as $i => $r): ?>
+              <?php if ($i > 0): ?>　<?php endif; ?><a href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>"><?= e((string)($r['name'] ?? '')) ?></a>
+            <?php endforeach; ?>
+          </div>
+        <?php endforeach; ?>
+      </section>
+    <?php endif; ?>
+  </div>
 <?php else: ?>
   <?php pcf_render_empty('女優データが見つかりませんでした。'); ?>
 <?php endif; ?>
