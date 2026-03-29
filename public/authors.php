@@ -11,10 +11,6 @@ backfill_master_from_relation('authors', 'item_authors', 'author_name');
 if (db_table_exists('authors')) {
     if (db_table_exists('item_authors')) {
         try {
-            $rows = db()->query('SELECT a.*, COUNT(ia.content_id) AS item_count FROM authors a LEFT JOIN item_authors ia ON a.id = ia.author_id GROUP BY a.id ORDER BY a.name LIMIT 500')->fetchAll() ?: [];
-        } catch (Throwable) {
-            try {
-                $rows = db()->query('SELECT a.*, COUNT(ia.item_id) AS item_count FROM authors a LEFT JOIN item_authors ia ON a.id = ia.author_id GROUP BY a.id ORDER BY a.name LIMIT 500')->fetchAll() ?: [];
             $rows = db()->query('SELECT a.*, COUNT(ia.item_id) AS item_count FROM authors a LEFT JOIN item_authors ia ON ia.dmm_id = a.dmm_id GROUP BY a.id ORDER BY a.name LIMIT 500')->fetchAll() ?: [];
         } catch (Throwable) {
             try {
@@ -27,15 +23,25 @@ if (db_table_exists('authors')) {
         $rows = db()->query('SELECT * FROM authors ORDER BY name LIMIT 500')->fetchAll() ?: [];
     }
 }
+
 $title = '作者一覧';
 require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_hero('作者一覧'); ?>
 
 <?php if ($rows !== []): ?>
-  <section class="taxonomy-grid pcf-grid"> 
+  <section class="pcf-directory">
     <?php foreach ($rows as $r): ?>
-      <?php pcf_render_taxonomy_card((string)($r['name'] ?? ''), public_url('author.php?id=' . (int)($r['id'] ?? 0)), $r['item_count'] ?? null); ?>
+      <?php
+      $name = trim((string)($r['name'] ?? ''));
+      if ($name === '' || pcf_is_noise_name($name)) {
+          continue;
+      }
+      ?>
+      <a class="pcf-directory__item" href="<?= e(public_url('author.php?id=' . (int)($r['id'] ?? 0))) ?>">
+        <span><?= e($name) ?></span>
+        <?php if (!empty($r['item_count'])): ?><small><?= e((string)$r['item_count']) ?>件</small><?php endif; ?>
+      </a>
     <?php endforeach; ?>
   </section>
 <?php else: ?>
