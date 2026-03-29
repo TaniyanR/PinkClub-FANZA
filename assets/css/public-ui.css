@@ -339,14 +339,17 @@
   object-fit: cover;
 }
 
+.pcf-kana-directory .pcf-index-block + .pcf-index-block,
 .pcf-actress-directory .pcf-index-block + .pcf-index-block {
   margin-top: 24px;
 }
 
+.pcf-kana-directory .pcf-section-title,
 .pcf-actress-directory .pcf-section-title {
   margin-bottom: 16px;
 }
 
+.pcf-kana-directory .pcf-list-card__meta,
 .pcf-actress-directory .pcf-list-card__meta {
   line-height: 2;
 }
