@@ -30,15 +30,29 @@ if (db_table_exists('item_authors')) {
         $itemStmt->execute();
         $list = $itemStmt->fetchAll() ?: [];
     } catch (Throwable) {
+        $list = [];
+    }
+
+    if ($list === []) {
         try {
             $itemStmt = db()->prepare('SELECT items.* FROM items INNER JOIN item_authors ia ON items.id = ia.item_id WHERE ia.author_id = :id ORDER BY items.date_published DESC LIMIT 100');
             $itemStmt->bindValue(':id', (int)$id, PDO::PARAM_INT);
-        $itemStmt = db()->prepare('SELECT items.* FROM items INNER JOIN item_authors ia ON ia.item_id = items.id WHERE ia.dmm_id = :dmm_id ORDER BY items.release_date DESC, items.id DESC LIMIT 100');
-        $itemStmt->bindValue(':dmm_id', (string)($row['dmm_id'] ?? ''), PDO::PARAM_STR);
-        $itemStmt->execute();
-        $list = $itemStmt->fetchAll() ?: [];
-    } catch (Throwable) {
-        $list = [];
+            $itemStmt->execute();
+            $list = $itemStmt->fetchAll() ?: [];
+        } catch (Throwable) {
+            $list = [];
+        }
+    }
+
+    if ($list === [] && trim((string)($row['dmm_id'] ?? '')) !== '') {
+        try {
+            $itemStmt = db()->prepare('SELECT items.* FROM items INNER JOIN item_authors ia ON ia.item_id = items.id WHERE ia.dmm_id = :dmm_id ORDER BY items.release_date DESC, items.id DESC LIMIT 100');
+            $itemStmt->bindValue(':dmm_id', (string)($row['dmm_id'] ?? ''), PDO::PARAM_STR);
+            $itemStmt->execute();
+            $list = $itemStmt->fetchAll() ?: [];
+        } catch (Throwable) {
+            $list = [];
+        }
     }
 
     if ($list === []) {
@@ -53,6 +67,9 @@ if (db_table_exists('item_authors')) {
     }
 }
 
+$oldestItem = pcf_pick_oldest_item($list);
+$oldestImage = pcf_item_image(is_array($oldestItem) ? $oldestItem : []);
+
 $title = (string)($row['name'] ?? '作者詳細');
 require __DIR__ . '/partials/header.php';
 ?>
@@ -61,8 +78,15 @@ require __DIR__ . '/partials/header.php';
     ['label' => '作者一覧', 'url' => public_url('authors.php')],
     ['label' => (string)($row['name'] ?? '作者詳細')],
 ]); ?>
-<?php pcf_render_hero((string)($row['name'] ?? '作者詳細')); ?>
-<?php if (!empty($row['ruby'])): ?><p class="pcf-list-card__meta">読み: <?= e((string)$row['ruby']) ?></p><?php endif; ?>
+
+<section class="pcf-topic-head">
+  <img class="pcf-topic-head__image" src="<?= e($oldestImage) ?>" alt="<?= e((string)($row['name'] ?? '')) ?>">
+  <div>
+    <h1 class="pcf-hero__title"><?= e((string)($row['name'] ?? '作者詳細')) ?></h1>
+    <?php if (!empty($row['ruby'])): ?><p class="pcf-list-card__meta">読み: <?= e((string)$row['ruby']) ?></p><?php endif; ?>
+    <p class="pcf-list-card__meta">関連作品: <?= e((string)count($list)) ?>件</p>
+  </div>
+</section>
 
 <h2 class="pcf-section-title">関連商品</h2>
 <?php if ($list !== []): ?>
