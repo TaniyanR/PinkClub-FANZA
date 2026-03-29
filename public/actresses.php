@@ -10,6 +10,7 @@ $page = max(1, (int)get('page', 1));
 $per = 24;
 $total = 0;
 $rows = [];
+$displayRows = [];
 
 if (db_table_exists('actresses')) {
     try {
@@ -29,35 +30,77 @@ if (db_table_exists('actresses')) {
     }
 }
 
+foreach ($rows as $r) {
+    if (!is_array($r)) {
+        continue;
+    }
+    $name = trim((string)($r['name'] ?? ''));
+    $dmmId = trim((string)($r['dmm_id'] ?? ''));
+    if ($name === '') {
+        continue;
+    }
+    if (pcf_is_noise_name($name) || str_starts_with($dmmId, 'name:')) {
+        continue;
+    }
+    $displayRows[] = $r;
+}
+
 $title = '女優一覧';
 require __DIR__ . '/partials/header.php';
+
+$indexMap = [];
+foreach ($displayRows as $r) {
+    if (!is_array($r)) {
+        continue;
+    }
+    $name = trim((string)($r['name'] ?? ''));
+    if ($name === '') {
+        continue;
+    }
+    $initial = mb_strtoupper(mb_substr($name, 0, 1));
+    $indexMap[$initial][] = $r;
+}
+krsort($indexMap);
+$pickupRows = array_slice($displayRows, 0, 8);
 ?>
 <?php pcf_render_hero('女優一覧', '気になる女優のプロフィールと出演作品へ。'); ?>
 
-<?php if ($rows !== []): ?>
-  <section class="pcf-grid">
-    <?php foreach ($rows as $r): ?>
+<?php if ($displayRows !== []): ?>
+  <nav class="pcf-index-nav">
+    <?php foreach (array_keys($indexMap) as $initial): ?>
+      <a class="pcf-index-nav__item" href="#actress-initial-<?= e(rawurlencode($initial)) ?>"><?= e($initial) ?></a>
+    <?php endforeach; ?>
+  </nav>
+
+  <section class="pcf-pickup-grid">
+    <?php foreach ($pickupRows as $r): ?>
       <?php
       $name = trim((string)($r['name'] ?? '名前未設定'));
-      $birthday = trim((string)($r['birthday'] ?? ''));
-      $pref = trim((string)($r['prefectures'] ?? ''));
       $img = '';
       foreach (['image_large', 'image_small', 'image_url'] as $key) {
           $val = trim((string)($r[$key] ?? ''));
           if ($val !== '') { $img = $val; break; }
       }
       ?>
-      <article class="pcf-card pcf-list-card">
-        <img class="pcf-item-card__thumb" src="<?= e($img !== '' ? $img : pcf_placeholder_data_uri('No Photo')) ?>" alt="<?= e($name) ?>" loading="lazy">
-        <h3 class="pcf-list-card__title"><?= e($name) ?></h3>
-        <div class="pcf-list-card__meta">
-          <?php if ($birthday !== ''): ?><div>誕生日: <?= e(format_date($birthday)) ?></div><?php endif; ?>
-          <?php if ($pref !== ''): ?><div>出身: <?= e($pref) ?></div><?php endif; ?>
-        </div>
-        <p><a class="pcf-btn" href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>">詳細を見る</a></p>
-      </article>
+      <a class="pcf-pickup-card" href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>">
+        <img src="<?= e($img !== '' ? $img : pcf_placeholder_data_uri('No Photo')) ?>" alt="<?= e($name) ?>" loading="lazy">
+        <span><?= e($name) ?></span>
+      </a>
     <?php endforeach; ?>
   </section>
+
+  <?php foreach ($indexMap as $initial => $groupRows): ?>
+    <section class="pcf-index-block" id="actress-initial-<?= e(rawurlencode($initial)) ?>">
+      <h2 class="pcf-section-title"><?= e($initial) ?></h2>
+      <div class="pcf-directory">
+        <?php foreach ($groupRows as $r): ?>
+          <a class="pcf-directory__item" href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>">
+            <span><?= e((string)($r['name'] ?? '')) ?></span>
+          </a>
+        <?php endforeach; ?>
+      </div>
+    </section>
+  <?php endforeach; ?>
   <?php pcf_render_pagination($pg, public_url('actresses.php')); ?>
 <?php else: ?>
   <?php pcf_render_empty('女優データが見つかりませんでした。'); ?>
