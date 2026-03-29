@@ -42,6 +42,22 @@ require __DIR__ . '/partials/header.php';
   </div>
 </section>
 
+<?php if ($list !== []): ?>
+  <h2 class="pcf-section-title">代表作品</h2>
+  <section class="pcf-pickup-grid">
+    <?php foreach (array_slice($list, 0, 6) as $pickup): ?>
+      <?php
+      $pickupTitle = trim((string)($pickup['title'] ?? ''));
+      $pickupUrl = public_url('item.php?cid=' . rawurlencode((string)($pickup['content_id'] ?? '')));
+      ?>
+      <a class="pcf-pickup-card pcf-pickup-card--item" href="<?= e($pickupUrl) ?>">
+        <img src="<?= e(pcf_item_image(is_array($pickup) ? $pickup : [])) ?>" alt="<?= e($pickupTitle) ?>" loading="lazy">
+        <span><?= e($pickupTitle) ?></span>
+      </a>
+    <?php endforeach; ?>
+  </section>
+<?php endif; ?>
+
 <h2 class="pcf-section-title">関連作品</h2>
 <?php if ($list !== []): ?>
   <section class="pcf-related-grid">
