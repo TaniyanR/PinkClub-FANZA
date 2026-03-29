@@ -34,15 +34,19 @@ require __DIR__ . '/partials/header.php';
 
 <section class="pcf-profile">
   <img src="<?= e(trim((string)($row['image_url'] ?? '')) !== '' ? (string)$row['image_url'] : pcf_placeholder_data_uri('No Photo')) ?>" alt="<?= e((string)($row['name'] ?? '')) ?>">
-  <div>
+  <div class="pcf-profile__body">
     <h1 class="pcf-hero__title"><?= e((string)($row['name'] ?? '')) ?></h1>
-    <?php if (!empty($row['birthday'])): ?><p>誕生日: <?= e(format_date((string)$row['birthday'])) ?></p><?php endif; ?>
-    <?php if (!empty($row['prefectures'])): ?><p>出身: <?= e((string)$row['prefectures']) ?></p><?php endif; ?>
-    <p class="pcf-list-card__meta">関連作品: <?= e((string)count($list)) ?>件</p>
+    <dl class="pcf-detail-list">
+      <div><dt>名前</dt><dd><?= e((string)($row['name'] ?? '')) ?></dd></div>
+      <?php if (!empty($row['ruby'])): ?><div><dt>よみ</dt><dd><?= e((string)$row['ruby']) ?></dd></div><?php endif; ?>
+      <?php if (!empty($row['birthday'])): ?><div><dt>誕生日</dt><dd><?= e(format_date((string)$row['birthday'])) ?></dd></div><?php endif; ?>
+      <?php if (!empty($row['prefectures'])): ?><div><dt>出身</dt><dd><?= e((string)$row['prefectures']) ?></dd></div><?php endif; ?>
+      <div><dt>作品数</dt><dd><?= e((string)count($list)) ?>件</dd></div>
+    </dl>
   </div>
 </section>
 
-<h2 class="pcf-section-title">関連作品</h2>
+<h2 class="pcf-section-title">作品一覧</h2>
 <?php if ($list !== []): ?>
   <section class="pcf-related-grid">
     <?php foreach ($list as $item): pcf_render_item_card(is_array($item) ? $item : []); endforeach; ?>
