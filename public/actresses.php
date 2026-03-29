@@ -102,6 +102,7 @@ unset($rowsByAlpha);
 <?php pcf_render_hero('女優一覧', '気になる女優のプロフィールと出演作品へ。'); ?>
 
 <?php if ($displayRows !== []): ?>
+  <div class="pcf-actress-directory">
   <?php foreach ($kanaGroups as $kana => $groupRows): ?>
     <?php if ($groupRows === []): continue; endif; ?>
     <section class="pcf-index-block" id="actress-kana-<?= e(rawurlencode($kana)) ?>">
@@ -116,7 +117,7 @@ unset($rowsByAlpha);
 
   <?php if ($alphaGroups !== []): ?>
     <section class="pcf-index-block" id="actress-alpha">
-      <h2 class="pcf-section-title">英字</h2>
+      <h2 class="pcf-section-title">A~Z</h2>
       <?php foreach ($alphaGroups as $letter => $groupRows): ?>
         <div class="pcf-list-card__meta">
           <strong><?= e($letter) ?></strong>
@@ -127,6 +128,7 @@ unset($rowsByAlpha);
       <?php endforeach; ?>
     </section>
   <?php endif; ?>
+  </div>
 <?php else: ?>
   <?php pcf_render_empty('女優データが見つかりませんでした。'); ?>
 <?php endif; ?>

@@ -339,6 +339,18 @@
   object-fit: cover;
 }
 
+.pcf-actress-directory .pcf-index-block + .pcf-index-block {
+  margin-top: 24px;
+}
+
+.pcf-actress-directory .pcf-section-title {
+  margin-bottom: 16px;
+}
+
+.pcf-actress-directory .pcf-list-card__meta {
+  line-height: 2;
+}
+
 @media (max-width: 900px) {
   .pcf-detail {
     grid-template-columns: 1fr;
