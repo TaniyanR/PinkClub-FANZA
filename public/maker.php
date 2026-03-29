@@ -25,14 +25,23 @@ if ($row === null) {
 
 $title = (string)($row['name'] ?? 'メーカー詳細');
 require __DIR__ . '/partials/header.php';
+$oldestItem = pcf_pick_oldest_item($list);
+$oldestImage = pcf_item_image(is_array($oldestItem) ? $oldestItem : []);
 ?>
 <?php pcf_render_breadcrumbs([
     ['label' => 'トップ', 'url' => public_url('index.php')],
     ['label' => 'メーカー一覧', 'url' => public_url('makers.php')],
     ['label' => (string)($row['name'] ?? 'メーカー詳細')],
 ]); ?>
-<?php pcf_render_hero((string)($row['name'] ?? 'メーカー詳細')); ?>
-<?php if (!empty($row['ruby'])): ?><p class="pcf-list-card__meta">読み: <?= e((string)$row['ruby']) ?></p><?php endif; ?>
+
+<section class="pcf-topic-head">
+  <img class="pcf-topic-head__image" src="<?= e($oldestImage) ?>" alt="<?= e((string)($row['name'] ?? 'メーカー詳細')) ?>">
+  <div>
+    <h1 class="pcf-hero__title"><?= e((string)($row['name'] ?? 'メーカー詳細')) ?></h1>
+    <?php if (!empty($row['ruby'])): ?><p class="pcf-list-card__meta">読み: <?= e((string)$row['ruby']) ?></p><?php endif; ?>
+    <p class="pcf-list-card__meta">関連商品: <?= e((string)count($list)) ?>件 / 最古作品画像</p>
+  </div>
+</section>
 
 <h2 class="pcf-section-title">関連商品</h2>
 <?php if ($list !== []): ?>

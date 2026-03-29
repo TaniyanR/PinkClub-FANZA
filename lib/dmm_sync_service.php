@@ -92,7 +92,7 @@ class DmmSyncService
                 }
                 $name = (string) ($r['name'] ?? '');
                 $ruby = $r['ruby'] ?? null;
-                $stmt = $this->pdo->prepare("INSERT INTO {$table}(dmm_id,name,ruby,birthday,prefectures,image_url,updated_at) VALUES(:id,:name,:ruby,:birthday,:pref,:img,NOW()) ON DUPLICATE KEY UPDATE name=VALUES(name),ruby=VALUES(ruby),birthday=VALUES(birthday),prefectures=VALUES(prefectures),image_url=VALUES(image_url),updated_at=NOW()");
+                $stmt = $this->pdo->prepare("INSERT INTO {$table}(dmm_id,name,ruby,birthday,prefectures,image_url,image_small,image_large,updated_at) VALUES(:id,:name,:ruby,:birthday,:pref,:img,:img_small,:img_large,NOW()) ON DUPLICATE KEY UPDATE name=VALUES(name),ruby=VALUES(ruby),birthday=VALUES(birthday),prefectures=VALUES(prefectures),image_url=VALUES(image_url),image_small=VALUES(image_small),image_large=VALUES(image_large),updated_at=NOW()");
                 $stmt->execute([
                     'id' => $id,
                     'name' => $name,
@@ -100,6 +100,8 @@ class DmmSyncService
                     'birthday' => $r['birthday'] ?? null,
                     'pref' => $r['prefectures'] ?? null,
                     'img' => $r['imageURL']['large'] ?? ($r['image_url'] ?? null),
+                    'img_small' => $r['imageURL']['small'] ?? ($r['image_small'] ?? null),
+                    'img_large' => $r['imageURL']['large'] ?? ($r['image_large'] ?? null),
                 ]);
                 $count++;
             }
