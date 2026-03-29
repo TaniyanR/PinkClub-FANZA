@@ -49,6 +49,38 @@ try {
 } catch (Throwable $e) {
     $items = [];
 }
+
+if (is_array($items) && count($items) > 1) {
+    shuffle($items);
+}
+
+$rssUsedKeys = [];
+if (isset($GLOBALS['pcf_rss_widget_used_keys']) && is_array($GLOBALS['pcf_rss_widget_used_keys'])) {
+    $rssUsedKeys = $GLOBALS['pcf_rss_widget_used_keys'];
+}
+
+$filteredItems = [];
+foreach ($items as $item) {
+    if (!is_array($item)) {
+        continue;
+    }
+    $key = rss_normalize_display_key($item);
+    if ($key === '') {
+        $key = mb_strtolower(trim((string)($item['title'] ?? '')));
+    }
+    if ($key !== '' && isset($rssUsedKeys[$key])) {
+        continue;
+    }
+    if ($key !== '') {
+        $rssUsedKeys[$key] = true;
+    }
+    $filteredItems[] = $item;
+}
+
+if ($filteredItems !== []) {
+    $items = $filteredItems;
+}
+$GLOBALS['pcf_rss_widget_used_keys'] = $rssUsedKeys;
 ?>
 <div class="rss-widget rss-widget--text block">
     <div class="rss-box">
