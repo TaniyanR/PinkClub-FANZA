@@ -208,11 +208,51 @@
   padding: 16px;
 }
 
+.pcf-profile--plain {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.pcf-profile--plain .pcf-hero__title {
+  color: #1d2438;
+}
+
+.pcf-profile--plain .pcf-detail-list dt,
+.pcf-profile--plain .pcf-detail-list dd {
+  color: #1d2438;
+}
+
 .pcf-profile img {
   width: 180px;
   max-width: 40%;
   border-radius: 10px;
   object-fit: cover;
+}
+
+.pcf-profile__body {
+  flex: 1;
+}
+
+.pcf-detail-list {
+  margin: 12px 0 0;
+  display: grid;
+  gap: 8px;
+}
+
+.pcf-detail-list div {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 10px;
+}
+
+.pcf-detail-list dt {
+  color: #aeb8da;
+}
+
+.pcf-detail-list dd {
+  margin: 0;
+  color: #eef2ff;
 }
 
 .pcf-related-grid {

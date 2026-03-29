@@ -7,58 +7,115 @@ require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
 $id = (int)get('id', 0);
-$row = null;
-$list = [];
-try {
-    $row = fetch_actress($id);
-    if ($row !== null) {
-        $list = fetch_items_by_actress((int)$row['id'], 100, 0);
-    }
-} catch (Throwable) {
-    $row = null;
-    $list = [];
-}
-if ($row === null) {
+if ($id <= 0) {
     http_response_code(404);
     exit('not found');
 }
 
-$title = (string)($row['name'] ?? '女優詳細');
+$row = null;
+$list = [];
+try {
+    $row = fetch_actress($id);
+} catch (Throwable) {
+    $row = null;
+}
+
+if (!is_array($row)) {
+    http_response_code(404);
+    exit('not found');
+}
+
+$name = trim((string)($row['name'] ?? ''));
+$dmmId = trim((string)($row['dmm_id'] ?? ''));
+if ($name === '' || pcf_is_noise_name($name) || str_starts_with($dmmId, 'name:') || !ctype_digit($dmmId)) {
+    http_response_code(404);
+    exit('not found');
+}
+
+if (
+    trim((string)($row['image_large'] ?? '')) === '' &&
+    trim((string)($row['image_small'] ?? '')) === '' &&
+    trim((string)($row['image_url'] ?? '')) === ''
+) {
+    try {
+        $client = dmm_client_for_type('actresses');
+        $response = $client->searchActresses(['keyword' => $name, 'hits' => 20, 'offset' => 1]);
+        $apiRows = DmmNormalizer::toList($response['result']['actress'] ?? []);
+        foreach ($apiRows as $apiRow) {
+            if (!is_array($apiRow)) {
+                continue;
+            }
+            $apiId = trim((string)($apiRow['id'] ?? ''));
+            $apiName = trim((string)($apiRow['name'] ?? ''));
+            if ($apiId !== $dmmId && $apiName !== $name) {
+                continue;
+            }
+            $row['ruby'] = $apiRow['ruby'] ?? ($row['ruby'] ?? null);
+            $row['birthday'] = $apiRow['birthday'] ?? ($row['birthday'] ?? null);
+            $row['prefectures'] = $apiRow['prefectures'] ?? ($row['prefectures'] ?? null);
+            $row['image_url'] = $apiRow['imageURL']['large'] ?? ($apiRow['image_url'] ?? ($row['image_url'] ?? null));
+            $row['image_small'] = $apiRow['imageURL']['small'] ?? ($apiRow['image_small'] ?? ($row['image_small'] ?? null));
+            $row['image_large'] = $apiRow['imageURL']['large'] ?? ($apiRow['image_large'] ?? ($row['image_large'] ?? null));
+            try {
+                upsert_actress([
+                    'dmm_id' => $dmmId,
+                    'name' => $name,
+                    'ruby' => $row['ruby'] ?? null,
+                    'birthday' => $row['birthday'] ?? null,
+                    'prefectures' => $row['prefectures'] ?? null,
+                    'image_url' => $row['image_url'] ?? null,
+                    'image_small' => $row['image_small'] ?? null,
+                    'image_large' => $row['image_large'] ?? null,
+                ]);
+            } catch (Throwable) {
+            }
+            break;
+        }
+    } catch (Throwable) {
+    }
+}
+
+try {
+    $list = fetch_items_by_actress((int)$row['id'], 100, 0);
+} catch (Throwable) {
+    $list = [];
+}
+
+$profileImage = trim((string)($row['image_large'] ?? ''));
+if ($profileImage === '') {
+    $profileImage = trim((string)($row['image_small'] ?? ''));
+}
+if ($profileImage === '') {
+    $profileImage = trim((string)($row['image_url'] ?? ''));
+}
+if ($profileImage === '') {
+    $profileImage = pcf_placeholder_data_uri('No Photo');
+}
+
+$title = $name;
 require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_breadcrumbs([
     ['label' => 'トップ', 'url' => public_url('index.php')],
     ['label' => '女優一覧', 'url' => public_url('actresses.php')],
-    ['label' => (string)($row['name'] ?? '女優詳細')],
+    ['label' => $name],
 ]); ?>
 
-<section class="pcf-profile">
-  <img src="<?= e(trim((string)($row['image_url'] ?? '')) !== '' ? (string)$row['image_url'] : pcf_placeholder_data_uri('No Photo')) ?>" alt="<?= e((string)($row['name'] ?? '')) ?>">
-  <div>
-    <h1 class="pcf-hero__title"><?= e((string)($row['name'] ?? '')) ?></h1>
-    <?php if (!empty($row['birthday'])): ?><p>誕生日: <?= e(format_date((string)$row['birthday'])) ?></p><?php endif; ?>
-    <?php if (!empty($row['prefectures'])): ?><p>出身: <?= e((string)$row['prefectures']) ?></p><?php endif; ?>
-    <p class="pcf-list-card__meta">関連作品: <?= e((string)count($list)) ?>件</p>
+<section class="pcf-profile pcf-profile--plain">
+  <img src="<?= e($profileImage) ?>" alt="<?= e($name) ?>">
+  <div class="pcf-profile__body">
+    <h1 class="pcf-hero__title"><?= e($name) ?></h1>
+    <dl class="pcf-detail-list">
+      <div><dt>ID</dt><dd><?= e($dmmId) ?></dd></div>
+      <div><dt>よみ</dt><dd><?= e(trim((string)($row['ruby'] ?? '')) !== '' ? (string)$row['ruby'] : '未登録') ?></dd></div>
+      <div><dt>誕生日</dt><dd><?= e(!empty($row['birthday']) ? format_date((string)$row['birthday']) : '未登録') ?></dd></div>
+      <div><dt>出身</dt><dd><?= e(trim((string)($row['prefectures'] ?? '')) !== '' ? (string)$row['prefectures'] : '未登録') ?></dd></div>
+      <div><dt>作品数</dt><dd><?= e((string)count($list)) ?>件</dd></div>
+    </dl>
   </div>
 </section>
 
-<?php if ($list !== []): ?>
-  <h2 class="pcf-section-title">代表作品</h2>
-  <section class="pcf-pickup-grid">
-    <?php foreach (array_slice($list, 0, 6) as $pickup): ?>
-      <?php
-      $pickupTitle = trim((string)($pickup['title'] ?? ''));
-      $pickupUrl = public_url('item.php?cid=' . rawurlencode((string)($pickup['content_id'] ?? '')));
-      ?>
-      <a class="pcf-pickup-card pcf-pickup-card--item" href="<?= e($pickupUrl) ?>">
-        <img src="<?= e(pcf_item_image(is_array($pickup) ? $pickup : [])) ?>" alt="<?= e($pickupTitle) ?>" loading="lazy">
-        <span><?= e($pickupTitle) ?></span>
-      </a>
-    <?php endforeach; ?>
-  </section>
-<?php endif; ?>
-
-<h2 class="pcf-section-title">関連作品</h2>
+<h2 class="pcf-section-title">作品一覧</h2>
 <?php if ($list !== []): ?>
   <section class="pcf-related-grid">
     <?php foreach ($list as $item): pcf_render_item_card(is_array($item) ? $item : []); endforeach; ?>
