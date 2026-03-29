@@ -25,7 +25,7 @@ if ($row === null) {
 
 $actressName = trim((string)($row['name'] ?? ''));
 $actressDmmId = trim((string)($row['dmm_id'] ?? ''));
-if ($actressName === '' || pcf_is_noise_name($actressName) || str_starts_with($actressDmmId, 'name:')) {
+if ($actressName === '' || pcf_is_noise_name($actressName) || str_starts_with($actressDmmId, 'name:') || !ctype_digit($actressDmmId)) {
     http_response_code(404);
     exit('not found');
 }

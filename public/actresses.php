@@ -26,7 +26,7 @@ foreach ($rows as $r) {
     if ($name === '') {
         continue;
     }
-    if (pcf_is_noise_name($name) || str_starts_with($dmmId, 'name:')) {
+    if (pcf_is_noise_name($name) || str_starts_with($dmmId, 'name:') || !ctype_digit($dmmId)) {
         continue;
     }
     $displayRows[] = $r;
