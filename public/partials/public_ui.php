@@ -38,6 +38,58 @@ if (!function_exists('pcf_render_hero')) {
     }
 }
 
+if (!function_exists('pcf_is_noise_name')) {
+    function pcf_is_noise_name(string $name): bool
+    {
+        $v = mb_strtolower(trim($name), 'UTF-8');
+        if ($v === '') {
+            return true;
+        }
+
+        if (str_contains($v, 'http://') || str_contains($v, 'https://') || str_contains($v, 'www.')) {
+            return true;
+        }
+
+        if (preg_match('/\.(com|net|jp|org|info|biz)(?:$|[^a-z])/i', $v)) {
+            return true;
+        }
+
+        if (str_contains($v, '/')) {
+            return true;
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('pcf_pick_oldest_item')) {
+    function pcf_pick_oldest_item(array $items): ?array
+    {
+        $oldest = null;
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            if ($oldest === null) {
+                $oldest = $item;
+                continue;
+            }
+
+            $itemDate = trim((string)($item['release_date'] ?? ''));
+            $oldestDate = trim((string)($oldest['release_date'] ?? ''));
+            if ($itemDate !== '' && ($oldestDate === '' || strcmp($itemDate, $oldestDate) < 0)) {
+                $oldest = $item;
+                continue;
+            }
+            if ($itemDate === $oldestDate && (int)($item['id'] ?? 0) < (int)($oldest['id'] ?? 0)) {
+                $oldest = $item;
+            }
+        }
+
+        return $oldest;
+    }
+}
+
 if (!function_exists('pcf_render_breadcrumbs')) {
     function pcf_render_breadcrumbs(array $items): void
     {
@@ -100,6 +152,9 @@ if (!function_exists('pcf_render_taxonomy_card')) {
         $title = trim($name);
         if ($title === '') {
             $title = '名称未設定';
+        }
+        if (pcf_is_noise_name($title)) {
+            return;
         }
 
         echo '<article class="pcf-card pcf-list-card pcf-taxonomy-card">';
