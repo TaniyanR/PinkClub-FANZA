@@ -38,6 +38,34 @@ if (!function_exists('pcf_render_hero')) {
     }
 }
 
+if (!function_exists('pcf_pick_oldest_item')) {
+    function pcf_pick_oldest_item(array $items): ?array
+    {
+        $oldest = null;
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            if ($oldest === null) {
+                $oldest = $item;
+                continue;
+            }
+
+            $itemDate = trim((string)($item['release_date'] ?? ''));
+            $oldestDate = trim((string)($oldest['release_date'] ?? ''));
+            if ($itemDate !== '' && ($oldestDate === '' || strcmp($itemDate, $oldestDate) < 0)) {
+                $oldest = $item;
+                continue;
+            }
+            if ($itemDate === $oldestDate && (int)($item['id'] ?? 0) < (int)($oldest['id'] ?? 0)) {
+                $oldest = $item;
+            }
+        }
+
+        return $oldest;
+    }
+}
+
 if (!function_exists('pcf_render_breadcrumbs')) {
     function pcf_render_breadcrumbs(array $items): void
     {

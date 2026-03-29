@@ -25,13 +25,22 @@ if ($row === null) {
 
 $title = (string)($row['name'] ?? 'ジャンル詳細');
 require __DIR__ . '/partials/header.php';
+$oldestItem = pcf_pick_oldest_item($list);
+$oldestImage = pcf_item_image(is_array($oldestItem) ? $oldestItem : []);
 ?>
 <?php pcf_render_breadcrumbs([
     ['label' => 'トップ', 'url' => public_url('index.php')],
     ['label' => 'ジャンル一覧', 'url' => public_url('genres.php')],
     ['label' => (string)($row['name'] ?? 'ジャンル詳細')],
 ]); ?>
-<?php pcf_render_hero((string)($row['name'] ?? 'ジャンル詳細')); ?>
+
+<section class="pcf-topic-head">
+  <img class="pcf-topic-head__image" src="<?= e($oldestImage) ?>" alt="<?= e((string)($row['name'] ?? 'ジャンル詳細')) ?>">
+  <div>
+    <h1 class="pcf-hero__title"><?= e((string)($row['name'] ?? 'ジャンル詳細')) ?></h1>
+    <p class="pcf-list-card__meta">関連商品: <?= e((string)count($list)) ?>件 / 最古作品画像</p>
+  </div>
+</section>
 
 <h2 class="pcf-section-title">関連商品</h2>
 <?php if ($list !== []): ?>

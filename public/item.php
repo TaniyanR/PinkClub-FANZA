@@ -250,8 +250,8 @@ require __DIR__ . '/partials/header.php';
 <article>
   <h1 class="pcf-hero__title"><?= e((string)($item['title'] ?? '')) ?></h1>
 
-  <section class="pcf-detail">
-    <div>
+  <section class="pcf-detail pcf-item-main">
+    <div class="pcf-item-main__media">
       <img class="pcf-detail__package" src="<?= e(pcf_item_image(is_array($item) ? $item : [])) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>">
       <?php if ($sampleMovieUrl !== ''): ?>
         <p><button type="button" class="sample-movie-trigger pcf-btn" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e((string)$item['title']) ?>">サンプル動画を再生</button></p>
@@ -261,7 +261,7 @@ require __DIR__ . '/partials/header.php';
       <?php endif; ?>
     </div>
 
-    <div>
+    <div class="pcf-item-main__info">
       <ul class="pcf-item-card__meta">
         <?php if (!empty($item['price_min_text'])): ?><li>価格: <?= e((string)$item['price_min_text']) ?></li><?php endif; ?>
         <?php if (!empty($item['release_date'])): ?><li>発売日: <?= e(format_date((string)$item['release_date'])) ?></li><?php endif; ?>
@@ -280,7 +280,7 @@ require __DIR__ . '/partials/header.php';
 
   <h2 class="pcf-section-title">サンプル画像</h2>
   <?php if ($sampleImages !== []): ?>
-    <div class="pcf-sample-grid">
+    <div class="pcf-sample-grid pcf-sample-grid--thumb">
       <?php foreach ($sampleImages as $i => $image): ?>
         <a href="<?= e((string)$image) ?>" target="_blank" rel="noopener noreferrer">
           <img src="<?= e((string)$image) ?>" alt="サンプル画像 <?= e((string)($i + 1)) ?>" loading="lazy">
