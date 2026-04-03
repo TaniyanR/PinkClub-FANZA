@@ -15,6 +15,21 @@ function installer_log(string $message): void
 function installer_log_exception(string $step, Throwable $exception, ?string $sql = null): void
 {
     installer_log(sprintf('step=%s exception=%s message=%s location=%s:%d', $step, get_class($exception), $exception->getMessage(), $exception->getFile(), $exception->getLine()));
+    $previous = $exception->getPrevious();
+    $depth = 0;
+    while ($previous instanceof Throwable && $depth < 5) {
+        installer_log(sprintf(
+            'step=%s previous_exception_depth=%d exception=%s message=%s location=%s:%d',
+            $step,
+            $depth + 1,
+            get_class($previous),
+            $previous->getMessage(),
+            $previous->getFile(),
+            $previous->getLine()
+        ));
+        $previous = $previous->getPrevious();
+        $depth++;
+    }
     if ($sql !== null && $sql !== '') { installer_log('failed_sql=' . $sql); }
 }
 
@@ -47,8 +62,21 @@ function installer_log_tail(int $maxLines = 20): array
 
 function installer_user_error_message(Throwable $exception): string
 {
-    $message = $exception->getMessage();
-    if (str_contains($message, 'SQLSTATE[HY000] [2002]')) return 'MySQLサーバーへ接続できません。XAMPPのMySQL起動と接続設定を確認してください。';
+    $messages = [];
+    $cursor = $exception;
+    while ($cursor instanceof Throwable) {
+        $messages[] = $cursor->getMessage();
+        $cursor = $cursor->getPrevious();
+    }
+    $message = implode(' | ', $messages);
+
+    if (
+        str_contains($message, 'SQLSTATE[HY000] [2002]')
+        || str_contains($message, 'Connection refused')
+        || str_contains($message, 'No connection could be made')
+    ) {
+        return 'MySQLサーバーへ接続できません。XAMPPのMySQL起動と接続設定（host/port）を確認してください。';
+    }
     if (str_contains($message, 'Access denied')) return 'DBユーザー認証に失敗しました。config/config.php の設定を確認してください。';
     return 'セットアップ中にエラーが発生しました。logs/install.log を確認してください。';
 }

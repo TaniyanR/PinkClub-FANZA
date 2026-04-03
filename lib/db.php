@@ -35,6 +35,17 @@ function db_validate_config(array $cfg, bool $requireDbName): array
 
 function db_log_connection_error(array $cfg, string $dsn, Throwable $e, array $errors = []): void
 {
+    $chain = [];
+    $cursor = $e;
+    while ($cursor instanceof Throwable) {
+        $chain[] = [
+            'type' => get_class($cursor),
+            'message' => $cursor->getMessage(),
+            'code' => $cursor->getCode(),
+        ];
+        $cursor = $cursor->getPrevious();
+    }
+
     $payload = [
         'host' => (string)($cfg['host'] ?? ''),
         'port' => (int)($cfg['port'] ?? 0),
@@ -42,6 +53,9 @@ function db_log_connection_error(array $cfg, string $dsn, Throwable $e, array $e
         'user' => (string)($cfg['user'] ?? ''),
         'dsn' => $dsn,
         'error' => $e->getMessage(),
+        'error_type' => get_class($e),
+        'error_code' => $e->getCode(),
+        'error_chain' => $chain,
         'config_errors' => $errors,
     ];
 
@@ -68,7 +82,7 @@ function db_server_pdo(): PDO
         $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], db_options());
     } catch (Throwable $e) {
         db_log_connection_error($cfg, $dsn, $e);
-        throw new RuntimeException('DB接続に失敗しました（設定を確認してください）。');
+        throw new RuntimeException('DB接続に失敗しました（設定を確認してください）。', 0, $e);
     }
 
     $GLOBALS['__db_server_pdo'] = $pdo;
@@ -95,7 +109,7 @@ function db_pdo(): PDO
         $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], db_options());
     } catch (Throwable $e) {
         db_log_connection_error($cfg, $dsn, $e);
-        throw new RuntimeException('DB接続に失敗しました（設定を確認してください）。');
+        throw new RuntimeException('DB接続に失敗しました（設定を確認してください）。', 0, $e);
     }
 
     $GLOBALS['__db_pdo'] = $pdo;
