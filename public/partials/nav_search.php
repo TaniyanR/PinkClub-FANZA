@@ -19,10 +19,15 @@ $navItems = [
 try {
     $stmt = db()->query('SELECT slug,title FROM fixed_pages WHERE is_published = 1 ORDER BY id ASC');
     $fixedPages = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    $excludedSlugs = ['about', 'privacy-policy', 'contact'];
+    $excludedTitles = ['サイトについて', 'Privacy Policy', 'お問い合わせ'];
     foreach ($fixedPages as $page) {
         $slug = trim((string)($page['slug'] ?? ''));
         $title = trim((string)($page['title'] ?? ''));
         if ($slug === '' || $title === '') {
+            continue;
+        }
+        if (in_array($slug, $excludedSlugs, true) || in_array($title, $excludedTitles, true)) {
             continue;
         }
         $navItems[] = ['href' => public_url('page.php?slug=' . $slug), 'label' => $title];
