@@ -52,15 +52,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $client = new DmmApiClient($apiId, $affiliateId, app_config()['dmm']['endpoint']);
             $testResult = $testRunner($client);
             $sync = dmm_sync_service($apiType);
+
             if ($apiType === 'items') {
                 $s = settings_get();
-                $count = $sync->syncItems((string)$s['site'], (string)$s['service'], (string)$s['floor'], ['hits' => 10, 'offset' => 1]);
+                $count = $sync->syncItems(
+                    (string)$s['site'],
+                    (string)$s['service'],
+                    (string)$s['floor'],
+                    ['hits' => 100, 'offset' => 1]
+                );
             } else {
                 $kind = $apiType === 'genres' ? 'genre' : ($apiType === 'actresses' ? 'actress' : 'series');
                 $s = settings_get();
                 $floorId = $kind === 'actress' ? null : (string)($s['master_floor_id'] ?? '');
-                $count = $sync->syncMaster($kind, $floorId !== '' ? $floorId : null, 1, 10);
+                $count = $sync->syncMaster($kind, $floorId !== '' ? $floorId : null, 1, 100);
             }
+
             $message = 'テスト取得と保存に成功しました。件数: ' . (string)$count;
             $messageType = 'success';
         } catch (Throwable $e) {
@@ -75,15 +82,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $affiliateId = trim((string)post('affiliate_id', $affiliateId));
             api_credential_set($apiType, $apiId, $affiliateId);
             $sync = dmm_sync_service($apiType);
+
             if ($apiType === 'items') {
                 $s = settings_get();
-                $count = $sync->syncItems((string)$s['site'], (string)$s['service'], (string)$s['floor'], ['hits' => 10, 'offset' => 1]);
+                $count = $sync->syncItems(
+                    (string)$s['site'],
+                    (string)$s['service'],
+                    (string)$s['floor'],
+                    ['hits' => 100, 'offset' => 1]
+                );
             } else {
                 $kind = $apiType === 'genres' ? 'genre' : ($apiType === 'actresses' ? 'actress' : 'series');
                 $s = settings_get();
                 $floorId = $kind === 'actress' ? null : (string)($s['master_floor_id'] ?? '');
-                $count = $sync->syncMaster($kind, $floorId !== '' ? $floorId : null, 1, 10);
+                $count = $sync->syncMaster($kind, $floorId !== '' ? $floorId : null, 1, 100);
             }
+
             $message = 'テスト取得データを保存しました。件数: ' . (string)$count;
             $messageType = 'success';
         } catch (Throwable $e) {
@@ -107,7 +121,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $target = $saveTargets[$apiType] ?? null;
 if (is_array($target)) {
-    $stmt = db()->query('SELECT ' . $target['id_column'] . ' AS row_id, ' . $target['name_column'] . ' AS row_name, updated_at FROM ' . $target['table'] . ' ORDER BY ' . $target['id_column'] . ' DESC LIMIT 50');
+    $stmt = db()->query(
+        'SELECT ' . $target['id_column'] . ' AS row_id, ' . $target['name_column'] . ' AS row_name, updated_at
+         FROM ' . $target['table'] . '
+         ORDER BY ' . $target['id_column'] . ' DESC
+         LIMIT 50'
+    );
     $savedRows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 }
 
@@ -118,7 +137,9 @@ require __DIR__ . '/includes/header.php';
   <p>このページは <?= e($pageTitle) ?> 用の APIID / アフィリエイトID を個別に保存します。</p>
 
   <?php if ($message !== ''): ?>
-    <div class="admin-notice <?= $messageType === 'success' ? 'admin-notice--success' : 'admin-notice--error' ?>"><p><?= e($message) ?></p></div>
+    <div class="admin-notice <?= $messageType === 'success' ? 'admin-notice--success' : 'admin-notice--error' ?>">
+      <p><?= e($message) ?></p>
+    </div>
   <?php endif; ?>
 
   <form method="post" class="stack" style="max-width:700px;">

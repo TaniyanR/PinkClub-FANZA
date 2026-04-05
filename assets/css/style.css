@@ -356,8 +356,8 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 
 .site-main--legacy .rail-card{padding:0;box-sizing:border-box}
 .site-main--legacy .rail-card .rail-card__title,
-.site-main--legacy .rail-card .sample-buttons,
-.site-main--legacy .rail-card .rail-card__meta{padding:0 10px 10px}
+.site-main--legacy .sample-buttons,
+.site-main--legacy .rail-card__meta{padding:0 10px 10px}
 
 /* Home rails */
 .rail-section{margin-bottom:28px}
