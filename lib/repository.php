@@ -1066,11 +1066,16 @@ function replace_item_relations(string $contentId, array $relationIds, string $t
         $table} (content_id, {$column}) VALUES (:content_id, :rel_id)";
     $stmt = $pdo->prepare($sql);
 
+    $seen = [];
     foreach ($relationIds as $id) {
         $id = (int)$id;
         if ($id <= 0) {
             continue;
         }
+        if (isset($seen[$id])) {
+            continue;
+        }
+        $seen[$id] = true;
         $stmt->execute([':content_id' => $contentId, ':rel_id' => $id]);
     }
 }

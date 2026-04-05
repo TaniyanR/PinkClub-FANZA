@@ -301,7 +301,7 @@ try {
             $genreCandidates = seeded_shuffle($genreCandidates, $seedBase + 20);
             foreach (array_slice($genreCandidates, 0, 3) as $index => $genre) {
                 $stmt = $pdo->prepare(
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
+                    'SELECT DISTINCT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
                      FROM items i
                      INNER JOIN item_genres ig ON ig.content_id = i.content_id
                      WHERE ig.genre_id = :id
@@ -320,7 +320,7 @@ try {
                 $seriesCandidates = seeded_shuffle($seriesCandidates, $seedBase + 40);
                 $picked = $seriesCandidates[0];
                 $stmt = $pdo->prepare(
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
+                    'SELECT DISTINCT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
                      FROM items i
                      INNER JOIN item_series isr ON isr.content_id = i.content_id
                      WHERE isr.series_id = :id
@@ -342,7 +342,7 @@ try {
                 $makerCandidates = seeded_shuffle($makerCandidates, $seedBase + 50);
                 $picked = $makerCandidates[0];
                 $stmt = $pdo->prepare(
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
+                    'SELECT DISTINCT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
                      FROM items i
                      INNER JOIN item_makers im ON im.content_id = i.content_id
                      WHERE im.maker_id = :id
@@ -364,7 +364,7 @@ try {
                 $authorCandidates = seeded_shuffle($authorCandidates, $seedBase + 60);
                 $picked = $authorCandidates[0];
                 $stmt = $pdo->prepare(
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
+                    'SELECT DISTINCT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
                      FROM items i
                      INNER JOIN item_authors ia ON ia.item_id = i.id
                      INNER JOIN authors a ON a.dmm_id = ia.dmm_id
