@@ -358,6 +358,8 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .site-main--legacy .rail-card .rail-card__title,
 .site-main--legacy .sample-buttons,
 .site-main--legacy .rail-card__meta{padding:0 10px 10px}
+.site-main--legacy .rail-row{overflow-x:visible;flex-wrap:wrap}
+.site-main--legacy .rail-card__title--twohalf{display:block;line-height:1.4;min-height:calc(1.4em * 2.5);max-height:calc(1.4em * 2.5);overflow:hidden}
 
 /* Home rails */
 .rail-section{margin-bottom:28px}

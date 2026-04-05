@@ -203,10 +203,6 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
 {
     $itemUrl = app_url('public/item.php?id=' . (int)$item['id']);
     $title = (string)($item['title'] ?? '');
-    $displayTitle = $title;
-    if (mb_strlen($displayTitle) > 52) {
-        $displayTitle = rtrim(mb_substr($displayTitle, 0, 52)) . '…';
-    }
     $sample = item_sample_state($item);
     $movieClass = $sample['movie_url'] !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $imageClass = $sample['has_images'] ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
@@ -218,7 +214,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
       <?php else: ?>
         <div class="rail-card__noimage" style="width:100%;height:<?= (int)$width ?>px;">画像なし</div>
       <?php endif; ?>
-      <a class="rail-card__title" href="<?= e($itemUrl) ?>" style="display:block;line-height:1.4;min-height:calc(1.4em * 2.5);max-height:calc(1.4em * 2.5);overflow:hidden;"><?= e($displayTitle) ?></a>
+      <a class="rail-card__title rail-card__title--twohalf" href="<?= e($itemUrl) ?>"><?= e($title) ?></a>
       <div class="sample-buttons">
         <button type="button" class="<?= e($movieClass) ?> sample-movie-trigger" <?= $sample['movie_url'] === '' ? 'disabled' : '' ?> data-movie-url="<?= e((string)$sample['movie_url']) ?>" data-movie-title="<?= e($title) ?>">サンプル動画</button>
         <button type="button" class="<?= e($imageClass) ?>" <?= !$sample['has_images'] ? 'disabled' : '' ?> onclick="<?= $sample['has_images'] ? "window.open('" . e($sampleImagesUrl) . "','_blank','noopener,noreferrer,width=760,height=540');" : 'return false;' ?>">サンプル画像</button>
