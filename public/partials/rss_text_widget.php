@@ -58,6 +58,10 @@ $rssUsedKeys = [];
 if (isset($GLOBALS['pcf_rss_widget_used_keys']) && is_array($GLOBALS['pcf_rss_widget_used_keys'])) {
     $rssUsedKeys = $GLOBALS['pcf_rss_widget_used_keys'];
 }
+$maxItems = 0;
+if (isset($GLOBALS['pcf_rss_widget_max_items'])) {
+    $maxItems = (int)$GLOBALS['pcf_rss_widget_max_items'];
+}
 
 $filteredItems = [];
 foreach ($items as $item) {
@@ -75,6 +79,9 @@ foreach ($items as $item) {
         $rssUsedKeys[$key] = true;
     }
     $filteredItems[] = $item;
+    if ($maxItems > 0 && count($filteredItems) >= $maxItems) {
+        break;
+    }
 }
 
 if ($filteredItems !== []) {
