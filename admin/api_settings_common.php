@@ -42,7 +42,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $affiliateId = trim((string)post('affiliate_id', $affiliateId));
             $client = new DmmApiClient($apiId, $affiliateId, app_config()['dmm']['endpoint']);
             $testResult = $testRunner($client);
-            $message = 'テスト取得に成功しました。';
+            $syncService = new DmmSyncService($client, db());
+            $settings = settings_get();
+            $savedCount = match ($apiType) {
+                'items' => $syncService->syncItems(
+                    (string)$settings['site'],
+                    (string)$settings['service'],
+                    (string)$settings['floor'],
+                    ['hits' => 10, 'offset' => 1]
+                ),
+                'genres' => $syncService->syncMaster('genre', (string)$settings['master_floor_id'], 1, 10),
+                'actresses' => $syncService->syncMaster('actress', null, 1, 10),
+                'series' => $syncService->syncMaster('series', (string)$settings['master_floor_id'], 1, 10),
+                default => 0,
+            };
+            $message = 'テスト取得に成功しました。DB保存: ' . $savedCount . '件';
             $messageType = 'success';
         } catch (Throwable $e) {
             $message = 'テスト取得に失敗しました: ' . $e->getMessage();
