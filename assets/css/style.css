@@ -70,6 +70,7 @@ body.admin-page .admin-card--form form.admin-form--compact input[type="radio"]{w
 
 body.admin-page button{width:auto;min-width:120px;padding:8px 12px;font-size:14px;background:#2271b1;border:1px solid #2271b1;color:#fff;border-radius:4px;cursor:pointer}
 body.admin-page button.button-secondary{background:#f6f7f7;color:#2c3338;border-color:#8c8f94}
+body.admin-page a.button-secondary{display:inline-block;min-width:120px;padding:8px 12px;font-size:14px;background:#f6f7f7;color:#2c3338;border:1px solid #8c8f94;border-radius:4px;text-decoration:none;text-align:center;box-sizing:border-box}
 body.admin-page .admin-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
 body.admin-page .admin-notice,body.admin-page .flash{padding:10px 12px;margin:10px 0 14px;border:1px solid transparent;border-radius:4px}
 body.admin-page .admin-notice p{margin:0}
@@ -209,7 +210,8 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
 .content-ad-row{display:flex;align-items:flex-start;justify-content:flex-start;gap:16px;margin:0 0 16px}
 .content-ad-row__rss{flex:1;min-width:0}
 .content-ad-row__rss .rss-widget--text{margin:0}
-.content-ad-row__ad{width:300px;flex:0 0 300px}
+.content-ad-row__rss{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:10px}
+.site-main .content-ad-row + *{margin-top:16px}
 .site-ad--rectangle{width:300px;min-height:250px}
 .site-ad--rectangle img,.site-ad--rectangle iframe,.site-ad--rectangle ins,.site-ad--rectangle video{max-width:300px}
 .site-main h2{margin:0 0 16px;font-size:28px}
