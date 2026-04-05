@@ -38,7 +38,6 @@ $labels = [
     'authors' => '作者',
     'dmm_floors' => 'フロア',
 ];
-$logs = db()->query('SELECT * FROM sync_logs ORDER BY id DESC LIMIT 20')->fetchAll();
 $failedLogs = db()->query('SELECT * FROM sync_logs WHERE is_success = 0 ORDER BY id DESC LIMIT 10')->fetchAll();
 $todayViews = 0;
 try {
@@ -87,30 +86,4 @@ require __DIR__ . '/includes/header.php';
   </table>
 </section>
 
-<section class="admin-card">
-  <h2>API一覧</h2>
-  <ul>
-    <li><a href="<?= e(admin_url('api_items.php')) ?>">商品情報API設定</a></li>
-    <li><a href="<?= e(admin_url('api_genres.php')) ?>">ジャンルAPI設定</a></li>
-    <li><a href="<?= e(admin_url('api_actresses.php')) ?>">女優API設定</a></li>
-    <li><a href="<?= e(admin_url('api_series.php')) ?>">シリーズAPI設定</a></li>
-  </ul>
-</section>
-
-<section class="admin-card">
-  <h2>最近の同期ログ</h2>
-  <table class="admin-table">
-    <tr><th>ID</th><th>種別</th><th>成否</th><th>件数</th><th>メッセージ</th><th>時刻</th></tr>
-    <?php foreach ($logs as $log): ?>
-      <tr>
-        <td><?= e($log['id']) ?></td>
-        <td><?= e($log['sync_type']) ?></td>
-        <td><?= $log['is_success'] ? 'OK' : 'NG' ?></td>
-        <td><?= e($log['synced_count']) ?></td>
-        <td><?= e($log['message']) ?></td>
-        <td><?= e($log['created_at']) ?></td>
-      </tr>
-    <?php endforeach; ?>
-  </table>
-</section>
 <?php require __DIR__ . '/includes/footer.php'; ?>

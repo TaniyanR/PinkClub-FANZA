@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 require_once __DIR__ . '/../public/_bootstrap.php';
 auth_require_admin();
 analytics_ensure_tables();
@@ -55,24 +56,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'sort_mode') {
         site_setting_set('link.sort_mode', post('sort_mode', 'registered') === 'kana' ? 'kana' : 'registered');
         $message = '表示順設定を更新しました。';
-    } elseif ($action === 'update') {
-        $id = (int)post('id', 0);
-        if ($id > 0) {
-            $name = trim((string)post('name', ''));
-            $url = trim((string)post('url', ''));
-            $rssUrl = trim((string)post('rss_url', ''));
-            db()->prepare('UPDATE partner_sites SET name = :name, url = :url, updated_at = NOW() WHERE id = :id')
-                ->execute([':name' => $name, ':url' => $url, ':id' => $id]);
-            $rssId = (int)post('rss_id', 0);
-            if ($rssId > 0) {
-                db()->prepare('UPDATE partner_rss SET feed_url = :url, updated_at = NOW() WHERE id = :id')
-                    ->execute([':url' => $rssUrl, ':id' => $rssId]);
-            } elseif ($rssUrl !== '') {
-                db()->prepare('INSERT INTO partner_rss(partner_site_id,feed_url,is_enabled,show_rss,created_at,updated_at) VALUES(:sid,:url,1,1,NOW(),NOW())')
-                    ->execute([':sid' => $id, ':url' => $rssUrl]);
-            }
-            $message = '相互リンク情報を更新しました。';
-        }
     } elseif ($action === 'delete') {
         $id = (int)post('id', 0);
         if ($id > 0) {
@@ -89,8 +72,8 @@ require __DIR__ . '/includes/header.php';
 ?>
 <section class="admin-card admin-card--form">
   <h1>相互リンク管理</h1>
-  <?php if ($message): ?><p><?= e($message) ?></p><?php endif; ?>
-  <form method="post" class="admin-form--compact">
+  <?php if ($message): ?><p class="flash success"><?= e($message) ?></p><?php endif; ?>
+  <form method="post" style="max-width:760px;">
     <?= csrf_input() ?>
     <input type="hidden" name="action" value="create">
     <label>サイト名<input name="name" required></label>
@@ -103,7 +86,9 @@ require __DIR__ . '/includes/header.php';
       <label><input type="radio" name="sort_mode" value="registered" <?= $sortMode !== 'kana' ? 'checked' : '' ?>> 登録順</label>
       <label><input type="radio" name="sort_mode" value="kana" <?= $sortMode === 'kana' ? 'checked' : '' ?>> あいうえお順</label>
     </fieldset>
-    <button type="submit">追加</button>
+    <div class="admin-actions">
+      <button type="submit">追加</button>
+    </div>
   </form>
 
   <table class="admin-table">
@@ -124,18 +109,7 @@ require __DIR__ . '/includes/header.php';
           </form>
           <?php endif; ?>
         </td>
-        <td>
-          <form method="post" class="admin-form--compact">
-            <?= csrf_input() ?>
-            <input type="hidden" name="action" value="update">
-            <input type="hidden" name="id" value="<?= e((string)$r['id']) ?>">
-            <input type="hidden" name="rss_id" value="<?= e((string)($r['rss_id'] ?? 0)) ?>">
-            <label>サイト名<input name="name" value="<?= e((string)$r['name']) ?>"></label>
-            <label>URL<input name="url" type="url" value="<?= e((string)$r['url']) ?>"></label>
-            <label>RSS URL<input name="rss_url" type="url" value="<?= e((string)($r['feed_url'] ?? '')) ?>"></label>
-            <button type="submit" class="button-secondary">更新</button>
-          </form>
-        </td>
+        <td><a class="button-secondary" href="<?= e(admin_url('link_partner_edit.php?id=' . (string)$r['id'])) ?>">編集</a></td>
         <td>
           <form method="post">
             <?= csrf_input() ?>
@@ -147,7 +121,5 @@ require __DIR__ . '/includes/header.php';
       </tr>
     <?php endforeach; ?>
   </table>
-
-
 </section>
 <?php require __DIR__ . '/includes/footer.php'; ?>

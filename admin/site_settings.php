@@ -99,9 +99,9 @@ require __DIR__ . '/includes/header.php';
 ?>
 <section class="admin-card admin-card--form">
   <h1>サイト設定</h1>
-  <?php if ($message !== null): ?><p><?= e($message) ?></p><?php endif; ?>
+  <?php if ($message !== null): ?><p class="flash success"><?= e($message) ?></p><?php endif; ?>
   <?php if ($error !== null): ?><p class="flash error"><?= e($error) ?></p><?php endif; ?>
-  <form method="post" enctype="multipart/form-data" class="admin-form--compact">
+  <form method="post" enctype="multipart/form-data" style="max-width:760px;">
     <?= csrf_input() ?>
     <label>サイト名
       <input type="text" name="site_name" value="<?= e(site_setting_get('site.title', site_setting_get('site.name', APP_NAME))) ?>">

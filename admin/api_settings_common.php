@@ -48,12 +48,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $apiId = trim((string)post('api_id', $apiId));
             $affiliateId = trim((string)post('affiliate_id', $affiliateId));
+            api_credential_set($apiType, $apiId, $affiliateId);
             $client = new DmmApiClient($apiId, $affiliateId, app_config()['dmm']['endpoint']);
             $testResult = $testRunner($client);
-            $message = 'テスト取得に成功しました。';
+            $sync = dmm_sync_service($apiType);
+            if ($apiType === 'items') {
+                $s = settings_get();
+                $count = $sync->syncItems((string)$s['site'], (string)$s['service'], (string)$s['floor'], ['hits' => 10, 'offset' => 1]);
+            } else {
+                $kind = $apiType === 'genres' ? 'genre' : ($apiType === 'actresses' ? 'actress' : 'series');
+                $s = settings_get();
+                $floorId = $kind === 'actress' ? null : (string)($s['master_floor_id'] ?? '');
+                $count = $sync->syncMaster($kind, $floorId !== '' ? $floorId : null, 1, 10);
+            }
+            $message = 'テスト取得と保存に成功しました。件数: ' . (string)$count;
             $messageType = 'success';
         } catch (Throwable $e) {
-            $message = 'テスト取得に失敗しました: ' . $e->getMessage();
+            $message = 'テスト取得または保存に失敗しました: ' . $e->getMessage();
             $messageType = 'error';
         }
     }
