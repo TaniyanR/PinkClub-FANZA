@@ -55,6 +55,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'sort_mode') {
         site_setting_set('link.sort_mode', post('sort_mode', 'registered') === 'kana' ? 'kana' : 'registered');
         $message = '表示順設定を更新しました。';
+    } elseif ($action === 'delete') {
+        $id = (int)post('id', 0);
+        if ($id > 0) {
+            db()->prepare('DELETE FROM partner_rss WHERE partner_site_id = :id')->execute([':id' => $id]);
+            db()->prepare('DELETE FROM partner_sites WHERE id = :id')->execute([':id' => $id]);
+            $message = '相互リンクを削除しました。';
+        }
     }
 }
 
@@ -82,7 +89,7 @@ require __DIR__ . '/includes/header.php';
   </form>
 
   <table class="admin-table">
-    <tr><th>ID</th><th>サイト名</th><th>URL</th><th>RSS</th><th>相互リンク表示</th><th>RSS表示</th></tr>
+    <tr><th>ID</th><th>サイト名</th><th>URL</th><th>RSS</th><th>相互リンク表示</th><th>RSS表示</th><th>編集</th><th>削除</th></tr>
     <?php foreach ($rows as $r): ?>
       <tr>
         <td><?= e((string)$r['id']) ?></td><td><?= e((string)$r['name']) ?></td><td><?= e((string)$r['url']) ?></td>
@@ -98,6 +105,15 @@ require __DIR__ . '/includes/header.php';
             <label><input type="checkbox" name="show_rss" value="1" <?= ((int)($r['show_rss'] ?? 0) === 1) ? 'checked' : '' ?> onchange="this.form.submit()"></label>
           </form>
           <?php endif; ?>
+        </td>
+        <td><a class="button-secondary" href="<?= e(admin_url('link_partner_edit.php?id=' . (string)$r['id'])) ?>">編集</a></td>
+        <td>
+          <form method="post">
+            <?= csrf_input() ?>
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="id" value="<?= e((string)$r['id']) ?>">
+            <button type="submit" class="button-secondary">削除</button>
+          </form>
         </td>
       </tr>
     <?php endforeach; ?>

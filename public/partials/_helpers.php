@@ -385,11 +385,17 @@ if (!function_exists('render_shared_content_ad_row')) {
         ob_start();
         include __DIR__ . '/rss_text_widget.php';
         $rssHtmlRight = trim((string)ob_get_clean());
+        $adHtml = trim((string)get_ad_code($position_key));
 
         echo '<div class="content-ad-row only-pc">';
         echo '<div class="content-ad-row__rss">' . $rssHtmlLeft . '</div>';
         if ($rssHtmlRight !== '') {
             echo '<div class="content-ad-row__rss">' . $rssHtmlRight . '</div>';
+        }
+        if ($adHtml !== '') {
+            echo '<div class="content-ad-row__ad"><section class="sidebar-block"><h2 class="sidebar-block__title">PC本文上</h2><div class="site-ad site-ad--rectangle">';
+            render_ad($position_key, $page_type, 'pc');
+            echo '</div></section></div>';
         }
         echo '</div>';
     }
