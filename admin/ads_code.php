@@ -10,7 +10,6 @@ $error = null;
 $positions = [
     'header_left_728x90' => 'PCヘッダー（728x90）',
     'sidebar_bottom' => 'サイド広告１（300x250）',
-    'content_top' => 'PC本文上',
     'content_bottom' => 'サイド広告２（300x250）',
     'sp_header_below' => 'SPヘッダー下',
     'sp_footer_above' => 'SPヘッダー上',
