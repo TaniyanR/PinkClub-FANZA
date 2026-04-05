@@ -75,3 +75,4 @@ $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
       </nav>
     <?php endif; ?>
     <?php render_shared_content_ad_row('content_top', $pageType); ?>
+    <div class="site-main__body-block">

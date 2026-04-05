@@ -38,6 +38,7 @@ $copyrightYears = $copyrightStartYear >= $currentYear
     : $copyrightStartYear . '-' . $currentYear;
 
 ?>
+    </div>
   </main>
 </div>
 <footer class="site-footer">
