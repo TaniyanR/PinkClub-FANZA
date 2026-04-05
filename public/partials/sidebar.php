@@ -59,7 +59,7 @@ try {
         <?php endif; ?>
     </section>
 
-    <section class="sidebar-block sidebar-block--ad only-pc">
+    <section class="sidebar-block only-pc">
         <h2 class="sidebar-block__title">サイド広告１</h2>
         <div class="site-ad site-ad--rectangle"><?php render_ad('sidebar_bottom', $pageType, 'pc'); ?></div>
     </section>
@@ -74,7 +74,7 @@ try {
         <?php include __DIR__ . '/rss_text_widget.php'; ?>
     </section>
 
-    <section class="sidebar-block sidebar-block--ad only-pc">
+    <section class="sidebar-block only-pc">
         <h2 class="sidebar-block__title">サイド広告２</h2>
         <div class="site-ad site-ad--rectangle"><?php render_ad('content_bottom', $pageType, 'pc'); ?></div>
     </section>

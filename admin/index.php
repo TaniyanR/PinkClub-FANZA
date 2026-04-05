@@ -39,6 +39,13 @@ $labels = [
     'dmm_floors' => 'フロア',
 ];
 $logs = db()->query('SELECT * FROM sync_logs ORDER BY id DESC LIMIT 20')->fetchAll();
+$failedLogs = db()->query('SELECT * FROM sync_logs WHERE is_success = 0 ORDER BY id DESC LIMIT 10')->fetchAll();
+$todayViews = 0;
+try {
+    $todayViews = (int) db()->query('SELECT COUNT(*) FROM page_views WHERE DATE(viewed_at) = CURDATE()')->fetchColumn();
+} catch (Throwable $e) {
+    $todayViews = 0;
+}
 
 require __DIR__ . '/includes/header.php';
 ?>
@@ -53,6 +60,29 @@ require __DIR__ . '/includes/header.php';
     <tr><th>項目</th><th>件数</th></tr>
     <?php foreach ($counts as $key => $count): ?>
       <tr><td><?= e($labels[$key] ?? $key) ?></td><td><?= e((string)$count) ?></td></tr>
+    <?php endforeach; ?>
+  </table>
+</section>
+
+<section class="admin-card">
+  <h2>アクセス情報（簡易）</h2>
+  <table class="admin-table">
+    <tr><th>項目</th><th>値</th></tr>
+    <tr><td>本日のPV</td><td><?= e((string)$todayViews) ?></td></tr>
+  </table>
+</section>
+
+<section class="admin-card">
+  <h2>不具合情報（直近失敗ログ）</h2>
+  <table class="admin-table">
+    <tr><th>ID</th><th>種別</th><th>メッセージ</th><th>時刻</th></tr>
+    <?php foreach ($failedLogs as $log): ?>
+      <tr>
+        <td><?= e($log['id']) ?></td>
+        <td><?= e($log['sync_type']) ?></td>
+        <td><?= e($log['message']) ?></td>
+        <td><?= e($log['created_at']) ?></td>
+      </tr>
     <?php endforeach; ?>
   </table>
 </section>
