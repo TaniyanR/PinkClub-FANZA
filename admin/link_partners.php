@@ -55,6 +55,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'sort_mode') {
         site_setting_set('link.sort_mode', post('sort_mode', 'registered') === 'kana' ? 'kana' : 'registered');
         $message = '表示順設定を更新しました。';
+    } elseif ($action === 'update') {
+        $id = (int)post('id', 0);
+        if ($id > 0) {
+            $name = trim((string)post('name', ''));
+            $url = trim((string)post('url', ''));
+            $rssUrl = trim((string)post('rss_url', ''));
+            db()->prepare('UPDATE partner_sites SET name = :name, url = :url, updated_at = NOW() WHERE id = :id')
+                ->execute([':name' => $name, ':url' => $url, ':id' => $id]);
+            $rssId = (int)post('rss_id', 0);
+            if ($rssId > 0) {
+                db()->prepare('UPDATE partner_rss SET feed_url = :url, updated_at = NOW() WHERE id = :id')
+                    ->execute([':url' => $rssUrl, ':id' => $rssId]);
+            } elseif ($rssUrl !== '') {
+                db()->prepare('INSERT INTO partner_rss(partner_site_id,feed_url,is_enabled,show_rss,created_at,updated_at) VALUES(:sid,:url,1,1,NOW(),NOW())')
+                    ->execute([':sid' => $id, ':url' => $rssUrl]);
+            }
+            $message = '相互リンク情報を更新しました。';
+        }
+    } elseif ($action === 'delete') {
+        $id = (int)post('id', 0);
+        if ($id > 0) {
+            db()->prepare('DELETE FROM partner_rss WHERE partner_site_id = :id')->execute([':id' => $id]);
+            db()->prepare('DELETE FROM partner_sites WHERE id = :id')->execute([':id' => $id]);
+            $message = '相互リンクを削除しました。';
+        }
     }
 }
 
@@ -82,7 +107,7 @@ require __DIR__ . '/includes/header.php';
   </form>
 
   <table class="admin-table">
-    <tr><th>ID</th><th>サイト名</th><th>URL</th><th>RSS</th><th>相互リンク表示</th><th>RSS表示</th></tr>
+    <tr><th>ID</th><th>サイト名</th><th>URL</th><th>RSS</th><th>相互リンク表示</th><th>RSS表示</th><th>編集</th><th>削除</th></tr>
     <?php foreach ($rows as $r): ?>
       <tr>
         <td><?= e((string)$r['id']) ?></td><td><?= e((string)$r['name']) ?></td><td><?= e((string)$r['url']) ?></td>
@@ -98,6 +123,26 @@ require __DIR__ . '/includes/header.php';
             <label><input type="checkbox" name="show_rss" value="1" <?= ((int)($r['show_rss'] ?? 0) === 1) ? 'checked' : '' ?> onchange="this.form.submit()"></label>
           </form>
           <?php endif; ?>
+        </td>
+        <td>
+          <form method="post" class="admin-form--compact">
+            <?= csrf_input() ?>
+            <input type="hidden" name="action" value="update">
+            <input type="hidden" name="id" value="<?= e((string)$r['id']) ?>">
+            <input type="hidden" name="rss_id" value="<?= e((string)($r['rss_id'] ?? 0)) ?>">
+            <label>サイト名<input name="name" value="<?= e((string)$r['name']) ?>"></label>
+            <label>URL<input name="url" type="url" value="<?= e((string)$r['url']) ?>"></label>
+            <label>RSS URL<input name="rss_url" type="url" value="<?= e((string)($r['feed_url'] ?? '')) ?>"></label>
+            <button type="submit" class="button-secondary">更新</button>
+          </form>
+        </td>
+        <td>
+          <form method="post">
+            <?= csrf_input() ?>
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="id" value="<?= e((string)$r['id']) ?>">
+            <button type="submit" class="button-secondary">削除</button>
+          </form>
         </td>
       </tr>
     <?php endforeach; ?>
