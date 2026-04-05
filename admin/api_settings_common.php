@@ -69,6 +69,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($action === 'test_save') {
+        try {
+            $apiId = trim((string)post('api_id', $apiId));
+            $affiliateId = trim((string)post('affiliate_id', $affiliateId));
+            api_credential_set($apiType, $apiId, $affiliateId);
+            $sync = dmm_sync_service($apiType);
+            if ($apiType === 'items') {
+                $s = settings_get();
+                $count = $sync->syncItems((string)$s['site'], (string)$s['service'], (string)$s['floor'], ['hits' => 10, 'offset' => 1]);
+            } else {
+                $kind = $apiType === 'genres' ? 'genre' : ($apiType === 'actresses' ? 'actress' : 'series');
+                $s = settings_get();
+                $floorId = $kind === 'actress' ? null : (string)($s['master_floor_id'] ?? '');
+                $count = $sync->syncMaster($kind, $floorId !== '' ? $floorId : null, 1, 10);
+            }
+            $message = 'テスト取得データを保存しました。件数: ' . (string)$count;
+            $messageType = 'success';
+        } catch (Throwable $e) {
+            $message = '保存に失敗しました: ' . $e->getMessage();
+            $messageType = 'error';
+        }
+    }
+
     if ($action === 'delete_row') {
         $target = $saveTargets[$apiType] ?? null;
         if (is_array($target)) {
@@ -109,6 +132,7 @@ require __DIR__ . '/includes/header.php';
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button type="submit" name="action" value="save">保存</button>
       <button type="submit" name="action" value="test" class="button-secondary"><?= e($testButtonLabel) ?></button>
+      <button type="submit" name="action" value="test_save" class="button-secondary"><?= e($testButtonLabel) ?>して保存</button>
     </div>
   </form>
 
