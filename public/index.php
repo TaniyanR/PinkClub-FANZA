@@ -199,7 +199,29 @@ function item_sample_state(array $item): array
     return ['movie_url' => $firstMovieUrl, 'movie_urls' => $movieUrls, 'has_images' => $hasImageSample];
 }
 
-function render_item_card(array $item, int $width = 180, ?array $taxonomy = null): void
+function item_wide_sample_image(array $item): string
+{
+    $raw = decode_item_raw($item);
+    $sampleImageUrl = $raw['sampleImageURL'] ?? null;
+    if (is_array($sampleImageUrl)) {
+        foreach (['sample_l', 'sample_s'] as $sampleKey) {
+            $images = $sampleImageUrl[$sampleKey]['image'] ?? null;
+            if (!is_array($images)) {
+                continue;
+            }
+            foreach ($images as $image) {
+                $url = trim((string)$image);
+                if ($url !== '') {
+                    return $url;
+                }
+            }
+        }
+    }
+
+    return '';
+}
+
+function render_item_card(array $item, int $width = 180, ?array $taxonomy = null, bool $preferWideSampleImage = false): void
 {
     $itemUrl = app_url('public/item.php?id=' . (int)$item['id']);
     $title = (string)($item['title'] ?? '');
@@ -209,10 +231,17 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
     $affiliateClass = $affiliateUrl !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')));
+    $thumbUrl = trim((string)($item['image_small'] ?? ''));
+    if ($preferWideSampleImage) {
+        $wideSampleImage = item_wide_sample_image($item);
+        if ($wideSampleImage !== '') {
+            $thumbUrl = $wideSampleImage;
+        }
+    }
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
-      <?php if (!empty($item['image_small'])): ?>
-        <img class="thumb" src="<?= e((string)$item['image_small']) ?>" alt="<?= e($title) ?>" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
+      <?php if ($thumbUrl !== ''): ?>
+        <img class="thumb" src="<?= e($thumbUrl) ?>" alt="<?= e($title) ?>" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
       <?php else: ?>
         <div class="rail-card__noimage" style="width:<?= (int)$width ?>px;height:<?= (int)$width ?>px;">画像なし</div>
       <?php endif; ?>
@@ -414,14 +443,14 @@ $hasHomeContent = $latestTop !== []
 <?php else: ?>
   <section class="rail-section">
     <h2>新着作品</h2>
-    <div class="rail-row rail-row--220 rail-row--no-scroll rail-row--top-shift"><?php foreach ($latestTop as $item) { render_item_card($item, 220); } ?></div>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb"><?php foreach ($latestBottom as $item) { render_item_card($item, 200); } ?></div>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($latestTop as $item) { render_item_card($item, 210); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb"><?php foreach ($latestBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
 
   <section class="rail-section">
     <h2>ピックアップ（人気順）</h2>
-    <div class="rail-row rail-row--220 rail-row--no-scroll rail-row--top-shift"><?php foreach ($pickupTop as $item) { render_item_card($item, 220); } ?></div>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb"><?php foreach ($pickupBottom as $item) { render_item_card($item, 200); } ?></div>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($pickupTop as $item) { render_item_card($item, 210); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb"><?php foreach ($pickupBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
 
   <section class="rail-section">
