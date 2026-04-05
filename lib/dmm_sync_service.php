@@ -51,7 +51,10 @@ class DmmSyncService
     public function syncMaster(string $kind, ?string $floorId = null, int $offset = 1, int $hits = 100): int
     {
         $count = 0;
-        $params = ['hits' => min(100, max(1, $hits)), 'offset' => max(1, $offset)];
+        $params = [];
+        if ($kind !== 'actress') {
+            $params = ['hits' => min(100, max(1, $hits)), 'offset' => max(1, $offset)];
+        }
         if ($floorId && $kind !== 'actress') {
             $params['floor_id'] = $floorId;
         }
@@ -182,11 +185,13 @@ class DmmSyncService
             foreach ($items as $item) {
                 $itemId = $this->upsertItem($item);
                 $this->rebuildItemRelations($itemId, $item);
-                generate_tags_for_item([
-                    'content_id' => $item['content_id'] ?? '',
-                    'title' => $item['title'] ?? '',
-                    'category_name' => $item['category_name'] ?? '',
-                ]);
+                if (function_exists('generate_tags_for_item')) {
+                    generate_tags_for_item([
+                        'content_id' => $item['content_id'] ?? '',
+                        'title' => $item['title'] ?? '',
+                        'category_name' => $item['category_name'] ?? '',
+                    ]);
+                }
                 $count++;
             }
             $this->pdo->commit();
