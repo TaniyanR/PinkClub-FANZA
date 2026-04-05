@@ -199,7 +199,92 @@ function item_sample_state(array $item): array
     return ['movie_url' => $firstMovieUrl, 'movie_urls' => $movieUrls, 'has_images' => $hasImageSample];
 }
 
-function render_item_card(array $item, int $width = 180, ?array $taxonomy = null): void
+function item_wide_sample_image(array $item): string
+{
+    $raw = decode_item_raw($item);
+    $packageCandidates = [];
+    collect_package_image_urls($raw, $packageCandidates);
+    foreach ($packageCandidates as $candidate) {
+        $url = normalize_movie_url((string)$candidate);
+        if ($url !== '') {
+            return $url;
+        }
+    }
+
+    $sampleImageUrl = $raw['sampleImageURL'] ?? null;
+    if (is_array($sampleImageUrl)) {
+        $images = $sampleImageUrl['sample_l']['image'] ?? null;
+        if (is_array($images)) {
+            foreach ($images as $image) {
+                $url = trim((string)$image);
+                if ($url !== '') {
+                    return $url;
+                }
+            }
+        }
+    }
+
+    return '';
+}
+
+function collect_url_strings(mixed $value, array &$urls): void
+{
+    if (is_string($value)) {
+        $normalized = normalize_movie_url($value);
+        if ($normalized !== '') {
+            $urls[] = $normalized;
+        }
+        return;
+    }
+
+    if (!is_array($value)) {
+        return;
+    }
+
+    foreach ($value as $child) {
+        collect_url_strings($child, $urls);
+    }
+}
+
+function collect_package_image_urls(array $raw, array &$urls, string $path = ''): void
+{
+    foreach ($raw as $key => $value) {
+        $keyText = is_string($key) ? $key : (string)$key;
+        $nextPath = $path === '' ? strtolower($keyText) : ($path . '.' . strtolower($keyText));
+        $isPackageNode = preg_match('/(package|jacket|cover)/i', $keyText) === 1;
+        if ($isPackageNode) {
+            collect_url_strings($value, $urls);
+        }
+        if (is_array($value)) {
+            collect_package_image_urls($value, $urls, $nextPath);
+        }
+    }
+}
+
+function item_wide_image_candidates(array $item): array
+{
+    $raw = decode_item_raw($item);
+    $candidates = [];
+
+    collect_package_image_urls($raw, $candidates);
+
+    $sampleImageUrl = $raw['sampleImageURL'] ?? null;
+    if (is_array($sampleImageUrl)) {
+        $images = $sampleImageUrl['sample_l']['image'] ?? null;
+        if (is_array($images)) {
+            foreach ($images as $image) {
+                $url = normalize_movie_url((string)$image);
+                if ($url !== '') {
+                    $candidates[] = $url;
+                }
+            }
+        }
+    }
+
+    return array_values(array_unique($candidates));
+}
+
+function render_item_card(array $item, int $width = 180, ?array $taxonomy = null, bool $preferWideSampleImage = false): void
 {
     $itemUrl = app_url('public/item.php?id=' . (int)$item['id']);
     $title = (string)($item['title'] ?? '');
@@ -209,10 +294,20 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
     $affiliateClass = $affiliateUrl !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')));
+    $thumbUrl = trim((string)($item['image_small'] ?? ''));
+    $wideCandidates = [];
+    if ($preferWideSampleImage) {
+        $wideCandidates = item_wide_image_candidates($item);
+        $wideSampleImage = $wideCandidates[0] ?? '';
+        if ($wideSampleImage !== '') {
+            $thumbUrl = $wideSampleImage;
+        }
+    }
+    $wideCandidatesJson = $wideCandidates === [] ? '' : (json_encode($wideCandidates, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '');
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
-      <?php if (!empty($item['image_small'])): ?>
-        <img class="thumb" src="<?= e((string)$item['image_small']) ?>" alt="<?= e($title) ?>" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
+      <?php if ($thumbUrl !== ''): ?>
+        <img class="thumb<?= $preferWideSampleImage ? ' js-wide-thumb' : '' ?>" src="<?= e($thumbUrl) ?>" alt="<?= e($title) ?>" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;"<?= $wideCandidatesJson !== '' ? ' data-wide-candidates="' . e($wideCandidatesJson) . '"' : '' ?>>
       <?php else: ?>
         <div class="rail-card__noimage" style="width:<?= (int)$width ?>px;height:<?= (int)$width ?>px;">画像なし</div>
       <?php endif; ?>
@@ -254,6 +349,60 @@ function safe_render_home_ad(string $positionKey): void
     }
 }
 
+function pick_wide_bottom_items(array $rows, int $offset, int $limit): array
+{
+    $limit = max(1, $limit);
+    $offset = max(0, $offset);
+    $picked = [];
+
+    for ($i = $offset, $count = count($rows); $i < $count; $i++) {
+        $row = $rows[$i] ?? null;
+        if (!is_array($row)) {
+            continue;
+        }
+        if (item_wide_sample_image($row) === '') {
+            continue;
+        }
+        $picked[] = $row;
+        if (count($picked) >= $limit) {
+            break;
+        }
+    }
+
+    if ($picked === []) {
+        return array_slice($rows, $offset, $limit);
+    }
+
+    return $picked;
+}
+
+function filter_out_content_ids(array $rows, array $excludedContentIds): array
+{
+    if ($excludedContentIds === []) {
+        return $rows;
+    }
+
+    $excludedMap = [];
+    foreach ($excludedContentIds as $contentId) {
+        $key = trim((string)$contentId);
+        if ($key !== '') {
+            $excludedMap[$key] = true;
+        }
+    }
+
+    if ($excludedMap === []) {
+        return $rows;
+    }
+
+    return array_values(array_filter($rows, static function ($row) use ($excludedMap): bool {
+        if (!is_array($row)) {
+            return false;
+        }
+        $contentId = trim((string)($row['content_id'] ?? ''));
+        return $contentId === '' || !isset($excludedMap[$contentId]);
+    }));
+}
+
 $title = 'トップ';
 $itemCount = 0;
 
@@ -279,7 +428,14 @@ try {
             'id DESC',
         ], 20);
         $latestTop = array_slice($latestRows, 0, 5);
-        $latestBottom = array_slice($latestRows, 5, 15);
+        $latestBottomCandidates = fetch_items_with_order_fallback($pdo, [
+            'release_date DESC, updated_at DESC, id DESC',
+            'date_published DESC, updated_at DESC, id DESC',
+            'updated_at DESC, id DESC',
+            'id DESC',
+        ], 120);
+        $latestBottomCandidates = filter_out_content_ids($latestBottomCandidates, array_column($latestTop, 'content_id'));
+        $latestBottom = pick_wide_bottom_items($latestBottomCandidates, 0, 15);
         $fallbackItems = array_slice($latestRows, 0, 12);
 
         $popularRows = fetch_items_with_order_fallback($pdo, [
@@ -289,7 +445,14 @@ try {
             'id DESC',
         ], 20);
         $pickupTop = array_slice($popularRows, 0, 5);
-        $pickupBottom = array_slice($popularRows, 5, 15);
+        $pickupBottomCandidates = fetch_items_with_order_fallback($pdo, [
+            'view_count DESC, release_date DESC, id DESC',
+            'view_count DESC, date_published DESC, id DESC',
+            'view_count DESC, id DESC',
+            'id DESC',
+        ], 120);
+        $pickupBottomCandidates = filter_out_content_ids($pickupBottomCandidates, array_column($pickupTop, 'content_id'));
+        $pickupBottom = pick_wide_bottom_items($pickupBottomCandidates, 0, 15);
 
         if (db_table_exists($pdo, 'actresses')) {
             $actressCandidates = $pdo->query('SELECT id,name,image_small FROM actresses ORDER BY (CASE WHEN image_small IS NULL OR image_small = "" THEN 1 ELSE 0 END), id DESC LIMIT 200')->fetchAll();
@@ -414,14 +577,14 @@ $hasHomeContent = $latestTop !== []
 <?php else: ?>
   <section class="rail-section">
     <h2>新着作品</h2>
-    <div class="rail-row rail-row--220 rail-row--no-scroll rail-row--top-shift"><?php foreach ($latestTop as $item) { render_item_card($item, 220); } ?></div>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb"><?php foreach ($latestBottom as $item) { render_item_card($item, 200); } ?></div>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($latestTop as $item) { render_item_card($item, 210); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb"><?php foreach ($latestBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
 
   <section class="rail-section">
     <h2>ピックアップ（人気順）</h2>
-    <div class="rail-row rail-row--220 rail-row--no-scroll rail-row--top-shift"><?php foreach ($pickupTop as $item) { render_item_card($item, 220); } ?></div>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb"><?php foreach ($pickupBottom as $item) { render_item_card($item, 200); } ?></div>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($pickupTop as $item) { render_item_card($item, 210); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb"><?php foreach ($pickupBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
 
   <section class="rail-section">
@@ -480,6 +643,56 @@ $hasHomeContent = $latestTop !== []
   </div>
 </div>
 <script>
+(() => {
+  const thumbs = Array.from(document.querySelectorAll('.js-wide-thumb[data-wide-candidates]'));
+  if (thumbs.length === 0) return;
+
+  const isLandscape = (width, height) => width > 0 && height > 0 && (width / height) >= 1.2;
+
+  const pickLandscapeSource = (candidates) => {
+    const list = Array.isArray(candidates) ? candidates.filter((v) => typeof v === 'string' && v.trim() !== '') : [];
+    if (list.length === 0) {
+      return Promise.resolve('');
+    }
+
+    return new Promise((resolve) => {
+      let index = 0;
+      const tryNext = () => {
+        if (index >= list.length) {
+          resolve('');
+          return;
+        }
+        const url = list[index++];
+        const probe = new Image();
+        probe.onload = () => {
+          if (isLandscape(probe.naturalWidth, probe.naturalHeight)) {
+            resolve(url);
+            return;
+          }
+          tryNext();
+        };
+        probe.onerror = () => tryNext();
+        probe.src = url;
+      };
+      tryNext();
+    });
+  };
+
+  thumbs.forEach((img) => {
+    let candidates = [];
+    try {
+      candidates = JSON.parse(img.dataset.wideCandidates || '[]');
+    } catch (e) {
+      candidates = [];
+    }
+    pickLandscapeSource(candidates).then((pickedUrl) => {
+      if (pickedUrl !== '' && img.getAttribute('src') !== pickedUrl) {
+        img.setAttribute('src', pickedUrl);
+      }
+    });
+  });
+})();
+
 (() => {
   const modal = document.getElementById('sample-movie-modal');
   const frame = document.getElementById('sample-movie-frame');
