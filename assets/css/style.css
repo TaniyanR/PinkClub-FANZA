@@ -390,7 +390,7 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
   width:300px !important;
   max-width:300px !important;
   aspect-ratio:16 / 9;
-  object-fit:contain;
+  object-fit:cover;
   background:#fff;
 }
 .rail-row--wide-thumb .rail-card .rail-card__noimage{
