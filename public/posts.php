@@ -15,8 +15,19 @@ function dedupe_items_for_list(array $items): array
             continue;
         }
         $contentId = trim((string)($item['content_id'] ?? ''));
+        $productId = trim((string)($item['product_id'] ?? ''));
+        $url = trim((string)($item['url'] ?? ''));
+        $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
         $id = (string)($item['id'] ?? '');
-        $key = $contentId !== '' ? 'content_id:' . $contentId : ($id !== '' ? 'id:' . $id : '');
+        $key = $contentId !== ''
+            ? 'content_id:' . $contentId
+            : ($productId !== ''
+                ? 'product_id:' . $productId
+                : ($url !== ''
+                    ? 'url:' . $url
+                    : ($affiliateUrl !== ''
+                        ? 'affiliate_url:' . $affiliateUrl
+                        : ($id !== '' ? 'id:' . $id : ''))));
         if ($key !== '' && isset($seen[$key])) {
             continue;
         }
