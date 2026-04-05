@@ -370,8 +370,10 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .rail-card--220{flex:0 0 220px;min-width:220px;max-width:220px}
 .rail-card--250{flex:0 0 250px;min-width:250px;max-width:250px}
 .rail-row--220 .rail-card{flex:0 0 220px !important;min-width:220px !important;max-width:220px !important}
+.rail-row--210 .rail-card{flex:0 0 210px !important;min-width:210px !important;max-width:210px !important}
 .rail-row--250 .rail-card{flex:0 0 250px !important;min-width:250px !important;max-width:250px !important}
 .rail-row--220 .rail-card .thumb,.rail-row--220 .rail-card .rail-card__noimage{width:220px !important;max-width:220px !important}
+.rail-row--210 .rail-card .thumb,.rail-row--210 .rail-card .rail-card__noimage{width:210px !important;max-width:210px !important}
 .rail-row--250 .rail-card .thumb,.rail-row--250 .rail-card .rail-card__noimage{width:250px !important;max-width:250px !important}
 .rail-card--220 .rail-card__noimage{height:220px}
 .rail-card--250 .rail-card__noimage{height:250px}
