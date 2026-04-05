@@ -179,10 +179,10 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
 }
 .site-sidebar{
   box-sizing:border-box;
-  width:300px;
-  min-width:300px;
-  max-width:300px;
-  flex:0 0 300px;
+  width:324px;
+  min-width:324px;
+  max-width:324px;
+  flex:0 0 324px;
   display:grid;
   gap:12px;
 }
@@ -267,7 +267,7 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 
 /* Front UI unified layout */
 .layout{display:flex;align-items:flex-start;gap:16px;width:100%;padding:16px;box-sizing:border-box}
-.sidebar{box-sizing:border-box;width:300px;min-width:300px;max-width:300px;flex:0 0 300px}
+.sidebar{box-sizing:border-box;width:324px;min-width:324px;max-width:324px;flex:0 0 324px}
 .content{flex:1;min-width:0}
 .header-site-name{font-size:12px;color:#646970;font-weight:700}
 .site-nav a.is-active{background:#ff4da6;color:#fff;text-decoration:none}
