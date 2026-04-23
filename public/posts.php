@@ -17,7 +17,7 @@ function dedupe_items_for_list(array $items): array
         $contentId = trim((string)($item['content_id'] ?? ''));
         $productId = trim((string)($item['product_id'] ?? ''));
         $id = (string)($item['id'] ?? '');
-        $key = $contentId !== '' ? 'content_id:' . $contentId : ($productId !== '' ? 'product_id:' . $productId : ($id !== '' ? 'id:' . $id : ''));
+        $key = $productId !== '' ? 'product_id:' . $productId : ($contentId !== '' ? 'content_id:' . $contentId : ($id !== '' ? 'id:' . $id : ''));
         if ($key !== '' && isset($seen[$key])) {
             continue;
         }
