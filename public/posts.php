@@ -29,6 +29,34 @@ function dedupe_items_for_list(array $items): array
     return $result;
 }
 
+function collect_unique_items_for_page(callable $fetcher, int $limit, int $offset): array
+{
+    $rows = [];
+    $chunkSize = $limit + 1;
+    $cursor = max(0, $offset);
+    $maxLoops = 5;
+
+    for ($i = 0; $i < $maxLoops; $i++) {
+        $chunk = $fetcher($chunkSize, $cursor);
+        if (!is_array($chunk) || $chunk === []) {
+            break;
+        }
+
+        $rows = dedupe_items_for_list(array_merge($rows, $chunk));
+        if (count($rows) > $limit) {
+            break;
+        }
+
+        $fetched = count($chunk);
+        $cursor += $fetched;
+        if ($fetched < $chunkSize) {
+            break;
+        }
+    }
+
+    return $rows;
+}
+
 $orderParam = safe_str($_GET['order'] ?? 'date_desc', 20);
 $orderMap = [
     'date_desc' => 'date_published_desc',
@@ -50,29 +78,9 @@ $page = normalize_int((int)($_GET['page'] ?? 1), 1, 100000);
 $offset = ($page - 1) * $limit;
 $q = safe_str($_GET['q'] ?? '', 100);
 
-$rows = [];
-$cursor = $offset;
-$chunkLimit = $limit + 1;
-$maxFetchLoops = 5;
-for ($i = 0; $i < $maxFetchLoops; $i++) {
-    $chunk = $q !== ''
-        ? search_items($q, $chunkLimit, $cursor)
-        : fetch_items($order, $chunkLimit, $cursor);
-    if ($chunk === []) {
-        break;
-    }
-
-    $rows = dedupe_items_for_list(array_merge($rows, $chunk));
-    if (count($rows) > $limit) {
-        break;
-    }
-
-    $fetchedCount = count($chunk);
-    if ($fetchedCount < $chunkLimit) {
-        break;
-    }
-    $cursor += $fetchedCount;
-}
+$rows = $q !== ''
+    ? collect_unique_items_for_page(static fn(int $chunkLimit, int $chunkOffset): array => search_items($q, $chunkLimit, $chunkOffset), $limit, $offset)
+    : collect_unique_items_for_page(static fn(int $chunkLimit, int $chunkOffset): array => fetch_items($order, $chunkLimit, $chunkOffset), $limit, $offset);
 [$items, $hasNext] = paginate_items($rows, $limit);
 
 $pageTitle = $q !== '' ? sprintf('検索結果: %s', $q) : '作品一覧';
