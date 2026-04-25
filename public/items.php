@@ -5,6 +5,29 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
+function dedupe_items_for_listing(array $items): array
+{
+    $seen = [];
+    $result = [];
+    foreach ($items as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        $contentId = trim((string)($item['content_id'] ?? ''));
+        $productId = trim((string)($item['product_id'] ?? ''));
+        $id = (string)($item['id'] ?? '');
+        $key = $contentId !== '' ? 'content_id:' . $contentId : ($productId !== '' ? 'product_id:' . $productId : ($id !== '' ? 'id:' . $id : ''));
+        if ($key !== '' && isset($seen[$key])) {
+            continue;
+        }
+        if ($key !== '') {
+            $seen[$key] = true;
+        }
+        $result[] = $item;
+    }
+    return $result;
+}
+
 $page = max(1, (int)get('page', 1));
 $per = app_config()['pagination']['per_page'] ?? 24;
 $total = 0;
@@ -31,6 +54,7 @@ foreach ($orderSqlCandidates as $orderSql) {
         $stmt->bindValue(':o', (int)$pg['offset'], PDO::PARAM_INT);
         $stmt->execute();
         $rows = $stmt->fetchAll() ?: [];
+        $rows = dedupe_items_for_listing($rows);
         break;
     } catch (Throwable) {
         $rows = [];
