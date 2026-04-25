@@ -50,11 +50,30 @@ $page = normalize_int((int)($_GET['page'] ?? 1), 1, 100000);
 $offset = ($page - 1) * $limit;
 $q = safe_str($_GET['q'] ?? '', 100);
 
-$rows = $q !== ''
-    ? search_items($q, $limit + 1, $offset)
-    : fetch_items($order, $limit + 1, $offset);
+$rows = [];
+$cursor = $offset;
+$chunkLimit = $limit + 1;
+$maxFetchLoops = 5;
+for ($i = 0; $i < $maxFetchLoops; $i++) {
+    $chunk = $q !== ''
+        ? search_items($q, $chunkLimit, $cursor)
+        : fetch_items($order, $chunkLimit, $cursor);
+    if ($chunk === []) {
+        break;
+    }
+
+    $rows = dedupe_items_for_list(array_merge($rows, $chunk));
+    if (count($rows) > $limit) {
+        break;
+    }
+
+    $fetchedCount = count($chunk);
+    if ($fetchedCount < $chunkLimit) {
+        break;
+    }
+    $cursor += $fetchedCount;
+}
 [$items, $hasNext] = paginate_items($rows, $limit);
-$items = dedupe_items_for_list($items);
 
 $pageTitle = $q !== '' ? sprintf('検索結果: %s', $q) : '作品一覧';
 $pageDescription = $q !== '' ? sprintf('「%s」の検索結果です。', $q) : 'FANZA作品一覧。検索・並び替え・ページング対応。';
