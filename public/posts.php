@@ -53,8 +53,8 @@ $q = safe_str($_GET['q'] ?? '', 100);
 $rows = $q !== ''
     ? search_items($q, $limit + 1, $offset)
     : fetch_items($order, $limit + 1, $offset);
+$rows = dedupe_items_for_list($rows);
 [$items, $hasNext] = paginate_items($rows, $limit);
-$items = dedupe_items_for_list($items);
 
 $pageTitle = $q !== '' ? sprintf('検索結果: %s', $q) : '作品一覧';
 $pageDescription = $q !== '' ? sprintf('「%s」の検索結果です。', $q) : 'FANZA作品一覧。検索・並び替え・ページング対応。';
