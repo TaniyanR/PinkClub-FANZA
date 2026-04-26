@@ -371,7 +371,8 @@ if (!function_exists('render_shared_content_ad_row')) {
             return;
         }
 
-        if ($position_key !== 'content_top') {
+        // Keep this helper limited to bottom placement to avoid top-of-content duplication.
+        if ($position_key !== 'content_bottom') {
             return;
         }
 
