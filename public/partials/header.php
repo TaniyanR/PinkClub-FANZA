@@ -74,4 +74,3 @@ $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
         <span class="pcf-breadcrumb__item"><?= e($titleText) ?></span>
       </nav>
     <?php endif; ?>
-    <?php render_shared_content_ad_row('content_top', $pageType); ?>
