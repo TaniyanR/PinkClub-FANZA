@@ -371,7 +371,7 @@ if (!function_exists('render_shared_content_ad_row')) {
             return;
         }
 
-        if ($position_key !== 'content_top') {
+        if ($position_key !== 'content_bottom') {
             return;
         }
 
@@ -383,11 +383,7 @@ if (!function_exists('render_shared_content_ad_row')) {
 
         ob_start();
         include __DIR__ . '/rss_text_widget.php';
-        $rssHtmlLeft = trim((string)ob_get_clean());
-
-        ob_start();
-        include __DIR__ . '/rss_text_widget.php';
-        $rssHtmlRight = trim((string)ob_get_clean());
+        $rssHtml = trim((string)ob_get_clean());
 
         if ($prevUsedKeys === null) {
             unset($GLOBALS['pcf_rss_widget_used_keys']);
@@ -402,16 +398,12 @@ if (!function_exists('render_shared_content_ad_row')) {
         }
 
         $emptyWidget = '<div class="rss-widget rss-widget--text block"><div class="rss-box"><p class="sidebar-empty">テキストRSSの記事がありません。</p></div></div>';
-        if ($rssHtmlLeft === '') {
-            $rssHtmlLeft = $emptyWidget;
-        }
-        if ($rssHtmlRight === '') {
-            $rssHtmlRight = $emptyWidget;
+        if ($rssHtml === '') {
+            $rssHtml = $emptyWidget;
         }
 
-        echo '<div class="content-ad-row content-ad-row--rss-split only-pc">';
-        echo '<div class="content-ad-row__rss">' . $rssHtmlLeft . '</div>';
-        echo '<div class="content-ad-row__rss">' . $rssHtmlRight . '</div>';
+        echo '<div class="content-ad-row only-pc">';
+        echo '<div class="content-ad-row__rss">' . $rssHtml . '</div>';
         echo '</div>';
     }
 }

@@ -446,26 +446,32 @@ $hasHomeContent = $latestTop !== []
     <?php endforeach; ?>
   </section>
 
+  <?php if (!empty($seriesSection['items'])): ?>
   <section class="rail-section">
     <h2>シリーズ<?= $seriesSection['name'] !== '' ? '：' . e($seriesSection['name']) : '' ?></h2>
     <div class="rail-row rail-row--180">
       <?php foreach ($seriesSection['items'] as $item) { render_item_card($item, 180, ['name' => (string)$seriesSection['name'], 'url' => (string)$seriesSection['url']]); } ?>
     </div>
   </section>
+  <?php endif; ?>
 
+  <?php if (!empty($makerSection['items'])): ?>
   <section class="rail-section">
     <h2>メーカー<?= $makerSection['name'] !== '' ? '：' . e($makerSection['name']) : '' ?></h2>
     <div class="rail-row rail-row--180">
       <?php foreach ($makerSection['items'] as $item) { render_item_card($item, 180, ['name' => (string)$makerSection['name'], 'url' => (string)$makerSection['url']]); } ?>
     </div>
   </section>
+  <?php endif; ?>
 
+  <?php if (!empty($authorSection['items'])): ?>
   <section class="rail-section">
     <h2>作者<?= $authorSection['name'] !== '' ? '：' . e($authorSection['name']) : '' ?></h2>
     <div class="rail-row rail-row--180">
       <?php foreach ($authorSection['items'] as $item) { render_item_card($item, 180, ['name' => (string)$authorSection['name'], 'url' => (string)$authorSection['url']]); } ?>
     </div>
   </section>
+  <?php endif; ?>
 <?php endif; ?>
 
 
