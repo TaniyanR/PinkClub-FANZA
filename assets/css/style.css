@@ -331,6 +331,13 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
   border-radius:8px;
   padding:16px;
 }
+.site-main--legacy > .content-ad-row{
+  margin:16px -16px 0;
+  padding:16px;
+  border:1px solid #dcdcde;
+  border-radius:8px;
+  background:#fff;
+}
 .site-main--legacy h2{
   font-size:22px;
   margin:0 0 12px;
@@ -357,6 +364,7 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 }
 @media (max-width: 900px){
   .site-main--legacy{padding:12px}
+  .site-main--legacy > .content-ad-row{margin:12px -12px 0;padding:12px}
   .site-main--legacy .thumb{max-width:100%}
 }
 
