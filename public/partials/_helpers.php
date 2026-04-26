@@ -1,6 +1,3 @@
-<?php
-// （上はそのままなので省略せず維持）
-
 if (!function_exists('render_shared_content_ad_row')) {
     function render_shared_content_ad_row(string $position_key, string $page_type): void
     {
@@ -39,7 +36,6 @@ if (!function_exists('render_shared_content_ad_row')) {
             $rssHtml = $emptyWidget;
         }
 
-        // ← ここが修正済み（main側採用）
         echo '<div class="content-ad-row only-pc">';
         echo '<div class="content-ad-row__rss">' . $rssHtml . '</div>';
         echo '</div>';
