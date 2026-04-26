@@ -371,7 +371,7 @@ if (!function_exists('render_shared_content_ad_row')) {
             return;
         }
 
-        if ($position_key !== 'content_top') {
+        if ($position_key !== 'content_bottom') {
             return;
         }
 
