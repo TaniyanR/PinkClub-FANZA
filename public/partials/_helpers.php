@@ -371,7 +371,7 @@ if (!function_exists('render_shared_content_ad_row')) {
             return;
         }
 
-        if ($position_key !== 'content_top') {
+        if ($position_key !== 'content_bottom') {
             return;
         }
 
@@ -409,9 +409,9 @@ if (!function_exists('render_shared_content_ad_row')) {
             $rssHtmlRight = $emptyWidget;
         }
 
-        echo '<div class="content-ad-row content-ad-row--rss-split only-pc">';
-        echo '<div class="content-ad-row__rss">' . $rssHtmlLeft . '</div>';
-        echo '<div class="content-ad-row__rss">' . $rssHtmlRight . '</div>';
+        echo '<div class="content-ad-row content-ad-row--rss-split only-pc" style="display:flex;flex-direction:row;flex-wrap:nowrap;gap:20px;">';
+        echo '<div class="content-ad-row__rss" style="flex:1 1 0;min-width:0;">' . $rssHtmlLeft . '</div>';
+        echo '<div class="content-ad-row__rss" style="flex:1 1 0;min-width:0;">' . $rssHtmlRight . '</div>';
         echo '</div>';
     }
 }
