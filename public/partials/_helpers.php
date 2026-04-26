@@ -371,13 +371,15 @@ if (!function_exists('render_shared_content_ad_row')) {
             return;
         }
 
-        if ($position_key !== 'content_top') {
+        // Keep this helper limited to bottom placement to avoid top-of-content duplication.
+        if ($position_key !== 'content_bottom') {
             return;
         }
 
         $prevUsedKeys = $GLOBALS['pcf_rss_widget_used_keys'] ?? null;
         $prevMaxItems = $GLOBALS['pcf_rss_widget_max_items'] ?? null;
 
+        // Reset widget tracking so left/right includes render independent feeds in this row.
         $GLOBALS['pcf_rss_widget_used_keys'] = [];
         $GLOBALS['pcf_rss_widget_max_items'] = 8;
 
