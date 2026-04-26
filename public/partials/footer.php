@@ -38,6 +38,8 @@ $copyrightYears = $copyrightStartYear >= $currentYear
     : $copyrightStartYear . '-' . $currentYear;
 
 ?>
+  <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
+  <?php render_shared_content_ad_row('content_bottom', $pageType); ?>
   </main>
 </div>
 <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
