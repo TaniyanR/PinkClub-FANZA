@@ -4,9 +4,32 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_helpers.php';
 
-$siteName = trim(front_safe_text_setting('site_name', ''));
+$safeTextSetting = static function (string $key, string $default = ''): string {
+    if (function_exists('front_safe_text_setting')) {
+        return front_safe_text_setting($key, $default);
+    }
+
+    try {
+        if (function_exists('setting')) {
+            $value = setting($key, $default);
+            return is_string($value) ? $value : $default;
+        }
+        if (function_exists('app_setting_get')) {
+            $value = app_setting_get($key, $default);
+            return is_string($value) ? $value : $default;
+        }
+    } catch (Throwable $e) {
+        if (function_exists('app_log_error')) {
+            app_log_error('footer safe text setting fallback failed: ' . $key, $e);
+        }
+    }
+
+    return $default;
+};
+
+$siteName = trim($safeTextSetting('site_name', ''));
 if ($siteName === '') {
-    $siteName = trim(front_safe_text_setting('site.title', ''));
+    $siteName = trim($safeTextSetting('site.title', ''));
 }
 if ($siteName === '') {
     $siteName = 'PinkClub FANZA';
@@ -39,6 +62,13 @@ $copyrightYears = $copyrightStartYear >= $currentYear
 
 ?>
   </main>
+</div>
+<?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
+<div class="layout site-layout only-pc" style="padding-top:0;margin-top:-8px;">
+  <div class="sidebar" aria-hidden="true"></div>
+  <div class="content">
+    <?php render_shared_content_ad_row('content_bottom', $pageType); ?>
+  </div>
 </div>
 <footer class="site-footer">
   <div class="site-footer__credit">
