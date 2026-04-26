@@ -40,6 +40,13 @@ $copyrightYears = $copyrightStartYear >= $currentYear
 ?>
   </main>
 </div>
+<?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
+<div class="layout site-layout site-layout--rss-bottom only-pc">
+  <div class="sidebar" aria-hidden="true"></div>
+  <div class="content">
+    <?php render_shared_content_ad_row('content_bottom', $pageType); ?>
+  </div>
+</div>
 <footer class="site-footer">
   <div class="site-footer__credit">
     <a href="https://affiliate.dmm.com/api/"><img src="https://p.dmm.co.jp/p/affiliate/web_service/r18_135_17.gif" width="135" height="17" alt="WEB SERVICE BY FANZA" /></a>
