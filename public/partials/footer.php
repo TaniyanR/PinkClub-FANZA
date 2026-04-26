@@ -38,10 +38,12 @@ $copyrightYears = $copyrightStartYear >= $currentYear
     : $copyrightStartYear . '-' . $currentYear;
 
 ?>
+  <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
+  <?php render_shared_content_ad_row('content_bottom', $pageType); ?>
   </main>
 </div>
 <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
-<div class="layout site-layout only-pc" style="padding-top:0;margin-top:-8px;">
+<div class="layout site-layout site-layout--rss-bottom only-pc">
   <div class="sidebar" aria-hidden="true"></div>
   <div class="content">
     <?php render_shared_content_ad_row('content_bottom', $pageType); ?>
