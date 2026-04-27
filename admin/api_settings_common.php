@@ -5,18 +5,18 @@ declare(strict_types=1);
 require_once __DIR__ . '/../public/_bootstrap.php';
 require_once __DIR__ . '/../lib/app.php';
 
-/** @var string $apiType */
 /** @var string $pageTitle */
 /** @var string $testButtonLabel */
-/** @var callable $testRunner */
 
-if (!isset($apiType, $pageTitle, $testButtonLabel, $testRunner)) {
-    throw new RuntimeException('api settings page variables are not initialized.');
+if (!isset($pageTitle)) {
+    throw new RuntimeException('api settings page title is not initialized.');
 }
 
 auth_require_admin();
 
+$apiType = 'items';
 $title = $pageTitle;
+$testButtonLabel = (string)($testButtonLabel ?? '商品情報を10件テスト取得');
 $message = '';
 $messageType = 'success';
 $cred = api_credential_get($apiType);
@@ -47,10 +47,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $affiliateId = trim((string)post('affiliate_id', $affiliateId));
             api_credential_set($apiType, $apiId, $affiliateId);
             $client = new DmmApiClient($apiId, $affiliateId, app_config()['dmm']['endpoint']);
-            $testResult = $testRunner($client);
-            $sync = dmm_sync_service($apiType);
-
             $s = settings_get();
+            $testResult = $client->fetchItems(
+                (string)$s['site'],
+                (string)$s['service'],
+                (string)$s['floor'],
+                ['hits' => 10, 'offset' => 1]
+            );
+            $sync = dmm_sync_service($apiType);
             $count = $sync->syncItems(
                 (string)$s['site'],
                 (string)$s['service'],
