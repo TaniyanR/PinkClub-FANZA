@@ -63,6 +63,7 @@ function api_credential_set(string $apiType, string $apiId, string $affiliateId)
             ':api_id' => trim($apiId),
             ':affiliate_id' => trim($affiliateId),
         ]);
+    db()->prepare("DELETE FROM api_credentials WHERE api_type IN ('genres','actresses','series')")->execute();
 
     site_setting_set_many([
         'fanza_api_id' => trim($apiId),
