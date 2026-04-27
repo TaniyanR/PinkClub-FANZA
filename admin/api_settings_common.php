@@ -135,6 +135,9 @@ require __DIR__ . '/includes/header.php';
 <section class="card">
   <h1><?= e($pageTitle) ?></h1>
   <p>このページは <?= e($pageTitle) ?> 用の APIID / アフィリエイトID を個別に保存します。</p>
+  <?php if ($apiType === 'items'): ?>
+    <p>この設定はジャンル・女優・シリーズの同期でも共通で利用されます。</p>
+  <?php endif; ?>
 
   <?php if ($message !== ''): ?>
     <div class="admin-notice <?= $messageType === 'success' ? 'admin-notice--success' : 'admin-notice--error' ?>">
