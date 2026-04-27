@@ -40,9 +40,10 @@ $keywords = trim($safeTextSetting('site.keywords', ''));
 $logoPath = trim($safeTextSetting('site.logo_path', ''));
 $faviconPath = trim($safeTextSetting('site.favicon_path', ''));
 
-$headerAdHtml = trim((string)app_setting_get('header_ad_html', ''));
+$headerAdHtml = trim($safeTextSetting('header_ad_html', ''));
 $titleText = (string)($title ?? $pageTitle ?? $siteName);
 $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
+$canRenderAd = function_exists('render_ad');
 ?>
 <!doctype html>
 <html lang="ja">
@@ -76,11 +77,13 @@ $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
     <div class="header-right site-header__right">
       <?php if ($headerAdHtml !== '') : ?>
         <div class="site-ad"><?= $headerAdHtml ?></div>
-      <?php elseif (should_show_ad('header_left_728x90', $pageType, 'pc')) : ?>
+      <?php elseif ($canRenderAd && (!function_exists('should_show_ad') || should_show_ad('header_left_728x90', $pageType, 'pc'))) : ?>
         <div class="site-ad"><?php render_ad('header_left_728x90', $pageType, 'pc'); ?></div>
       <?php endif; ?>
+      <?php if ($canRenderAd): ?>
       <div class="only-sp"><?php render_ad('sp_footer_above', $pageType, 'sp'); ?></div>
       <div class="only-sp"><?php render_ad('sp_header_below', $pageType, 'sp'); ?></div>
+      <?php endif; ?>
     </div>
   </div>
 
