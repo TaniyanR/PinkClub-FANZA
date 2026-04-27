@@ -27,9 +27,6 @@ $savedRows = [];
 
 $saveTargets = [
     'items' => ['table' => 'items', 'label' => '商品', 'id_column' => 'id', 'name_column' => 'title'],
-    'genres' => ['table' => 'genres', 'label' => 'ジャンル', 'id_column' => 'id', 'name_column' => 'name'],
-    'actresses' => ['table' => 'actresses', 'label' => '女優', 'id_column' => 'id', 'name_column' => 'name'],
-    'series' => ['table' => 'series_master', 'label' => 'シリーズ', 'id_column' => 'id', 'name_column' => 'name'],
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -53,20 +50,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $testResult = $testRunner($client);
             $sync = dmm_sync_service($apiType);
 
-            if ($apiType === 'items') {
-                $s = settings_get();
-                $count = $sync->syncItems(
-                    (string)$s['site'],
-                    (string)$s['service'],
-                    (string)$s['floor'],
-                    ['hits' => 100, 'offset' => 1]
-                );
-            } else {
-                $kind = $apiType === 'genres' ? 'genre' : ($apiType === 'actresses' ? 'actress' : 'series');
-                $s = settings_get();
-                $floorId = $kind === 'actress' ? null : (string)($s['master_floor_id'] ?? '');
-                $count = $sync->syncMaster($kind, $floorId !== '' ? $floorId : null, 1, 100);
-            }
+            $s = settings_get();
+            $count = $sync->syncItems(
+                (string)$s['site'],
+                (string)$s['service'],
+                (string)$s['floor'],
+                ['hits' => 100, 'offset' => 1]
+            );
 
             $message = 'テスト取得と保存に成功しました。件数: ' . (string)$count;
             $messageType = 'success';
@@ -83,20 +73,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             api_credential_set($apiType, $apiId, $affiliateId);
             $sync = dmm_sync_service($apiType);
 
-            if ($apiType === 'items') {
-                $s = settings_get();
-                $count = $sync->syncItems(
-                    (string)$s['site'],
-                    (string)$s['service'],
-                    (string)$s['floor'],
-                    ['hits' => 100, 'offset' => 1]
-                );
-            } else {
-                $kind = $apiType === 'genres' ? 'genre' : ($apiType === 'actresses' ? 'actress' : 'series');
-                $s = settings_get();
-                $floorId = $kind === 'actress' ? null : (string)($s['master_floor_id'] ?? '');
-                $count = $sync->syncMaster($kind, $floorId !== '' ? $floorId : null, 1, 100);
-            }
+            $s = settings_get();
+            $count = $sync->syncItems(
+                (string)$s['site'],
+                (string)$s['service'],
+                (string)$s['floor'],
+                ['hits' => 100, 'offset' => 1]
+            );
 
             $message = 'テスト取得データを保存しました。件数: ' . (string)$count;
             $messageType = 'success';
@@ -134,7 +117,7 @@ require __DIR__ . '/includes/header.php';
 ?>
 <section class="card">
   <h1><?= e($pageTitle) ?></h1>
-  <p>このページは <?= e($pageTitle) ?> 用の APIID / アフィリエイトID を個別に保存します。</p>
+  <p>このページで保存した APIID / アフィリエイトID は、商品・ジャンル・女優・シリーズの同期で共通利用されます。</p>
 
   <?php if ($message !== ''): ?>
     <div class="admin-notice <?= $messageType === 'success' ? 'admin-notice--success' : 'admin-notice--error' ?>">

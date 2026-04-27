@@ -62,7 +62,10 @@ $copyrightYears = $copyrightStartYear >= $currentYear
 
 ?>
   <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
-  <?php render_shared_content_ad_row('content_bottom', $pageType); ?>
+  </div>
+  <div class="site-main__rss">
+    <?php render_shared_content_ad_row('content_bottom', $pageType); ?>
+  </div>
   </main>
 </div>
 <footer class="site-footer">
