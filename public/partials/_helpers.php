@@ -3,10 +3,6 @@
 if (!function_exists('render_shared_content_ad_row')) {
     function render_shared_content_ad_row(string $position_key, string $page_type): void
     {
-if (!function_exists('ad_current_device') || ad_current_device() !== 'pc') {
-            return;
-        }
-
         // Keep this helper limited to bottom placement to avoid top-of-content duplication.
         if ($position_key !== 'content_bottom') {
             return;
