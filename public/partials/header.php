@@ -100,3 +100,4 @@ $canRenderAd = function_exists('render_ad');
         <span class="pcf-breadcrumb__item"><?= e($titleText) ?></span>
       </nav>
     <?php endif; ?>
+    <div class="site-main__body">
