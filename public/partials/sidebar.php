@@ -8,6 +8,7 @@ require_once __DIR__ . '/_helpers.php';
 
 $sortMode = site_setting_get('link.sort_mode', 'registered');
 $orderBy = $sortMode === 'kana' ? 'ps.name ASC, ps.id ASC' : 'ps.id DESC';
+$canRenderAd = function_exists('render_ad');
 
 $partnerLinks = [];
 $fixedPages = [];
@@ -59,10 +60,12 @@ try {
         <?php endif; ?>
     </section>
 
+    <?php if ($canRenderAd): ?>
     <section class="sidebar-block only-pc">
         <h2 class="sidebar-block__title">サイド広告１</h2>
         <div class="site-ad site-ad--rectangle"><?php render_ad('sidebar_bottom', $pageType, 'pc'); ?></div>
     </section>
+    <?php endif; ?>
 
     <section class="sidebar-block">
         <h2 class="sidebar-block__title">画像RSS</h2>
@@ -74,10 +77,12 @@ try {
         <?php include __DIR__ . '/rss_text_widget.php'; ?>
     </section>
 
+    <?php if ($canRenderAd): ?>
     <section class="sidebar-block only-pc">
         <h2 class="sidebar-block__title">サイド広告２</h2>
         <div class="site-ad site-ad--rectangle"><?php render_ad('content_bottom', $pageType, 'pc'); ?></div>
     </section>
+    <?php endif; ?>
 
     <section class="sidebar-block">
         <h2 class="sidebar-block__title">相互リンク</h2>
