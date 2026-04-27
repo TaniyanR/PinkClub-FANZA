@@ -242,6 +242,10 @@ function safe_include_partial(string $filePath): void
 function safe_render_home_ad(string $positionKey): void
 {
     try {
+        if (!function_exists('get_ad_code') || !function_exists('render_ad')) {
+            return;
+        }
+
         if (get_ad_code($positionKey) === null) {
             return;
         }
