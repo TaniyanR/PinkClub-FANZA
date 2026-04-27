@@ -188,6 +188,7 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
 }
 .sidebar-block{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:12px;box-sizing:border-box;min-width:0;max-width:100%}
 .sidebar-block--ad{padding:0;border:none;background:transparent}
+.sidebar-block--ad1 + .sidebar-block--text-rss{margin-top:8px}
 .sidebar-block__title{margin:0 0 10px;font-size:16px}
 .sidebar-search-form{display:grid;gap:8px}
 .sidebar-search-form__input{width:100%;box-sizing:border-box;padding:8px;border:1px solid #c3c4c7;border-radius:4px}

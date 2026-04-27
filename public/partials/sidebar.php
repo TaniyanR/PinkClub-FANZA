@@ -61,7 +61,7 @@ try {
     </section>
 
     <?php if ($canRenderAd): ?>
-    <section class="sidebar-block only-pc">
+    <section class="sidebar-block sidebar-block--ad1 only-pc">
         <h2 class="sidebar-block__title">サイド広告１</h2>
         <div class="site-ad site-ad--rectangle"><?php render_ad('sidebar_bottom', $pageType, 'pc'); ?></div>
     </section>
@@ -72,7 +72,7 @@ try {
         <?php include __DIR__ . '/rss_image_widget.php'; ?>
     </section>
 
-    <section class="sidebar-block">
+    <section class="sidebar-block sidebar-block--text-rss">
         <h2 class="sidebar-block__title">テキストRSS</h2>
         <?php include __DIR__ . '/rss_text_widget.php'; ?>
     </section>
