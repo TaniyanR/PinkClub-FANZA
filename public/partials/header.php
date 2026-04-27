@@ -40,7 +40,7 @@ $keywords = trim($safeTextSetting('site.keywords', ''));
 $logoPath = trim($safeTextSetting('site.logo_path', ''));
 $faviconPath = trim($safeTextSetting('site.favicon_path', ''));
 
-$headerAdHtml = trim((string)app_setting_get('header_ad_html', ''));
+$headerAdHtml = trim($safeTextSetting('header_ad_html', ''));
 $titleText = (string)($title ?? $pageTitle ?? $siteName);
 $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
 ?>

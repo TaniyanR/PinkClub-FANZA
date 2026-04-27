@@ -1,3 +1,5 @@
+<?php
+
 if (!function_exists('render_shared_content_ad_row')) {
     function render_shared_content_ad_row(string $position_key, string $page_type): void
     {
