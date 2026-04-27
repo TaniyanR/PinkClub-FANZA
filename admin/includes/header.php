@@ -17,9 +17,6 @@ $menuGroups = [
     ['label' => 'アクセス解析', 'file' => 'analytics.php'],
     ['label' => 'アフィリエイト設定', 'children' => [
         ['label' => '商品情報API設定', 'file' => 'api_items.php'],
-        ['label' => 'ジャンルAPI設定', 'file' => 'api_genres.php'],
-        ['label' => '女優API設定', 'file' => 'api_actresses.php'],
-        ['label' => 'シリーズAPI設定', 'file' => 'api_series.php'],
         ['label' => '広告コード', 'file' => 'affiliate_ads.php'],
     ]],
     ['label' => '固定ページ', 'children' => [
