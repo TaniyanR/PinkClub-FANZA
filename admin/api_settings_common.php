@@ -134,7 +134,11 @@ require __DIR__ . '/includes/header.php';
 ?>
 <section class="card">
   <h1><?= e($pageTitle) ?></h1>
-  <p>このページは <?= e($pageTitle) ?> 用の APIID / アフィリエイトID を個別に保存します。</p>
+  <?php if ($apiType === 'items'): ?>
+    <p>このページで保存した APIID / アフィリエイトID は、商品・ジャンル・女優・シリーズの同期で共通利用されます。</p>
+  <?php else: ?>
+    <p>このページは <?= e($pageTitle) ?> 用の APIID / アフィリエイトID を保存します。</p>
+  <?php endif; ?>
 
   <?php if ($message !== ''): ?>
     <div class="admin-notice <?= $messageType === 'success' ? 'admin-notice--success' : 'admin-notice--error' ?>">

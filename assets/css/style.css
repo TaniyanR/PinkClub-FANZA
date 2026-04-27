@@ -188,6 +188,8 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
 }
 .sidebar-block{background:#fff;border:1px solid #dcdcde;border-radius:8px;padding:12px;box-sizing:border-box;min-width:0;max-width:100%}
 .sidebar-block--ad{padding:0;border:none;background:transparent}
+.sidebar-block--ad1 ~ .sidebar-block--text-rss{margin-top:20px}
+.sidebar-block--text-rss + .sidebar-block--ad2{margin-top:20px}
 .sidebar-block__title{margin:0 0 10px;font-size:16px}
 .sidebar-search-form{display:grid;gap:8px}
 .sidebar-search-form__input{width:100%;box-sizing:border-box;padding:8px;border:1px solid #c3c4c7;border-radius:4px}
@@ -329,10 +331,26 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 
 /* Legacy main content style while keeping current sidebar UI */
 .site-main--legacy{
+  background:transparent;
+  border:none;
+  border-radius:0;
+  padding:0;
+}
+.site-main__body{
   background:#ffffff;
   border:1px solid #dcdcde;
   border-radius:8px;
   padding:16px;
+}
+.site-main__rss{
+  margin-top:16px;
+  background:#ffffff;
+  border:1px solid #dcdcde;
+  border-radius:8px;
+  padding:16px;
+}
+.site-main__rss .content-ad-row{
+  margin:0;
 }
 .site-main--legacy h2{
   font-size:22px;
