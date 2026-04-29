@@ -14,10 +14,10 @@ function dedupe_items_for_list(array $items): array
         if (!is_array($item)) {
             continue;
         }
-        $contentId = trim((string)($item['content_id'] ?? ''));
-        $productId = trim((string)($item['product_id'] ?? ''));
-        $id = (string)($item['id'] ?? '');
-        $key = $contentId !== '' ? 'content_id:' . $contentId : ($productId !== '' ? 'product_id:' . $productId : ($id !== '' ? 'id:' . $id : ''));
+        $contentId = strtolower(trim((string)($item['content_id'] ?? '')));
+        $productId = strtolower(trim((string)($item['product_id'] ?? '')));
+        $id = trim((string)($item['id'] ?? ''));
+        $key = $id !== '' ? 'id:' . $id : ($contentId !== '' ? 'content_id:' . $contentId : ($productId !== '' ? 'product_id:' . $productId : ''));
         if ($key !== '' && isset($seen[$key])) {
             continue;
         }

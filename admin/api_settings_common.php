@@ -5,18 +5,18 @@ declare(strict_types=1);
 require_once __DIR__ . '/../public/_bootstrap.php';
 require_once __DIR__ . '/../lib/app.php';
 
-/** @var string $apiType */
 /** @var string $pageTitle */
 /** @var string $testButtonLabel */
-/** @var callable $testRunner */
 
-if (!isset($apiType, $pageTitle, $testButtonLabel, $testRunner)) {
-    throw new RuntimeException('api settings page variables are not initialized.');
+if (!isset($pageTitle)) {
+    throw new RuntimeException('api settings page title is not initialized.');
 }
 
 auth_require_admin();
 
+$apiType = 'items';
 $title = $pageTitle;
+$testButtonLabel = (string)($testButtonLabel ?? '商品情報を10件テスト取得');
 $message = '';
 $messageType = 'success';
 $cred = api_credential_get($apiType);
@@ -27,9 +27,6 @@ $savedRows = [];
 
 $saveTargets = [
     'items' => ['table' => 'items', 'label' => '商品', 'id_column' => 'id', 'name_column' => 'title'],
-    'genres' => ['table' => 'genres', 'label' => 'ジャンル', 'id_column' => 'id', 'name_column' => 'name'],
-    'actresses' => ['table' => 'actresses', 'label' => '女優', 'id_column' => 'id', 'name_column' => 'name'],
-    'series' => ['table' => 'series_master', 'label' => 'シリーズ', 'id_column' => 'id', 'name_column' => 'name'],
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -50,23 +47,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $affiliateId = trim((string)post('affiliate_id', $affiliateId));
             api_credential_set($apiType, $apiId, $affiliateId);
             $client = new DmmApiClient($apiId, $affiliateId, app_config()['dmm']['endpoint']);
-            $testResult = $testRunner($client);
+            $s = settings_get();
+            $testResult = $client->fetchItems(
+                (string)$s['site'],
+                (string)$s['service'],
+                (string)$s['floor'],
+                ['hits' => 10, 'offset' => 1]
+            );
             $sync = dmm_sync_service($apiType);
-
-            if ($apiType === 'items') {
-                $s = settings_get();
-                $count = $sync->syncItems(
-                    (string)$s['site'],
-                    (string)$s['service'],
-                    (string)$s['floor'],
-                    ['hits' => 100, 'offset' => 1]
-                );
-            } else {
-                $kind = $apiType === 'genres' ? 'genre' : ($apiType === 'actresses' ? 'actress' : 'series');
-                $s = settings_get();
-                $floorId = $kind === 'actress' ? null : (string)($s['master_floor_id'] ?? '');
-                $count = $sync->syncMaster($kind, $floorId !== '' ? $floorId : null, 1, 100);
-            }
+            $count = $sync->syncItems(
+                (string)$s['site'],
+                (string)$s['service'],
+                (string)$s['floor'],
+                ['hits' => 100, 'offset' => 1]
+            );
 
             $message = 'テスト取得と保存に成功しました。件数: ' . (string)$count;
             $messageType = 'success';
@@ -83,20 +77,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             api_credential_set($apiType, $apiId, $affiliateId);
             $sync = dmm_sync_service($apiType);
 
-            if ($apiType === 'items') {
-                $s = settings_get();
-                $count = $sync->syncItems(
-                    (string)$s['site'],
-                    (string)$s['service'],
-                    (string)$s['floor'],
-                    ['hits' => 100, 'offset' => 1]
-                );
-            } else {
-                $kind = $apiType === 'genres' ? 'genre' : ($apiType === 'actresses' ? 'actress' : 'series');
-                $s = settings_get();
-                $floorId = $kind === 'actress' ? null : (string)($s['master_floor_id'] ?? '');
-                $count = $sync->syncMaster($kind, $floorId !== '' ? $floorId : null, 1, 100);
-            }
+            $s = settings_get();
+            $count = $sync->syncItems(
+                (string)$s['site'],
+                (string)$s['service'],
+                (string)$s['floor'],
+                ['hits' => 100, 'offset' => 1]
+            );
 
             $message = 'テスト取得データを保存しました。件数: ' . (string)$count;
             $messageType = 'success';
@@ -134,7 +121,7 @@ require __DIR__ . '/includes/header.php';
 ?>
 <section class="card">
   <h1><?= e($pageTitle) ?></h1>
-  <p>このページは <?= e($pageTitle) ?> 用の APIID / アフィリエイトID を個別に保存します。</p>
+  <p>このページで保存した APIID / アフィリエイトID は、商品・ジャンル・女優・シリーズの同期で共通利用されます。</p>
 
   <?php if ($message !== ''): ?>
     <div class="admin-notice <?= $messageType === 'success' ? 'admin-notice--success' : 'admin-notice--error' ?>">
