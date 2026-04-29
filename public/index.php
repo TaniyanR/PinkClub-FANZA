@@ -199,7 +199,72 @@ function item_sample_state(array $item): array
     return ['movie_url' => $firstMovieUrl, 'movie_urls' => $movieUrls, 'has_images' => $hasImageSample];
 }
 
-function render_item_card(array $item, int $width = 180, ?array $taxonomy = null): void
+function pick_full_package_image(array $item): string
+{
+    $fullFromPattern = static function (string $url): ?string {
+        $url = trim($url);
+        if ($url === '') {
+            return null;
+        }
+        if (preg_match('/([_-])(pl|ps|tl|ts)\.(jpe?g|png)(\?.*)?$/i', $url, $m) === 1) {
+            return substr($url, 0, -strlen($m[0])) . $m[1] . 'jp.' . $m[3] . ($m[4] ?? '');
+        }
+        return null;
+    };
+
+    $raw = decode_item_raw($item);
+    $candidates = [];
+    $sampleImageUrl = $raw['sampleImageURL'] ?? null;
+    if (is_array($sampleImageUrl)) {
+        foreach (['sample_l', 'sample_s'] as $sampleKey) {
+            $images = $sampleImageUrl[$sampleKey]['image'] ?? null;
+            if (is_array($images)) {
+                foreach ($images as $image) {
+                    $candidate = trim((string)$image);
+                    if ($candidate !== '') {
+                        $candidates[] = $candidate;
+                        $derived = $fullFromPattern($candidate);
+                        if (is_string($derived) && $derived !== '') {
+                            $candidates[] = $derived;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    foreach (parse_index_image_urls((string)($item['image_list'] ?? '')) as $image) {
+        $candidate = trim((string)$image);
+        if ($candidate !== '') {
+            $candidates[] = $candidate;
+            $derived = $fullFromPattern($candidate);
+            if (is_string($derived) && $derived !== '') {
+                $candidates[] = $derived;
+            }
+        }
+    }
+
+    foreach (['image_large', 'image_small'] as $key) {
+        $candidate = trim((string)($item[$key] ?? ''));
+        if ($candidate !== '') {
+            $candidates[] = $candidate;
+            $derived = $fullFromPattern($candidate);
+            if (is_string($derived) && $derived !== '') {
+                $candidates[] = $derived;
+            }
+        }
+    }
+
+    foreach ($candidates as $candidate) {
+        if (preg_match('/(?:^|[\\/])j[pn]\.(?:jpe?g|png)(?:\?|$)/i', $candidate)) {
+            return $candidate;
+        }
+    }
+
+    return (string)($candidates[0] ?? '');
+}
+
+function render_item_card(array $item, int $width = 180, ?array $taxonomy = null, bool $preferFullPackageImage = false): void
 {
     $itemUrl = app_url('public/item.php?id=' . (int)$item['id']);
     $title = (string)($item['title'] ?? '');
@@ -207,10 +272,21 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     $movieClass = $sample['movie_url'] !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $imageClass = $sample['has_images'] ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')));
+    $thumbUrl = trim((string)($item['image_small'] ?? ''));
+    $normalThumbUrl = $thumbUrl;
+    if ($preferFullPackageImage) {
+        $fullPackageImage = pick_full_package_image($item);
+        if ($fullPackageImage !== '') {
+            $thumbUrl = $fullPackageImage;
+        }
+    }
+    if ($thumbUrl === '') {
+        $thumbUrl = trim((string)($item['image_large'] ?? ''));
+    }
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
-      <?php if (!empty($item['image_small'])): ?>
-        <img class="thumb" src="<?= e((string)$item['image_small']) ?>" alt="<?= e($title) ?>" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
+      <?php if ($thumbUrl !== ''): ?>
+        <img class="thumb" src="<?= e($thumbUrl) ?>" alt="<?= e($title) ?>" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;"<?= $preferFullPackageImage && $normalThumbUrl !== '' ? ' onerror="if(this.dataset.fallback){this.src=this.dataset.fallback;this.dataset.fallback=\'\';}" data-fallback="' . e($normalThumbUrl) . '"' : '' ?>>
       <?php else: ?>
         <div class="rail-card__noimage" style="width:<?= (int)$width ?>px;height:<?= (int)$width ?>px;">画像なし</div>
       <?php endif; ?>
@@ -278,9 +354,28 @@ try {
             'date_published DESC, updated_at DESC, id DESC',
             'updated_at DESC, id DESC',
             'id DESC',
-        ], 20);
+        ], 80);
         $latestTop = array_slice($latestRows, 0, 5);
-        $latestBottom = array_slice($latestRows, 5, 15);
+        $latestBottomCandidates = array_slice($latestRows, 5);
+        $latestBottomFull = [];
+        $latestBottomNormal = [];
+        foreach ($latestBottomCandidates as $candidate) {
+            if (!is_array($candidate)) {
+                continue;
+            }
+            if (pick_full_package_image($candidate) !== '') {
+                $latestBottomFull[] = $candidate;
+            } else {
+                $latestBottomNormal[] = $candidate;
+            }
+            if (count($latestBottomFull) >= 15) {
+                break;
+            }
+        }
+        if (count($latestBottomFull) < 15 && $latestBottomNormal !== []) {
+            $latestBottomFull = array_merge($latestBottomFull, array_slice($latestBottomNormal, 0, 15 - count($latestBottomFull)));
+        }
+        $latestBottom = array_slice($latestBottomFull, 0, 15);
         $fallbackItems = array_slice($latestRows, 0, 12);
 
         $popularRows = fetch_items_with_order_fallback($pdo, [
@@ -302,7 +397,7 @@ try {
             $genreCandidates = seeded_shuffle($genreCandidates, $seedBase + 20);
             foreach (array_slice($genreCandidates, 0, 3) as $index => $genre) {
                 $stmt = $pdo->prepare(
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
+                    'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
                      FROM items i
                      INNER JOIN item_genres ig ON ig.content_id = i.content_id
                      WHERE ig.genre_id = :id
@@ -321,7 +416,7 @@ try {
                 $seriesCandidates = seeded_shuffle($seriesCandidates, $seedBase + 40);
                 $picked = $seriesCandidates[0];
                 $stmt = $pdo->prepare(
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
+                    'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
                      FROM items i
                      INNER JOIN item_series isr ON isr.content_id = i.content_id
                      WHERE isr.series_id = :id
@@ -343,7 +438,7 @@ try {
                 $makerCandidates = seeded_shuffle($makerCandidates, $seedBase + 50);
                 $picked = $makerCandidates[0];
                 $stmt = $pdo->prepare(
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
+                    'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
                      FROM items i
                      INNER JOIN item_makers im ON im.content_id = i.content_id
                      WHERE im.maker_id = :id
@@ -365,7 +460,7 @@ try {
                 $authorCandidates = seeded_shuffle($authorCandidates, $seedBase + 60);
                 $picked = $authorCandidates[0];
                 $stmt = $pdo->prepare(
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
+                    'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
                      FROM items i
                      INNER JOIN item_authors ia ON ia.item_id = i.id
                      INNER JOIN authors a ON a.dmm_id = ia.dmm_id
@@ -416,7 +511,7 @@ $hasHomeContent = $latestTop !== []
   <section class="rail-section">
     <h2>新着作品</h2>
     <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($latestTop as $item) { render_item_card($item, 210); } ?></div>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb"><?php foreach ($latestBottom as $item) { render_item_card($item, 200); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb"><?php foreach ($latestBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
 
   <section class="rail-section">
