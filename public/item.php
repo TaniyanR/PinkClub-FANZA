@@ -244,6 +244,12 @@ if (is_array($sampleImageUrl)) {
 }
 $sampleImages = array_values(array_unique($sampleImages));
 
+$packageImageUrl = pcf_item_image(is_array($item) ? $item : []);
+$packageImageMode = (string)($_GET['package'] ?? '');
+if ($packageImageMode === 'full' && $sampleImages !== []) {
+    $packageImageUrl = (string)$sampleImages[0];
+}
+
 $desc = trim((string)($item['description'] ?? ''));
 if ($desc === '') {
     foreach (['comment', 'description', 'caption'] as $descKey) {
@@ -268,9 +274,10 @@ require __DIR__ . '/partials/header.php';
 
   <section class="pcf-detail pcf-item-main">
     <div class="pcf-item-main__media">
-      <a href="<?= e(pcf_item_image(is_array($item) ? $item : [])) ?>" target="_blank" rel="noopener noreferrer">
-        <img class="pcf-detail__package" src="<?= e(pcf_item_image(is_array($item) ? $item : [])) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>">
+      <a href="<?= e($packageImageUrl) ?>" target="_blank" rel="noopener noreferrer">
+        <img class="pcf-detail__package" src="<?= e($packageImageUrl) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>">
       </a>
+      <p><a href="<?= e(public_url('item.php?id=' . (int)($item['id'] ?? 0))) ?>">通常パッケージ</a> / <a href="<?= e(public_url('item.php?id=' . (int)($item['id'] ?? 0) . '&package=full')) ?>">見開きフルパッケージ</a></p>
       <?php if ($sampleMovieUrl !== ''): ?>
         <p><button type="button" class="sample-movie-trigger pcf-btn" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e((string)$item['title']) ?>">サンプル動画を再生</button></p>
       <?php endif; ?>
