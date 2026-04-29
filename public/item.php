@@ -228,21 +228,50 @@ if ($sampleMovieUrl === '') {
 }
 
 $sampleImages = [];
+$sampleImagesSmall = [];
 $sampleImageUrl = $raw['sampleImageURL'] ?? null;
 if (is_array($sampleImageUrl)) {
-    foreach (['sample_l', 'sample_s'] as $sampleKey) {
-        $images = $sampleImageUrl[$sampleKey]['image'] ?? null;
-        if (is_array($images)) {
-            foreach ($images as $image) {
-                $url = trim((string)($image ?? ''));
-                if ($url !== '') {
-                    $sampleImages[] = $url;
-                }
+    $imagesLarge = $sampleImageUrl['sample_l']['image'] ?? null;
+    if (is_array($imagesLarge)) {
+        foreach ($imagesLarge as $image) {
+            $url = trim((string)($image ?? ''));
+            if ($url !== '') {
+                $sampleImages[] = $url;
+            }
+        }
+    }
+    $imagesSmall = $sampleImageUrl['sample_s']['image'] ?? null;
+    if (is_array($imagesSmall)) {
+        foreach ($imagesSmall as $image) {
+            $url = trim((string)($image ?? ''));
+            if ($url !== '') {
+                $sampleImagesSmall[] = $url;
             }
         }
     }
 }
 $sampleImages = array_values(array_unique($sampleImages));
+$sampleImagesSmall = array_values(array_unique($sampleImagesSmall));
+$sampleImagesSmallLargeMap = [];
+foreach ($sampleImagesSmall as $i => $smallImage) {
+    $largeImage = (string)($sampleImages[$i] ?? $smallImage);
+    $sampleImagesSmallLargeMap[] = ['small' => (string)$smallImage, 'large' => $largeImage];
+}
+
+$fullPackageImage = trim((string)($item['image_large'] ?? ''));
+if ($fullPackageImage === '') {
+    $imageListRaw = (string)($item['image_list'] ?? '');
+    $imageList = preg_split('/[\r\n,|\s]+/', $imageListRaw);
+    if (is_array($imageList)) {
+        foreach ($imageList as $imageListValue) {
+            $candidate = trim((string)$imageListValue);
+            if ($candidate !== '') {
+                $fullPackageImage = $candidate;
+                break;
+            }
+        }
+    }
+}
 
 $desc = trim((string)($item['description'] ?? ''));
 if ($desc === '') {
@@ -266,14 +295,19 @@ require __DIR__ . '/partials/header.php';
 <article>
   <h1 class="pcf-hero__title"><?= e((string)($item['title'] ?? '')) ?></h1>
 
+  <?php if ($sampleMovieUrl !== ''): ?>
+    <h2 class="pcf-section-title">サンプル動画</h2>
+    <div class="sample-movie-modal__frame-wrap" style="max-width: 720px;">
+      <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" scrolling="no"></iframe>
+    </div>
+    <p><button type="button" class="sample-movie-trigger pcf-btn" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e((string)$item['title']) ?>">サンプル動画を再生</button></p>
+  <?php endif; ?>
+
   <section class="pcf-detail pcf-item-main">
     <div class="pcf-item-main__media">
       <a href="<?= e(pcf_item_image(is_array($item) ? $item : [])) ?>" target="_blank" rel="noopener noreferrer">
         <img class="pcf-detail__package" src="<?= e(pcf_item_image(is_array($item) ? $item : [])) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>">
       </a>
-      <?php if ($sampleMovieUrl !== ''): ?>
-        <p><button type="button" class="sample-movie-trigger pcf-btn" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e((string)$item['title']) ?>">サンプル動画を再生</button></p>
-      <?php endif; ?>
     </div>
 
     <div class="pcf-item-main__info">
@@ -293,6 +327,17 @@ require __DIR__ . '/partials/header.php';
     </div>
   </section>
 
+  <h2 class="pcf-section-title">フルパッケージ</h2>
+  <?php if ($fullPackageImage !== ''): ?>
+    <div class="pcf-sample-grid pcf-sample-grid--thumb">
+      <a href="<?= e($fullPackageImage) ?>" target="_blank" rel="noopener noreferrer">
+        <img src="<?= e($fullPackageImage) ?>" alt="フルパッケージ" loading="lazy">
+      </a>
+    </div>
+  <?php else: ?>
+    <?php pcf_render_empty('フルパッケージ画像はありません。'); ?>
+  <?php endif; ?>
+
   <h2 class="pcf-section-title">サンプル画像</h2>
   <?php if ($sampleImages !== []): ?>
     <div class="pcf-sample-grid pcf-sample-grid--thumb">
@@ -304,6 +349,19 @@ require __DIR__ . '/partials/header.php';
     </div>
   <?php else: ?>
     <?php pcf_render_empty('サンプル画像はありません。'); ?>
+  <?php endif; ?>
+
+  <h2 class="pcf-section-title">サンプル画像(小)</h2>
+  <?php if ($sampleImagesSmallLargeMap !== []): ?>
+    <div class="pcf-sample-grid pcf-sample-grid--thumb">
+      <?php foreach ($sampleImagesSmallLargeMap as $i => $imagePair): ?>
+        <a href="<?= e((string)$imagePair['large']) ?>" target="_blank" rel="noopener noreferrer">
+          <img src="<?= e((string)$imagePair['small']) ?>" alt="サンプル画像(小) <?= e((string)($i + 1)) ?>" loading="lazy">
+        </a>
+      <?php endforeach; ?>
+    </div>
+  <?php else: ?>
+    <?php pcf_render_empty('サンプル画像(小)はありません。'); ?>
   <?php endif; ?>
 
   <h2 class="pcf-section-title">関連作品</h2>
