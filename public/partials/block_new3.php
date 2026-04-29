@@ -9,7 +9,7 @@
                 <?php endif; ?>
                 <strong><?php echo htmlspecialchars($item['title'], ENT_QUOTES, 'UTF-8'); ?></strong>
                 <div class="meta"><?php echo htmlspecialchars($item['date_published'] ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
-                <div><a href="/item.php?cid=<?php echo urlencode($item['content_id']); ?>">詳細</a></div>
+                <div><a href="<?php echo e(public_url('item.php?cid=' . urlencode($item['content_id']))); ?>">詳細</a></div>
             </div>
         <?php endforeach; ?>
     </div>

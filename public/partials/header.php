@@ -44,6 +44,11 @@ $headerAdHtml = trim($safeTextSetting('header_ad_html', ''));
 $titleText = (string)($title ?? $pageTitle ?? $siteName);
 $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
 $canRenderAd = function_exists('render_ad');
+$descriptionText = (string)($pageDescription ?? '');
+if ($descriptionText === '') {
+    $descriptionText = $tagline;
+}
+$canonicalHref = isset($canonicalUrl) && is_string($canonicalUrl) && $canonicalUrl !== '' ? $canonicalUrl : '';
 ?>
 <!doctype html>
 <html lang="ja">
@@ -51,7 +56,8 @@ $canRenderAd = function_exists('render_ad');
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= e($titleText) ?></title>
-  <?php if ($tagline !== ''): ?><meta name="description" content="<?= e($tagline) ?>"><?php endif; ?>
+  <?php if ($descriptionText !== ''): ?><meta name="description" content="<?= e($descriptionText) ?>"><?php endif; ?>
+  <?php if ($canonicalHref !== ''): ?><link rel="canonical" href="<?= e($canonicalHref) ?>"><?php endif; ?>
   <?php if ($keywords !== ''): ?><meta name="keywords" content="<?= e($keywords) ?>"><?php endif; ?>
   <?php if ($faviconUrl !== ''): ?>
     <link rel="icon" href="<?= e($faviconUrl) ?>" sizes="any" type="image/x-icon">
