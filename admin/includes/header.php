@@ -10,18 +10,20 @@ $menuGroups = [
     ['label' => 'ダッシュボード', 'file' => 'index.php'],
     ['label' => '設定', 'children' => [
         ['label' => 'サイト設定', 'file' => 'site_settings.php'],
+        ['label' => '広告コード', 'file' => 'ads_code.php'],
     ]],
     ['label' => 'リンク設定', 'children' => [
         ['label' => '相互リンク管理', 'file' => 'links.php'],
     ]],
-    ['label' => 'アクセス解析', 'file' => 'analytics.php'],
-    ['label' => 'アフィリエイト設定', 'children' => [
+    ['label' => 'API設定', 'children' => [
         ['label' => '商品情報API設定', 'file' => 'api_items.php'],
-        ['label' => '広告コード', 'file' => 'affiliate_ads.php'],
+    ]],
+    ['label' => 'アクセス解析', 'children' => [
+        ['label' => 'グラフ', 'file' => 'analytics.php'],
     ]],
     ['label' => '固定ページ', 'children' => [
-        ['label' => '固定ページ一覧', 'file' => 'pages.php'],
         ['label' => '新規', 'file' => 'pages_new.php'],
+        ['label' => '固定ページ一覧', 'file' => 'pages.php'],
     ]],
 ];
 
@@ -50,16 +52,27 @@ $titleText = (string)($title ?? APP_NAME);
       <ul class="admin-sidebar__list">
         <?php foreach ($menuGroups as $group): ?>
           <?php if (isset($group['children']) && is_array($group['children'])): ?>
+            <?php
+            $isGroupActive = false;
+            foreach ($group['children'] as $item) {
+                if ($currentScript === basename((string)$item['file'])) {
+                    $isGroupActive = true;
+                    break;
+                }
+            }
+            ?>
             <li>
-              <span class="admin-menu__link"><?= e('> ' . (string)$group['label']) ?></span>
-              <ul class="admin-sidebar__list admin-menu__child">
-                <?php foreach ($group['children'] as $item): $isActive = ($currentScript === basename((string)$item['file'])); ?>
-                  <li><a class="admin-menu__link <?= $isActive ? 'is-active' : '' ?>" href="<?= e(admin_url((string)$item['file'])) ?>">┗ <?= e((string)$item['label']) ?></a></li>
-                <?php endforeach; ?>
-              </ul>
+              <details <?= $isGroupActive ? 'open' : '' ?>>
+                <summary class="admin-menu__link"><?= e((string)$group['label']) ?></summary>
+                <ul class="admin-sidebar__list admin-menu__child">
+                  <?php foreach ($group['children'] as $item): $isActive = ($currentScript === basename((string)$item['file'])); ?>
+                    <li><a class="admin-menu__link <?= $isActive ? 'is-active' : '' ?>" href="<?= e(admin_url((string)$item['file'])) ?>"><?= e((string)$item['label']) ?></a></li>
+                  <?php endforeach; ?>
+                </ul>
+              </details>
             </li>
           <?php else: $isActive = ($currentScript === basename((string)$group['file'])); ?>
-            <li><a class="admin-menu__link <?= $isActive ? 'is-active' : '' ?>" href="<?= e(admin_url((string)$group['file'])) ?>"><?= e('> ' . (string)$group['label']) ?></a></li>
+            <li><a class="admin-menu__link <?= $isActive ? 'is-active' : '' ?>" href="<?= e(admin_url((string)$group['file'])) ?>"><?= e((string)$group['label']) ?></a></li>
           <?php endif; ?>
         <?php endforeach; ?>
       </ul>
