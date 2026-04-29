@@ -268,12 +268,22 @@ require __DIR__ . '/partials/header.php';
 
   <section class="pcf-detail pcf-item-main">
     <div class="pcf-item-main__media">
-      <img class="pcf-detail__package" src="<?= e(pcf_item_image(is_array($item) ? $item : [])) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>">
+      <?php if (count($sampleImages) >= 2): ?>
+        <div class="pcf-detail__spread">
+          <a href="<?= e((string)$sampleImages[0]) ?>" target="_blank" rel="noopener noreferrer">
+            <img class="pcf-detail__package" src="<?= e((string)$sampleImages[0]) ?>" alt="<?= e((string)($item['title'] ?? '')) ?> パッケージ左">
+          </a>
+          <a href="<?= e((string)$sampleImages[1]) ?>" target="_blank" rel="noopener noreferrer">
+            <img class="pcf-detail__package" src="<?= e((string)$sampleImages[1]) ?>" alt="<?= e((string)($item['title'] ?? '')) ?> パッケージ右">
+          </a>
+        </div>
+      <?php else: ?>
+        <a href="<?= e(pcf_item_image(is_array($item) ? $item : [])) ?>" target="_blank" rel="noopener noreferrer">
+          <img class="pcf-detail__package" src="<?= e(pcf_item_image(is_array($item) ? $item : [])) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>">
+        </a>
+      <?php endif; ?>
       <?php if ($sampleMovieUrl !== ''): ?>
         <p><button type="button" class="sample-movie-trigger pcf-btn" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e((string)$item['title']) ?>">サンプル動画を再生</button></p>
-      <?php endif; ?>
-      <?php if (!empty($item['affiliate_url'])): ?>
-        <p><a class="pcf-btn" href="<?= e((string)$item['affiliate_url']) ?>" target="_blank" rel="noopener noreferrer">FANZAで購入する</a></p>
       <?php endif; ?>
     </div>
 

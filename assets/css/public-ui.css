@@ -148,6 +148,12 @@
   background: #0d1018;
 }
 
+.pcf-detail__spread {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
 .pcf-item-main__media p,
 .pcf-item-main__info p {
   margin-top: 10px;
