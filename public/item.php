@@ -228,21 +228,45 @@ if ($sampleMovieUrl === '') {
 }
 
 $sampleImages = [];
+$sampleImagesSmall = [];
 $sampleImageUrl = $raw['sampleImageURL'] ?? null;
 if (is_array($sampleImageUrl)) {
-    foreach (['sample_l', 'sample_s'] as $sampleKey) {
-        $images = $sampleImageUrl[$sampleKey]['image'] ?? null;
-        if (is_array($images)) {
-            foreach ($images as $image) {
-                $url = trim((string)($image ?? ''));
-                if ($url !== '') {
-                    $sampleImages[] = $url;
-                }
+    $imagesLarge = $sampleImageUrl['sample_l']['image'] ?? null;
+    if (is_array($imagesLarge)) {
+        foreach ($imagesLarge as $image) {
+            $url = trim((string)($image ?? ''));
+            if ($url !== '') {
+                $sampleImages[] = $url;
+            }
+        }
+    }
+    $imagesSmall = $sampleImageUrl['sample_s']['image'] ?? null;
+    if (is_array($imagesSmall)) {
+        foreach ($imagesSmall as $image) {
+            $url = trim((string)($image ?? ''));
+            if ($url !== '') {
+                $sampleImagesSmall[] = $url;
             }
         }
     }
 }
 $sampleImages = array_values(array_unique($sampleImages));
+$sampleImagesSmall = array_values(array_unique($sampleImagesSmall));
+
+$fullPackageImage = trim((string)($item['image_large'] ?? ''));
+if ($fullPackageImage === '') {
+    $imageListRaw = (string)($item['image_list'] ?? '');
+    $imageList = preg_split('/[\r\n,|\s]+/', $imageListRaw);
+    if (is_array($imageList)) {
+        foreach ($imageList as $imageListValue) {
+            $candidate = trim((string)$imageListValue);
+            if ($candidate !== '') {
+                $fullPackageImage = $candidate;
+                break;
+            }
+        }
+    }
+}
 
 $desc = trim((string)($item['description'] ?? ''));
 if ($desc === '') {
@@ -293,6 +317,17 @@ require __DIR__ . '/partials/header.php';
     </div>
   </section>
 
+  <h2 class="pcf-section-title">フルパッケージ</h2>
+  <?php if ($fullPackageImage !== ''): ?>
+    <div class="pcf-sample-grid pcf-sample-grid--thumb">
+      <a href="<?= e($fullPackageImage) ?>" target="_blank" rel="noopener noreferrer">
+        <img src="<?= e($fullPackageImage) ?>" alt="フルパッケージ" loading="lazy">
+      </a>
+    </div>
+  <?php else: ?>
+    <?php pcf_render_empty('フルパッケージ画像はありません。'); ?>
+  <?php endif; ?>
+
   <h2 class="pcf-section-title">サンプル画像</h2>
   <?php if ($sampleImages !== []): ?>
     <div class="pcf-sample-grid pcf-sample-grid--thumb">
@@ -304,6 +339,19 @@ require __DIR__ . '/partials/header.php';
     </div>
   <?php else: ?>
     <?php pcf_render_empty('サンプル画像はありません。'); ?>
+  <?php endif; ?>
+
+  <h2 class="pcf-section-title">サンプル画像(小)</h2>
+  <?php if ($sampleImagesSmall !== []): ?>
+    <div class="pcf-sample-grid pcf-sample-grid--thumb">
+      <?php foreach ($sampleImagesSmall as $i => $image): ?>
+        <a href="<?= e((string)$image) ?>" target="_blank" rel="noopener noreferrer">
+          <img src="<?= e((string)$image) ?>" alt="サンプル画像(小) <?= e((string)($i + 1)) ?>" loading="lazy">
+        </a>
+      <?php endforeach; ?>
+    </div>
+  <?php else: ?>
+    <?php pcf_render_empty('サンプル画像(小)はありません。'); ?>
   <?php endif; ?>
 
   <h2 class="pcf-section-title">関連作品</h2>
