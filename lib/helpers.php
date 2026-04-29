@@ -106,3 +106,122 @@ function flash_get(): ?array
     unset($_SESSION['flash']);
     return $flash;
 }
+
+/**
+ * Splits an over-fetched list into [items, hasNext].
+ * Callers fetch $limit + 1 rows; this function trims back to $limit
+ * and returns true for $hasNext when the extra row was present.
+ *
+ * @return array{0: array, 1: bool}
+ */
+function paginate_items(array $rows, int $limit): array
+{
+    $hasNext = count($rows) > $limit;
+    return [$hasNext ? array_slice($rows, 0, $limit) : $rows, $hasNext];
+}
+
+/**
+ * Appends non-null, non-empty query parameters to a path.
+ * Returns a root-relative URL suitable for href attributes.
+ */
+function build_url(string $path, array $params = []): string
+{
+    $filtered = array_filter(
+        $params,
+        static fn($v) => $v !== null && (string)$v !== ''
+    );
+    if ($filtered === []) {
+        return $path;
+    }
+    $separator = str_contains($path, '?') ? '&' : '?';
+    return $path . $separator . http_build_query($filtered);
+}
+
+/**
+ * Builds an absolute canonical URL from a root-relative path and optional params.
+ * Null or empty param values are omitted.
+ */
+function canonical_url(string $path, array $params = []): string
+{
+    $filtered = array_filter(
+        $params,
+        static fn($v) => $v !== null && (string)$v !== ''
+    );
+    $url = rtrim(BASE_URL, '/') . '/' . ltrim($path, '/');
+    if ($filtered !== []) {
+        $url .= '?' . http_build_query($filtered);
+    }
+    return $url;
+}
+
+/**
+ * Safely parses an integer from user input, applying default and min/max bounds.
+ * $min must be less than or equal to $max.
+ */
+function safe_int(mixed $value, int $default, int $min, int $max): int
+{
+    if ($value === null || $value === '') {
+        return $default;
+    }
+    $int = filter_var($value, FILTER_VALIDATE_INT);
+    if ($int === false) {
+        return $default;
+    }
+    return max($min, min($max, (int)$int));
+}
+
+/**
+ * Safely trims a string from user input to a maximum UTF-8 character length.
+ */
+function safe_str(mixed $value, int $maxLen): string
+{
+    $str = trim((string)$value);
+    if ($maxLen > 0 && mb_strlen($str, 'UTF-8') > $maxLen) {
+        $str = mb_substr($str, 0, $maxLen, 'UTF-8');
+    }
+    return $str;
+}
+
+/**
+ * Sends a 404 response with a minimal HTML page and terminates execution.
+ */
+function abort_404(string $title = '404 Not Found', string $message = 'ページが見つかりませんでした。'): never
+{
+    http_response_code(404);
+    echo '<!doctype html><html lang="ja"><head><meta charset="UTF-8"><title>' . e($title) . '</title></head>'
+        . '<body><h1>' . e($title) . '</h1><p>' . e($message) . '</p></body></html>';
+    exit;
+}
+
+/**
+ * Formats a date string into Japanese-style "Y年n月j日" notation.
+ * Returns an empty string when the input is empty.
+ * Returns the original date string when it cannot be parsed.
+ */
+function format_date(?string $date): string
+{
+    if ($date === null || trim($date) === '') {
+        return '';
+    }
+    $timestamp = strtotime($date);
+    if ($timestamp === false) {
+        return e($date);
+    }
+    return date('Y年n月j日', $timestamp);
+}
+
+/**
+ * Formats an integer price value as a yen string (e.g. "¥1,980").
+ * Returns an empty string for zero, null, or non-positive values.
+ */
+function format_price(mixed $price): string
+{
+    if ($price === null || $price === '' || $price === 0 || $price === '0') {
+        return '';
+    }
+    $n = (int)$price;
+    if ($n <= 0) {
+        return '';
+    }
+    return '¥' . number_format($n);
+}
