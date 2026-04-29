@@ -297,8 +297,8 @@ require __DIR__ . '/partials/header.php';
 
   <?php if ($sampleMovieUrl !== ''): ?>
     <h2 class="pcf-section-title">サンプル動画</h2>
-    <div class="sample-movie-modal__frame-wrap" style="max-width: 720px;">
-      <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
+    <div class="sample-movie-modal__frame-wrap" style="width: 720px; max-width: 100%; aspect-ratio: 720 / 480;">
+      <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" scrolling="no" width="720" height="480"></iframe>
     </div>
     <p><button type="button" class="sample-movie-trigger pcf-btn" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e((string)$item['title']) ?>">サンプル動画を再生</button></p>
   <?php endif; ?>
