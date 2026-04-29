@@ -207,10 +207,33 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     $movieClass = $sample['movie_url'] !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $imageClass = $sample['has_images'] ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')));
+    $imageMode = is_array($taxonomy) ? (string)($taxonomy['image_mode'] ?? 'normal') : 'normal';
+    $thumbUrl = trim((string)($item['image_small'] ?? ''));
+    if ($imageMode === 'full') {
+        $raw = decode_item_raw($item);
+        $sampleImageUrl = $raw['sampleImageURL'] ?? null;
+        if (is_array($sampleImageUrl)) {
+            foreach (['sample_l', 'sample_s'] as $sampleKey) {
+                $images = $sampleImageUrl[$sampleKey]['image'] ?? null;
+                if (is_array($images)) {
+                    foreach ($images as $image) {
+                        $candidate = trim((string)$image);
+                        if ($candidate !== '') {
+                            $thumbUrl = $candidate;
+                            break 2;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if ($thumbUrl === '') {
+        $thumbUrl = trim((string)($item['image_large'] ?? ''));
+    }
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
-      <?php if (!empty($item['image_small'])): ?>
-        <img class="thumb" src="<?= e((string)$item['image_small']) ?>" alt="<?= e($title) ?>" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
+      <?php if ($thumbUrl !== ''): ?>
+        <img class="thumb" src="<?= e($thumbUrl) ?>" alt="<?= e($title) ?>" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
       <?php else: ?>
         <div class="rail-card__noimage" style="width:<?= (int)$width ?>px;height:<?= (int)$width ?>px;">画像なし</div>
       <?php endif; ?>
@@ -416,7 +439,7 @@ $hasHomeContent = $latestTop !== []
   <section class="rail-section">
     <h2>新着作品</h2>
     <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($latestTop as $item) { render_item_card($item, 210); } ?></div>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb"><?php foreach ($latestBottom as $item) { render_item_card($item, 200); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb"><?php foreach ($latestBottom as $item) { render_item_card($item, 200, ['image_mode' => 'full']); } ?></div>
   </section>
 
   <section class="rail-section">
