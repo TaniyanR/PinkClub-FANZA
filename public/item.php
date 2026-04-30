@@ -284,6 +284,10 @@ if ($desc === '') {
 }
 
 $title = (string)($item['title'] ?? '商品詳細');
+$packageImage = pcf_item_image(is_array($item) ? $item : []);
+if (str_starts_with($packageImage, 'data:image/svg+xml')) {
+    $packageImage = '';
+}
 require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_breadcrumbs([
@@ -300,14 +304,15 @@ require __DIR__ . '/partials/header.php';
     <div class="sample-movie-modal__frame-wrap" style="width: 720px; max-width: 100%; aspect-ratio: 720 / 480;">
       <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" scrolling="no" width="720" height="480"></iframe>
     </div>
-    <p><button type="button" class="sample-movie-trigger pcf-btn" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e((string)$item['title']) ?>">サンプル動画を再生</button></p>
   <?php endif; ?>
 
   <section class="pcf-detail pcf-item-main">
     <div class="pcf-item-main__media">
-      <a href="<?= e(pcf_item_image(is_array($item) ? $item : [])) ?>" target="_blank" rel="noopener noreferrer">
-        <img class="pcf-detail__package" src="<?= e(pcf_item_image(is_array($item) ? $item : [])) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>">
+      <?php if ($packageImage !== ''): ?>
+      <a href="<?= e($packageImage) ?>" target="_blank" rel="noopener noreferrer">
+        <img class="pcf-detail__package" src="<?= e($packageImage) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>">
       </a>
+      <?php endif; ?>
     </div>
 
     <div class="pcf-item-main__info">
@@ -347,8 +352,6 @@ require __DIR__ . '/partials/header.php';
         </a>
       <?php endforeach; ?>
     </div>
-  <?php else: ?>
-    <?php pcf_render_empty('サンプル画像はありません。'); ?>
   <?php endif; ?>
 
   <h2 class="pcf-section-title">サンプル画像(小)</h2>
@@ -360,8 +363,6 @@ require __DIR__ . '/partials/header.php';
         </a>
       <?php endforeach; ?>
     </div>
-  <?php else: ?>
-    <?php pcf_render_empty('サンプル画像(小)はありません。'); ?>
   <?php endif; ?>
 
   <h2 class="pcf-section-title">関連作品</h2>
