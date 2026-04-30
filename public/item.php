@@ -299,11 +299,26 @@ require __DIR__ . '/partials/header.php';
 <article>
   <h1 class="pcf-hero__title"><?= e((string)($item['title'] ?? '')) ?></h1>
 
-  <?php if ($sampleMovieUrl !== ''): ?>
-    <h2 class="pcf-section-title">サンプル動画</h2>
-    <div class="sample-movie-modal__frame-wrap" style="width: 720px; max-width: 100%; aspect-ratio: 720 / 480;">
-      <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" scrolling="no" width="720" height="480"></iframe>
+  <?php if ($sampleMovieUrl !== '' || $fullPackageImage !== ''): ?>
+    <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+      <?php if ($sampleMovieUrl !== ''): ?>
+      <div class="sample-movie-modal__frame-wrap" style="width: 720px; max-width: 100%; aspect-ratio: 720 / 480;">
+        <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" scrolling="no" width="720" height="480"></iframe>
+      </div>
+      <?php endif; ?>
+      <div style="width:320px; max-width:100%;">
+        <?php if ($fullPackageImage !== ''): ?>
+          <a href="<?= e($fullPackageImage) ?>" target="_blank" rel="noopener noreferrer">
+            <img src="<?= e($fullPackageImage) ?>" alt="フルパッケージ" loading="lazy">
+          </a>
+        <?php endif; ?>
+        <h2 class="pcf-section-title">作品詳細</h2>
+      </div>
     </div>
+  <?php endif; ?>
+
+  <?php if ($sampleMovieUrl === '' && $fullPackageImage === ''): ?>
+    <h2 class="pcf-section-title">作品詳細</h2>
   <?php endif; ?>
 
   <section class="pcf-detail pcf-item-main">
@@ -332,18 +347,6 @@ require __DIR__ . '/partials/header.php';
     </div>
   </section>
 
-  <h2 class="pcf-section-title">フルパッケージ</h2>
-  <?php if ($fullPackageImage !== ''): ?>
-    <div class="pcf-sample-grid pcf-sample-grid--thumb">
-      <a href="<?= e($fullPackageImage) ?>" target="_blank" rel="noopener noreferrer">
-        <img src="<?= e($fullPackageImage) ?>" alt="フルパッケージ" loading="lazy">
-      </a>
-    </div>
-  <?php else: ?>
-    <?php pcf_render_empty('フルパッケージ画像はありません。'); ?>
-  <?php endif; ?>
-
-  <h2 class="pcf-section-title">サンプル画像</h2>
   <?php if ($sampleImages !== []): ?>
     <div class="pcf-sample-grid pcf-sample-grid--thumb">
       <?php foreach ($sampleImages as $i => $image): ?>
