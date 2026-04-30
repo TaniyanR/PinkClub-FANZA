@@ -283,7 +283,9 @@ if ($desc === '') {
     }
 }
 
-$title = (string)($item['title'] ?? '商品詳細');
+$itemTitle = (string)($item['title'] ?? '商品詳細');
+$title = $itemTitle;
+$pageTitle = $itemTitle;
 $packageImage = pcf_item_image(is_array($item) ? $item : []);
 if (str_starts_with($packageImage, 'data:image/svg+xml')) {
     $packageImage = '';

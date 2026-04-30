@@ -23,22 +23,22 @@ try {
     $excludedTitles = ['サイトについて', 'Privacy Policy', 'お問い合わせ'];
     foreach ($fixedPages as $page) {
         $slug = trim((string)($page['slug'] ?? ''));
-        $title = trim((string)($page['title'] ?? ''));
-        if ($slug === '' || $title === '') {
+        $pageTitleLabel = trim((string)($page['title'] ?? ''));
+        if ($slug === '' || $pageTitleLabel === '') {
             continue;
         }
-        if (in_array($slug, $excludedSlugs, true) || in_array($title, $excludedTitles, true)) {
+        if (in_array($slug, $excludedSlugs, true) || in_array($pageTitleLabel, $excludedTitles, true)) {
             continue;
         }
-        $navItems[] = ['href' => public_url('page.php?slug=' . $slug), 'label' => $title];
+        $navItems[] = ['href' => public_url('page.php?slug=' . $slug), 'label' => $pageTitleLabel];
     }
 } catch (Throwable $e) {
 }
 ?>
 <nav class="site-nav" aria-label="グローバルナビゲーション">
-    <?php foreach ($navItems as $index => $item) : ?>
-        <?php $isActive = $path === parse_url($item['href'], PHP_URL_PATH); ?>
+    <?php foreach ($navItems as $index => $navItem) : ?>
+        <?php $isActive = $path === parse_url($navItem['href'], PHP_URL_PATH); ?>
         <?php if ($index > 0): ?><span class="site-nav__sep" aria-hidden="true"> | </span><?php endif; ?>
-        <a class="<?= $isActive ? 'is-active' : '' ?>" href="<?= e($item['href']) ?>"><?= e($item['label']) ?></a>
+        <a class="<?= $isActive ? 'is-active' : '' ?>" href="<?= e($navItem['href']) ?>"><?= e($navItem['label']) ?></a>
     <?php endforeach; ?>
 </nav>
