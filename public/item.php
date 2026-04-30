@@ -300,7 +300,6 @@ require __DIR__ . '/partials/header.php';
     <div class="sample-movie-modal__frame-wrap" style="width: 720px; max-width: 100%; aspect-ratio: 720 / 480;">
       <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" scrolling="no" width="720" height="480"></iframe>
     </div>
-    <p><button type="button" class="sample-movie-trigger pcf-btn" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e((string)$item['title']) ?>">サンプル動画を再生</button></p>
   <?php endif; ?>
 
   <section class="pcf-detail pcf-item-main">
@@ -347,8 +346,6 @@ require __DIR__ . '/partials/header.php';
         </a>
       <?php endforeach; ?>
     </div>
-  <?php else: ?>
-    <?php pcf_render_empty('サンプル画像はありません。'); ?>
   <?php endif; ?>
 
   <h2 class="pcf-section-title">サンプル画像(小)</h2>
@@ -360,8 +357,6 @@ require __DIR__ . '/partials/header.php';
         </a>
       <?php endforeach; ?>
     </div>
-  <?php else: ?>
-    <?php pcf_render_empty('サンプル画像(小)はありません。'); ?>
   <?php endif; ?>
 
   <h2 class="pcf-section-title">関連作品</h2>
