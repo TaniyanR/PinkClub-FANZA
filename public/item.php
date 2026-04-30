@@ -284,6 +284,10 @@ if ($desc === '') {
 }
 
 $title = (string)($item['title'] ?? '商品詳細');
+$packageImage = pcf_item_image(is_array($item) ? $item : []);
+if (str_starts_with($packageImage, 'data:image/svg+xml')) {
+    $packageImage = '';
+}
 require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_breadcrumbs([
@@ -295,19 +299,35 @@ require __DIR__ . '/partials/header.php';
 <article>
   <h1 class="pcf-hero__title"><?= e((string)($item['title'] ?? '')) ?></h1>
 
-  <?php if ($sampleMovieUrl !== ''): ?>
-    <h2 class="pcf-section-title">サンプル動画</h2>
-    <div class="sample-movie-modal__frame-wrap" style="width: 720px; max-width: 100%; aspect-ratio: 720 / 480;">
-      <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" scrolling="no" width="720" height="480"></iframe>
+  <?php if ($sampleMovieUrl !== '' || $fullPackageImage !== ''): ?>
+    <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+      <?php if ($sampleMovieUrl !== ''): ?>
+      <div class="sample-movie-modal__frame-wrap" style="width: 720px; max-width: 100%; aspect-ratio: 720 / 480;">
+        <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" scrolling="no" width="720" height="480"></iframe>
+      </div>
+      <?php endif; ?>
+      <div style="flex:1 1 280px; max-width:360px; width:100%;">
+        <?php if ($fullPackageImage !== ''): ?>
+          <a href="<?= e($fullPackageImage) ?>" target="_blank" rel="noopener noreferrer">
+            <img src="<?= e($fullPackageImage) ?>" alt="フルパッケージ" loading="lazy" style="display:block; width:100%; height:auto;">
+          </a>
+        <?php endif; ?>
+        <h2 class="pcf-section-title">作品詳細</h2>
+      </div>
     </div>
-    <p><button type="button" class="sample-movie-trigger pcf-btn" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e((string)$item['title']) ?>">サンプル動画を再生</button></p>
+  <?php endif; ?>
+
+  <?php if ($sampleMovieUrl === '' && $fullPackageImage === ''): ?>
+    <h2 class="pcf-section-title">作品詳細</h2>
   <?php endif; ?>
 
   <section class="pcf-detail pcf-item-main">
     <div class="pcf-item-main__media">
-      <a href="<?= e(pcf_item_image(is_array($item) ? $item : [])) ?>" target="_blank" rel="noopener noreferrer">
-        <img class="pcf-detail__package" src="<?= e(pcf_item_image(is_array($item) ? $item : [])) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>">
+      <?php if ($packageImage !== ''): ?>
+      <a href="<?= e($packageImage) ?>" target="_blank" rel="noopener noreferrer">
+        <img class="pcf-detail__package" src="<?= e($packageImage) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>">
       </a>
+      <?php endif; ?>
     </div>
 
     <div class="pcf-item-main__info">
@@ -317,7 +337,7 @@ require __DIR__ . '/partials/header.php';
         <?php if (!empty($item['review_average']) || !empty($item['review_count'])): ?><li>レビュー: <?= e((string)($item['review_average'] ?? '')) ?> (<?= e((string)($item['review_count'] ?? 0)) ?>)</li><?php endif; ?>
       </ul>
 
-      <?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php endif; ?>
+      <?php if ($desc !== ''): ?><h3>作品コメント</h3><p><?= nl2br(e($desc)) ?></p><?php endif; ?>
 
       <?php if ($actresses !== []): ?><h3>女優</h3><div class="pcf-tag-list"><?php foreach ($actresses as $v): ?><a class="pcf-tag" href="<?= e(public_url('actress.php?id=' . (int)($v['id'] ?? 0))) ?>"><?= e((string)($v['name'] ?? '')) ?></a><?php endforeach; ?></div><?php endif; ?>
       <?php if ($genres !== []): ?><h3>ジャンル</h3><div class="pcf-tag-list"><?php foreach ($genres as $v): ?><a class="pcf-tag" href="<?= e(public_url('genre.php?id=' . (int)($v['id'] ?? 0))) ?>"><?= e((string)($v['name'] ?? '')) ?></a><?php endforeach; ?></div><?php endif; ?>
@@ -327,18 +347,6 @@ require __DIR__ . '/partials/header.php';
     </div>
   </section>
 
-  <h2 class="pcf-section-title">フルパッケージ</h2>
-  <?php if ($fullPackageImage !== ''): ?>
-    <div class="pcf-sample-grid pcf-sample-grid--thumb">
-      <a href="<?= e($fullPackageImage) ?>" target="_blank" rel="noopener noreferrer">
-        <img src="<?= e($fullPackageImage) ?>" alt="フルパッケージ" loading="lazy">
-      </a>
-    </div>
-  <?php else: ?>
-    <?php pcf_render_empty('フルパッケージ画像はありません。'); ?>
-  <?php endif; ?>
-
-  <h2 class="pcf-section-title">サンプル画像</h2>
   <?php if ($sampleImages !== []): ?>
     <div class="pcf-sample-grid pcf-sample-grid--thumb">
       <?php foreach ($sampleImages as $i => $image): ?>
@@ -347,11 +355,8 @@ require __DIR__ . '/partials/header.php';
         </a>
       <?php endforeach; ?>
     </div>
-  <?php else: ?>
-    <?php pcf_render_empty('サンプル画像はありません。'); ?>
   <?php endif; ?>
 
-  <h2 class="pcf-section-title">サンプル画像(小)</h2>
   <?php if ($sampleImagesSmallLargeMap !== []): ?>
     <div class="pcf-sample-grid pcf-sample-grid--thumb">
       <?php foreach ($sampleImagesSmallLargeMap as $i => $imagePair): ?>
@@ -360,8 +365,6 @@ require __DIR__ . '/partials/header.php';
         </a>
       <?php endforeach; ?>
     </div>
-  <?php else: ?>
-    <?php pcf_render_empty('サンプル画像(小)はありません。'); ?>
   <?php endif; ?>
 
   <h2 class="pcf-section-title">関連作品</h2>
