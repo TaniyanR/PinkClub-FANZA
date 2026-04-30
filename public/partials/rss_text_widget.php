@@ -43,15 +43,15 @@ try {
 
 rss_widget_bootstrap();
 
-$items = [];
+$rssItems = [];
 try {
-    $items = rss_pick_display_items(50, false, 14);
+    $rssItems = rss_pick_display_items(50, false, 14);
 } catch (Throwable $e) {
-    $items = [];
+    $rssItems = [];
 }
 
-if (is_array($items) && count($items) > 1) {
-    shuffle($items);
+if (is_array($rssItems) && count($rssItems) > 1) {
+    shuffle($rssItems);
 }
 
 $rssUsedKeys = [];
@@ -64,7 +64,7 @@ if (isset($GLOBALS['pcf_rss_widget_max_items'])) {
 }
 
 $filteredItems = [];
-foreach ($items as $rssItem) {
+foreach ($rssItems as $rssItem) {
     if (!is_array($rssItem)) {
         continue;
     }
@@ -84,14 +84,14 @@ foreach ($items as $rssItem) {
     }
 }
 
-$items = $filteredItems;
+$rssItems = $filteredItems;
 $GLOBALS['pcf_rss_widget_used_keys'] = $rssUsedKeys;
 ?>
 <div class="rss-widget rss-widget--text block">
     <div class="rss-box">
-        <?php if ($items !== []) : ?>
+        <?php if ($rssItems !== []) : ?>
             <ul class="rss-list">
-                <?php foreach ($items as $rssItem) : ?>
+                <?php foreach ($rssItems as $rssItem) : ?>
                     <li class="rss-list__item">
                         <a href="<?php echo e((string)($rssItem['link'] ?? '')); ?>" target="_blank" rel="noopener noreferrer"><?php echo e((string)($rssItem['title'] ?? '')); ?></a>
                         <small><?php echo e((string)($rssItem['source_name'] ?? '')); ?> / <?php echo e((string)($rssItem['published_at'] ?? '')); ?></small>
