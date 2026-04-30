@@ -43,34 +43,34 @@ try {
 
 rss_widget_bootstrap();
 
-$items = [];
+$rssItems = [];
 try {
-    $items = rss_pick_display_items(50, false, 14);
+    $rssItems = rss_pick_display_items(50, false, 14);
 } catch (Throwable $e) {
-    $items = [];
+    $rssItems = [];
 }
 
-if (is_array($items) && count($items) > 1) {
-    shuffle($items);
+if (is_array($rssItems) && count($rssItems) > 1) {
+    shuffle($rssItems);
 }
 
 $rssUsedKeys = [];
-if (isset($GLOBALS['pcf_rss_widget_used_keys']) && is_array($GLOBALS['pcf_rss_widget_used_keys'])) {
-    $rssUsedKeys = $GLOBALS['pcf_rss_widget_used_keys'];
-}
 $maxItems = 0;
 if (isset($GLOBALS['pcf_rss_widget_max_items'])) {
     $maxItems = (int)$GLOBALS['pcf_rss_widget_max_items'];
 }
+if ($maxItems > 0 && isset($GLOBALS['pcf_rss_widget_used_keys']) && is_array($GLOBALS['pcf_rss_widget_used_keys'])) {
+    $rssUsedKeys = $GLOBALS['pcf_rss_widget_used_keys'];
+}
 
 $filteredItems = [];
-foreach ($items as $item) {
-    if (!is_array($item)) {
+foreach ($rssItems as $rssItem) {
+    if (!is_array($rssItem)) {
         continue;
     }
-    $key = rss_normalize_display_key($item);
+    $key = rss_normalize_display_key($rssItem);
     if ($key === '') {
-        $key = mb_strtolower(trim((string)($item['title'] ?? '')));
+        $key = mb_strtolower(trim((string)($rssItem['title'] ?? '')));
     }
     if ($key !== '' && isset($rssUsedKeys[$key])) {
         continue;
@@ -78,25 +78,25 @@ foreach ($items as $item) {
     if ($key !== '') {
         $rssUsedKeys[$key] = true;
     }
-    $filteredItems[] = $item;
+    $filteredItems[] = $rssItem;
     if ($maxItems > 0 && count($filteredItems) >= $maxItems) {
         break;
     }
 }
 
-if ($filteredItems !== []) {
-    $items = $filteredItems;
+$rssItems = $filteredItems;
+if ($maxItems > 0) {
+    $GLOBALS['pcf_rss_widget_used_keys'] = $rssUsedKeys;
 }
-$GLOBALS['pcf_rss_widget_used_keys'] = $rssUsedKeys;
 ?>
 <div class="rss-widget rss-widget--text block">
     <div class="rss-box">
-        <?php if ($items !== []) : ?>
+        <?php if ($rssItems !== []) : ?>
             <ul class="rss-list">
-                <?php foreach ($items as $item) : ?>
+                <?php foreach ($rssItems as $rssItem) : ?>
                     <li class="rss-list__item">
-                        <a href="<?php echo e((string)($item['link'] ?? '')); ?>" target="_blank" rel="noopener noreferrer"><?php echo e((string)($item['title'] ?? '')); ?></a>
-                        <small><?php echo e((string)($item['source_name'] ?? '')); ?> / <?php echo e((string)($item['published_at'] ?? '')); ?></small>
+                        <a href="<?php echo e((string)($rssItem['link'] ?? '')); ?>" target="_blank" rel="noopener noreferrer"><?php echo e((string)($rssItem['title'] ?? '')); ?></a>
+                        <small><?php echo e((string)($rssItem['source_name'] ?? '')); ?> / <?php echo e((string)($rssItem['published_at'] ?? '')); ?></small>
                     </li>
                 <?php endforeach; ?>
             </ul>

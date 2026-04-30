@@ -41,23 +41,23 @@ try {
 
 rss_widget_bootstrap();
 
-$items = [];
+$rssItems = [];
 try {
-    $items = rss_pick_display_items(5, true, 14);
+    $rssItems = rss_pick_display_items(5, true, 14);
 } catch (Throwable $e) {
-    $items = [];
+    $rssItems = [];
 }
 ?>
 <div class="rss-widget rss-widget--image">
-    <?php if ($items !== []) : ?>
+    <?php if ($rssItems !== []) : ?>
     <ul class="rss-image-list">
-        <?php foreach ($items as $item) : ?>
+        <?php foreach ($rssItems as $rssItem) : ?>
             <li class="rss-image-list__item">
-                <?php if ((string)($item['image_url'] ?? '') !== '') : ?>
-                    <img src="<?php echo e((string)$item['image_url']); ?>" alt="" loading="lazy">
+                <?php if ((string)($rssItem['image_url'] ?? '') !== '') : ?>
+                    <img src="<?php echo e((string)$rssItem['image_url']); ?>" alt="" loading="lazy">
                 <?php endif; ?>
-                <a href="<?php echo e((string)($item['link'] ?? '')); ?>" target="_blank" rel="noopener noreferrer"><?php echo e((string)($item['title'] ?? '')); ?></a>
-                <small><?php echo e((string)($item['source_name'] ?? '')); ?></small>
+                <a href="<?php echo e((string)($rssItem['link'] ?? '')); ?>" target="_blank" rel="noopener noreferrer"><?php echo e((string)($rssItem['title'] ?? '')); ?></a>
+                <small><?php echo e((string)($rssItem['source_name'] ?? '')); ?></small>
             </li>
         <?php endforeach; ?>
     </ul>
