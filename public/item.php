@@ -318,6 +318,10 @@ if ($desc === '') {
 }
 
 $title = (string)($item['title'] ?? '商品詳細');
+$rawTitle = trim((string)($raw['title'] ?? ''));
+if ($rawTitle !== '' && (str_contains($title, 'お問い合わせ') || str_contains($title, '問合せ') || mb_strlen($title) < 6)) {
+    $title = $rawTitle;
+}
 $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
 $rawMakerName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['maker', 'label']);
 $rawSeriesName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['series']);
@@ -372,7 +376,7 @@ require __DIR__ . '/partials/header.php';
     <div class="pcf-item-main__media">
       <?php if ($packageImage !== ''): ?>
       <a href="<?= e($packageImage) ?>" target="_blank" rel="noopener noreferrer">
-        <img class="pcf-detail__package" src="<?= e($packageImage) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>" style="width:320px; max-width:100%; height:460px; object-fit:contain;">
+        <img class="pcf-detail__package" src="<?= e($packageImage) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>" style="width:320px; max-width:100%; height:460px; object-fit:cover;">
       </a>
       <?php endif; ?>
     </div>
@@ -396,12 +400,6 @@ require __DIR__ . '/partials/header.php';
 
 
       <h3>商品コメント</h3><?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php else: ?><p>商品コメントはありません。</p><?php endif; ?>
-
-      <?php if ($actresses !== []): ?><h3>女優</h3><div class="pcf-tag-list"><?php foreach ($actresses as $v): ?><a class="pcf-tag" href="<?= e(public_url('actress.php?id=' . (int)($v['id'] ?? 0))) ?>"><?= e((string)($v['name'] ?? '')) ?></a><?php endforeach; ?></div><?php endif; ?>
-      <?php if ($genres !== []): ?><h3>ジャンル</h3><div class="pcf-tag-list"><?php foreach ($genres as $v): ?><a class="pcf-tag" href="<?= e(public_url('genre.php?id=' . (int)($v['id'] ?? 0))) ?>"><?= e((string)($v['name'] ?? '')) ?></a><?php endforeach; ?></div><?php endif; ?>
-      <?php if ($makers !== []): ?><h3>メーカー</h3><div class="pcf-tag-list"><?php foreach ($makers as $v): ?><a class="pcf-tag" href="<?= e(public_url('maker.php?id=' . (int)($v['id'] ?? 0))) ?>"><?= e((string)($v['name'] ?? '')) ?></a><?php endforeach; ?></div><?php endif; ?>
-      <?php if ($seriesList !== []): ?><h3>シリーズ</h3><div class="pcf-tag-list"><?php foreach ($seriesList as $v): ?><a class="pcf-tag" href="<?= e(public_url('series_detail.php?id=' . (int)($v['id'] ?? 0))) ?>"><?= e((string)($v['name'] ?? '')) ?></a><?php endforeach; ?></div><?php endif; ?>
-      <?php if ($authors !== []): ?><h3>作者</h3><div class="pcf-tag-list"><?php foreach ($authors as $v): ?><a class="pcf-tag" href="<?= e(public_url('author.php?id=' . (int)($v['id'] ?? 0))) ?>"><?= e((string)($v['name'] ?? '')) ?></a><?php endforeach; ?></div><?php endif; ?>
     </div>
   </section>
 
