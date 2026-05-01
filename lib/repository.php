@@ -618,6 +618,59 @@ function fetch_items_by_series(int $seriesId, int $limit, int $offset = 0): arra
     }
 }
 
+
+function update_items_view_count(): void
+{
+    try {
+        db()->exec('UPDATE items i SET i.view_count = (SELECT COUNT(*) FROM page_views pv WHERE pv.item_id = i.id)');
+    } catch (Throwable) {
+    }
+}
+
+function fetch_related_items(string $contentId, int $limit = 12): array
+{
+    $cid = normalize_content_id($contentId);
+    if ($cid === '') {
+        return [];
+    }
+
+    $limit = normalize_int($limit, 1, 50);
+
+    try {
+        $stmt = db()->prepare(
+            'SELECT i2.*
+             FROM items i1
+             INNER JOIN item_genres ig1 ON ig1.content_id = i1.content_id
+             INNER JOIN item_genres ig2 ON ig2.genre_id = ig1.genre_id
+             INNER JOIN items i2 ON i2.content_id = ig2.content_id
+             WHERE i1.content_id = :cid AND i2.content_id <> :cid
+             GROUP BY i2.id
+             ORDER BY i2.release_date DESC, i2.id DESC
+             LIMIT :limit'
+        );
+        $stmt->bindValue(':cid', $cid, PDO::PARAM_STR);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll() ?: [];
+        if ($rows !== []) {
+            return $rows;
+        }
+    } catch (Throwable) {
+    }
+
+    try {
+        $stmt = db()->prepare(
+            'SELECT * FROM items WHERE content_id <> :cid ORDER BY release_date DESC, id DESC LIMIT :limit'
+        );
+        $stmt->bindValue(':cid', $cid, PDO::PARAM_STR);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
+    }
+}
+
 function fetch_item_actresses(string $contentId): array
 {
     $cid = normalize_content_id($contentId);

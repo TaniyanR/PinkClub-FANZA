@@ -70,6 +70,32 @@ function item_pick_movie_urls_from_raw(array $raw): array
     return array_values(array_unique(array_filter(array_map(static fn($u) => trim((string)$u), $urls))));
 }
 
+function item_pick_raw_text(array $raw, array $keys): string
+{
+    foreach ($keys as $key) {
+        $value = $raw[$key] ?? null;
+        if (is_string($value) && trim($value) !== '') {
+            return trim($value);
+        }
+        if (is_array($value)) {
+            foreach ($value as $child) {
+                if (is_string($child) && trim($child) !== '') {
+                    return trim($child);
+                }
+                if (is_array($child)) {
+                    foreach (['value', 'text', 'name'] as $childKey) {
+                        if (isset($child[$childKey]) && is_string($child[$childKey]) && trim($child[$childKey]) !== '') {
+                            return trim((string)$child[$childKey]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return '';
+}
+
 function item_unique_rows(array $rows, array $keys): array
 {
     $unique = [];
@@ -161,15 +187,27 @@ try {
 
 try {
     $relatedItems = fetch_related_items((string)$item['content_id'], 12);
-    $actresses = fetch_item_actresses((string)$item['content_id']);
-    $genres = fetch_item_genres((string)$item['content_id']);
-    $makers = fetch_item_makers((string)$item['content_id']);
-    $seriesList = fetch_item_series((string)$item['content_id']);
 } catch (Throwable) {
     $relatedItems = [];
+}
+try {
+    $actresses = fetch_item_actresses((string)$item['content_id']);
+} catch (Throwable) {
     $actresses = [];
+}
+try {
+    $genres = fetch_item_genres((string)$item['content_id']);
+} catch (Throwable) {
     $genres = [];
+}
+try {
+    $makers = fetch_item_makers((string)$item['content_id']);
+} catch (Throwable) {
     $makers = [];
+}
+try {
+    $seriesList = fetch_item_series((string)$item['content_id']);
+} catch (Throwable) {
     $seriesList = [];
 }
 
@@ -275,12 +313,7 @@ if ($fullPackageImage === '') {
 
 $desc = trim((string)($item['description'] ?? ''));
 if ($desc === '') {
-    foreach (['comment', 'description', 'caption'] as $descKey) {
-        if (isset($raw[$descKey]) && is_string($raw[$descKey]) && trim($raw[$descKey]) !== '') {
-            $desc = trim($raw[$descKey]);
-            break;
-        }
-    }
+    $desc = item_pick_raw_text($raw, ['comment', 'description', 'caption', 'story', 'introduction']);
 }
 
 $title = (string)($item['title'] ?? '商品詳細');
@@ -288,6 +321,9 @@ if (isset($raw['title']) && is_string($raw['title']) && trim($raw['title']) !== 
     $title = trim((string)$raw['title']);
 }
 $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
+$rawMakerName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['maker', 'label']);
+$rawSeriesName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['series']);
+$rawDirectorName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['director']);
 $packageImage = pcf_item_image(is_array($item) ? $item : []);
 if (str_starts_with($packageImage, 'data:image/svg+xml')) {
     $packageImage = '';
@@ -311,13 +347,13 @@ require __DIR__ . '/partials/header.php';
       </div>
       <?php endif; ?>
       <?php if ($sampleImagesSmallLargeMap !== []): ?>
-      <div style="display:grid; grid-template-rows:repeat(6, 72px); grid-auto-flow:column; grid-auto-columns:92px; gap:8px; height:480px; align-content:start;">
+      <div style="width:196px; max-width:100%; height:480px; overflow:auto;"><div style="display:grid; grid-template-rows:repeat(6, 72px); grid-auto-flow:column; grid-auto-columns:92px; gap:8px; align-content:start;">
         <?php foreach ($sampleImagesSmallLargeMap as $i => $imagePair): ?>
           <a href="<?= e((string)$imagePair['large']) ?>" class="pcf-image-viewer-trigger" data-image-index="<?= e((string)$i) ?>" style="display:block;">
             <img src="<?= e((string)$imagePair['small']) ?>" alt="サンプル画像 <?= e((string)($i + 1)) ?>" loading="lazy" style="display:block; width:100%; height:72px; object-fit:cover;">
           </a>
         <?php endforeach; ?>
-      </div>
+      </div></div>
       <?php endif; ?>
     </div>
   <?php endif; ?>
@@ -347,7 +383,11 @@ require __DIR__ . '/partials/header.php';
         <?php if (!empty($item['content_id'])): ?><li>配信品番: <?= e((string)$item['content_id']) ?></li><?php endif; ?>
         <?php if (!empty($item['product_id'])): ?><li>メーカー品番: <?= e((string)$item['product_id']) ?></li><?php endif; ?>
         <?php if (!empty($item['volume'])): ?><li>収録時間: <?= e((string)$item['volume']) ?></li><?php endif; ?>
+        <?php if ($rawDirectorName !== ''): ?><li>監督: <?= e($rawDirectorName) ?></li><?php endif; ?>
+        <?php if ($rawMakerName !== ''): ?><li>メーカー/レーベル: <?= e($rawMakerName) ?></li><?php endif; ?>
+        <?php if ($rawSeriesName !== ''): ?><li>シリーズ: <?= e($rawSeriesName) ?></li><?php endif; ?>
       </ul>
+      <?php if (empty($item['release_date']) && empty($item['review_average']) && empty($item['review_count']) && empty($item['content_id']) && empty($item['product_id']) && empty($item['volume']) && $rawDirectorName === '' && $rawMakerName === '' && $rawSeriesName === ''): ?><p>商品詳細はありません。</p><?php endif; ?>
 
       <h3>商品コメント</h3><?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php else: ?><p>商品コメントはありません。</p><?php endif; ?>
 
