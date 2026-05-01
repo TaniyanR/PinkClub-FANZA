@@ -284,6 +284,9 @@ if ($desc === '') {
 }
 
 $title = (string)($item['title'] ?? '商品詳細');
+if (isset($raw['title']) && is_string($raw['title']) && trim($raw['title']) !== '') {
+    $title = trim((string)$raw['title']);
+}
 $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
 $packageImage = pcf_item_image(is_array($item) ? $item : []);
 if (str_starts_with($packageImage, 'data:image/svg+xml')) {
@@ -294,11 +297,11 @@ require __DIR__ . '/partials/header.php';
 <?php pcf_render_breadcrumbs([
     ['label' => 'トップ', 'url' => public_url('index.php')],
     ['label' => '商品一覧', 'url' => public_url('items.php')],
-    ['label' => (string)($item['title'] ?? '商品詳細')],
+    ['label' => $title],
 ]); ?>
 
 <article>
-  <h1 class="pcf-hero__title"><?= e((string)($item['title'] ?? '')) ?></h1>
+  <h1 class="pcf-hero__title"><?= e($title) ?></h1>
 
   <?php if ($sampleMovieUrl !== '' || $sampleImagesSmallLargeMap !== []): ?>
     <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
@@ -308,10 +311,10 @@ require __DIR__ . '/partials/header.php';
       </div>
       <?php endif; ?>
       <?php if ($sampleImagesSmallLargeMap !== []): ?>
-      <div style="display:grid; gap:8px; width:92px;">
+      <div style="display:grid; grid-template-rows:repeat(6, 72px); grid-auto-flow:column; grid-auto-columns:92px; gap:8px; height:480px; align-content:start;">
         <?php foreach ($sampleImagesSmallLargeMap as $i => $imagePair): ?>
-          <a href="<?= e((string)$imagePair['large']) ?>" class="pcf-image-viewer-trigger" data-image-index="<?= e((string)$i) ?>" style="display:block; border:1px solid #aeb4be;">
-            <img src="<?= e((string)$imagePair['small']) ?>" alt="サンプル画像 <?= e((string)($i + 1)) ?>" loading="lazy" style="display:block; width:100%; height:auto;">
+          <a href="<?= e((string)$imagePair['large']) ?>" class="pcf-image-viewer-trigger" data-image-index="<?= e((string)$i) ?>" style="display:block;">
+            <img src="<?= e((string)$imagePair['small']) ?>" alt="サンプル画像 <?= e((string)($i + 1)) ?>" loading="lazy" style="display:block; width:100%; height:72px; object-fit:cover;">
           </a>
         <?php endforeach; ?>
       </div>
@@ -323,7 +326,7 @@ require __DIR__ . '/partials/header.php';
     <p><a class="pcf-btn" style="display:block; text-align:center; border:2px solid #9aa0ab; font-weight:700; padding:12px 14px;" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
   <?php endif; ?>
 
-  <h2 class="pcf-section-title">作品詳細</h2>
+  <h2 class="pcf-section-title">商品詳細</h2>
 
   <section class="pcf-detail pcf-item-main">
     <div class="pcf-item-main__media">
@@ -336,12 +339,17 @@ require __DIR__ . '/partials/header.php';
 
     <div class="pcf-item-main__info">
       <ul class="pcf-item-card__meta">
-        <?php if (!empty($item['price_min_text'])): ?><li>価格: <?= e((string)$item['price_min_text']) ?></li><?php endif; ?>
         <?php if (!empty($item['release_date'])): ?><li>発売日: <?= e(format_date((string)$item['release_date'])) ?></li><?php endif; ?>
         <?php if (!empty($item['review_average']) || !empty($item['review_count'])): ?><li>レビュー: <?= e((string)($item['review_average'] ?? '')) ?> (<?= e((string)($item['review_count'] ?? 0)) ?>)</li><?php endif; ?>
       </ul>
 
-      <?php if ($desc !== ''): ?><h3>作品コメント</h3><p><?= nl2br(e($desc)) ?></p><?php endif; ?>
+      <ul class="pcf-item-card__meta">
+        <?php if (!empty($item['content_id'])): ?><li>配信品番: <?= e((string)$item['content_id']) ?></li><?php endif; ?>
+        <?php if (!empty($item['product_id'])): ?><li>メーカー品番: <?= e((string)$item['product_id']) ?></li><?php endif; ?>
+        <?php if (!empty($item['volume'])): ?><li>収録時間: <?= e((string)$item['volume']) ?></li><?php endif; ?>
+      </ul>
+
+      <h3>商品コメント</h3><?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php else: ?><p>商品コメントはありません。</p><?php endif; ?>
 
       <?php if ($actresses !== []): ?><h3>女優</h3><div class="pcf-tag-list"><?php foreach ($actresses as $v): ?><a class="pcf-tag" href="<?= e(public_url('actress.php?id=' . (int)($v['id'] ?? 0))) ?>"><?= e((string)($v['name'] ?? '')) ?></a><?php endforeach; ?></div><?php endif; ?>
       <?php if ($genres !== []): ?><h3>ジャンル</h3><div class="pcf-tag-list"><?php foreach ($genres as $v): ?><a class="pcf-tag" href="<?= e(public_url('genre.php?id=' . (int)($v['id'] ?? 0))) ?>"><?= e((string)($v['name'] ?? '')) ?></a><?php endforeach; ?></div><?php endif; ?>
