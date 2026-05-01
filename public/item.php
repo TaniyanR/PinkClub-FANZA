@@ -300,14 +300,27 @@ require __DIR__ . '/partials/header.php';
 <article>
   <h1 class="pcf-hero__title"><?= e((string)($item['title'] ?? '')) ?></h1>
 
-  <?php if ($sampleMovieUrl !== ''): ?>
-    <div class="sample-movie-modal__frame-wrap" style="width: 100%; aspect-ratio: 720 / 480;">
-      <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" scrolling="no" width="720" height="480"></iframe>
+  <?php if ($sampleMovieUrl !== '' || $sampleImagesSmallLargeMap !== []): ?>
+    <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
+      <?php if ($sampleMovieUrl !== ''): ?>
+      <div class="sample-movie-modal__frame-wrap" style="width: 720px; max-width: 100%; aspect-ratio: 720 / 480;">
+        <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" scrolling="no" width="720" height="480"></iframe>
+      </div>
+      <?php endif; ?>
+      <?php if ($sampleImagesSmallLargeMap !== []): ?>
+      <div style="display:grid; gap:8px; width:92px;">
+        <?php foreach ($sampleImagesSmallLargeMap as $i => $imagePair): ?>
+          <a href="<?= e((string)$imagePair['large']) ?>" class="pcf-image-viewer-trigger" data-image-index="<?= e((string)$i) ?>" style="display:block; border:1px solid #aeb4be;">
+            <img src="<?= e((string)$imagePair['small']) ?>" alt="サンプル画像 <?= e((string)($i + 1)) ?>" loading="lazy" style="display:block; width:100%; height:auto;">
+          </a>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
     </div>
   <?php endif; ?>
 
   <?php if ($affiliateUrl !== ''): ?>
-    <p><a class="pcf-btn" style="display:block; text-align:center;" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
+    <p><a class="pcf-btn" style="display:block; text-align:center; border:2px solid #9aa0ab; font-weight:700; padding:12px 14px;" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
   <?php endif; ?>
 
   <h2 class="pcf-section-title">作品詳細</h2>
@@ -338,26 +351,8 @@ require __DIR__ . '/partials/header.php';
     </div>
   </section>
 
-  <?php if ($sampleImagesSmallLargeMap !== []): ?>
-    <div class="pcf-sample-grid pcf-sample-grid--thumb" style="flex-wrap:wrap; overflow:visible;">
-      <?php foreach ($sampleImagesSmallLargeMap as $i => $imagePair): ?>
-        <a href="<?= e((string)$imagePair['large']) ?>" target="_blank" rel="noopener noreferrer">
-          <img src="<?= e((string)$imagePair['small']) ?>" alt="サンプル画像 <?= e((string)($i + 1)) ?>" loading="lazy">
-        </a>
-      <?php endforeach; ?>
-    </div>
-  <?php elseif ($sampleImages !== []): ?>
-    <div class="pcf-sample-grid pcf-sample-grid--thumb" style="flex-wrap:wrap; overflow:visible;">
-      <?php foreach ($sampleImages as $i => $image): ?>
-        <a href="<?= e((string)$image) ?>" target="_blank" rel="noopener noreferrer">
-          <img src="<?= e((string)$image) ?>" alt="サンプル画像 <?= e((string)($i + 1)) ?>" loading="lazy">
-        </a>
-      <?php endforeach; ?>
-    </div>
-  <?php endif; ?>
-
   <?php if ($affiliateUrl !== ''): ?>
-    <p><a class="pcf-btn" style="display:block; text-align:center;" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
+    <p><a class="pcf-btn" style="display:block; text-align:center; border:2px solid #9aa0ab; font-weight:700; padding:12px 14px;" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
   <?php endif; ?>
 
   <h2 class="pcf-section-title">関連作品</h2>
@@ -369,6 +364,16 @@ require __DIR__ . '/partials/header.php';
     <?php pcf_render_empty('関連作品はありません。'); ?>
   <?php endif; ?>
 </article>
+
+<div id="pcf-image-viewer-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:1200;">
+  <button type="button" data-image-close="1" style="position:absolute; top:12px; right:16px; color:#fff; background:transparent; border:0; font-size:40px; line-height:1; cursor:pointer;">×</button>
+  <div style="max-width:1200px; margin:26px auto 0; padding:0 18px;">
+    <div style="display:flex; align-items:center; justify-content:center; min-height:66vh;">
+      <img id="pcf-image-viewer-main" src="" alt="サンプル画像" style="max-width:100%; max-height:66vh; object-fit:contain;">
+    </div>
+    <div id="pcf-image-viewer-thumbs" style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:12px;"></div>
+  </div>
+</div>
 
 <div id="sample-movie-modal" class="sample-movie-modal" aria-hidden="true">
   <div class="sample-movie-modal__overlay" data-movie-close="1"></div>
@@ -392,6 +397,46 @@ require __DIR__ . '/partials/header.php';
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
   };
+
+  const imageViewer = document.getElementById('pcf-image-viewer-modal');
+  const imageViewerMain = document.getElementById('pcf-image-viewer-main');
+  const imageViewerThumbs = document.getElementById('pcf-image-viewer-thumbs');
+  const imageList = <?= json_encode(array_map(static fn($pair) => ['small' => (string)($pair['small'] ?? ''), 'large' => (string)($pair['large'] ?? '')], $sampleImagesSmallLargeMap), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+  const showImage = (index) => {
+    if (!imageViewerMain || !imageViewerThumbs || !Array.isArray(imageList) || imageList.length === 0) return;
+    const idx = Math.max(0, Math.min(index, imageList.length - 1));
+    imageViewerMain.src = imageList[idx].large || imageList[idx].small || '';
+    imageViewerThumbs.innerHTML = '';
+    imageList.forEach((item, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.style.border = i === idx ? '2px solid #ff6b6b' : '1px solid #777';
+      btn.style.padding = '0';
+      btn.style.background = 'transparent';
+      btn.style.cursor = 'pointer';
+      const img = document.createElement('img');
+      img.src = item.small || item.large || '';
+      img.alt = 'サムネイル ' + (i + 1);
+      img.style.width = '76px';
+      img.style.height = '50px';
+      img.style.objectFit = 'cover';
+      img.style.display = 'block';
+      btn.appendChild(img);
+      btn.addEventListener('click', () => showImage(i));
+      imageViewerThumbs.appendChild(btn);
+    });
+  };
+  const openImageViewer = (index) => {
+    if (!imageViewer) return;
+    showImage(index);
+    imageViewer.style.display = 'block';
+  };
+  const closeImageViewer = () => {
+    if (!imageViewer || !imageViewerMain) return;
+    imageViewer.style.display = 'none';
+    imageViewerMain.src = '';
+  };
+
   const closeMovie = () => {
     if (!modal || !frame || !titleNode) return;
     modal.classList.remove('is-open');
@@ -401,6 +446,9 @@ require __DIR__ . '/partials/header.php';
   document.addEventListener('click', (event) => {
     const trigger = event.target.closest('.sample-movie-trigger');
     if (trigger) { event.preventDefault(); openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || ''); return; }
+    const imageTrigger = event.target.closest('.pcf-image-viewer-trigger');
+    if (imageTrigger) { event.preventDefault(); openImageViewer(parseInt(imageTrigger.dataset.imageIndex || '0', 10)); return; }
+    if (event.target.closest('[data-image-close="1"]')) { event.preventDefault(); closeImageViewer(); return; }
     if (event.target.closest('[data-movie-close="1"]')) { event.preventDefault(); closeMovie(); }
   });
   document.addEventListener('keydown', (event) => {
