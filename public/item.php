@@ -70,7 +70,6 @@ function item_pick_movie_urls_from_raw(array $raw): array
     return array_values(array_unique(array_filter(array_map(static fn($u) => trim((string)$u), $urls))));
 }
 
-
 function item_pick_raw_text(array $raw, array $keys): string
 {
     foreach ($keys as $key) {
@@ -413,7 +412,6 @@ require __DIR__ . '/partials/header.php';
     <?php pcf_render_empty('関連作品はありません。'); ?>
   <?php endif; ?>
 </article>
-
 
 <div id="pcf-image-viewer-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:1200;">
   <button type="button" data-image-close="1" style="position:absolute; top:12px; right:16px; color:#fff; background:transparent; border:0; font-size:40px; line-height:1; cursor:pointer;">×</button>
