@@ -70,6 +70,33 @@ function item_pick_movie_urls_from_raw(array $raw): array
     return array_values(array_unique(array_filter(array_map(static fn($u) => trim((string)$u), $urls))));
 }
 
+
+function item_pick_raw_text(array $raw, array $keys): string
+{
+    foreach ($keys as $key) {
+        $value = $raw[$key] ?? null;
+        if (is_string($value) && trim($value) !== '') {
+            return trim($value);
+        }
+        if (is_array($value)) {
+            foreach ($value as $child) {
+                if (is_string($child) && trim($child) !== '') {
+                    return trim($child);
+                }
+                if (is_array($child)) {
+                    foreach (['value', 'text', 'name'] as $childKey) {
+                        if (isset($child[$childKey]) && is_string($child[$childKey]) && trim($child[$childKey]) !== '') {
+                            return trim((string)$child[$childKey]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return '';
+}
+
 function item_unique_rows(array $rows, array $keys): array
 {
     $unique = [];
@@ -275,15 +302,17 @@ if ($fullPackageImage === '') {
 
 $desc = trim((string)($item['description'] ?? ''));
 if ($desc === '') {
-    foreach (['comment', 'description', 'caption'] as $descKey) {
-        if (isset($raw[$descKey]) && is_string($raw[$descKey]) && trim($raw[$descKey]) !== '') {
-            $desc = trim($raw[$descKey]);
-            break;
-        }
-    }
+    $desc = item_pick_raw_text($raw, ['comment', 'description', 'caption', 'story', 'introduction']);
 }
 
 $title = (string)($item['title'] ?? '商品詳細');
+if (isset($raw['title']) && is_string($raw['title']) && trim($raw['title']) !== '') {
+    $title = trim((string)$raw['title']);
+}
+$affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
+$rawMakerName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['maker', 'label']);
+$rawSeriesName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['series']);
+$rawDirectorName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['director']);
 $packageImage = pcf_item_image(is_array($item) ? $item : []);
 if (str_starts_with($packageImage, 'data:image/svg+xml')) {
     $packageImage = '';
@@ -293,33 +322,36 @@ require __DIR__ . '/partials/header.php';
 <?php pcf_render_breadcrumbs([
     ['label' => 'トップ', 'url' => public_url('index.php')],
     ['label' => '商品一覧', 'url' => public_url('items.php')],
-    ['label' => (string)($item['title'] ?? '商品詳細')],
+    ['label' => $title],
 ]); ?>
 
 <article>
-  <h1 class="pcf-hero__title"><?= e((string)($item['title'] ?? '')) ?></h1>
+  <h1 class="pcf-hero__title"><?= e($title) ?></h1>
 
-  <?php if ($sampleMovieUrl !== '' || $fullPackageImage !== ''): ?>
-    <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+  <?php if ($sampleMovieUrl !== '' || $sampleImagesSmallLargeMap !== []): ?>
+    <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
       <?php if ($sampleMovieUrl !== ''): ?>
       <div class="sample-movie-modal__frame-wrap" style="width: 720px; max-width: 100%; aspect-ratio: 720 / 480;">
         <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" scrolling="no" width="720" height="480"></iframe>
       </div>
       <?php endif; ?>
-      <div style="flex:1 1 280px; max-width:360px; width:100%;">
-        <?php if ($fullPackageImage !== ''): ?>
-          <a href="<?= e($fullPackageImage) ?>" target="_blank" rel="noopener noreferrer">
-            <img src="<?= e($fullPackageImage) ?>" alt="フルパッケージ" loading="lazy" style="display:block; width:100%; height:auto;">
+      <?php if ($sampleImagesSmallLargeMap !== []): ?>
+      <div style="width:196px; max-width:100%; height:480px; overflow:auto;"><div style="display:grid; grid-template-rows:repeat(6, 72px); grid-auto-flow:column; grid-auto-columns:92px; gap:8px; align-content:start;">
+        <?php foreach ($sampleImagesSmallLargeMap as $i => $imagePair): ?>
+          <a href="<?= e((string)$imagePair['large']) ?>" class="pcf-image-viewer-trigger" data-image-index="<?= e((string)$i) ?>" style="display:block;">
+            <img src="<?= e((string)$imagePair['small']) ?>" alt="サンプル画像 <?= e((string)($i + 1)) ?>" loading="lazy" style="display:block; width:100%; height:72px; object-fit:cover;">
           </a>
-        <?php endif; ?>
-        <h2 class="pcf-section-title">作品詳細</h2>
-      </div>
+        <?php endforeach; ?>
+      </div></div>
+      <?php endif; ?>
     </div>
   <?php endif; ?>
 
-  <?php if ($sampleMovieUrl === '' && $fullPackageImage === ''): ?>
-    <h2 class="pcf-section-title">作品詳細</h2>
+  <?php if ($affiliateUrl !== ''): ?>
+    <p><a class="pcf-btn" style="display:block; text-align:center; border:2px solid #9aa0ab; font-weight:700; padding:12px 14px;" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
   <?php endif; ?>
+
+  <h2 class="pcf-section-title">商品詳細</h2>
 
   <section class="pcf-detail pcf-item-main">
     <div class="pcf-item-main__media">
@@ -332,12 +364,21 @@ require __DIR__ . '/partials/header.php';
 
     <div class="pcf-item-main__info">
       <ul class="pcf-item-card__meta">
-        <?php if (!empty($item['price_min_text'])): ?><li>価格: <?= e((string)$item['price_min_text']) ?></li><?php endif; ?>
         <?php if (!empty($item['release_date'])): ?><li>発売日: <?= e(format_date((string)$item['release_date'])) ?></li><?php endif; ?>
         <?php if (!empty($item['review_average']) || !empty($item['review_count'])): ?><li>レビュー: <?= e((string)($item['review_average'] ?? '')) ?> (<?= e((string)($item['review_count'] ?? 0)) ?>)</li><?php endif; ?>
       </ul>
 
-      <?php if ($desc !== ''): ?><h3>作品コメント</h3><p><?= nl2br(e($desc)) ?></p><?php endif; ?>
+      <ul class="pcf-item-card__meta">
+        <?php if (!empty($item['content_id'])): ?><li>配信品番: <?= e((string)$item['content_id']) ?></li><?php endif; ?>
+        <?php if (!empty($item['product_id'])): ?><li>メーカー品番: <?= e((string)$item['product_id']) ?></li><?php endif; ?>
+        <?php if (!empty($item['volume'])): ?><li>収録時間: <?= e((string)$item['volume']) ?></li><?php endif; ?>
+        <?php if ($rawDirectorName !== ''): ?><li>監督: <?= e($rawDirectorName) ?></li><?php endif; ?>
+        <?php if ($rawMakerName !== ''): ?><li>メーカー/レーベル: <?= e($rawMakerName) ?></li><?php endif; ?>
+        <?php if ($rawSeriesName !== ''): ?><li>シリーズ: <?= e($rawSeriesName) ?></li><?php endif; ?>
+      </ul>
+      <?php if (empty($item['release_date']) && empty($item['review_average']) && empty($item['review_count']) && empty($item['content_id']) && empty($item['product_id']) && empty($item['volume']) && $rawDirectorName === '' && $rawMakerName === '' && $rawSeriesName === ''): ?><p>商品詳細はありません。</p><?php endif; ?>
+
+      <h3>商品コメント</h3><?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php else: ?><p>商品コメントはありません。</p><?php endif; ?>
 
       <?php if ($actresses !== []): ?><h3>女優</h3><div class="pcf-tag-list"><?php foreach ($actresses as $v): ?><a class="pcf-tag" href="<?= e(public_url('actress.php?id=' . (int)($v['id'] ?? 0))) ?>"><?= e((string)($v['name'] ?? '')) ?></a><?php endforeach; ?></div><?php endif; ?>
       <?php if ($genres !== []): ?><h3>ジャンル</h3><div class="pcf-tag-list"><?php foreach ($genres as $v): ?><a class="pcf-tag" href="<?= e(public_url('genre.php?id=' . (int)($v['id'] ?? 0))) ?>"><?= e((string)($v['name'] ?? '')) ?></a><?php endforeach; ?></div><?php endif; ?>
@@ -347,24 +388,8 @@ require __DIR__ . '/partials/header.php';
     </div>
   </section>
 
-  <?php if ($sampleImages !== []): ?>
-    <div class="pcf-sample-grid pcf-sample-grid--thumb">
-      <?php foreach ($sampleImages as $i => $image): ?>
-        <a href="<?= e((string)$image) ?>" target="_blank" rel="noopener noreferrer">
-          <img src="<?= e((string)$image) ?>" alt="サンプル画像 <?= e((string)($i + 1)) ?>" loading="lazy">
-        </a>
-      <?php endforeach; ?>
-    </div>
-  <?php endif; ?>
-
-  <?php if ($sampleImagesSmallLargeMap !== []): ?>
-    <div class="pcf-sample-grid pcf-sample-grid--thumb">
-      <?php foreach ($sampleImagesSmallLargeMap as $i => $imagePair): ?>
-        <a href="<?= e((string)$imagePair['large']) ?>" target="_blank" rel="noopener noreferrer">
-          <img src="<?= e((string)$imagePair['small']) ?>" alt="サンプル画像(小) <?= e((string)($i + 1)) ?>" loading="lazy">
-        </a>
-      <?php endforeach; ?>
-    </div>
+  <?php if ($affiliateUrl !== ''): ?>
+    <p><a class="pcf-btn" style="display:block; text-align:center; border:2px solid #9aa0ab; font-weight:700; padding:12px 14px;" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
   <?php endif; ?>
 
   <h2 class="pcf-section-title">関連作品</h2>
@@ -376,6 +401,17 @@ require __DIR__ . '/partials/header.php';
     <?php pcf_render_empty('関連作品はありません。'); ?>
   <?php endif; ?>
 </article>
+
+
+<div id="pcf-image-viewer-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:1200;">
+  <button type="button" data-image-close="1" style="position:absolute; top:12px; right:16px; color:#fff; background:transparent; border:0; font-size:40px; line-height:1; cursor:pointer;">×</button>
+  <div style="max-width:1200px; margin:26px auto 0; padding:0 18px;">
+    <div style="display:flex; align-items:center; justify-content:center; min-height:66vh;">
+      <img id="pcf-image-viewer-main" src="" alt="サンプル画像" style="max-width:100%; max-height:66vh; object-fit:contain;">
+    </div>
+    <div id="pcf-image-viewer-thumbs" style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:12px;"></div>
+  </div>
+</div>
 
 <div id="sample-movie-modal" class="sample-movie-modal" aria-hidden="true">
   <div class="sample-movie-modal__overlay" data-movie-close="1"></div>
@@ -399,6 +435,46 @@ require __DIR__ . '/partials/header.php';
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
   };
+
+  const imageViewer = document.getElementById('pcf-image-viewer-modal');
+  const imageViewerMain = document.getElementById('pcf-image-viewer-main');
+  const imageViewerThumbs = document.getElementById('pcf-image-viewer-thumbs');
+  const imageList = <?= json_encode(array_map(static fn($pair) => ['small' => (string)($pair['small'] ?? ''), 'large' => (string)($pair['large'] ?? '')], $sampleImagesSmallLargeMap), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+  const showImage = (index) => {
+    if (!imageViewerMain || !imageViewerThumbs || !Array.isArray(imageList) || imageList.length === 0) return;
+    const idx = Math.max(0, Math.min(index, imageList.length - 1));
+    imageViewerMain.src = imageList[idx].large || imageList[idx].small || '';
+    imageViewerThumbs.innerHTML = '';
+    imageList.forEach((item, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.style.border = i === idx ? '2px solid #ff6b6b' : '1px solid #777';
+      btn.style.padding = '0';
+      btn.style.background = 'transparent';
+      btn.style.cursor = 'pointer';
+      const img = document.createElement('img');
+      img.src = item.small || item.large || '';
+      img.alt = 'サムネイル ' + (i + 1);
+      img.style.width = '76px';
+      img.style.height = '50px';
+      img.style.objectFit = 'cover';
+      img.style.display = 'block';
+      btn.appendChild(img);
+      btn.addEventListener('click', () => showImage(i));
+      imageViewerThumbs.appendChild(btn);
+    });
+  };
+  const openImageViewer = (index) => {
+    if (!imageViewer) return;
+    showImage(index);
+    imageViewer.style.display = 'block';
+  };
+  const closeImageViewer = () => {
+    if (!imageViewer || !imageViewerMain) return;
+    imageViewer.style.display = 'none';
+    imageViewerMain.src = '';
+  };
+
   const closeMovie = () => {
     if (!modal || !frame || !titleNode) return;
     modal.classList.remove('is-open');
@@ -408,6 +484,9 @@ require __DIR__ . '/partials/header.php';
   document.addEventListener('click', (event) => {
     const trigger = event.target.closest('.sample-movie-trigger');
     if (trigger) { event.preventDefault(); openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || ''); return; }
+    const imageTrigger = event.target.closest('.pcf-image-viewer-trigger');
+    if (imageTrigger) { event.preventDefault(); openImageViewer(parseInt(imageTrigger.dataset.imageIndex || '0', 10)); return; }
+    if (event.target.closest('[data-image-close="1"]')) { event.preventDefault(); closeImageViewer(); return; }
     if (event.target.closest('[data-movie-close="1"]')) { event.preventDefault(); closeMovie(); }
   });
   document.addEventListener('keydown', (event) => {
