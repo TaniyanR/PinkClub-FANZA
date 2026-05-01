@@ -284,6 +284,7 @@ if ($desc === '') {
 }
 
 $title = (string)($item['title'] ?? '商品詳細');
+$affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
 $packageImage = pcf_item_image(is_array($item) ? $item : []);
 if (str_starts_with($packageImage, 'data:image/svg+xml')) {
     $packageImage = '';
@@ -299,27 +300,17 @@ require __DIR__ . '/partials/header.php';
 <article>
   <h1 class="pcf-hero__title"><?= e((string)($item['title'] ?? '')) ?></h1>
 
-  <?php if ($sampleMovieUrl !== '' || $fullPackageImage !== ''): ?>
-    <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;">
-      <?php if ($sampleMovieUrl !== ''): ?>
-      <div class="sample-movie-modal__frame-wrap" style="width: 720px; max-width: 100%; aspect-ratio: 720 / 480;">
-        <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" scrolling="no" width="720" height="480"></iframe>
-      </div>
-      <?php endif; ?>
-      <div style="flex:1 1 280px; max-width:360px; width:100%;">
-        <?php if ($fullPackageImage !== ''): ?>
-          <a href="<?= e($fullPackageImage) ?>" target="_blank" rel="noopener noreferrer">
-            <img src="<?= e($fullPackageImage) ?>" alt="フルパッケージ" loading="lazy" style="display:block; width:100%; height:auto;">
-          </a>
-        <?php endif; ?>
-        <h2 class="pcf-section-title">作品詳細</h2>
-      </div>
+  <?php if ($sampleMovieUrl !== ''): ?>
+    <div class="sample-movie-modal__frame-wrap" style="width: 100%; aspect-ratio: 720 / 480;">
+      <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" scrolling="no" width="720" height="480"></iframe>
     </div>
   <?php endif; ?>
 
-  <?php if ($sampleMovieUrl === '' && $fullPackageImage === ''): ?>
-    <h2 class="pcf-section-title">作品詳細</h2>
+  <?php if ($affiliateUrl !== ''): ?>
+    <p><a href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">購入</a></p>
   <?php endif; ?>
+
+  <h2 class="pcf-section-title">作品詳細</h2>
 
   <section class="pcf-detail pcf-item-main">
     <div class="pcf-item-main__media">
@@ -347,7 +338,15 @@ require __DIR__ . '/partials/header.php';
     </div>
   </section>
 
-  <?php if ($sampleImages !== []): ?>
+  <?php if ($sampleImagesSmallLargeMap !== []): ?>
+    <div class="pcf-sample-grid pcf-sample-grid--thumb">
+      <?php foreach ($sampleImagesSmallLargeMap as $i => $imagePair): ?>
+        <a href="<?= e((string)$imagePair['large']) ?>" target="_blank" rel="noopener noreferrer">
+          <img src="<?= e((string)$imagePair['small']) ?>" alt="サンプル画像 <?= e((string)($i + 1)) ?>" loading="lazy">
+        </a>
+      <?php endforeach; ?>
+    </div>
+  <?php elseif ($sampleImages !== []): ?>
     <div class="pcf-sample-grid pcf-sample-grid--thumb">
       <?php foreach ($sampleImages as $i => $image): ?>
         <a href="<?= e((string)$image) ?>" target="_blank" rel="noopener noreferrer">
@@ -357,14 +356,8 @@ require __DIR__ . '/partials/header.php';
     </div>
   <?php endif; ?>
 
-  <?php if ($sampleImagesSmallLargeMap !== []): ?>
-    <div class="pcf-sample-grid pcf-sample-grid--thumb">
-      <?php foreach ($sampleImagesSmallLargeMap as $i => $imagePair): ?>
-        <a href="<?= e((string)$imagePair['large']) ?>" target="_blank" rel="noopener noreferrer">
-          <img src="<?= e((string)$imagePair['small']) ?>" alt="サンプル画像(小) <?= e((string)($i + 1)) ?>" loading="lazy">
-        </a>
-      <?php endforeach; ?>
-    </div>
+  <?php if ($affiliateUrl !== ''): ?>
+    <p><a href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">購入</a></p>
   <?php endif; ?>
 
   <h2 class="pcf-section-title">関連作品</h2>
