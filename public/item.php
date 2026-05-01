@@ -316,14 +316,35 @@ if ($desc === '') {
     $desc = item_pick_raw_text($raw, ['comment', 'description', 'caption', 'story', 'introduction']);
 }
 
-$title = (string)($item['title'] ?? '商品詳細');
-if (isset($raw['title']) && is_string($raw['title']) && trim($raw['title']) !== '') {
-    $title = trim((string)$raw['title']);
+$titleCandidates = [
+    (string)($item['title'] ?? ''),
+    trim((string)($raw['title'] ?? '')),
+    trim((string)($raw['name'] ?? '')),
+    trim((string)($raw['productTitle'] ?? '')),
+];
+$title = '商品詳細';
+foreach ($titleCandidates as $candidateTitle) {
+    $candidateTitle = trim((string)$candidateTitle);
+    if ($candidateTitle === '') {
+        continue;
+    }
+    if (str_contains($candidateTitle, 'お問い合わせ') || str_contains($candidateTitle, '問合せ')) {
+        continue;
+    }
+    if ($title === '商品詳細' || mb_strlen($candidateTitle) > mb_strlen($title)) {
+        $title = $candidateTitle;
+    }
 }
 $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
 $rawMakerName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['maker', 'label']);
 $rawSeriesName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['series']);
 $rawDirectorName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['director']);
+$deviceText = item_pick_raw_text($raw, ['supportedDevices', 'device', 'devices']);
+$deliveryStartText = item_pick_raw_text($raw, ['date', 'deliveryStartDate', 'delivery_start_date']);
+$labelName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['label']);
+$performerText = implode('、', array_values(array_filter(array_map(static fn($v) => trim((string)($v['name'] ?? '')), $actresses), static fn($v) => $v !== '')));
+$genreText = implode('、', array_values(array_filter(array_map(static fn($v) => trim((string)($v['name'] ?? '')), $genres), static fn($v) => $v !== '')));
+$tagText = item_pick_raw_text($raw, ['tag', 'tags']);
 $packageImage = pcf_item_image(is_array($item) ? $item : []);
 if (str_starts_with($packageImage, 'data:image/svg+xml')) {
     $packageImage = '';
@@ -375,27 +396,22 @@ require __DIR__ . '/partials/header.php';
 
     <div class="pcf-item-main__info">
       <ul class="pcf-item-card__meta">
-        <?php if (!empty($item['release_date'])): ?><li>発売日: <?= e(format_date((string)$item['release_date'])) ?></li><?php endif; ?>
-        <?php if (!empty($item['review_average']) || !empty($item['review_count'])): ?><li>レビュー: <?= e((string)($item['review_average'] ?? '')) ?> (<?= e((string)($item['review_count'] ?? 0)) ?>)</li><?php endif; ?>
+        <li>対応デバイス: <?= e($deviceText) ?></li>
+        <li>配信開始日: <?= e($deliveryStartText) ?></li>
+        <li>商品発売日: <?= e((string)format_date((string)($item['release_date'] ?? ''))) ?></li>
+        <li>収録時間: <?= e((string)($item['volume'] ?? '')) ?></li>
+        <li>出演者: <?= e($performerText) ?></li>
+        <li>監督: <?= e($rawDirectorName) ?></li>
+        <li>シリーズ: <?= e($rawSeriesName) ?></li>
+        <li>メーカー: <?= e($rawMakerName) ?></li>
+        <li>レーベル: <?= e($labelName) ?></li>
+        <li>ジャンル: <?= e($genreText) ?></li>
+        <li>関連タグ: <?= e($tagText) ?></li>
+        <li>配信品番: <?= e((string)($item['content_id'] ?? '')) ?></li>
+        <li>メーカー品番: <?= e((string)($item['product_id'] ?? '')) ?></li>
       </ul>
 
-      <ul class="pcf-item-card__meta">
-        <?php if (!empty($item['content_id'])): ?><li>配信品番: <?= e((string)$item['content_id']) ?></li><?php endif; ?>
-        <?php if (!empty($item['product_id'])): ?><li>メーカー品番: <?= e((string)$item['product_id']) ?></li><?php endif; ?>
-        <?php if (!empty($item['volume'])): ?><li>収録時間: <?= e((string)$item['volume']) ?></li><?php endif; ?>
-        <?php if ($rawDirectorName !== ''): ?><li>監督: <?= e($rawDirectorName) ?></li><?php endif; ?>
-        <?php if ($rawMakerName !== ''): ?><li>メーカー/レーベル: <?= e($rawMakerName) ?></li><?php endif; ?>
-        <?php if ($rawSeriesName !== ''): ?><li>シリーズ: <?= e($rawSeriesName) ?></li><?php endif; ?>
-      </ul>
-      <?php if (empty($item['release_date']) && empty($item['review_average']) && empty($item['review_count']) && empty($item['content_id']) && empty($item['product_id']) && empty($item['volume']) && $rawDirectorName === '' && $rawMakerName === '' && $rawSeriesName === ''): ?><p>商品詳細はありません。</p><?php endif; ?>
-
-      <h3>商品コメント</h3><?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php else: ?><p>商品コメントはありません。</p><?php endif; ?>
-
-      <?php if ($actresses !== []): ?><h3>女優</h3><div class="pcf-tag-list"><?php foreach ($actresses as $v): ?><a class="pcf-tag" href="<?= e(public_url('actress.php?id=' . (int)($v['id'] ?? 0))) ?>"><?= e((string)($v['name'] ?? '')) ?></a><?php endforeach; ?></div><?php endif; ?>
-      <?php if ($genres !== []): ?><h3>ジャンル</h3><div class="pcf-tag-list"><?php foreach ($genres as $v): ?><a class="pcf-tag" href="<?= e(public_url('genre.php?id=' . (int)($v['id'] ?? 0))) ?>"><?= e((string)($v['name'] ?? '')) ?></a><?php endforeach; ?></div><?php endif; ?>
-      <?php if ($makers !== []): ?><h3>メーカー</h3><div class="pcf-tag-list"><?php foreach ($makers as $v): ?><a class="pcf-tag" href="<?= e(public_url('maker.php?id=' . (int)($v['id'] ?? 0))) ?>"><?= e((string)($v['name'] ?? '')) ?></a><?php endforeach; ?></div><?php endif; ?>
-      <?php if ($seriesList !== []): ?><h3>シリーズ</h3><div class="pcf-tag-list"><?php foreach ($seriesList as $v): ?><a class="pcf-tag" href="<?= e(public_url('series_detail.php?id=' . (int)($v['id'] ?? 0))) ?>"><?= e((string)($v['name'] ?? '')) ?></a><?php endforeach; ?></div><?php endif; ?>
-      <?php if ($authors !== []): ?><h3>作者</h3><div class="pcf-tag-list"><?php foreach ($authors as $v): ?><a class="pcf-tag" href="<?= e(public_url('author.php?id=' . (int)($v['id'] ?? 0))) ?>"><?= e((string)($v['name'] ?? '')) ?></a><?php endforeach; ?></div><?php endif; ?>
+      <?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php endif; ?>
     </div>
   </section>
 
