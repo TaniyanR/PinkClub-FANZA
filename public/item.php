@@ -365,7 +365,6 @@ require __DIR__ . '/partials/header.php';
   <?php endif; ?>
 </article>
 
-
 <div id="pcf-image-viewer-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:1200;">
   <button type="button" data-image-close="1" style="position:absolute; top:12px; right:16px; color:#fff; background:transparent; border:0; font-size:40px; line-height:1; cursor:pointer;">×</button>
   <div style="max-width:1200px; margin:26px auto 0; padding:0 18px;">
