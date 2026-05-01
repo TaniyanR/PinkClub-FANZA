@@ -188,15 +188,27 @@ try {
 
 try {
     $relatedItems = fetch_related_items((string)$item['content_id'], 12);
-    $actresses = fetch_item_actresses((string)$item['content_id']);
-    $genres = fetch_item_genres((string)$item['content_id']);
-    $makers = fetch_item_makers((string)$item['content_id']);
-    $seriesList = fetch_item_series((string)$item['content_id']);
 } catch (Throwable) {
     $relatedItems = [];
+}
+try {
+    $actresses = fetch_item_actresses((string)$item['content_id']);
+} catch (Throwable) {
     $actresses = [];
+}
+try {
+    $genres = fetch_item_genres((string)$item['content_id']);
+} catch (Throwable) {
     $genres = [];
+}
+try {
+    $makers = fetch_item_makers((string)$item['content_id']);
+} catch (Throwable) {
     $makers = [];
+}
+try {
+    $seriesList = fetch_item_series((string)$item['content_id']);
+} catch (Throwable) {
     $seriesList = [];
 }
 
