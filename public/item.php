@@ -145,6 +145,23 @@ try {
         $stmt = db()->prepare('SELECT * FROM items WHERE id = ?');
         $stmt->execute([$id]);
         $item = $stmt->fetch();
+        if (is_array($item)) {
+            $itemTitle = trim((string)($item['title'] ?? ''));
+            if (
+                $itemTitle !== ''
+                && (
+                    str_contains($itemTitle, 'お問い合わせ')
+                    || str_contains($itemTitle, '問合せ')
+                    || $itemTitle === 'Privacy Policy'
+                    || $itemTitle === 'サイトについて'
+                )
+            ) {
+                $itemByContentId = fetch_item_by_content_id((string)($item['content_id'] ?? ''));
+                if (is_array($itemByContentId)) {
+                    $item = $itemByContentId;
+                }
+            }
+        }
     } elseif ($contentId !== '') {
         $item = fetch_item_by_content_id($contentId);
     }
