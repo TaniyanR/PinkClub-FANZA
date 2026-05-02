@@ -96,6 +96,65 @@ function item_pick_raw_text(array $raw, array $keys): string
     return '';
 }
 
+function item_find_first_text_recursive(mixed $value): string
+{
+    if (is_string($value)) {
+        $text = trim($value);
+        return $text !== '' ? $text : '';
+    }
+
+    if (!is_array($value)) {
+        return '';
+    }
+
+    foreach (['value', 'text', 'name', 'description', 'comment', 'caption', 'story', 'introduction'] as $preferredKey) {
+        if (array_key_exists($preferredKey, $value)) {
+            $found = item_find_first_text_recursive($value[$preferredKey]);
+            if ($found !== '') {
+                return $found;
+            }
+        }
+    }
+
+    foreach ($value as $child) {
+        $found = item_find_first_text_recursive($child);
+        if ($found !== '') {
+            return $found;
+        }
+    }
+
+    return '';
+}
+
+function item_fetch_page_description(string $url): string
+{
+    $url = trim($url);
+    if ($url === '' || (!str_starts_with($url, 'https://') && !str_starts_with($url, 'http://'))) {
+        return '';
+    }
+
+    $context = stream_context_create([
+        'http' => [
+            'timeout' => 5,
+            'ignore_errors' => true,
+            'user_agent' => 'Mozilla/5.0',
+        ],
+    ]);
+    $html = @file_get_contents($url, false, $context);
+    if (!is_string($html) || $html === '') {
+        return '';
+    }
+
+    if (preg_match('/<meta[^>]+property=["\']og:description["\'][^>]+content=["\']([^"\']+)["\']/i', $html, $m) === 1) {
+        return trim(html_entity_decode((string)$m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+    if (preg_match('/<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']+)["\']/i', $html, $m) === 1) {
+        return trim(html_entity_decode((string)$m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
+    return '';
+}
+
 function item_is_invalid_title(string $title): bool
 {
     $normalized = trim(html_entity_decode(strip_tags($title), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
@@ -335,6 +394,67 @@ $desc = trim((string)($item['description'] ?? ''));
 if ($desc === '') {
     $desc = item_pick_raw_text($raw, ['comment', 'description', 'caption', 'story', 'introduction']);
 }
+if ($desc === '') {
+    $desc = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['comment', 'description', 'caption', 'story', 'introduction']);
+}
+if ($desc === '') {
+    foreach (['comment', 'description', 'caption', 'story', 'introduction'] as $descKey) {
+        if (!array_key_exists($descKey, $raw)) {
+            continue;
+        }
+        $desc = item_find_first_text_recursive($raw[$descKey]);
+        if ($desc !== '') {
+            break;
+        }
+    }
+}
+if ($desc === '') {
+    foreach (['comment', 'description', 'caption', 'story', 'introduction'] as $descKey) {
+        if (!array_key_exists($descKey, (array)($raw['iteminfo'] ?? []))) {
+            continue;
+        }
+        $desc = item_find_first_text_recursive(((array)$raw['iteminfo'])[$descKey]);
+        if ($desc !== '') {
+            break;
+        }
+    }
+}
+if ($desc === '') {
+    try {
+        $articleStmt = db()->prepare('SELECT description FROM articles WHERE product_id IN (?, ?) ORDER BY id DESC LIMIT 1');
+        $articleStmt->execute([(string)($item['content_id'] ?? ''), (string)($item['product_id'] ?? '')]);
+        $articleRow = $articleStmt->fetch();
+        if (is_array($articleRow)) {
+            $desc = trim((string)($articleRow['description'] ?? ''));
+        }
+        if ($desc === '') {
+            $articleTitle = trim((string)($item['title'] ?? ''));
+            if ($articleTitle !== '') {
+                $articleByTitleStmt = db()->prepare('SELECT description FROM articles WHERE title = ? ORDER BY id DESC LIMIT 1');
+                $articleByTitleStmt->execute([$articleTitle]);
+                $articleByTitleRow = $articleByTitleStmt->fetch();
+                if (is_array($articleByTitleRow)) {
+                    $desc = trim((string)($articleByTitleRow['description'] ?? ''));
+                }
+            }
+        }
+    } catch (Throwable) {
+    }
+}
+if ($desc === '') {
+    $desc = item_fetch_page_description((string)($item['url'] ?? ''));
+}
+$descSub = '';
+foreach ([
+    item_pick_raw_text($raw, ['caption', 'story', 'introduction', 'description', 'comment']),
+    item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['caption', 'story', 'introduction', 'description', 'comment']),
+] as $candidateDescSub) {
+    $candidateDescSub = trim((string)$candidateDescSub);
+    if ($candidateDescSub !== '' && $candidateDescSub !== $desc) {
+        $descSub = $candidateDescSub;
+        break;
+    }
+}
 
 $titleCandidates = [
     (string)($item['title'] ?? ''),
@@ -429,6 +549,8 @@ require __DIR__ . '/partials/header.php';
         <img class="pcf-detail__package" src="<?= e($packageImage) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>">
       </a>
       <?php endif; ?>
+      <?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php endif; ?>
+      <?php if ($descSub !== ''): ?><p><?= nl2br(e($descSub)) ?></p><?php endif; ?>
     </div>
 
     <div class="pcf-item-main__info">
@@ -448,7 +570,6 @@ require __DIR__ . '/partials/header.php';
         <li>メーカー品番: <?= e((string)($item['product_id'] ?? '') !== '' ? (string)($item['product_id'] ?? '') : '―') ?></li>
       </ul>
 
-      <?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php else: ?><p>商品コメントはありません。</p><?php endif; ?>
     </div>
   </section>
 
