@@ -429,6 +429,7 @@ require __DIR__ . '/partials/header.php';
         <img class="pcf-detail__package" src="<?= e($packageImage) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>">
       </a>
       <?php endif; ?>
+      <?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php else: ?><p>商品コメントはありません。</p><?php endif; ?>
     </div>
 
     <div class="pcf-item-main__info">
@@ -448,7 +449,6 @@ require __DIR__ . '/partials/header.php';
         <li>メーカー品番: <?= e((string)($item['product_id'] ?? '') !== '' ? (string)($item['product_id'] ?? '') : '―') ?></li>
       </ul>
 
-      <?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php else: ?><p>商品コメントはありません。</p><?php endif; ?>
     </div>
   </section>
 
