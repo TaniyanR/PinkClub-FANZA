@@ -96,6 +96,120 @@ function item_pick_raw_text(array $raw, array $keys): string
     return '';
 }
 
+function item_find_first_text_recursive(mixed $value): string
+{
+    if (is_string($value)) {
+        $text = trim($value);
+        return $text !== '' ? $text : '';
+    }
+
+    if (!is_array($value)) {
+        return '';
+    }
+
+    foreach (['value', 'text', 'name', 'description', 'comment', 'caption', 'story', 'introduction'] as $preferredKey) {
+        if (array_key_exists($preferredKey, $value)) {
+            $found = item_find_first_text_recursive($value[$preferredKey]);
+            if ($found !== '') {
+                return $found;
+            }
+        }
+    }
+
+    foreach ($value as $child) {
+        $found = item_find_first_text_recursive($child);
+        if ($found !== '') {
+            return $found;
+        }
+    }
+
+    return '';
+}
+
+function item_collect_texts_recursive(mixed $value, array &$texts): void
+{
+    if (is_string($value)) {
+        $text = trim(html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if ($text !== '') {
+            $texts[] = $text;
+        }
+        return;
+    }
+    if (!is_array($value)) {
+        return;
+    }
+    foreach ($value as $child) {
+        item_collect_texts_recursive($child, $texts);
+    }
+}
+
+function item_fetch_page_description(string $url): string
+{
+    $url = trim($url);
+    if ($url === '' || (!str_starts_with($url, 'https://') && !str_starts_with($url, 'http://'))) {
+        return '';
+    }
+
+    $context = stream_context_create([
+        'http' => [
+            'timeout' => 5,
+            'ignore_errors' => true,
+            'user_agent' => 'Mozilla/5.0',
+        ],
+    ]);
+    $html = @file_get_contents($url, false, $context);
+    if (!is_string($html) || $html === '') {
+        return '';
+    }
+
+    $candidates = [];
+    if (preg_match_all('/<script[^>]+type=["\']application\/ld\+json["\'][^>]*>(.*?)<\/script>/is', $html, $jsonScripts) >= 1) {
+        foreach ((array)($jsonScripts[1] ?? []) as $jsonScript) {
+            $decoded = json_decode(html_entity_decode((string)$jsonScript, ENT_QUOTES | ENT_HTML5, 'UTF-8'), true);
+            if (is_array($decoded)) {
+                $description = trim((string)($decoded['description'] ?? ''));
+                if ($description !== '') {
+                    $candidates[] = $description;
+                }
+            }
+        }
+    }
+    if (preg_match('/<meta[^>]+property=["\']og:description["\'][^>]+content=["\']([^"\']+)["\']/i', $html, $m) === 1) {
+        $candidates[] = trim(html_entity_decode((string)$m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+    if (preg_match('/<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']+)["\']/i', $html, $m) === 1) {
+        $candidates[] = trim(html_entity_decode((string)$m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+    if (preg_match_all('/<p[^>]*class=["\'][^"\']*(mg-b20|lh4)[^"\']*["\'][^>]*>(.*?)<\/p>/is', $html, $paragraphs) >= 1) {
+        foreach ((array)($paragraphs[2] ?? []) as $paragraphHtml) {
+            $text = trim(html_entity_decode(strip_tags((string)$paragraphHtml), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            if ($text !== '') {
+                $candidates[] = $text;
+            }
+        }
+    }
+    foreach ($candidates as $candidate) {
+        if (!item_is_invalid_description($candidate)) {
+            return $candidate;
+        }
+    }
+
+    return '';
+}
+
+function item_is_invalid_description(string $text): bool
+{
+    $normalized = trim(preg_replace('/\s+/u', ' ', $text) ?? '');
+    if ($normalized === '') {
+        return true;
+    }
+
+    return str_contains($normalized, 'ここから先は、アダルト商品を扱うアダルトサイトとなります')
+        || str_contains($normalized, '18歳未満の方のアクセスは固くお断りします')
+        || str_contains($normalized, '年齢認証')
+        || str_contains($normalized, 'adult only');
+}
+
 function item_is_invalid_title(string $title): bool
 {
     $normalized = trim(html_entity_decode(strip_tags($title), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
@@ -335,6 +449,93 @@ $desc = trim((string)($item['description'] ?? ''));
 if ($desc === '') {
     $desc = item_pick_raw_text($raw, ['comment', 'description', 'caption', 'story', 'introduction']);
 }
+if ($desc === '') {
+    $desc = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['comment', 'description', 'caption', 'story', 'introduction']);
+}
+if ($desc === '') {
+    foreach (['comment', 'description', 'caption', 'story', 'introduction'] as $descKey) {
+        if (!array_key_exists($descKey, $raw)) {
+            continue;
+        }
+        $desc = item_find_first_text_recursive($raw[$descKey]);
+        if ($desc !== '') {
+            break;
+        }
+    }
+}
+if ($desc === '') {
+    foreach (['comment', 'description', 'caption', 'story', 'introduction'] as $descKey) {
+        if (!array_key_exists($descKey, (array)($raw['iteminfo'] ?? []))) {
+            continue;
+        }
+        $desc = item_find_first_text_recursive(((array)$raw['iteminfo'])[$descKey]);
+        if ($desc !== '') {
+            break;
+        }
+    }
+}
+if ($desc === '') {
+    $rawTexts = [];
+    item_collect_texts_recursive($raw, $rawTexts);
+    foreach ($rawTexts as $rawText) {
+        $candidate = trim((string)$rawText);
+        if (mb_strlen($candidate) < 40) {
+            continue;
+        }
+        if (str_contains($candidate, 'http://') || str_contains($candidate, 'https://')) {
+            continue;
+        }
+        if (str_contains($candidate, (string)($item['title'] ?? ''))) {
+            continue;
+        }
+        if (!item_is_invalid_description($candidate)) {
+            $desc = $candidate;
+            break;
+        }
+    }
+}
+if ($desc === '') {
+    try {
+        $articleStmt = db()->prepare('SELECT description FROM articles WHERE product_id IN (?, ?) ORDER BY id DESC LIMIT 1');
+        $articleStmt->execute([(string)($item['content_id'] ?? ''), (string)($item['product_id'] ?? '')]);
+        $articleRow = $articleStmt->fetch();
+        if (is_array($articleRow)) {
+            $desc = trim((string)($articleRow['description'] ?? ''));
+        }
+        if ($desc === '') {
+            $articleTitle = trim((string)($item['title'] ?? ''));
+            if ($articleTitle !== '') {
+                $articleByTitleStmt = db()->prepare('SELECT description FROM articles WHERE title = ? ORDER BY id DESC LIMIT 1');
+                $articleByTitleStmt->execute([$articleTitle]);
+                $articleByTitleRow = $articleByTitleStmt->fetch();
+                if (is_array($articleByTitleRow)) {
+                    $desc = trim((string)($articleByTitleRow['description'] ?? ''));
+                }
+            }
+        }
+    } catch (Throwable) {
+    }
+}
+if ($desc === '') {
+    $desc = item_fetch_page_description((string)($item['url'] ?? ''));
+}
+if (item_is_invalid_description($desc)) {
+    $desc = '';
+}
+$descSub = '';
+foreach ([
+    item_pick_raw_text($raw, ['caption', 'story', 'introduction', 'description', 'comment']),
+    item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['caption', 'story', 'introduction', 'description', 'comment']),
+] as $candidateDescSub) {
+    $candidateDescSub = trim((string)$candidateDescSub);
+    if ($candidateDescSub !== '' && $candidateDescSub !== $desc) {
+        $descSub = $candidateDescSub;
+        break;
+    }
+}
+if (item_is_invalid_description($descSub)) {
+    $descSub = '';
+}
 
 $titleCandidates = [
     (string)($item['title'] ?? ''),
@@ -429,6 +630,8 @@ require __DIR__ . '/partials/header.php';
         <img class="pcf-detail__package" src="<?= e($packageImage) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>">
       </a>
       <?php endif; ?>
+      <?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php endif; ?>
+      <?php if ($descSub !== ''): ?><p><?= nl2br(e($descSub)) ?></p><?php endif; ?>
     </div>
 
     <div class="pcf-item-main__info">
@@ -448,7 +651,6 @@ require __DIR__ . '/partials/header.php';
         <li>メーカー品番: <?= e((string)($item['product_id'] ?? '') !== '' ? (string)($item['product_id'] ?? '') : '―') ?></li>
       </ul>
 
-      <?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php else: ?><p>商品コメントはありません。</p><?php endif; ?>
     </div>
   </section>
 
