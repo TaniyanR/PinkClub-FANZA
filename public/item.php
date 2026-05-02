@@ -96,6 +96,18 @@ function item_pick_raw_text(array $raw, array $keys): string
     return '';
 }
 
+function item_is_noise_title(string $title, array $excludedTitleMap): bool
+{
+    $normalized = mb_strtolower(trim($title));
+    if ($normalized === '') {
+        return true;
+    }
+    if (isset($excludedTitleMap[$normalized])) {
+        return true;
+    }
+    return str_contains($title, 'お問い合わせ') || str_contains($title, '問合せ');
+}
+
 function item_unique_rows(array $rows, array $keys): array
 {
     $unique = [];
@@ -145,10 +157,17 @@ try {
         $stmt = db()->prepare('SELECT * FROM items WHERE id = ?');
         $stmt->execute([$id]);
         $item = $stmt->fetch();
+        if (is_array($item)) {
+            $canonicalContentId = trim((string)($item['content_id'] ?? ''));
+            if ($canonicalContentId !== '') {
+                $canonicalItem = fetch_item_by_content_id($canonicalContentId);
+                if (is_array($canonicalItem)) {
+                    $item = $canonicalItem;
+                }
+            }
+        }
     } elseif ($contentId !== '') {
-        $stmt = db()->prepare('SELECT * FROM items WHERE content_id = ?');
-        $stmt->execute([$contentId]);
-        $item = $stmt->fetch();
+        $item = fetch_item_by_content_id($contentId);
     }
 } catch (Throwable) {
     $item = false;
@@ -221,7 +240,7 @@ if (db_table_exists('item_authors')) {
     }
 }
 
-$relatedItems = item_unique_rows($relatedItems, ['content_id', 'id']);
+$relatedItems = item_unique_rows($relatedItems, ['content_id']);
 $actresses = item_unique_rows($actresses, ['id', 'name']);
 $genres = item_unique_rows($genres, ['id', 'name']);
 $makers = item_unique_rows($makers, ['id', 'name']);
@@ -321,19 +340,50 @@ $titleCandidates = [
     trim((string)($raw['title'] ?? '')),
     trim((string)($raw['name'] ?? '')),
     trim((string)($raw['productTitle'] ?? '')),
+    item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['title', 'name']),
+    item_pick_raw_text($raw, ['title', 'name', 'productTitle']),
 ];
-$title = '商品詳細';
+$excludedTitleMap = [];
+try {
+    if (db_table_exists('fixed_pages')) {
+        $titleStmt = db()->query('SELECT title FROM fixed_pages');
+        $fixedPageRows = $titleStmt ? ($titleStmt->fetchAll() ?: []) : [];
+        foreach ($fixedPageRows as $fixedPageRow) {
+            $fixedPageTitle = trim((string)($fixedPageRow['title'] ?? ''));
+            if ($fixedPageTitle !== '') {
+                $excludedTitleMap[mb_strtolower($fixedPageTitle)] = true;
+            }
+        }
+    }
+} catch (Throwable) {
+    $excludedTitleMap = [];
+}
+$title = '';
 foreach ($titleCandidates as $candidateTitle) {
     $candidateTitle = trim((string)$candidateTitle);
     if ($candidateTitle === '') {
         continue;
     }
-    if (str_contains($candidateTitle, 'お問い合わせ') || str_contains($candidateTitle, '問合せ')) {
+    if (item_is_noise_title($candidateTitle, $excludedTitleMap)) {
         continue;
     }
-    if ($title === '商品詳細' || mb_strlen($candidateTitle) > mb_strlen($title)) {
+    if ($title === '' || mb_strlen($candidateTitle) > mb_strlen($title)) {
         $title = $candidateTitle;
     }
+}
+if ($title === '') {
+    $title = trim((string)($item['content_id'] ?? ''));
+}
+if (item_is_noise_title($title, $excludedTitleMap)) {
+    $fallbackTitle = trim((string)($item['product_id'] ?? ''));
+    if ($fallbackTitle !== '' && !item_is_noise_title($fallbackTitle, $excludedTitleMap)) {
+        $title = $fallbackTitle;
+    } else {
+        $title = trim((string)($item['content_id'] ?? ''));
+    }
+}
+if ($title === '') {
+    $title = '商品詳細';
 }
 $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
 $rawMakerName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['maker', 'label']);
@@ -368,7 +418,7 @@ require __DIR__ . '/partials/header.php';
       </div>
       <?php endif; ?>
       <?php if ($sampleImagesSmallLargeMap !== []): ?>
-      <div style="width:196px; max-width:100%; height:480px; overflow:auto;"><div style="display:grid; grid-template-rows:repeat(6, 72px); grid-auto-flow:column; grid-auto-columns:92px; gap:8px; align-content:start;">
+      <div style="width:196px; max-width:100%; height:480px; overflow:hidden;"><div style="display:grid; grid-template-rows:repeat(6, 72px); grid-auto-flow:column; grid-auto-columns:92px; gap:8px; align-content:start;">
         <?php foreach ($sampleImagesSmallLargeMap as $i => $imagePair): ?>
           <a href="<?= e((string)$imagePair['large']) ?>" class="pcf-image-viewer-trigger" data-image-index="<?= e((string)$i) ?>" style="display:block;">
             <img src="<?= e((string)$imagePair['small']) ?>" alt="サンプル画像 <?= e((string)($i + 1)) ?>" loading="lazy" style="display:block; width:100%; height:72px; object-fit:cover;">
@@ -380,10 +430,10 @@ require __DIR__ . '/partials/header.php';
   <?php endif; ?>
 
   <?php if ($affiliateUrl !== ''): ?>
-    <p><a class="pcf-btn" style="display:block; text-align:center; border:2px solid #9aa0ab; font-weight:700; padding:12px 14px;" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
+    <p><a class="pcf-btn" style="display:block; text-align:center; border:2px solid #9aa0ab; font-weight:700; font-size:18px; padding:12px 14px;" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
   <?php endif; ?>
 
-  <h2 class="pcf-section-title">商品詳細</h2>
+  <h2 class="pcf-section-title" style="color:#000; font-size:30px;">商品詳細</h2>
 
   <section class="pcf-detail pcf-item-main">
     <div class="pcf-item-main__media">
@@ -396,27 +446,27 @@ require __DIR__ . '/partials/header.php';
 
     <div class="pcf-item-main__info">
       <ul class="pcf-item-card__meta">
-        <li>対応デバイス: <?= e($deviceText) ?></li>
-        <li>配信開始日: <?= e($deliveryStartText) ?></li>
+        <li>対応デバイス: <?= e($deviceText !== '' ? $deviceText : '―') ?></li>
+        <li>配信開始日: <?= e($deliveryStartText !== '' ? $deliveryStartText : '―') ?></li>
         <li>商品発売日: <?= e((string)format_date((string)($item['release_date'] ?? ''))) ?></li>
-        <li>収録時間: <?= e((string)($item['volume'] ?? '')) ?></li>
-        <li>出演者: <?= e($performerText) ?></li>
-        <li>監督: <?= e($rawDirectorName) ?></li>
-        <li>シリーズ: <?= e($rawSeriesName) ?></li>
-        <li>メーカー: <?= e($rawMakerName) ?></li>
-        <li>レーベル: <?= e($labelName) ?></li>
-        <li>ジャンル: <?= e($genreText) ?></li>
-        <li>関連タグ: <?= e($tagText) ?></li>
-        <li>配信品番: <?= e((string)($item['content_id'] ?? '')) ?></li>
-        <li>メーカー品番: <?= e((string)($item['product_id'] ?? '')) ?></li>
+        <li>収録時間: <?= e((string)($item['volume'] ?? '') !== '' ? (string)($item['volume'] ?? '') : '―') ?></li>
+        <li>出演者: <?= e($performerText !== '' ? $performerText : '―') ?></li>
+        <li>監督: <?= e($rawDirectorName !== '' ? $rawDirectorName : '―') ?></li>
+        <li>シリーズ: <?= e($rawSeriesName !== '' ? $rawSeriesName : '―') ?></li>
+        <li>メーカー: <?= e($rawMakerName !== '' ? $rawMakerName : '―') ?></li>
+        <li>レーベル: <?= e($labelName !== '' ? $labelName : '―') ?></li>
+        <li>ジャンル: <?= e($genreText !== '' ? $genreText : '―') ?></li>
+        <li>関連タグ: <?= e($tagText !== '' ? $tagText : '―') ?></li>
+        <li>配信品番: <?= e((string)($item['content_id'] ?? '') !== '' ? (string)($item['content_id'] ?? '') : '―') ?></li>
+        <li>メーカー品番: <?= e((string)($item['product_id'] ?? '') !== '' ? (string)($item['product_id'] ?? '') : '―') ?></li>
       </ul>
 
-      <?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php endif; ?>
+      <?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php else: ?><p>商品コメントはありません。</p><?php endif; ?>
     </div>
   </section>
 
   <?php if ($affiliateUrl !== ''): ?>
-    <p><a class="pcf-btn" style="display:block; text-align:center; border:2px solid #9aa0ab; font-weight:700; padding:12px 14px;" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
+    <p><a class="pcf-btn" style="display:block; text-align:center; border:2px solid #9aa0ab; font-weight:700; font-size:18px; padding:12px 14px;" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
   <?php endif; ?>
 
   <h2 class="pcf-section-title">関連作品</h2>
