@@ -96,6 +96,19 @@ function item_pick_raw_text(array $raw, array $keys): string
     return '';
 }
 
+function item_is_invalid_title(string $title): bool
+{
+    $normalized = trim(html_entity_decode(strip_tags($title), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    if ($normalized === '') {
+        return true;
+    }
+
+    return str_contains($normalized, 'お問い合わせ')
+        || str_contains($normalized, '問合せ')
+        || $normalized === 'Privacy Policy'
+        || $normalized === 'サイトについて';
+}
+
 function item_unique_rows(array $rows, array $keys): array
 {
     $unique = [];
@@ -145,6 +158,15 @@ try {
         $stmt = db()->prepare('SELECT * FROM items WHERE id = ?');
         $stmt->execute([$id]);
         $item = $stmt->fetch();
+        if (is_array($item)) {
+            $itemTitle = trim((string)($item['title'] ?? ''));
+            if (item_is_invalid_title($itemTitle)) {
+                $itemByContentId = fetch_item_by_content_id((string)($item['content_id'] ?? ''));
+                if (is_array($itemByContentId)) {
+                    $item = $itemByContentId;
+                }
+            }
+        }
     } elseif ($contentId !== '') {
         $item = fetch_item_by_content_id($contentId);
     }
@@ -319,6 +341,8 @@ $titleCandidates = [
     trim((string)($raw['title'] ?? '')),
     trim((string)($raw['name'] ?? '')),
     trim((string)($raw['productTitle'] ?? '')),
+    trim((string)($raw['iteminfo']['title'][0]['name'] ?? '')),
+    trim((string)($raw['iteminfo']['title'][0]['value'] ?? '')),
 ];
 $title = '商品詳細';
 foreach ($titleCandidates as $candidateTitle) {
@@ -326,16 +350,14 @@ foreach ($titleCandidates as $candidateTitle) {
     if ($candidateTitle === '') {
         continue;
     }
-    if (
-        str_contains($candidateTitle, 'お問い合わせ')
-        || str_contains($candidateTitle, '問合せ')
-        || $candidateTitle === 'Privacy Policy'
-        || $candidateTitle === 'サイトについて'
-    ) {
+    if (item_is_invalid_title($candidateTitle)) {
         continue;
     }
     $title = $candidateTitle;
     break;
+}
+if ($title === '商品詳細') {
+    $title = trim((string)($item['content_id'] ?? '')) !== '' ? (string)$item['content_id'] : '商品詳細';
 }
 $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
 $rawMakerName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['maker', 'label']);
