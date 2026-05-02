@@ -362,6 +362,17 @@ foreach ($titleCandidates as $candidateTitle) {
     break;
 }
 if ($title === '') {
+    $title = trim((string)($item['content_id'] ?? ''));
+}
+if ($title === '' || str_contains($title, 'お問い合わせ') || str_contains($title, '問合せ') || isset($excludedTitleMap[mb_strtolower($title)])) {
+    $fallbackTitle = trim((string)($item['product_id'] ?? ''));
+    if ($fallbackTitle !== '' && !isset($excludedTitleMap[mb_strtolower($fallbackTitle)])) {
+        $title = $fallbackTitle;
+    } else {
+        $title = trim((string)($item['content_id'] ?? ''));
+    }
+}
+if ($title === '') {
     $title = '商品詳細';
 }
 $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
