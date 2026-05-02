@@ -155,6 +155,19 @@ function item_fetch_page_description(string $url): string
     return '';
 }
 
+function item_is_invalid_description(string $text): bool
+{
+    $normalized = trim(preg_replace('/\s+/u', ' ', $text) ?? '');
+    if ($normalized === '') {
+        return true;
+    }
+
+    return str_contains($normalized, 'ここから先は、アダルト商品を扱うアダルトサイトとなります')
+        || str_contains($normalized, '18歳未満の方のアクセスは固くお断りします')
+        || str_contains($normalized, '年齢認証')
+        || str_contains($normalized, 'adult only');
+}
+
 function item_is_invalid_title(string $title): bool
 {
     $normalized = trim(html_entity_decode(strip_tags($title), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
@@ -444,6 +457,9 @@ if ($desc === '') {
 if ($desc === '') {
     $desc = item_fetch_page_description((string)($item['url'] ?? ''));
 }
+if (item_is_invalid_description($desc)) {
+    $desc = '';
+}
 $descSub = '';
 foreach ([
     item_pick_raw_text($raw, ['caption', 'story', 'introduction', 'description', 'comment']),
@@ -454,6 +470,9 @@ foreach ([
         $descSub = $candidateDescSub;
         break;
     }
+}
+if (item_is_invalid_description($descSub)) {
+    $descSub = '';
 }
 
 $titleCandidates = [
