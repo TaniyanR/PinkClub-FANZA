@@ -105,7 +105,23 @@ function fetch_item_by_content_id(string $contentId): ?array
          WHERE content_id = :cid
          ORDER BY
            CASE
+             WHEN COALESCE(TRIM(product_id), "") = "" THEN 1
+             ELSE 0
+           END ASC,
+           CASE
+             WHEN COALESCE(TRIM(affiliate_url), "") = "" THEN 1
+             ELSE 0
+           END ASC,
+           CASE
+             WHEN COALESCE(TRIM(image_small), "") = "" AND COALESCE(TRIM(image_large), "") = "" AND COALESCE(TRIM(image_list), "") = "" THEN 1
+             ELSE 0
+           END ASC,
+           CASE
              WHEN title LIKE "%お問い合わせ%" OR title LIKE "%問合せ%" OR title = "Privacy Policy" OR title = "サイトについて" THEN 1
+             ELSE 0
+           END ASC,
+           CASE
+             WHEN COALESCE(TRIM(title), "") = "" THEN 1
              ELSE 0
            END ASC,
            id DESC
