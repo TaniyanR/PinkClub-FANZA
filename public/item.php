@@ -335,6 +335,9 @@ $desc = trim((string)($item['description'] ?? ''));
 if ($desc === '') {
     $desc = item_pick_raw_text($raw, ['comment', 'description', 'caption', 'story', 'introduction']);
 }
+if ($desc === '') {
+    $desc = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['comment', 'description', 'caption', 'story', 'introduction']);
+}
 
 $titleCandidates = [
     (string)($item['title'] ?? ''),
