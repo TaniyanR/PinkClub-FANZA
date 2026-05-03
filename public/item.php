@@ -535,32 +535,33 @@ require __DIR__ . '/partials/header.php';
   <?php endif; ?>
 
   <section class="pcf-detail pcf-item-main">
-    <div class="pcf-item-main__media">
+    <div class="pcf-item-main__media" style="width:min(100%, 620px);">
       <?php if ($packageImage !== ''): ?>
       <a href="<?= e($packageImage) ?>" target="_blank" rel="noopener noreferrer">
-        <img class="pcf-detail__package" src="<?= e($packageImage) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>">
+        <img class="pcf-detail__package" src="<?= e($packageImage) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>" style="display:block; width:100%; height:auto;">
       </a>
       <?php endif; ?>
       <?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php endif; ?>
     </div>
 
     <div class="pcf-item-main__info">
-      <ul class="pcf-item-card__meta" style="color:#000 !important; font-size:14px;">
-        <li>対応デバイス: <?= e($deviceText !== '' ? $deviceText : '―') ?></li>
-        <li>配信開始日: <?= e($deliveryStartDisplay !== '' ? $deliveryStartDisplay : '―') ?></li>
-        <li>商品発売日: <?= e($releaseDateDisplay !== '' ? $releaseDateDisplay : '―') ?></li>
-        <li>収録時間: <?= e($volumeDisplay !== '' ? $volumeDisplay : '―') ?></li>
-        <li>出演者: <?= e($performerText !== '' ? $performerText : '―') ?></li>
-        <li>監督: <?= e($rawDirectorName !== '' ? $rawDirectorName : '―') ?></li>
-        <li>シリーズ: <?= e($rawSeriesName !== '' ? $rawSeriesName : '―') ?></li>
-        <li>メーカー: <?= e($rawMakerName !== '' ? $rawMakerName : '―') ?></li>
-        <li>レーベル: <?= e($labelName !== '' ? $labelName : '―') ?></li>
-        <li>ジャンル: <?= e($genreText !== '' ? $genreText : '―') ?></li>
-        <li>関連タグ: <?= e($tagText !== '' ? $tagText : '―') ?></li>
-        <li>配信品番: <?= e($contentIdDisplay !== '' ? $contentIdDisplay : '―') ?></li>
-        <li>メーカー品番: <?= e($productIdDisplay !== '' ? $productIdDisplay : '―') ?></li>
-      </ul>
-
+      <table style="width:100%; border-collapse:collapse; border:0; color:#000 !important; font-size:12px;">
+        <tbody>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">対応デバイス</th><td style="padding:4px 0; border:0;"><?= e($deviceText !== '' ? $deviceText : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">配信開始日</th><td style="padding:4px 0; border:0;"><?= e($deliveryStartDisplay !== '' ? $deliveryStartDisplay : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">商品発売日</th><td style="padding:4px 0; border:0;"><?= e($releaseDateDisplay !== '' ? $releaseDateDisplay : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">収録時間</th><td style="padding:4px 0; border:0;"><?= e($volumeDisplay !== '' ? $volumeDisplay : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">出演者</th><td style="padding:4px 0; border:0;"><?= e($performerText !== '' ? $performerText : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">監督</th><td style="padding:4px 0; border:0;"><?= e($rawDirectorName !== '' ? $rawDirectorName : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">シリーズ</th><td style="padding:4px 0; border:0;"><?= e($rawSeriesName !== '' ? $rawSeriesName : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">メーカー</th><td style="padding:4px 0; border:0;"><?= e($rawMakerName !== '' ? $rawMakerName : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">レーベル</th><td style="padding:4px 0; border:0;"><?= e($labelName !== '' ? $labelName : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">ジャンル</th><td style="padding:4px 0; border:0;"><?= e($genreText !== '' ? $genreText : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">関連タグ</th><td style="padding:4px 0; border:0;"><?= e($tagText !== '' ? $tagText : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">配信品番</th><td style="padding:4px 0; border:0;"><?= e($contentIdDisplay !== '' ? $contentIdDisplay : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">メーカー品番</th><td style="padding:4px 0; border:0;"><?= e($productIdDisplay !== '' ? $productIdDisplay : '―') ?></td></tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
