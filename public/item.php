@@ -96,6 +96,44 @@ function item_pick_raw_text(array $raw, array $keys): string
     return '';
 }
 
+
+function item_collect_named_values(mixed $value, array &$values): void
+{
+    if (is_string($value)) {
+        $text = trim((string)$value);
+        if ($text !== '') {
+            $values[] = $text;
+        }
+        return;
+    }
+    if (!is_array($value)) {
+        return;
+    }
+    if (isset($value['name']) && is_string($value['name'])) {
+        $name = trim((string)$value['name']);
+        if ($name !== '') {
+            $values[] = $name;
+        }
+    }
+    foreach ($value as $child) {
+        item_collect_named_values($child, $values);
+    }
+}
+
+
+function item_is_invalid_description(string $text): bool
+{
+    $normalized = trim(preg_replace('/\s+/u', ' ', $text) ?? '');
+    if ($normalized === '') {
+        return true;
+    }
+
+    return str_contains($normalized, 'ここから先は、アダルト商品を扱うアダルトサイトとなります')
+        || str_contains($normalized, '18歳未満の方のアクセスは固くお断りします')
+        || str_contains($normalized, '年齢認証')
+        || str_contains($normalized, 'adult only');
+}
+
 function item_is_invalid_title(string $title): bool
 {
     $normalized = trim(html_entity_decode(strip_tags($title), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
@@ -335,6 +373,34 @@ $desc = trim((string)($item['description'] ?? ''));
 if ($desc === '') {
     $desc = item_pick_raw_text($raw, ['comment', 'description', 'caption', 'story', 'introduction']);
 }
+if ($desc === '') {
+    $desc = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['comment', 'description', 'caption', 'story', 'introduction']);
+}
+if ($desc === '') {
+    try {
+        $articleStmt = db()->prepare('SELECT description FROM articles WHERE product_id IN (?, ?) ORDER BY id DESC LIMIT 1');
+        $articleStmt->execute([(string)($item['content_id'] ?? ''), (string)($item['product_id'] ?? '')]);
+        $articleRow = $articleStmt->fetch();
+        if (is_array($articleRow)) {
+            $desc = trim((string)($articleRow['description'] ?? ''));
+        }
+        if ($desc === '') {
+            $articleTitle = trim((string)($item['title'] ?? ''));
+            if ($articleTitle !== '') {
+                $articleByTitleStmt = db()->prepare('SELECT description FROM articles WHERE title = ? ORDER BY id DESC LIMIT 1');
+                $articleByTitleStmt->execute([$articleTitle]);
+                $articleByTitleRow = $articleByTitleStmt->fetch();
+                if (is_array($articleByTitleRow)) {
+                    $desc = trim((string)($articleByTitleRow['description'] ?? ''));
+                }
+            }
+        }
+    } catch (Throwable) {
+    }
+}
+if (item_is_invalid_description($desc)) {
+    $desc = '';
+}
 
 $titleCandidates = [
     (string)($item['title'] ?? ''),
@@ -382,6 +448,56 @@ $labelName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['label']);
 $performerText = implode('、', array_values(array_filter(array_map(static fn($v) => trim((string)($v['name'] ?? '')), $actresses), static fn($v) => $v !== '')));
 $genreText = implode('、', array_values(array_filter(array_map(static fn($v) => trim((string)($v['name'] ?? '')), $genres), static fn($v) => $v !== '')));
 $tagText = item_pick_raw_text($raw, ['tag', 'tags']);
+if ($tagText === '') {
+    $tagValues = [];
+    item_collect_named_values($raw['iteminfo']['genre'] ?? [], $tagValues);
+    $tagValues = array_values(array_unique(array_filter(array_map(static fn($v) => trim((string)$v), $tagValues), static fn($v) => $v !== '')));
+    if ($tagValues !== []) {
+        $tagText = implode(' ', array_map(static fn($v) => str_starts_with($v, '#') ? $v : ('#' . $v), $tagValues));
+    }
+}
+if ($deviceText === '') {
+    $pcFlag = (int)($raw['sampleMovieURL']['pc_flag'] ?? $item['sample_movie_pc_flag'] ?? 0);
+    $spFlag = (int)($raw['sampleMovieURL']['sp_flag'] ?? $item['sample_movie_sp_flag'] ?? 0);
+    if ($pcFlag === 1 && $spFlag === 1) {
+        $deviceText = 'PC / スマホ';
+    } elseif ($pcFlag === 1) {
+        $deviceText = 'PC';
+    } elseif ($spFlag === 1) {
+        $deviceText = 'スマホ';
+    }
+}
+if ($tagText === '') {
+    $tagText = '';
+}
+$releaseDateDisplay = (string)format_date((string)($item['release_date'] ?? ''));
+if ($releaseDateDisplay === '') {
+    $releaseDateDisplay = (string)format_date((string)($raw['date'] ?? ''));
+}
+$deliveryStartDisplay = (string)format_date((string)$deliveryStartText);
+if ($deliveryStartDisplay === '') {
+    $deliveryStartDisplay = trim((string)$deliveryStartText);
+}
+$volumeDisplay = (string)($item['volume'] ?? '');
+if (trim($volumeDisplay) === '') {
+    $volumeDisplay = trim((string)($raw['volume'] ?? ''));
+}
+if ($volumeDisplay !== '' && !str_contains($volumeDisplay, '分')) {
+    if (preg_match('/^\d+$/', $volumeDisplay) === 1) {
+        $volumeDisplay .= '分';
+    }
+}
+$contentIdDisplay = trim((string)($item['content_id'] ?? ''));
+if ($contentIdDisplay === '') {
+    $contentIdDisplay = trim((string)($raw['content_id'] ?? ''));
+}
+$productIdDisplay = trim((string)($raw['maker_product'] ?? ''));
+if ($productIdDisplay === '') {
+    $productIdDisplay = trim((string)($item['product_id'] ?? ''));
+}
+if ($productIdDisplay === '') {
+    $productIdDisplay = trim((string)($raw['product_id'] ?? ''));
+}
 $packageImage = pcf_item_image(is_array($item) ? $item : []);
 if (str_starts_with($packageImage, 'data:image/svg+xml')) {
     $packageImage = '';
@@ -420,35 +536,34 @@ require __DIR__ . '/partials/header.php';
     <p><a class="pcf-btn" style="display:block; text-align:center; border:2px solid #9aa0ab; font-weight:700; font-size:18px; padding:12px 14px;" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
   <?php endif; ?>
 
-  <h2 class="pcf-section-title" style="color:#000; font-size:30px;">商品詳細</h2>
-
   <section class="pcf-detail pcf-item-main">
-    <div class="pcf-item-main__media">
+    <div class="pcf-item-main__media" style="width:min(100%, 620px);">
       <?php if ($packageImage !== ''): ?>
       <a href="<?= e($packageImage) ?>" target="_blank" rel="noopener noreferrer">
-        <img class="pcf-detail__package" src="<?= e($packageImage) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>">
+        <img class="pcf-detail__package" src="<?= e($packageImage) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>" style="display:block; width:100%; height:auto;">
       </a>
       <?php endif; ?>
+      <?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php endif; ?>
     </div>
 
     <div class="pcf-item-main__info">
-      <ul class="pcf-item-card__meta">
-        <li>対応デバイス: <?= e($deviceText !== '' ? $deviceText : '―') ?></li>
-        <li>配信開始日: <?= e($deliveryStartText !== '' ? $deliveryStartText : '―') ?></li>
-        <li>商品発売日: <?= e((string)format_date((string)($item['release_date'] ?? ''))) ?></li>
-        <li>収録時間: <?= e((string)($item['volume'] ?? '') !== '' ? (string)($item['volume'] ?? '') : '―') ?></li>
-        <li>出演者: <?= e($performerText !== '' ? $performerText : '―') ?></li>
-        <li>監督: <?= e($rawDirectorName !== '' ? $rawDirectorName : '―') ?></li>
-        <li>シリーズ: <?= e($rawSeriesName !== '' ? $rawSeriesName : '―') ?></li>
-        <li>メーカー: <?= e($rawMakerName !== '' ? $rawMakerName : '―') ?></li>
-        <li>レーベル: <?= e($labelName !== '' ? $labelName : '―') ?></li>
-        <li>ジャンル: <?= e($genreText !== '' ? $genreText : '―') ?></li>
-        <li>関連タグ: <?= e($tagText !== '' ? $tagText : '―') ?></li>
-        <li>配信品番: <?= e((string)($item['content_id'] ?? '') !== '' ? (string)($item['content_id'] ?? '') : '―') ?></li>
-        <li>メーカー品番: <?= e((string)($item['product_id'] ?? '') !== '' ? (string)($item['product_id'] ?? '') : '―') ?></li>
-      </ul>
-
-      <?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php else: ?><p>商品コメントはありません。</p><?php endif; ?>
+      <table style="width:100%; border-collapse:collapse; border:0; color:#000 !important; font-size:12px;">
+        <tbody>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">対応デバイス</th><td style="padding:4px 0; border:0;"><?= e($deviceText !== '' ? $deviceText : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">配信開始日</th><td style="padding:4px 0; border:0;"><?= e($deliveryStartDisplay !== '' ? $deliveryStartDisplay : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">商品発売日</th><td style="padding:4px 0; border:0;"><?= e($releaseDateDisplay !== '' ? $releaseDateDisplay : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">収録時間</th><td style="padding:4px 0; border:0;"><?= e($volumeDisplay !== '' ? $volumeDisplay : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">出演者</th><td style="padding:4px 0; border:0;"><?= e($performerText !== '' ? $performerText : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">監督</th><td style="padding:4px 0; border:0;"><?= e($rawDirectorName !== '' ? $rawDirectorName : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">シリーズ</th><td style="padding:4px 0; border:0;"><?= e($rawSeriesName !== '' ? $rawSeriesName : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">メーカー</th><td style="padding:4px 0; border:0;"><?= e($rawMakerName !== '' ? $rawMakerName : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">レーベル</th><td style="padding:4px 0; border:0;"><?= e($labelName !== '' ? $labelName : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">ジャンル</th><td style="padding:4px 0; border:0;"><?= e($genreText !== '' ? $genreText : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">関連タグ</th><td style="padding:4px 0; border:0;"><?= e($tagText !== '' ? $tagText : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">配信品番</th><td style="padding:4px 0; border:0;"><?= e($contentIdDisplay !== '' ? $contentIdDisplay : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">メーカー品番</th><td style="padding:4px 0; border:0;"><?= e($productIdDisplay !== '' ? $productIdDisplay : '―') ?></td></tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
