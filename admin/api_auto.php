@@ -77,7 +77,10 @@ require __DIR__ . '/includes/header.php';
 
     <div style="display:grid;grid-template-columns:190px minmax(280px,1fr);gap:12px 16px;align-items:center;">
       <div><strong>自動更新を有効化</strong></div>
-      <div><label><input type="checkbox" name="item_sync_enabled" value="1" <?= $enabled ? 'checked' : '' ?>></label></div>
+      <div style="text-align:right;">
+        <label style="margin-right:12px;"><input type="radio" name="item_sync_enabled" value="1" <?= $enabled ? 'checked' : '' ?>> ON</label>
+        <label><input type="radio" name="item_sync_enabled" value="0" <?= !$enabled ? 'checked' : '' ?>> OFF</label>
+      </div>
 
       <div><strong>自動更新間隔（分）</strong></div>
       <div>
