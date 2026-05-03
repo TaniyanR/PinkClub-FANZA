@@ -540,7 +540,7 @@ require __DIR__ . '/partials/header.php';
     </div>
 
     <div class="pcf-item-main__info">
-      <ul class="pcf-item-card__meta">
+      <ul class="pcf-item-card__meta" style="color:#000 !important; font-size:20px;">
         <li>対応デバイス: <?= e($deviceText !== '' ? $deviceText : '―') ?></li>
         <li>配信開始日: <?= e($deliveryStartText !== '' ? $deliveryStartText : '―') ?></li>
         <li>商品発売日: <?= e($releaseDateDisplay !== '' ? $releaseDateDisplay : '―') ?></li>
