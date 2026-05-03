@@ -57,9 +57,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 (string)$s['site'],
                 (string)$s['service'],
                 (string)$s['floor'],
-                ['hits' => 100, 'offset' => 1]
+                ['hits' => 10, 'offset' => 1]
             );
 
+            $testResult = ['requested_hits' => 10, 'saved_count' => $count, 'site' => (string)$s['site'], 'service' => (string)$s['service'], 'floor' => (string)$s['floor']];
             $message = '商品情報を10件テスト取得して保存しました。件数: ' . (string)$count;
             $messageType = 'success';
         } catch (Throwable $e) {
