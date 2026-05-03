@@ -346,10 +346,17 @@ if (is_array($sampleImageUrl)) {
 }
 $sampleImages = array_values(array_unique($sampleImages));
 $sampleImagesSmall = array_values(array_unique($sampleImagesSmall));
+$sampleImages = array_slice($sampleImages, 0, 24);
+$sampleImagesSmall = array_slice($sampleImagesSmall, 0, 24);
 $sampleImagesSmallLargeMap = [];
-foreach ($sampleImagesSmall as $i => $smallImage) {
-    $largeImage = (string)($sampleImages[$i] ?? $smallImage);
-    $sampleImagesSmallLargeMap[] = ['small' => (string)$smallImage, 'large' => $largeImage];
+$sampleImageCount = max(count($sampleImages), count($sampleImagesSmall));
+for ($i = 0; $i < $sampleImageCount; $i++) {
+    $smallImage = trim((string)($sampleImagesSmall[$i] ?? $sampleImages[$i] ?? ''));
+    $largeImage = trim((string)($sampleImages[$i] ?? $smallImage));
+    if ($smallImage === '' || $largeImage === '') {
+        continue;
+    }
+    $sampleImagesSmallLargeMap[] = ['small' => $smallImage, 'large' => $largeImage];
 }
 
 $fullPackageImage = trim((string)($item['image_large'] ?? ''));
@@ -512,14 +519,14 @@ require __DIR__ . '/partials/header.php';
   <h1 class="pcf-hero__title"><?= e($breadcrumbTitle) ?></h1>
 
   <?php if ($sampleMovieUrl !== '' || $sampleImagesSmallLargeMap !== []): ?>
-    <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
+    <div style="display:flex; gap:8px; align-items:flex-start; flex-wrap:nowrap;">
       <?php if ($sampleMovieUrl !== ''): ?>
-      <div class="sample-movie-modal__frame-wrap" style="width: 720px; max-width: 100%; aspect-ratio: 720 / 480;">
+      <div class="sample-movie-modal__frame-wrap" style="width: min(720px, calc(100% - 204px)); max-width: 100%; aspect-ratio: 720 / 480;">
         <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" scrolling="no" width="720" height="480"></iframe>
       </div>
       <?php endif; ?>
       <?php if ($sampleImagesSmallLargeMap !== []): ?>
-      <div style="width:196px; max-width:100%; height:480px; overflow:hidden;"><div style="display:grid; grid-template-rows:repeat(6, 72px); grid-auto-flow:column; grid-auto-columns:92px; gap:8px; align-content:start;">
+      <div style="width:196px; max-width:100%; height:480px; overflow:hidden;"><div style="display:grid; grid-template-rows:repeat(6, 72px); grid-template-columns:repeat(4, 44px); gap:6px; align-content:start;">
         <?php foreach ($sampleImagesSmallLargeMap as $i => $imagePair): ?>
           <a href="<?= e((string)$imagePair['large']) ?>" class="pcf-image-viewer-trigger" data-image-index="<?= e((string)$i) ?>" style="display:block;">
             <img src="<?= e((string)$imagePair['small']) ?>" alt="サンプル画像 <?= e((string)($i + 1)) ?>" loading="lazy" style="display:block; width:100%; height:72px; object-fit:cover;">
