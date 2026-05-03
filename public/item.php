@@ -346,10 +346,17 @@ if (is_array($sampleImageUrl)) {
 }
 $sampleImages = array_values(array_unique($sampleImages));
 $sampleImagesSmall = array_values(array_unique($sampleImagesSmall));
+$sampleImages = array_slice($sampleImages, 0, 25);
+$sampleImagesSmall = array_slice($sampleImagesSmall, 0, 25);
 $sampleImagesSmallLargeMap = [];
-foreach ($sampleImagesSmall as $i => $smallImage) {
-    $largeImage = (string)($sampleImages[$i] ?? $smallImage);
-    $sampleImagesSmallLargeMap[] = ['small' => (string)$smallImage, 'large' => $largeImage];
+$sampleImageCount = max(count($sampleImages), count($sampleImagesSmall));
+for ($i = 0; $i < $sampleImageCount; $i++) {
+    $smallImage = trim((string)($sampleImagesSmall[$i] ?? $sampleImages[$i] ?? ''));
+    $largeImage = trim((string)($sampleImages[$i] ?? $smallImage));
+    if ($smallImage === '' || $largeImage === '') {
+        continue;
+    }
+    $sampleImagesSmallLargeMap[] = ['small' => $smallImage, 'large' => $largeImage];
 }
 
 $fullPackageImage = trim((string)($item['image_large'] ?? ''));
