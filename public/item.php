@@ -346,8 +346,8 @@ if (is_array($sampleImageUrl)) {
 }
 $sampleImages = array_values(array_unique($sampleImages));
 $sampleImagesSmall = array_values(array_unique($sampleImagesSmall));
-$sampleImages = array_slice($sampleImages, 0, 25);
-$sampleImagesSmall = array_slice($sampleImagesSmall, 0, 25);
+$sampleImages = array_slice($sampleImages, 0, 24);
+$sampleImagesSmall = array_slice($sampleImagesSmall, 0, 24);
 $sampleImagesSmallLargeMap = [];
 $sampleImageCount = max(count($sampleImages), count($sampleImagesSmall));
 for ($i = 0; $i < $sampleImageCount; $i++) {
@@ -526,7 +526,7 @@ require __DIR__ . '/partials/header.php';
       </div>
       <?php endif; ?>
       <?php if ($sampleImagesSmallLargeMap !== []): ?>
-      <div style="width:196px; max-width:100%; height:480px; overflow:auto;"><div style="display:grid; grid-template-rows:repeat(6, 72px); grid-auto-flow:column; grid-auto-columns:92px; gap:8px; align-content:start;">
+      <div style="width:392px; max-width:100%; height:480px; overflow:hidden;"><div style="display:grid; grid-template-rows:repeat(6, 72px); grid-template-columns:repeat(4, 92px); gap:8px; align-content:start;">
         <?php foreach ($sampleImagesSmallLargeMap as $i => $imagePair): ?>
           <a href="<?= e((string)$imagePair['large']) ?>" class="pcf-image-viewer-trigger" data-image-index="<?= e((string)$i) ?>" style="display:block;">
             <img src="<?= e((string)$imagePair['small']) ?>" alt="サンプル画像 <?= e((string)($i + 1)) ?>" loading="lazy" style="display:block; width:100%; height:72px; object-fit:cover;">
