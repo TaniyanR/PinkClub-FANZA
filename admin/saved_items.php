@@ -119,8 +119,6 @@ require __DIR__ . '/includes/header.php';
     </div>
   <?php endif; ?>
 
-  <p><a href="<?= e(admin_url('api_items.php')) ?>">商品情報API設定に戻る</a></p>
-
   <table class="admin-table">
     <tr><th>ID</th><th>名称</th><th>更新日時</th><th>操作</th></tr>
     <?php foreach ($savedRows as $row): ?>

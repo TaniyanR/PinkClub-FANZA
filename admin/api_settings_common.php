@@ -42,14 +42,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sync = dmm_sync_service($apiType);
 
             $s = settings_get();
+            $beforeCount = (int)(db()->query('SELECT COUNT(*) FROM items')->fetchColumn() ?: 0);
+            $offset = $beforeCount + 1;
             $count = $sync->syncItems(
                 (string)$s['site'],
                 (string)$s['service'],
                 (string)$s['floor'],
-                ['hits' => 100, 'offset' => 1]
+                ['hits' => 10, 'offset' => $offset]
             );
+            $afterCount = (int)(db()->query('SELECT COUNT(*) FROM items')->fetchColumn() ?: 0);
+            $increased = $afterCount - $beforeCount;
 
-            $message = 'テスト取得データを保存しました。件数: ' . (string)$count;
+            $message = 'テスト取得データを保存しました。取得件数: ' . (string)$count . ' / 新規保存: ' . (string)$increased;
             $messageType = 'success';
         } catch (Throwable $e) {
             $message = '保存に失敗しました: ' . $e->getMessage();
@@ -85,6 +89,5 @@ require __DIR__ . '/includes/header.php';
     </div>
   </form>
 
-  <p style="margin-top:16px;"><a href="<?= e(admin_url('saved_items.php')) ?>">保存済み商品一覧を見る</a></p>
 </section>
 <?php require __DIR__ . '/includes/footer.php'; ?>
