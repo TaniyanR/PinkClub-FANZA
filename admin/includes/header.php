@@ -17,6 +17,7 @@ $menuGroups = [
     ]],
     ['label' => 'API設定', 'children' => [
         ['label' => '商品情報API設定', 'file' => 'api_items.php'],
+        ['label' => '自動設定', 'file' => 'api_auto.php'],
     ]],
     ['label' => 'アクセス解析', 'children' => [
         ['label' => 'グラフ', 'file' => 'analytics.php'],
