@@ -77,11 +77,17 @@ function timer_split_lines(string $value, int $max = 5): array
 
 function timer_build_compound_keyword(string $value): string
 {
-    $parts = array_map('trim', explode(',', $value, 2));
-    if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
+    $value = trim($value);
+    if ($value === '') {
         return '';
     }
-    return $parts[1] . 'は' . $parts[0] . 'が大好き';
+
+    $parts = array_map('trim', explode(',', $value, 2));
+    if (count($parts) === 2 && $parts[0] !== '' && $parts[1] !== '') {
+        return $parts[1] . 'は' . $parts[0] . 'が大好き';
+    }
+
+    return $value;
 }
 
 function timer_seed_jobs(PDO $pdo): void
@@ -113,7 +119,6 @@ if (!in_array($itemBatch, [1, 10, 20, 30, 50, 100, 200, 300, 500], true)) {
     $itemBatch = 100;
 }
 
-$singleKeyword = trim(site_setting_get('item_sync_keyword', ''));
 $compoundRaw = timer_split_lines(site_setting_get('item_sync_compound_keywords', ''), 5);
 $excludeKeywords = timer_split_lines(site_setting_get('item_sync_exclude_keywords', ''), 5);
 $compoundKeyword = '';
@@ -125,7 +130,7 @@ foreach ($compoundRaw as $raw) {
     }
 }
 
-$apiKeyword = $compoundKeyword !== '' ? $compoundKeyword : $singleKeyword;
+$apiKeyword = $compoundKeyword;
 
 $jobs = [
     'items' => static function (DmmSyncService $sync, int $offset) use ($site, $service, $floor, $itemBatch, $apiKeyword, $excludeKeywords): array {
