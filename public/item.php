@@ -96,7 +96,6 @@ function item_pick_raw_text(array $raw, array $keys): string
     return '';
 }
 
-
 function item_collect_named_values(mixed $value, array &$values): void
 {
     if (is_string($value)) {
@@ -119,7 +118,6 @@ function item_collect_named_values(mixed $value, array &$values): void
         item_collect_named_values($child, $values);
     }
 }
-
 
 function item_is_invalid_description(string $text): bool
 {
