@@ -57,6 +57,33 @@ function timer_unlock_job(PDO $pdo, string $jobKey, bool $success, string $messa
     ]);
 }
 
+
+function timer_split_lines(string $value, int $max = 5): array
+{
+    $lines = preg_split('/\R/u', $value) ?: [];
+    $result = [];
+    foreach ($lines as $line) {
+        $line = trim((string)$line);
+        if ($line === '') {
+            continue;
+        }
+        $result[] = $line;
+        if (count($result) >= $max) {
+            break;
+        }
+    }
+    return $result;
+}
+
+function timer_build_compound_keyword(string $value): string
+{
+    $parts = array_map('trim', explode(',', $value, 2));
+    if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
+        return '';
+    }
+    return $parts[1] . 'は' . $parts[0] . 'が大好き';
+}
+
 function timer_seed_jobs(PDO $pdo): void
 {
     foreach (['items', 'genres', 'actresses', 'series'] as $jobKey) {
@@ -82,13 +109,31 @@ $site = (string)($settings['site'] ?? 'FANZA');
 $service = (string)($settings['service'] ?? 'digital');
 $floor = (string)($settings['floor'] ?? 'videoa');
 $itemBatch = (int)($settings['item_sync_batch'] ?? 100);
-if (!in_array($itemBatch, [100, 200, 300, 500, 1000], true)) {
+if (!in_array($itemBatch, [1, 10, 20, 30, 50, 100, 200, 300, 500], true)) {
     $itemBatch = 100;
 }
 
+$singleKeyword = trim(site_setting_get('item_sync_keyword', ''));
+$compoundRaw = timer_split_lines(site_setting_get('item_sync_compound_keywords', ''), 5);
+$excludeKeywords = timer_split_lines(site_setting_get('item_sync_exclude_keywords', ''), 5);
+$compoundKeyword = '';
+foreach ($compoundRaw as $raw) {
+    $generated = timer_build_compound_keyword($raw);
+    if ($generated !== '') {
+        $compoundKeyword = $generated;
+        break;
+    }
+}
+
+$apiKeyword = $compoundKeyword !== '' ? $compoundKeyword : $singleKeyword;
+
 $jobs = [
-    'items' => static function (DmmSyncService $sync, int $offset) use ($site, $service, $floor, $itemBatch): array {
-        $result = $sync->syncItemsBatch($site, $service, $floor, $itemBatch, $offset);
+    'items' => static function (DmmSyncService $sync, int $offset) use ($site, $service, $floor, $itemBatch, $apiKeyword, $excludeKeywords): array {
+        $extraParams = [];
+        if ($apiKeyword !== '') {
+            $extraParams['keyword'] = $apiKeyword;
+        }
+        $result = $sync->syncItemsBatch($site, $service, $floor, $itemBatch, $offset, $extraParams, $excludeKeywords);
         return ['count' => (int)($result['synced_count'] ?? 0), 'next_offset' => (int)($result['next_offset'] ?? ($offset + 100)), 'message' => 'ItemListを同期しました'];
     },
     'genres' => static fn(DmmSyncService $sync, int $offset): array => ['count' => $sync->syncGenres($masterFloorId, null, 100, $offset), 'next_offset' => $offset + 100, 'message' => 'GenreSearchを同期しました'],
