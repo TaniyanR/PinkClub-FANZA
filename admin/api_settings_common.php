@@ -16,7 +16,7 @@ auth_require_admin();
 
 $apiType = 'items';
 $title = $pageTitle;
-$testButtonLabel = (string)($testButtonLabel ?? '商品情報を10件テスト取得');
+$testButtonLabel = (string)($testButtonLabel ?? '商品情報を10件テスト取得して保存');
 $message = '';
 $messageType = 'success';
 $cred = api_credential_get($apiType);
@@ -24,6 +24,10 @@ $apiId = (string)($cred['api_id'] ?? '');
 $affiliateId = (string)($cred['affiliate_id'] ?? '');
 $testResult = null;
 $savedRows = [];
+$currentPage = 1;
+$perPage = 50;
+$totalRows = 0;
+$totalPages = 1;
 
 $saveTargets = [
     'items' => ['table' => 'items', 'label' => '商品', 'id_column' => 'id', 'name_column' => 'title'],
@@ -41,35 +45,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $messageType = 'success';
     }
 
-    if ($action === 'test') {
-        try {
-            $apiId = trim((string)post('api_id', $apiId));
-            $affiliateId = trim((string)post('affiliate_id', $affiliateId));
-            api_credential_set($apiType, $apiId, $affiliateId);
-            $client = new DmmApiClient($apiId, $affiliateId, app_config()['dmm']['endpoint']);
-            $s = settings_get();
-            $testResult = $client->fetchItems(
-                (string)$s['site'],
-                (string)$s['service'],
-                (string)$s['floor'],
-                ['hits' => 10, 'offset' => 1]
-            );
-            $sync = dmm_sync_service($apiType);
-            $count = $sync->syncItems(
-                (string)$s['site'],
-                (string)$s['service'],
-                (string)$s['floor'],
-                ['hits' => 100, 'offset' => 1]
-            );
-
-            $message = 'テスト取得と保存に成功しました。件数: ' . (string)$count;
-            $messageType = 'success';
-        } catch (Throwable $e) {
-            $message = 'テスト取得または保存に失敗しました: ' . $e->getMessage();
-            $messageType = 'error';
-        }
-    }
-
     if ($action === 'test_save') {
         try {
             $apiId = trim((string)post('api_id', $apiId));
@@ -85,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ['hits' => 100, 'offset' => 1]
             );
 
-            $message = 'テスト取得データを保存しました。件数: ' . (string)$count;
+            $message = '商品情報を10件テスト取得して保存しました。件数: ' . (string)$count;
             $messageType = 'success';
         } catch (Throwable $e) {
             $message = '保存に失敗しました: ' . $e->getMessage();
@@ -98,8 +73,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (is_array($target)) {
             $id = (int)post('row_id', 0);
             if ($id > 0) {
-                db()->prepare('DELETE FROM ' . $target['table'] . ' WHERE ' . $target['id_column'] . ' = :id')->execute([':id' => $id]);
-                $message = $target['label'] . 'を削除しました。';
+                if ($apiType === 'items') {
+                    $deleteStmt = db()->prepare('DELETE FROM items WHERE id = :id');
+                    $deleteStmt->execute([':id' => $id]);
+                    $message = '商品を削除しました（商品ページで使用する画像情報を含む）。';
+                } else {
+                    db()->prepare('DELETE FROM ' . $target['table'] . ' WHERE ' . $target['id_column'] . ' = :id')->execute([':id' => $id]);
+                    $message = $target['label'] . 'を削除しました。';
+                }
                 $messageType = 'success';
             }
         }
@@ -108,13 +89,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $target = $saveTargets[$apiType] ?? null;
 if (is_array($target)) {
-    $stmt = db()->query(
-        'SELECT ' . $target['id_column'] . ' AS row_id, ' . $target['name_column'] . ' AS row_name, updated_at
+    $currentPage = max(1, (int)($_GET['page'] ?? 1));
+    $countStmt = db()->query('SELECT COUNT(*) AS c FROM ' . $target['table']);
+    $totalRows = (int)(($countStmt ? $countStmt->fetch(PDO::FETCH_ASSOC) : ['c' => 0])['c'] ?? 0);
+    $totalPages = max(1, (int)ceil($totalRows / $perPage));
+    if ($currentPage > $totalPages) {
+        $currentPage = $totalPages;
+    }
+    $offset = ($currentPage - 1) * $perPage;
+
+    $stmt = db()->prepare(
+        'SELECT ' . $target['id_column'] . ' AS row_id, content_id, ' . $target['name_column'] . ' AS row_name, updated_at
          FROM ' . $target['table'] . '
          ORDER BY ' . $target['id_column'] . ' DESC
-         LIMIT 50'
+         LIMIT :limit OFFSET :offset'
     );
-    $savedRows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+    $savedRows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }
 
 require __DIR__ . '/includes/header.php';
@@ -139,8 +132,7 @@ require __DIR__ . '/includes/header.php';
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button type="submit" name="action" value="save">保存</button>
-      <button type="submit" name="action" value="test" class="button-secondary"><?= e($testButtonLabel) ?></button>
-      <button type="submit" name="action" value="test_save" class="button-secondary"><?= e($testButtonLabel) ?>して保存</button>
+      <button type="submit" name="action" value="test_save" class="button-secondary"><?= e($testButtonLabel) ?></button>
     </div>
   </form>
 
@@ -156,7 +148,7 @@ require __DIR__ . '/includes/header.php';
       <?php foreach ($savedRows as $row): ?>
         <tr>
           <td><?= e((string)($row['row_id'] ?? '')) ?></td>
-          <td><?= e((string)($row['row_name'] ?? '')) ?></td>
+          <td><a href="<?= e(public_url('item.php?cid=' . rawurlencode((string)($row['content_id'] ?? '')))) ?>" target="_blank" rel="noopener noreferrer"><?= e((string)($row['row_name'] ?? '')) ?></a></td>
           <td><?= e((string)($row['updated_at'] ?? '')) ?></td>
           <td>
             <form method="post">
@@ -169,6 +161,23 @@ require __DIR__ . '/includes/header.php';
         </tr>
       <?php endforeach; ?>
     </table>
+    <?php if ($totalPages > 1): ?>
+      <nav style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+        <?php if ($currentPage > 1): ?>
+          <a href="<?= e(admin_url(basename((string)$_SERVER['PHP_SELF']) . '?page=' . (string)($currentPage - 1))) ?>">前</a>
+        <?php endif; ?>
+        <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+          <?php if ($i === $currentPage): ?>
+            <strong><?= e((string)$i) ?></strong>
+          <?php else: ?>
+            <a href="<?= e(admin_url(basename((string)$_SERVER['PHP_SELF']) . '?page=' . (string)$i)) ?>"><?= e((string)$i) ?></a>
+          <?php endif; ?>
+        <?php endfor; ?>
+        <?php if ($currentPage < $totalPages): ?>
+          <a href="<?= e(admin_url(basename((string)$_SERVER['PHP_SELF']) . '?page=' . (string)($currentPage + 1))) ?>">次</a>
+        <?php endif; ?>
+      </nav>
+    <?php endif; ?>
   <?php endif; ?>
 </section>
 <?php require __DIR__ . '/includes/footer.php'; ?>
