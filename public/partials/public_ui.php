@@ -208,7 +208,7 @@ if (!function_exists('pcf_render_empty')) {
 }
 
 if (!function_exists('pcf_render_pagination')) {
-    function pcf_render_pagination(array $pg, string $path, array $extraQuery = []): void
+    function pcf_render_pagination(array $pg, string $path, array $extraQuery = [], ?int $maxLinks = null): void
     {
         $page = (int)($pg['page'] ?? 1);
         $pages = (int)($pg['pages'] ?? 1);
@@ -217,12 +217,19 @@ if (!function_exists('pcf_render_pagination')) {
         }
 
         echo '<nav class="pcf-pagination" aria-label="ページネーション">';
-        for ($i = 1; $i <= $pages; $i++) {
+        $endPage = $maxLinks !== null ? min($pages, max(1, $maxLinks)) : $pages;
+        for ($i = 1; $i <= $endPage; $i++) {
             $query = $extraQuery;
             $query['page'] = $i;
             $url = $path . '?' . http_build_query($query);
             $class = 'pcf-pagination__link' . ($i === $page ? ' is-current' : '');
             echo '<a class="' . e($class) . '" href="' . e($url) . '">' . e((string)$i) . '</a>';
+        }
+        if ($pages > $endPage) {
+            $query = $extraQuery;
+            $query['page'] = $page < $pages ? $page + 1 : $pages;
+            $nextUrl = $path . '?' . http_build_query($query);
+            echo '<a class="pcf-pagination__link" href="' . e($nextUrl) . '">次</a>';
         }
         echo '</nav>';
     }

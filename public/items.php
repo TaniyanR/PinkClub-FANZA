@@ -29,12 +29,13 @@ function dedupe_items_for_listing(array $items): array
 }
 
 $page = max(1, (int)get('page', 1));
-$per = app_config()['pagination']['per_page'] ?? 24;
+$per = 32;
 $total = 0;
 $rows = [];
 
 try {
-    $total = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+    $totalSql = "SELECT COUNT(*) FROM (SELECT COALESCE(NULLIF(content_id, ''), NULLIF(product_id, ''), CAST(id AS CHAR)) AS uniq_key FROM items GROUP BY uniq_key) AS deduped_items";
+    $total = (int)db()->query($totalSql)->fetchColumn();
 } catch (Throwable) {
     $total = 0;
 }
@@ -49,7 +50,10 @@ $orderSqlCandidates = [
 ];
 foreach ($orderSqlCandidates as $orderSql) {
     try {
-        $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
+        $sql = 'SELECT i.* FROM items i INNER JOIN ('
+            . "SELECT MAX(id) AS id FROM items GROUP BY COALESCE(NULLIF(content_id, ''), NULLIF(product_id, ''), CAST(id AS CHAR))"
+            . ') u ON u.id = i.id ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o';
+        $stmt = db()->prepare($sql);
         $stmt->bindValue(':l', (int)$pg['perPage'], PDO::PARAM_INT);
         $stmt->bindValue(':o', (int)$pg['offset'], PDO::PARAM_INT);
         $stmt->execute();
@@ -67,12 +71,16 @@ require __DIR__ . '/partials/header.php';
 <?php pcf_render_hero('商品一覧', '最新の作品を一覧でチェックできます。'); ?>
 
 <?php if ($rows !== []): ?>
-  <section class="pcf-grid">
-    <?php foreach ($rows as $r): ?>
-      <?php pcf_render_item_card(is_array($r) ? $r : []); ?>
+  <section class="rail-section">
+    <?php foreach (array_chunk($rows, 4) as $rowChunk): ?>
+      <div class="rail-row rail-row--no-scroll">
+        <?php foreach ($rowChunk as $r): ?>
+          <?php pcf_render_item_card(is_array($r) ? $r : []); ?>
+        <?php endforeach; ?>
+      </div>
     <?php endforeach; ?>
   </section>
-  <?php pcf_render_pagination($pg, public_url('items.php')); ?>
+  <?php pcf_render_pagination($pg, public_url('items.php'), [], 5); ?>
 <?php else: ?>
   <?php pcf_render_empty('商品データがまだ登録されていません。'); ?>
 <?php endif; ?>
