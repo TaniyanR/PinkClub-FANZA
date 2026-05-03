@@ -416,3 +416,13 @@
     grid-template-columns: 1fr;
   }
 }
+.pcf-grid--items {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.pcf-grid--items .pcf-item-card {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  flex: 1 1 auto;
+}
