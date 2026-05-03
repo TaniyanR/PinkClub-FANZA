@@ -148,7 +148,7 @@ class DmmSyncService
         return $this->saveItems($items, 'items');
     }
 
-    public function syncItemsBatch(string $siteCode, string $serviceCode, string $floorCode, int $batch, int $offset = 1): array
+    public function syncItemsBatch(string $siteCode, string $serviceCode, string $floorCode, int $batch, int $offset = 1, array $extraParams = [], array $excludeKeywords = []): array
     {
         $remaining = max(1, $batch);
         $currentOffset = max(1, $offset);
@@ -156,8 +156,21 @@ class DmmSyncService
 
         while ($remaining > 0) {
             $hits = min(100, $remaining);
-            $response = $this->client->fetchItems($siteCode, $serviceCode, $floorCode, ['hits' => $hits, 'offset' => $currentOffset]);
+            $requestParams = array_merge($extraParams, ['hits' => $hits, 'offset' => $currentOffset]);
+            $response = $this->client->fetchItems($siteCode, $serviceCode, $floorCode, $requestParams);
             $items = DmmNormalizer::normalizeItemsResponse($response);
+            if ($excludeKeywords !== []) {
+                $items = array_values(array_filter($items, static function (array $item) use ($excludeKeywords): bool {
+                    $title = (string)($item['title'] ?? '');
+                    foreach ($excludeKeywords as $keyword) {
+                        $keyword = trim((string)$keyword);
+                        if ($keyword !== '' && mb_strpos($title, $keyword) !== false) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }));
+            }
             if ($items === []) {
                 $currentOffset = 1;
                 break;
