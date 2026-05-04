@@ -53,14 +53,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sync = dmm_sync_service($apiType);
 
             $s = settings_get();
-            $count = $sync->syncItems(
-                (string)$s['site'],
-                (string)$s['service'],
-                (string)$s['floor'],
-                ['hits' => 100, 'offset' => 1]
-            );
+            $beforeCount = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+            $testOffset = (int)site_setting_get('item_sync_test_offset', '1');
+            if ($testOffset < 1) {
+                $testOffset = 1;
+            }
+            $sortModes = ['rank', 'date', 'review'];
+            $sortIndex = (int)site_setting_get('item_sync_test_sort_index', '0');
+            if ($sortIndex < 0) {
+                $sortIndex = 0;
+            }
+            $sort = $sortModes[$sortIndex % count($sortModes)];
+            $processed = 0;
+            $nextOffset = $testOffset;
+            $attempts = 0;
+            $afterCount = $beforeCount;
+            while ($attempts < 12) {
+                $attempts++;
+                $result = $sync->syncItemsBatch(
+                    (string)$s['site'],
+                    (string)$s['service'],
+                    (string)$s['floor'],
+                    10,
+                    $nextOffset,
+                    ['sort' => $sort]
+                );
+                $processed += (int)($result['synced_count'] ?? 0);
+                $nextOffset = (int)($result['next_offset'] ?? 1);
+                if ($nextOffset < 1) {
+                    $nextOffset = 1;
+                }
+                $afterCount = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+                if ($afterCount > $beforeCount) {
+                    break;
+                }
+            }
+            site_setting_set_many([
+                'item_sync_test_offset' => (string)$nextOffset,
+                'item_sync_test_sort_index' => (string)($sortIndex + 1),
+            ]);
+            $inserted = max(0, $afterCount - $beforeCount);
+            $updated = max(0, $processed - $inserted);
 
-            $message = '商品情報を10件テスト取得して保存しました。件数: ' . (string)$count;
+            $message = '商品情報を10件テスト取得して保存しました。処理件数: ' . (string)$processed
+                . ' / 新規追加: ' . (string)$inserted
+                . ' / 更新: ' . (string)$updated
+                . ' / sort: ' . $sort
+                . ' / 試行: ' . (string)$attempts
+                . ' / 次回offset: ' . (string)$nextOffset;
             $messageType = 'success';
         } catch (Throwable $e) {
             $message = '保存に失敗しました: ' . $e->getMessage();

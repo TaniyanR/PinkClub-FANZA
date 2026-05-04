@@ -12,7 +12,7 @@ $list = [];
 try {
     $row = fetch_maker($id);
     if ($row !== null) {
-        $list = fetch_items_by_maker((int)$row['id'], 100, 0);
+        $list = dedupe_items_by_key(fetch_items_by_maker((int)$row['id'], 100, 0));
     }
 } catch (Throwable) {
     $row = null;

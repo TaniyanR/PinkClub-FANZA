@@ -12,7 +12,7 @@ $list = [];
 try {
     $row = fetch_genre($id);
     if ($row !== null) {
-        $list = fetch_items_by_genre((int)$row['id'], 100, 0);
+        $list = dedupe_items_by_key(fetch_items_by_genre((int)$row['id'], 100, 0));
     }
 } catch (Throwable) {
     $row = null;
