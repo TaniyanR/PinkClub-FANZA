@@ -6,6 +6,23 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
+function is_invalid_actress_name(string $name): bool
+{
+    if (pcf_is_noise_name($name)) {
+        return true;
+    }
+    $v = mb_strtolower(trim($name), 'UTF-8');
+    if ($v === '') {
+        return true;
+    }
+    foreach (['相互リンク', 'お問い合わせ', 'privacy policy', 'プライバシー', 'サイトについて', '公式サイト', 'オフィシャルサイト'] as $ng) {
+        if (str_contains($v, mb_strtolower($ng, 'UTF-8'))) {
+            return true;
+        }
+    }
+    return false;
+}
+
 $id = (int)get('id', 0);
 if ($id <= 0) {
     http_response_code(404);
@@ -27,7 +44,7 @@ if (!is_array($row)) {
 
 $name = trim((string)($row['name'] ?? ''));
 $dmmId = trim((string)($row['dmm_id'] ?? ''));
-if ($name === '' || pcf_is_noise_name($name) || str_starts_with($dmmId, 'name:') || !ctype_digit($dmmId)) {
+if ($name === '' || is_invalid_actress_name($name) || str_starts_with($dmmId, 'name:') || !ctype_digit($dmmId)) {
     http_response_code(404);
     exit('not found');
 }
