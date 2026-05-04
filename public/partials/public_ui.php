@@ -153,7 +153,7 @@ if (!function_exists('pcf_render_item_card')) {
             }
         }
 
-        echo '<article class="card rail-card rail-card--180 pcf-card pcf-item-card">';
+        echo '<article class="card rail-card pcf-card pcf-item-card">';
         echo '<a class="pcf-item-card__thumb-link" href="' . e($itemUrl) . '">';
         echo '<img class="thumb pcf-item-card__thumb" src="' . e(pcf_item_image($item)) . '" alt="' . e($title) . '" loading="lazy">';
         echo '</a>';
