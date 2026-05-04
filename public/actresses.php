@@ -9,9 +9,32 @@ require_once __DIR__ . '/partials/public_ui.php';
 $rows = [];
 $displayRows = [];
 
+function dedupe_actress_rows(array $rows): array
+{
+    $seen = [];
+    $result = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $id = trim((string)($row['id'] ?? ''));
+        $dmmId = trim((string)($row['dmm_id'] ?? ''));
+        $name = mb_strtolower(trim((string)($row['name'] ?? '')), 'UTF-8');
+        $key = $dmmId !== '' ? 'dmm_id:' . $dmmId : ($id !== '' ? 'id:' . $id : ($name !== '' ? 'name:' . $name : ''));
+        if ($key !== '' && isset($seen[$key])) {
+            continue;
+        }
+        if ($key !== '') {
+            $seen[$key] = true;
+        }
+        $result[] = $row;
+    }
+    return $result;
+}
+
 if (db_table_exists('actresses')) {
     try {
-        $rows = fetch_actresses(10000, 0, 'name');
+        $rows = dedupe_actress_rows(fetch_actresses(10000, 0, 'name'));
     } catch (Throwable) {
         $rows = [];
     }
