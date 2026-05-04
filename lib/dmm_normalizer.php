@@ -4,6 +4,18 @@ declare(strict_types=1);
 
 class DmmNormalizer
 {
+
+    private static function pickSampleMovieUrl(array $sampleMovie, array $keys): ?string
+    {
+        foreach ($keys as $key) {
+            $value = trim((string)($sampleMovie[$key] ?? ''));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+        return null;
+    }
+
     public static function toList(mixed $value): array
     {
         if ($value === null || $value === '') {
@@ -58,10 +70,10 @@ class DmmNormalizer
                 'image_list' => $row['imageURL']['list'] ?? null,
                 'image_small' => $row['imageURL']['small'] ?? null,
                 'image_large' => $row['imageURL']['large'] ?? null,
-                'sample_movie_url_476' => $sampleMovie['size_476_306'] ?? null,
-                'sample_movie_url_560' => $sampleMovie['size_560_360'] ?? null,
-                'sample_movie_url_644' => $sampleMovie['size_644_414'] ?? null,
-                'sample_movie_url_720' => $sampleMovie['size_720_480'] ?? null,
+                'sample_movie_url_476' => self::pickSampleMovieUrl($sampleMovie, ['size_476_306', '476', 'low']),
+                'sample_movie_url_560' => self::pickSampleMovieUrl($sampleMovie, ['size_560_360', '560', 'medium']),
+                'sample_movie_url_644' => self::pickSampleMovieUrl($sampleMovie, ['size_644_414', '644', 'high']),
+                'sample_movie_url_720' => self::pickSampleMovieUrl($sampleMovie, ['size_720_480', '720', 'url', 'pc']),
                 'sample_movie_pc_flag' => isset($sampleMovie['pc_flag']) ? (int) $sampleMovie['pc_flag'] : 0,
                 'sample_movie_sp_flag' => isset($sampleMovie['sp_flag']) ? (int) $sampleMovie['sp_flag'] : 0,
                 'price_min_text' => $priceMin,
