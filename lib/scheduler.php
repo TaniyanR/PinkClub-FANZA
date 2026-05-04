@@ -43,13 +43,36 @@ function scheduler_run_schedule(array $schedule): array
     $floorId = (string)($settings['master_floor_id'] ?? '43');
 
     return match ($type) {
-        'items' => ['synced_count' => (int)$service->syncItemsBatch((string)($settings['site'] ?? 'FANZA'), (string)($settings['service'] ?? 'digital'), (string)($settings['floor'] ?? 'videoa'), (int)($settings['item_sync_batch'] ?? 100), 1)['synced_count'], 'message' => '商品を同期しました'],
+        'items' => scheduler_run_items_schedule($service, $settings),
         'genres' => ['synced_count' => $service->syncGenres($floorId, 'あ', 100, 1), 'message' => 'ジャンルを同期しました'],
         'makers' => ['synced_count' => $service->syncMakers($floorId, 'あ', 100, 1), 'message' => 'メーカーを同期しました'],
         'series' => ['synced_count' => $service->syncSeries($floorId, 'あ', 100, 1), 'message' => 'シリーズを同期しました'],
         'authors' => ['synced_count' => $service->syncAuthors($floorId, 'あ', 100, 1), 'message' => '作者を同期しました'],
         default => ['synced_count' => 0, 'message' => '未対応スケジュールです'],
     };
+}
+
+function scheduler_run_items_schedule(DmmSyncService $service, array $settings): array
+{
+    $pdo = db();
+    $pdo->exec("CREATE TABLE IF NOT EXISTS sync_job_state (job_key VARCHAR(64) PRIMARY KEY,next_offset INT NOT NULL DEFAULT 1,next_initial VARCHAR(10) NULL,last_run_at DATETIME NULL,last_success TINYINT(1) NOT NULL DEFAULT 0,last_message TEXT NULL,lock_until DATETIME NULL,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $pdo->prepare("INSERT INTO sync_job_state (job_key, next_offset, updated_at) VALUES ('items', 1, NOW()) ON DUPLICATE KEY UPDATE updated_at = updated_at")->execute();
+    $stateStmt = $pdo->prepare("SELECT next_offset FROM sync_job_state WHERE job_key = 'items' LIMIT 1");
+    $stateStmt->execute();
+    $offset = max(1, (int)$stateStmt->fetchColumn());
+
+    $result = $service->syncItemsBatch(
+        (string)($settings['site'] ?? 'FANZA'),
+        (string)($settings['service'] ?? 'digital'),
+        (string)($settings['floor'] ?? 'videoa'),
+        (int)($settings['item_sync_batch'] ?? 100),
+        $offset
+    );
+    $nextOffset = max(1, (int)($result['next_offset'] ?? 1));
+    $pdo->prepare("UPDATE sync_job_state SET next_offset = :next_offset, last_run_at = NOW(), last_success = 1, last_message = :message, updated_at = NOW() WHERE job_key = 'items'")
+        ->execute([':next_offset' => $nextOffset, ':message' => '商品を同期しました']);
+
+    return ['synced_count' => (int)($result['synced_count'] ?? 0), 'message' => '商品を同期しました'];
 }
 
 function scheduler_is_due(array $schedule): bool
@@ -72,4 +95,10 @@ function scheduler_seed_default_schedules(PDO $pdo): void
     }
 }
 
-function maybe_run_scheduled_jobs(): void {}
+function maybe_run_scheduled_jobs(): void
+{
+    $result = scheduler_tick();
+    if (($result['status'] ?? '') === 'error') {
+        throw new RuntimeException((string)($result['message'] ?? 'scheduler error'));
+    }
+}

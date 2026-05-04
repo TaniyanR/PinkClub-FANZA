@@ -76,7 +76,7 @@ if (
 }
 
 try {
-    $list = fetch_items_by_actress((int)$row['id'], 100, 0);
+    $list = dedupe_items_by_key(fetch_items_by_actress((int)$row['id'], 100, 0));
 } catch (Throwable) {
     $list = [];
 }
