@@ -58,19 +58,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($testOffset < 1) {
                 $testOffset = 1;
             }
+            $sortModes = ['rank', 'date', 'review'];
+            $sortIndex = (int)site_setting_get('item_sync_test_sort_index', '0');
+            if ($sortIndex < 0) {
+                $sortIndex = 0;
+            }
+            $sort = $sortModes[$sortIndex % count($sortModes)];
             $result = $sync->syncItemsBatch(
                 (string)$s['site'],
                 (string)$s['service'],
                 (string)$s['floor'],
                 10,
-                $testOffset
+                $testOffset,
+                ['sort' => $sort]
             );
             $processed = (int)($result['synced_count'] ?? 0);
             $nextOffset = (int)($result['next_offset'] ?? 1);
             if ($nextOffset < 1) {
                 $nextOffset = 1;
             }
-            site_setting_set('item_sync_test_offset', (string)$nextOffset);
+            site_setting_set_many([
+                'item_sync_test_offset' => (string)$nextOffset,
+                'item_sync_test_sort_index' => (string)($sortIndex + 1),
+            ]);
             $afterCount = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
             $inserted = max(0, $afterCount - $beforeCount);
             $updated = max(0, $processed - $inserted);
@@ -78,6 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = '商品情報を10件テスト取得して保存しました。処理件数: ' . (string)$processed
                 . ' / 新規追加: ' . (string)$inserted
                 . ' / 更新: ' . (string)$updated
+                . ' / sort: ' . $sort
                 . ' / 次回offset: ' . (string)$nextOffset;
             $messageType = 'success';
         } catch (Throwable $e) {

@@ -132,9 +132,13 @@ foreach ($compoundRaw as $raw) {
 
 $apiKeyword = $compoundKeyword;
 
+$sortModes = ['rank', 'date', 'review'];
+$sortIndex = max(0, settings_int('item_sync_sort_index', 0));
+$sort = $sortModes[$sortIndex % count($sortModes)];
+
 $jobs = [
-    'items' => static function (DmmSyncService $sync, int $offset) use ($site, $service, $floor, $itemBatch, $apiKeyword, $excludeKeywords): array {
-        $extraParams = [];
+    'items' => static function (DmmSyncService $sync, int $offset) use ($site, $service, $floor, $itemBatch, $apiKeyword, $excludeKeywords, $sort): array {
+        $extraParams = ['sort' => $sort];
         if ($apiKeyword !== '') {
             $extraParams['keyword'] = $apiKeyword;
         }
@@ -183,7 +187,7 @@ foreach (array_keys($jobs) as $jobKey) {
         }
         timer_unlock_job($pdo, $jobKey, true, (string)($result['message'] ?? '同期成功'), $nextOffset, $now);
         if ($jobKey === 'items') {
-            site_setting_set_many(['last_item_sync_at' => $now, 'item_sync_offset' => (string)$nextOffset]);
+            site_setting_set_many(['last_item_sync_at' => $now, 'item_sync_offset' => (string)$nextOffset, 'item_sync_sort_index' => (string)($sortIndex + 1)]);
         }
 
         timer_json([
