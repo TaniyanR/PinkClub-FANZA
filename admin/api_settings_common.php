@@ -53,14 +53,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sync = dmm_sync_service($apiType);
 
             $s = settings_get();
-            $count = $sync->syncItems(
+            $beforeCount = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+            $testOffset = (int)site_setting_get('item_sync_test_offset', '1');
+            if ($testOffset < 1) {
+                $testOffset = 1;
+            }
+            $result = $sync->syncItemsBatch(
                 (string)$s['site'],
                 (string)$s['service'],
                 (string)$s['floor'],
-                ['hits' => 100, 'offset' => 1]
+                10,
+                $testOffset
             );
+            $processed = (int)($result['synced_count'] ?? 0);
+            $nextOffset = (int)($result['next_offset'] ?? 1);
+            if ($nextOffset < 1) {
+                $nextOffset = 1;
+            }
+            site_setting_set('item_sync_test_offset', (string)$nextOffset);
+            $afterCount = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+            $inserted = max(0, $afterCount - $beforeCount);
+            $updated = max(0, $processed - $inserted);
 
-            $message = '商品情報を10件テスト取得して保存しました。件数: ' . (string)$count;
+            $message = '商品情報を10件テスト取得して保存しました。処理件数: ' . (string)$processed
+                . ' / 新規追加: ' . (string)$inserted
+                . ' / 更新: ' . (string)$updated
+                . ' / 次回offset: ' . (string)$nextOffset;
             $messageType = 'success';
         } catch (Throwable $e) {
             $message = '保存に失敗しました: ' . $e->getMessage();

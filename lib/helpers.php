@@ -124,6 +124,38 @@ function paginate_items(array $rows, int $limit): array
  * Appends non-null, non-empty query parameters to a path.
  * Returns a root-relative URL suitable for href attributes.
  */
+
+
+/**
+ * Keeps first appearance order while removing duplicates by known item keys.
+ */
+function dedupe_items_by_key(array $items): array
+{
+    $seen = [];
+    $result = [];
+
+    foreach ($items as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+
+        $contentId = strtolower(trim((string)($item['content_id'] ?? '')));
+        $productId = strtolower(trim((string)($item['product_id'] ?? '')));
+        $id = trim((string)($item['id'] ?? ''));
+        $key = $contentId !== '' ? 'content_id:' . $contentId : ($productId !== '' ? 'product_id:' . $productId : ($id !== '' ? 'id:' . $id : ''));
+
+        if ($key !== '' && isset($seen[$key])) {
+            continue;
+        }
+        if ($key !== '') {
+            $seen[$key] = true;
+        }
+
+        $result[] = $item;
+    }
+
+    return $result;
+}
 function build_url(string $path, array $params = []): string
 {
     $filtered = array_filter(

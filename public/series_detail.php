@@ -12,7 +12,7 @@ $items = [];
 try {
     $series = fetch_series_one($id);
     if ($series !== null) {
-        $items = fetch_items_by_series((int)$series['id'], 100, 0);
+        $items = dedupe_items_by_key(fetch_items_by_series((int)$series['id'], 100, 0));
     }
 } catch (Throwable) {
     $series = null;
