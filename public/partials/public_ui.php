@@ -16,12 +16,39 @@ if (!function_exists('pcf_placeholder_data_uri')) {
 if (!function_exists('pcf_item_image')) {
     function pcf_item_image(array $item): string
     {
-        foreach (['image_large', 'image_list', 'image_small'] as $key) {
-            $value = trim((string)($item[$key] ?? ''));
-            if ($value !== '') {
-                return $value;
+        $imageSmall = trim((string)($item['image_small'] ?? ''));
+        if ($imageSmall !== '') {
+            return $imageSmall;
+        }
+
+        $imageLarge = trim((string)($item['image_large'] ?? ''));
+        if ($imageLarge !== '') {
+            return $imageLarge;
+        }
+
+        $imageListRaw = trim((string)($item['image_list'] ?? ''));
+        if ($imageListRaw !== '') {
+            $decoded = json_decode($imageListRaw, true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $candidate) {
+                    if (!is_string($candidate)) {
+                        continue;
+                    }
+                    $url = trim($candidate);
+                    if ($url !== '') {
+                        return $url;
+                    }
+                }
+            }
+
+            foreach (preg_split('/[\r\n,\s]+/', $imageListRaw) ?: [] as $candidate) {
+                $url = trim((string)$candidate);
+                if ($url !== '') {
+                    return $url;
+                }
             }
         }
+
         return pcf_placeholder_data_uri('No Image');
     }
 }
@@ -153,7 +180,7 @@ if (!function_exists('pcf_render_item_card')) {
             }
         }
 
-        echo '<article class="card rail-card rail-card--180 pcf-card pcf-item-card">';
+        echo '<article class="card rail-card pcf-card pcf-item-card">';
         echo '<a class="pcf-item-card__thumb-link" href="' . e($itemUrl) . '">';
         echo '<img class="thumb pcf-item-card__thumb" src="' . e(pcf_item_image($item)) . '" alt="' . e($title) . '" loading="lazy">';
         echo '</a>';
