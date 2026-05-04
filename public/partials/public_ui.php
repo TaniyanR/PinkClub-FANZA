@@ -18,9 +18,33 @@ if (!function_exists('pcf_item_image')) {
     {
         foreach (['image_large', 'image_list', 'image_small'] as $key) {
             $value = trim((string)($item[$key] ?? ''));
-            if ($value !== '') {
-                return $value;
+            if ($value === '') {
+                continue;
             }
+            if ($key === 'image_list') {
+                if ($value[0] === '[') {
+                    $decoded = json_decode($value, true);
+                    if (is_array($decoded)) {
+                        foreach ($decoded as $image) {
+                            $candidate = trim((string)$image);
+                            if ($candidate !== '') {
+                                return $candidate;
+                            }
+                        }
+                    }
+                }
+                $split = preg_split('/[\r\n,|\s]+/', $value);
+                if (is_array($split)) {
+                    foreach ($split as $image) {
+                        $candidate = trim((string)$image);
+                        if ($candidate !== '') {
+                            return $candidate;
+                        }
+                    }
+                }
+                continue;
+            }
+            return $value;
         }
         return pcf_placeholder_data_uri('No Image');
     }
@@ -124,6 +148,7 @@ if (!function_exists('pcf_render_item_card')) {
         $itemUrl = $contentId !== ''
             ? public_url('item.php?cid=' . rawurlencode($contentId))
             : public_url('item.php?id=' . (int)($item['id'] ?? 0));
+        $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode($contentId));
         $sampleMovieUrl = '';
         foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $movieColumn) {
             $candidate = trim((string)($item[$movieColumn] ?? ''));
@@ -172,6 +197,11 @@ if (!function_exists('pcf_render_item_card')) {
         } else {
             echo '<span class="sample-button sample-button--disabled">サンプル動画</span>';
         }
+        if ($contentId !== '') {
+            echo '<a class="sample-button sample-button--enabled" href="' . e($sampleImagesUrl) . '" target="_blank" rel="noopener noreferrer">サンプル画像</a>';
+        } else {
+            echo '<span class="sample-button sample-button--disabled">サンプル画像</span>';
+        }
         echo '<a class="sample-button sample-button--enabled" href="' . e($itemUrl) . '">詳細ページ</a>';
         echo '</div>';
         echo '</article>';
@@ -208,7 +238,7 @@ if (!function_exists('pcf_render_empty')) {
 }
 
 if (!function_exists('pcf_render_pagination')) {
-    function pcf_render_pagination(array $pg, string $path, array $extraQuery = []): void
+    function pcf_render_pagination(array $pg, string $path, array $extraQuery = [], ?int $maxLinks = null): void
     {
         $page = (int)($pg['page'] ?? 1);
         $pages = (int)($pg['pages'] ?? 1);
@@ -217,12 +247,19 @@ if (!function_exists('pcf_render_pagination')) {
         }
 
         echo '<nav class="pcf-pagination" aria-label="ページネーション">';
-        for ($i = 1; $i <= $pages; $i++) {
+        $endPage = $maxLinks !== null ? min($pages, max(1, $maxLinks)) : $pages;
+        for ($i = 1; $i <= $endPage; $i++) {
             $query = $extraQuery;
             $query['page'] = $i;
             $url = $path . '?' . http_build_query($query);
             $class = 'pcf-pagination__link' . ($i === $page ? ' is-current' : '');
             echo '<a class="' . e($class) . '" href="' . e($url) . '">' . e((string)$i) . '</a>';
+        }
+        if ($pages > $endPage) {
+            $query = $extraQuery;
+            $query['page'] = $page < $pages ? $page + 1 : $pages;
+            $nextUrl = $path . '?' . http_build_query($query);
+            echo '<a class="pcf-pagination__link" href="' . e($nextUrl) . '">次</a>';
         }
         echo '</nav>';
     }
