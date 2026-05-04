@@ -19,7 +19,7 @@ if ($series === null) {
 $page = safe_int($_GET['page'] ?? 1, 1, 1, 100000);
 $limit = 12;
 $offset = ($page - 1) * $limit;
-[$items, $hasNext] = paginate_items(fetch_items_by_series((int)$series['id'], $limit + 1, $offset), $limit);
+[$items, $hasNext] = paginate_items(dedupe_items_by_key(fetch_items_by_series((int)$series['id'], $limit + 1, $offset)), $limit);
 
 $pageStyles = ['/assets/css/series.css'];
 $pageTitle = sprintf('%s | シリーズ', (string)$series['name']);
