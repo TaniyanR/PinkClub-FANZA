@@ -41,7 +41,14 @@ $logoPath = trim($safeTextSetting('site.logo_path', ''));
 $faviconPath = trim($safeTextSetting('site.favicon_path', ''));
 
 $headerAdHtml = trim($safeTextSetting('header_ad_html', ''));
+$scriptNameForTitle = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $titleText = (string)($title ?? $pageTitle ?? $siteName);
+if ($scriptNameForTitle === 'actress.php') {
+    $actressTitle = trim((string)($name ?? ''));
+    if ($actressTitle !== '') {
+        $titleText = $actressTitle;
+    }
+}
 $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
 $canRenderAd = function_exists('render_ad');
 $descriptionText = (string)($pageDescription ?? '');
