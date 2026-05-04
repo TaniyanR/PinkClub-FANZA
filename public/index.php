@@ -157,6 +157,30 @@ function fetch_items_with_order_fallback(PDO $pdo, array $orderByCandidates, int
     return [];
 }
 
+
+function dedupe_items_for_home(array $rows): array
+{
+    $seen = [];
+    $result = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $contentId = strtolower(trim((string)($row['content_id'] ?? '')));
+        $productId = strtolower(trim((string)($row['product_id'] ?? '')));
+        $id = trim((string)($row['id'] ?? ''));
+        $key = $contentId !== '' ? 'content_id:' . $contentId : ($productId !== '' ? 'product_id:' . $productId : ($id !== '' ? 'id:' . $id : ''));
+        if ($key !== '' && isset($seen[$key])) {
+            continue;
+        }
+        if ($key !== '') {
+            $seen[$key] = true;
+        }
+        $result[] = $row;
+    }
+    return $result;
+}
+
 function item_sample_state(array $item): array
 {
     $raw = decode_item_raw($item);
@@ -304,22 +328,22 @@ try {
     if ($itemCount > 0) {
         $seedBase = intdiv(time(), 1800);
 
-        $latestRows = fetch_items_with_order_fallback($pdo, [
+        $latestRows = dedupe_items_for_home(fetch_items_with_order_fallback($pdo, [
             'release_date DESC, updated_at DESC, id DESC',
             'date_published DESC, updated_at DESC, id DESC',
             'updated_at DESC, id DESC',
             'id DESC',
-        ], 20);
+        ], 20));
         $latestTop = array_slice($latestRows, 0, 5);
         $latestBottom = array_slice($latestRows, 5, 15);
         $fallbackItems = array_slice($latestRows, 0, 12);
 
-        $popularRows = fetch_items_with_order_fallback($pdo, [
+        $popularRows = dedupe_items_for_home(fetch_items_with_order_fallback($pdo, [
             'view_count DESC, release_date DESC, id DESC',
             'view_count DESC, date_published DESC, id DESC',
             'view_count DESC, id DESC',
             'id DESC',
-        ], 20);
+        ], 20));
         $pickupTop = array_slice($popularRows, 0, 5);
         $pickupBottom = array_slice($popularRows, 5, 15);
 
@@ -341,7 +365,7 @@ try {
                      LIMIT 120'
                 );
                 $stmt->execute([':id' => (int)$genre['id']]);
-                $genreItems = pick_random_items($stmt->fetchAll(), $seedBase + 30 + $index, 15);
+                $genreItems = pick_random_items(dedupe_items_for_home($stmt->fetchAll()), $seedBase + 30 + $index, 15);
                 $genreRows[] = ['id' => (int)$genre['id'], 'name' => (string)$genre['name'], 'items' => $genreItems];
             }
         }
@@ -363,7 +387,7 @@ try {
                 $seriesSection = [
                     'name' => (string)$picked['name'],
                     'url' => app_url('public/series_one.php?id=' . (int)$picked['id']),
-                    'items' => pick_random_items($stmt->fetchAll(), $seedBase + 41, 15),
+                    'items' => pick_random_items(dedupe_items_for_home($stmt->fetchAll()), $seedBase + 41, 15),
                 ];
             }
         }
@@ -385,7 +409,7 @@ try {
                 $makerSection = [
                     'name' => (string)$picked['name'],
                     'url' => app_url('public/maker.php?id=' . (int)$picked['id']),
-                    'items' => pick_random_items($stmt->fetchAll(), $seedBase + 51, 15),
+                    'items' => pick_random_items(dedupe_items_for_home($stmt->fetchAll()), $seedBase + 51, 15),
                 ];
             }
         }
@@ -408,7 +432,7 @@ try {
                 $authorSection = [
                     'name' => (string)$picked['name'],
                     'url' => app_url('public/author.php?id=' . (int)$picked['id']),
-                    'items' => pick_random_items($stmt->fetchAll(), $seedBase + 61, 15),
+                    'items' => pick_random_items(dedupe_items_for_home($stmt->fetchAll()), $seedBase + 61, 15),
                 ];
             }
         }

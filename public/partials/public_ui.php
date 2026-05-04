@@ -139,11 +139,33 @@ if (!function_exists('pcf_render_item_card')) {
                 if (is_array($raw)) {
                     $sampleMovie = $raw['sampleMovieURL'] ?? null;
                     if (is_array($sampleMovie)) {
-                        foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
+                        foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306', '720', '644', '560', '476', 'url', 'pc'] as $movieKey) {
                             $candidate = trim((string)($sampleMovie[$movieKey] ?? ''));
                             if ($candidate !== '') {
                                 $sampleMovieUrl = $candidate;
                                 break;
+                            }
+                        }
+                        if ($sampleMovieUrl === '') {
+                            $stack = [$sampleMovie];
+                            while ($stack !== []) {
+                                $current = array_pop($stack);
+                                if (!is_array($current)) {
+                                    continue;
+                                }
+                                foreach ($current as $child) {
+                                    if (is_string($child)) {
+                                        $candidate = trim($child);
+                                        if ($candidate !== '' && (str_starts_with($candidate, 'http://') || str_starts_with($candidate, 'https://') || str_starts_with($candidate, '//'))) {
+                                            $sampleMovieUrl = str_starts_with($candidate, '//') ? ('https:' . $candidate) : $candidate;
+                                            break 2;
+                                        }
+                                        continue;
+                                    }
+                                    if (is_array($child)) {
+                                        $stack[] = $child;
+                                    }
+                                }
                             }
                         }
                     } elseif (is_string($sampleMovie) && trim($sampleMovie) !== '') {

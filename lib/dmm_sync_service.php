@@ -271,18 +271,27 @@ class DmmSyncService
             'item_authors' => 'authors',
         ];
 
+        $seen = [];
         foreach ($rows as $row) {
             if (!is_array($row)) {
                 continue;
             }
             $dmmId = trim((string)($row['id'] ?? ''));
-            $name = (string) ($row['name'] ?? '');
+            $name = trim((string)($row['name'] ?? ''));
             if ($name === '') {
                 continue;
             }
 
             if ($dmmId === '') {
                 $dmmId = 'name:' . sha1(mb_strtolower($name, 'UTF-8'));
+            }
+
+            $signature = strtolower($dmmId !== '' ? $dmmId : $name);
+            if ($signature !== '' && isset($seen[$signature])) {
+                continue;
+            }
+            if ($signature !== '') {
+                $seen[$signature] = true;
             }
 
             $this->pdo->prepare("INSERT IGNORE INTO {$table}(item_id,dmm_id,{$nameCol}) VALUES(?,?,?)")
