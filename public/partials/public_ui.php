@@ -16,11 +16,6 @@ if (!function_exists('pcf_placeholder_data_uri')) {
 if (!function_exists('pcf_item_image')) {
     function pcf_item_image(array $item): string
     {
-        $imageSmall = trim((string)($item['image_small'] ?? ''));
-        if ($imageSmall !== '') {
-            return $imageSmall;
-        }
-
         $imageLarge = trim((string)($item['image_large'] ?? ''));
         if ($imageLarge !== '') {
             return $imageLarge;
@@ -41,12 +36,17 @@ if (!function_exists('pcf_item_image')) {
                 }
             }
 
-            foreach (preg_split('/[\r\n,\s]+/', $imageListRaw) ?: [] as $candidate) {
+            foreach (preg_split('/[\r\n,|\s]+/', $imageListRaw) ?: [] as $candidate) {
                 $url = trim((string)$candidate);
                 if ($url !== '') {
                     return $url;
                 }
             }
+        }
+
+        $imageSmall = trim((string)($item['image_small'] ?? ''));
+        if ($imageSmall !== '') {
+            return $imageSmall;
         }
 
         return pcf_placeholder_data_uri('No Image');
