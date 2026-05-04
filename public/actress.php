@@ -6,6 +6,23 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
+function is_invalid_actress_name(string $name): bool
+{
+    if (pcf_is_noise_name($name)) {
+        return true;
+    }
+    $v = mb_strtolower(trim($name), 'UTF-8');
+    if ($v === '') {
+        return true;
+    }
+    foreach (['相互リンク', 'お問い合わせ', 'privacy policy', 'プライバシー', 'サイトについて', '公式サイト', 'オフィシャルサイト'] as $ng) {
+        if (str_contains($v, mb_strtolower($ng, 'UTF-8'))) {
+            return true;
+        }
+    }
+    return false;
+}
+
 $id = (int)get('id', 0);
 if ($id <= 0) {
     http_response_code(404);
@@ -27,9 +44,42 @@ if (!is_array($row)) {
 
 $name = trim((string)($row['name'] ?? ''));
 $dmmId = trim((string)($row['dmm_id'] ?? ''));
-if ($name === '' || pcf_is_noise_name($name) || str_starts_with($dmmId, 'name:') || !ctype_digit($dmmId)) {
+if ($name === '' || is_invalid_actress_name($name) || str_starts_with($dmmId, 'name:') || !ctype_digit($dmmId)) {
     http_response_code(404);
     exit('not found');
+}
+
+try {
+    $client = dmm_client_for_type('actresses');
+    $response = $client->searchActresses(['keyword' => $dmmId, 'hits' => 20, 'offset' => 1]);
+    $apiRows = DmmNormalizer::toList($response['result']['actress'] ?? []);
+    foreach ($apiRows as $apiRow) {
+        if (!is_array($apiRow)) {
+            continue;
+        }
+        $apiId = trim((string)($apiRow['id'] ?? ''));
+        $apiName = trim((string)($apiRow['name'] ?? ''));
+        if ($apiId !== $dmmId || $apiName === '' || is_invalid_actress_name($apiName)) {
+            continue;
+        }
+        $name = $apiName;
+        $row['name'] = $apiName;
+        try {
+            upsert_actress([
+                'dmm_id' => $dmmId,
+                'name' => $apiName,
+                'ruby' => $apiRow['ruby'] ?? ($row['ruby'] ?? null),
+                'birthday' => $apiRow['birthday'] ?? ($row['birthday'] ?? null),
+                'prefectures' => $apiRow['prefectures'] ?? ($row['prefectures'] ?? null),
+                'image_url' => $apiRow['imageURL']['large'] ?? ($row['image_url'] ?? null),
+                'image_small' => $apiRow['imageURL']['small'] ?? ($row['image_small'] ?? null),
+                'image_large' => $apiRow['imageURL']['large'] ?? ($row['image_large'] ?? null),
+            ]);
+        } catch (Throwable) {
+        }
+        break;
+    }
+} catch (Throwable) {
 }
 
 if (
@@ -93,6 +143,7 @@ if ($profileImage === '') {
 }
 
 $title = $name;
+$pageTitle = $name;
 require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_breadcrumbs([
