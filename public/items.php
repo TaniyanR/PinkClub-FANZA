@@ -28,8 +28,65 @@ function dedupe_items_for_listing(array $items): array
     return $result;
 }
 
+
+function pcf_items_has_image(array $item): bool
+{
+    foreach (['image_large', 'image_list', 'image_small'] as $key) {
+        if (trim((string)($item[$key] ?? '')) !== '') {
+            return true;
+        }
+    }
+    return false;
+}
+
+function pcf_render_item_card_for_items_page(array $item): void
+{
+    if (!pcf_items_has_image($item)) {
+        return;
+    }
+    ob_start();
+    pcf_render_item_card($item);
+    $html = (string)ob_get_clean();
+    $html = str_replace('class="card rail-card pcf-card pcf-item-card"', 'class="card pcf-card pcf-item-card pcf-items-page-card"', $html);
+    echo $html;
+}
+
+
+
+function collect_unique_items_for_items_page(int $limit, int $offset, string $orderSql): array
+{
+    $rows = [];
+    $chunkSize = $limit + 1;
+    $cursor = max(0, $offset);
+    $maxLoops = 5;
+
+    for ($i = 0; $i < $maxLoops; $i++) {
+        $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
+        $stmt->bindValue(':l', $chunkSize, PDO::PARAM_INT);
+        $stmt->bindValue(':o', $cursor, PDO::PARAM_INT);
+        $stmt->execute();
+        $chunk = $stmt->fetchAll() ?: [];
+        if ($chunk === []) {
+            break;
+        }
+
+        $rows = dedupe_items_for_listing(array_merge($rows, $chunk));
+        $rows = array_values(array_filter($rows, static fn(array $item): bool => pcf_items_has_image($item)));
+        if (count($rows) > $limit) {
+            break;
+        }
+
+        $fetched = count($chunk);
+        $cursor += $fetched;
+        if ($fetched < $chunkSize) {
+            break;
+        }
+    }
+
+    return $rows;
+}
 $page = max(1, (int)get('page', 1));
-$per = app_config()['pagination']['per_page'] ?? 24;
+$per = 32;
 $total = 0;
 $rows = [];
 
@@ -49,12 +106,7 @@ $orderSqlCandidates = [
 ];
 foreach ($orderSqlCandidates as $orderSql) {
     try {
-        $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
-        $stmt->bindValue(':l', (int)$pg['perPage'], PDO::PARAM_INT);
-        $stmt->bindValue(':o', (int)$pg['offset'], PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll() ?: [];
-        $rows = dedupe_items_for_listing($rows);
+        $rows = collect_unique_items_for_items_page((int)$pg['perPage'], (int)$pg['offset'], $orderSql);
         break;
     } catch (Throwable) {
         $rows = [];
@@ -66,13 +118,49 @@ require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_hero('商品一覧', '最新の作品を一覧でチェックできます。'); ?>
 
+<style>
+  .site-main--legacy .pcf-grid.pcf-grid--items {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .site-main--legacy .pcf-grid.pcf-grid--items > .pcf-items-page-card {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    padding: 0;
+  }
+  .site-main--legacy .pcf-grid.pcf-grid--items > .pcf-items-page-card .thumb,
+  .site-main--legacy .pcf-grid.pcf-grid--items > .pcf-items-page-card .rail-card__noimage {
+    width: 100%;
+    max-width: 100%;
+  }
+</style>
+
 <?php if ($rows !== []): ?>
-  <section class="pcf-grid">
+  <section class="pcf-grid pcf-grid--items">
     <?php foreach ($rows as $r): ?>
-      <?php pcf_render_item_card(is_array($r) ? $r : []); ?>
+      <?php if (!is_array($r) || !pcf_items_has_image($r)) { continue; } ?>
+      <?php pcf_render_item_card_for_items_page($r); ?>
     <?php endforeach; ?>
   </section>
-  <?php pcf_render_pagination($pg, public_url('items.php')); ?>
+  <?php
+    $currentPage = (int)($pg['page'] ?? 1);
+    $totalPages = (int)($pg['pages'] ?? 1);
+    if ($totalPages > 1):
+      $startPage = max(1, min($currentPage, max(1, $totalPages - 4)));
+      $endPage = min($totalPages, $startPage + 4);
+  ?>
+  <nav class="pcf-pagination" aria-label="ページネーション">
+    <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
+      <?php $class = 'pcf-pagination__link' . ($i === $currentPage ? ' is-current' : ''); ?>
+      <a class="<?php echo e($class); ?>" href="<?php echo e(public_url('items.php?page=' . $i)); ?>"><?php echo e((string)$i); ?></a>
+    <?php endfor; ?>
+    <?php if ($currentPage < $totalPages): ?>
+      <a class="pcf-pagination__link" href="<?php echo e(public_url('items.php?page=' . ($currentPage + 1))); ?>">次</a>
+    <?php endif; ?>
+  </nav>
+  <?php endif; ?>
 <?php else: ?>
   <?php pcf_render_empty('商品データがまだ登録されていません。'); ?>
 <?php endif; ?>
