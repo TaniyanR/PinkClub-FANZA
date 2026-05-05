@@ -6,6 +6,23 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
+function is_invalid_actress_name(string $name): bool
+{
+    if (pcf_is_noise_name($name)) {
+        return true;
+    }
+    $v = mb_strtolower(trim($name), 'UTF-8');
+    if ($v === '') {
+        return true;
+    }
+    foreach (['相互リンク', '相互rss', 'お問い合わせ', 'privacy policy', 'プライバシー', 'サイトについて', '公式サイト', 'オフィシャルサイト'] as $ng) {
+        if (str_contains($v, mb_strtolower($ng, 'UTF-8'))) {
+            return true;
+        }
+    }
+    return false;
+}
+
 $id = (int)get('id', 0);
 if ($id <= 0) {
     http_response_code(404);
@@ -25,11 +42,69 @@ if (!is_array($row)) {
     exit('not found');
 }
 
-$name = trim((string)($row['name'] ?? ''));
+$actressDisplayName = trim((string)($row['name'] ?? ''));
 $dmmId = trim((string)($row['dmm_id'] ?? ''));
-if ($name === '' || pcf_is_noise_name($name) || str_starts_with($dmmId, 'name:') || !ctype_digit($dmmId)) {
+$profileSecret = 'ひみつ♡';
+$profileDetails = [
+    'bust' => $profileSecret,
+    'waist' => $profileSecret,
+    'hip' => $profileSecret,
+    'height' => $profileSecret,
+    'blood_type' => $profileSecret,
+    'hobby' => $profileSecret,
+];
+if ($actressDisplayName === '' || is_invalid_actress_name($actressDisplayName) || str_starts_with($dmmId, 'name:') || !ctype_digit($dmmId)) {
     http_response_code(404);
     exit('not found');
+}
+
+try {
+    $client = dmm_client_for_type('actresses');
+    $response = $client->searchActresses(['keyword' => $dmmId, 'hits' => 20, 'offset' => 1]);
+    $apiRows = DmmNormalizer::toList($response['result']['actress'] ?? []);
+    foreach ($apiRows as $apiRow) {
+        if (!is_array($apiRow)) {
+            continue;
+        }
+        $apiId = trim((string)($apiRow['id'] ?? ''));
+        if ($apiId !== $dmmId) {
+            continue;
+        }
+
+        $apiName = trim((string)($apiRow['name'] ?? ''));
+        if ($apiName !== '' && !is_invalid_actress_name($apiName)) {
+            $actressDisplayName = $apiName;
+            $row['name'] = $apiName;
+        }
+        $row['ruby'] = $apiRow['ruby'] ?? null;
+        $row['birthday'] = $apiRow['birthday'] ?? null;
+        $row['prefectures'] = $apiRow['prefectures'] ?? null;
+        $row['image_url'] = $apiRow['imageURL']['large'] ?? ($apiRow['image_url'] ?? null);
+        $row['image_small'] = $apiRow['imageURL']['small'] ?? ($apiRow['image_small'] ?? null);
+        $row['image_large'] = $apiRow['imageURL']['large'] ?? ($apiRow['image_large'] ?? null);
+        foreach (['bust', 'waist', 'hip', 'height', 'blood_type', 'hobby'] as $detailKey) {
+            $detailValue = trim((string)($apiRow[$detailKey] ?? ''));
+            if ($detailValue !== '') {
+                $profileDetails[$detailKey] = $detailValue;
+            }
+        }
+
+        try {
+            upsert_actress([
+                'dmm_id' => $dmmId,
+                'name' => $actressDisplayName,
+                'ruby' => $row['ruby'] ?? null,
+                'birthday' => $row['birthday'] ?? null,
+                'prefectures' => $row['prefectures'] ?? null,
+                'image_url' => $row['image_url'] ?? null,
+                'image_small' => $row['image_small'] ?? null,
+                'image_large' => $row['image_large'] ?? null,
+            ]);
+        } catch (Throwable) {
+        }
+        break;
+    }
+} catch (Throwable) {
 }
 
 if (
@@ -39,7 +114,7 @@ if (
 ) {
     try {
         $client = dmm_client_for_type('actresses');
-        $response = $client->searchActresses(['keyword' => $name, 'hits' => 20, 'offset' => 1]);
+        $response = $client->searchActresses(['keyword' => $actressDisplayName, 'hits' => 20, 'offset' => 1]);
         $apiRows = DmmNormalizer::toList($response['result']['actress'] ?? []);
         foreach ($apiRows as $apiRow) {
             if (!is_array($apiRow)) {
@@ -47,7 +122,7 @@ if (
             }
             $apiId = trim((string)($apiRow['id'] ?? ''));
             $apiName = trim((string)($apiRow['name'] ?? ''));
-            if ($apiId !== $dmmId && $apiName !== $name) {
+            if ($apiId !== $dmmId && $apiName !== $actressDisplayName) {
                 continue;
             }
             $row['ruby'] = $apiRow['ruby'] ?? ($row['ruby'] ?? null);
@@ -59,7 +134,7 @@ if (
             try {
                 upsert_actress([
                     'dmm_id' => $dmmId,
-                    'name' => $name,
+                    'name' => $actressDisplayName,
                     'ruby' => $row['ruby'] ?? null,
                     'birthday' => $row['birthday'] ?? null,
                     'prefectures' => $row['prefectures'] ?? null,
@@ -92,24 +167,32 @@ if ($profileImage === '') {
     $profileImage = pcf_placeholder_data_uri('No Photo');
 }
 
-$title = $name;
+unset($title, $pageTitle);
+$title = $actressDisplayName;
+$pageTitle = $actressDisplayName;
 require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_breadcrumbs([
     ['label' => 'トップ', 'url' => public_url('index.php')],
     ['label' => '女優一覧', 'url' => public_url('actresses.php')],
-    ['label' => $name],
+    ['label' => $actressDisplayName],
 ]); ?>
 
 <section class="pcf-profile pcf-profile--plain">
-  <img src="<?= e($profileImage) ?>" alt="<?= e($name) ?>">
+  <img src="<?= e($profileImage) ?>" alt="<?= e($actressDisplayName) ?>">
   <div class="pcf-profile__body">
-    <h1 class="pcf-hero__title"><?= e($name) ?></h1>
+    <h1 class="pcf-hero__title"><?= e($actressDisplayName) ?></h1>
     <dl class="pcf-detail-list">
       <div><dt>ID</dt><dd><?= e($dmmId) ?></dd></div>
-      <div><dt>よみ</dt><dd><?= e(trim((string)($row['ruby'] ?? '')) !== '' ? (string)$row['ruby'] : '未登録') ?></dd></div>
-      <div><dt>誕生日</dt><dd><?= e(!empty($row['birthday']) ? format_date((string)$row['birthday']) : '未登録') ?></dd></div>
-      <div><dt>出身</dt><dd><?= e(trim((string)($row['prefectures'] ?? '')) !== '' ? (string)$row['prefectures'] : '未登録') ?></dd></div>
+      <div><dt>よみ</dt><dd><?= e(trim((string)($row['ruby'] ?? '')) !== '' ? (string)$row['ruby'] : $profileSecret) ?></dd></div>
+      <div><dt>誕生日</dt><dd><?= e(!empty($row['birthday']) ? format_date((string)$row['birthday']) : $profileSecret) ?></dd></div>
+      <div><dt>出身</dt><dd><?= e(trim((string)($row['prefectures'] ?? '')) !== '' ? (string)$row['prefectures'] : $profileSecret) ?></dd></div>
+      <div><dt>バスト</dt><dd><?= e($profileDetails['bust']) ?></dd></div>
+      <div><dt>ウエスト</dt><dd><?= e($profileDetails['waist']) ?></dd></div>
+      <div><dt>ヒップ</dt><dd><?= e($profileDetails['hip']) ?></dd></div>
+      <div><dt>身長</dt><dd><?= e($profileDetails['height']) ?></dd></div>
+      <div><dt>血液型</dt><dd><?= e($profileDetails['blood_type']) ?></dd></div>
+      <div><dt>趣味</dt><dd><?= e($profileDetails['hobby']) ?></dd></div>
       <div><dt>作品数</dt><dd><?= e((string)count($list)) ?>件</dd></div>
     </dl>
   </div>
