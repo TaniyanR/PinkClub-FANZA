@@ -14,7 +14,7 @@ if (!isset($pageTitle)) {
 
 auth_require_admin();
 
-$apiType = 'items';
+$apiType = (string)($apiType ?? 'items');
 $title = $pageTitle;
 $testButtonLabel = (string)($testButtonLabel ?? '商品情報を10件テスト取得して保存');
 $message = '';
@@ -30,7 +30,8 @@ $totalRows = 0;
 $totalPages = 1;
 
 $saveTargets = [
-    'items' => ['table' => 'items', 'label' => '商品', 'id_column' => 'id', 'name_column' => 'title'],
+    'items' => ['table' => 'items', 'label' => '商品', 'id_column' => 'id', 'name_column' => 'title', 'content_id_column' => 'content_id', 'public_path' => 'item.php?cid='],
+    'actresses' => ['table' => 'actresses', 'label' => '女優', 'id_column' => 'id', 'name_column' => 'name', 'content_id_column' => null, 'public_path' => null],
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -52,55 +53,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             api_credential_set($apiType, $apiId, $affiliateId);
             $sync = dmm_sync_service($apiType);
 
-            $s = settings_get();
-            $beforeCount = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
-            $testOffset = (int)site_setting_get('item_sync_test_offset', '1');
-            if ($testOffset < 1) {
-                $testOffset = 1;
-            }
-            $sortModes = ['rank', 'date', 'review'];
-            $sortIndex = (int)site_setting_get('item_sync_test_sort_index', '0');
-            if ($sortIndex < 0) {
-                $sortIndex = 0;
-            }
-            $sort = $sortModes[$sortIndex % count($sortModes)];
-            $processed = 0;
-            $nextOffset = $testOffset;
-            $attempts = 0;
-            $afterCount = $beforeCount;
-            while ($attempts < 12) {
-                $attempts++;
-                $result = $sync->syncItemsBatch(
-                    (string)$s['site'],
-                    (string)$s['service'],
-                    (string)$s['floor'],
-                    10,
-                    $nextOffset,
-                    ['sort' => $sort]
-                );
-                $processed += (int)($result['synced_count'] ?? 0);
-                $nextOffset = (int)($result['next_offset'] ?? 1);
-                if ($nextOffset < 1) {
-                    $nextOffset = 1;
+            if ($apiType === 'actresses') {
+                $beforeCount = (int)db()->query('SELECT COUNT(*) FROM actresses')->fetchColumn();
+                $testOffset = (int)site_setting_get('actress_sync_test_offset', '1');
+                if ($testOffset < 1) {
+                    $testOffset = 1;
                 }
-                $afterCount = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
-                if ($afterCount > $beforeCount) {
-                    break;
+                $count = $sync->syncMaster('actress', null, $testOffset, 10);
+                $afterCount = (int)db()->query('SELECT COUNT(*) FROM actresses')->fetchColumn();
+                $nextOffset = $testOffset + 10;
+                site_setting_set_many([
+                    'actress_sync_test_offset' => (string)$nextOffset,
+                ]);
+                $inserted = max(0, $afterCount - $beforeCount);
+                $updated = max(0, $count - $inserted);
+                $message = '女優情報を10件テスト取得して保存しました。処理件数: ' . (string)$count
+                    . ' / 新規追加: ' . (string)$inserted
+                    . ' / 更新: ' . (string)$updated
+                    . ' / 次回offset: ' . (string)$nextOffset;
+            } else {
+                $s = settings_get();
+                $beforeCount = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+                $testOffset = (int)site_setting_get('item_sync_test_offset', '1');
+                if ($testOffset < 1) {
+                    $testOffset = 1;
                 }
-            }
-            site_setting_set_many([
-                'item_sync_test_offset' => (string)$nextOffset,
-                'item_sync_test_sort_index' => (string)($sortIndex + 1),
-            ]);
-            $inserted = max(0, $afterCount - $beforeCount);
-            $updated = max(0, $processed - $inserted);
+                $sortModes = ['rank', 'date', 'review'];
+                $sortIndex = (int)site_setting_get('item_sync_test_sort_index', '0');
+                if ($sortIndex < 0) {
+                    $sortIndex = 0;
+                }
+                $sort = $sortModes[$sortIndex % count($sortModes)];
+                $processed = 0;
+                $nextOffset = $testOffset;
+                $attempts = 0;
+                $afterCount = $beforeCount;
+                while ($attempts < 12) {
+                    $attempts++;
+                    $result = $sync->syncItemsBatch(
+                        (string)$s['site'],
+                        (string)$s['service'],
+                        (string)$s['floor'],
+                        10,
+                        $nextOffset,
+                        ['sort' => $sort]
+                    );
+                    $processed += (int)($result['synced_count'] ?? 0);
+                    $nextOffset = (int)($result['next_offset'] ?? 1);
+                    if ($nextOffset < 1) {
+                        $nextOffset = 1;
+                    }
+                    $afterCount = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+                    if ($afterCount > $beforeCount) {
+                        break;
+                    }
+                }
+                site_setting_set_many([
+                    'item_sync_test_offset' => (string)$nextOffset,
+                    'item_sync_test_sort_index' => (string)($sortIndex + 1),
+                ]);
+                $inserted = max(0, $afterCount - $beforeCount);
+                $updated = max(0, $processed - $inserted);
 
-            $message = '商品情報を10件テスト取得して保存しました。処理件数: ' . (string)$processed
-                . ' / 新規追加: ' . (string)$inserted
-                . ' / 更新: ' . (string)$updated
-                . ' / sort: ' . $sort
-                . ' / 試行: ' . (string)$attempts
-                . ' / 次回offset: ' . (string)$nextOffset;
+                $message = '商品情報を10件テスト取得して保存しました。処理件数: ' . (string)$processed
+                    . ' / 新規追加: ' . (string)$inserted
+                    . ' / 更新: ' . (string)$updated
+                    . ' / sort: ' . $sort
+                    . ' / 試行: ' . (string)$attempts
+                    . ' / 次回offset: ' . (string)$nextOffset;
+            }
             $messageType = 'success';
         } catch (Throwable $e) {
             $message = '保存に失敗しました: ' . $e->getMessage();
@@ -139,7 +160,7 @@ if (is_array($target)) {
     $offset = ($currentPage - 1) * $perPage;
 
     $stmt = db()->prepare(
-        'SELECT ' . $target['id_column'] . ' AS row_id, content_id, ' . $target['name_column'] . ' AS row_name, updated_at
+        'SELECT ' . $target['id_column'] . ' AS row_id, ' . ($target['content_id_column'] ?: "NULL") . ' AS content_id, ' . $target['name_column'] . ' AS row_name, updated_at
          FROM ' . $target['table'] . '
          ORDER BY ' . $target['id_column'] . ' DESC
          LIMIT :limit OFFSET :offset'
@@ -188,7 +209,13 @@ require __DIR__ . '/includes/header.php';
       <?php foreach ($savedRows as $row): ?>
         <tr>
           <td><?= e((string)($row['row_id'] ?? '')) ?></td>
-          <td><a href="<?= e(public_url('item.php?cid=' . rawurlencode((string)($row['content_id'] ?? '')))) ?>" target="_blank" rel="noopener noreferrer"><?= e((string)($row['row_name'] ?? '')) ?></a></td>
+          <td>
+            <?php if (is_string($target['public_path']) && $target['public_path'] !== '' && (string)($row['content_id'] ?? '') !== ''): ?>
+              <a href="<?= e(public_url($target['public_path'] . rawurlencode((string)($row['content_id'] ?? '')))) ?>" target="_blank" rel="noopener noreferrer"><?= e((string)($row['row_name'] ?? '')) ?></a>
+            <?php else: ?>
+              <?= e((string)($row['row_name'] ?? '')) ?>
+            <?php endif; ?>
+          </td>
           <td><?= e((string)($row['updated_at'] ?? '')) ?></td>
           <td>
             <form method="post">
