@@ -105,9 +105,6 @@ $profile = [
     'height' => '',
     'blood_type' => '',
     'hobby' => '',
-    'listurl_digital' => '',
-    'listurl_monthly' => '',
-    'listurl_mono' => '',
 ];
 
 try {
@@ -156,9 +153,6 @@ try {
         $profile['height'] = trim((string)($bestApiRow['height'] ?? ''));
         $profile['blood_type'] = trim((string)($bestApiRow['blood_type'] ?? ''));
         $profile['hobby'] = trim((string)($bestApiRow['hobby'] ?? ''));
-        $profile['listurl_digital'] = trim((string)($bestApiRow['listURL']['digital'] ?? ''));
-        $profile['listurl_monthly'] = trim((string)($bestApiRow['listURL']['monthly'] ?? ''));
-        $profile['listurl_mono'] = trim((string)($bestApiRow['listURL']['mono'] ?? ''));
 
         try {
             upsert_actress([
