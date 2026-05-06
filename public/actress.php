@@ -29,6 +29,25 @@ function actress_profile_value(array $profile, string $key): string
     return $value !== '' ? $value : '未登録';
 }
 
+function actress_api_row_score(array $apiRow): int
+{
+    $score = 0;
+    foreach (['bust', 'cup', 'waist', 'hip', 'height', 'birthday', 'blood_type', 'hobby', 'prefectures', 'ruby'] as $key) {
+        if (trim((string)($apiRow[$key] ?? '')) !== '') {
+            $score++;
+        }
+    }
+
+    if (trim((string)($apiRow['imageURL']['large'] ?? $apiRow['image_large'] ?? '')) !== '') {
+        $score += 2;
+    }
+    if (trim((string)($apiRow['imageURL']['small'] ?? $apiRow['image_small'] ?? '')) !== '') {
+        $score += 1;
+    }
+
+    return $score;
+}
+
 function actress_profile_image(array $profile): string
 {
     foreach (['image_large', 'image_small', 'image_url'] as $key) {
@@ -67,6 +86,8 @@ if ($actressDisplayName === '' || is_invalid_actress_name($actressDisplayName) |
     exit('not found');
 }
 
+$apiSyncStatus = ['attempted' => false, 'success' => false, 'message' => ''];
+
 $profile = [
     'dmm_id' => $dmmId,
     'name' => $actressDisplayName,
@@ -89,6 +110,7 @@ $profile = [
 ];
 
 try {
+    $apiSyncStatus['attempted'] = true;
     $client = dmm_client_for_type('actresses');
     $response = $client->searchActresses(['actress_id' => $dmmId, 'hits' => 1, 'offset' => 1]);
     $apiRows = DmmNormalizer::toList($response['result']['actress'] ?? []);
@@ -98,6 +120,8 @@ try {
         $apiRows = DmmNormalizer::toList($response['result']['actress'] ?? []);
     }
 
+    $bestApiRow = null;
+    $bestScore = -1;
     foreach ($apiRows as $apiRow) {
         if (!is_array($apiRow)) {
             continue;
@@ -108,23 +132,31 @@ try {
             continue;
         }
 
-        $profile['name'] = $apiName !== '' ? $apiName : $profile['name'];
-        $profile['ruby'] = (string)($apiRow['ruby'] ?? $profile['ruby']);
-        $profile['birthday'] = (string)($apiRow['birthday'] ?? $profile['birthday']);
-        $profile['prefectures'] = (string)($apiRow['prefectures'] ?? $profile['prefectures']);
-        $profile['image_url'] = (string)($apiRow['imageURL']['large'] ?? $apiRow['image_url'] ?? $profile['image_url']);
-        $profile['image_small'] = (string)($apiRow['imageURL']['small'] ?? $apiRow['image_small'] ?? $profile['image_small']);
-        $profile['image_large'] = (string)($apiRow['imageURL']['large'] ?? $apiRow['image_large'] ?? $profile['image_large']);
-        $profile['bust'] = trim((string)($apiRow['bust'] ?? ''));
-        $profile['cup'] = trim((string)($apiRow['cup'] ?? ''));
-        $profile['waist'] = trim((string)($apiRow['waist'] ?? ''));
-        $profile['hip'] = trim((string)($apiRow['hip'] ?? ''));
-        $profile['height'] = trim((string)($apiRow['height'] ?? ''));
-        $profile['blood_type'] = trim((string)($apiRow['blood_type'] ?? ''));
-        $profile['hobby'] = trim((string)($apiRow['hobby'] ?? ''));
-        $profile['listurl_digital'] = trim((string)($apiRow['listURL']['digital'] ?? ''));
-        $profile['listurl_monthly'] = trim((string)($apiRow['listURL']['monthly'] ?? ''));
-        $profile['listurl_mono'] = trim((string)($apiRow['listURL']['mono'] ?? ''));
+        $score = actress_api_row_score($apiRow);
+        if ($score > $bestScore) {
+            $bestScore = $score;
+            $bestApiRow = $apiRow;
+        }
+    }
+
+    if (is_array($bestApiRow)) {
+        $profile['name'] = trim((string)($bestApiRow['name'] ?? '')) !== '' ? (string)$bestApiRow['name'] : $profile['name'];
+        $profile['ruby'] = (string)($bestApiRow['ruby'] ?? $profile['ruby']);
+        $profile['birthday'] = (string)($bestApiRow['birthday'] ?? $profile['birthday']);
+        $profile['prefectures'] = (string)($bestApiRow['prefectures'] ?? $profile['prefectures']);
+        $profile['image_url'] = (string)($bestApiRow['imageURL']['large'] ?? $bestApiRow['image_url'] ?? $profile['image_url']);
+        $profile['image_small'] = (string)($bestApiRow['imageURL']['small'] ?? $bestApiRow['image_small'] ?? $profile['image_small']);
+        $profile['image_large'] = (string)($bestApiRow['imageURL']['large'] ?? $bestApiRow['image_large'] ?? $profile['image_large']);
+        $profile['bust'] = trim((string)($bestApiRow['bust'] ?? ''));
+        $profile['cup'] = trim((string)($bestApiRow['cup'] ?? ''));
+        $profile['waist'] = trim((string)($bestApiRow['waist'] ?? ''));
+        $profile['hip'] = trim((string)($bestApiRow['hip'] ?? ''));
+        $profile['height'] = trim((string)($bestApiRow['height'] ?? ''));
+        $profile['blood_type'] = trim((string)($bestApiRow['blood_type'] ?? ''));
+        $profile['hobby'] = trim((string)($bestApiRow['hobby'] ?? ''));
+        $profile['listurl_digital'] = trim((string)($bestApiRow['listURL']['digital'] ?? ''));
+        $profile['listurl_monthly'] = trim((string)($bestApiRow['listURL']['monthly'] ?? ''));
+        $profile['listurl_mono'] = trim((string)($bestApiRow['listURL']['mono'] ?? ''));
 
         try {
             upsert_actress([
@@ -137,11 +169,17 @@ try {
                 'image_small' => $profile['image_small'],
                 'image_large' => $profile['image_large'],
             ]);
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            error_log('actress.php upsert_actress failed: ' . $e->getMessage());
         }
-        break;
+        $apiSyncStatus['success'] = true;
+        $apiSyncStatus['message'] = '女優APIでプロフィールを最新化しました。';
+    } else {
+        $apiSyncStatus['message'] = '女優APIの一致データが見つからなかったため、保存済み情報を表示しています。';
     }
-} catch (Throwable) {
+} catch (Throwable $e) {
+    $apiSyncStatus['message'] = '女優APIの取得に失敗したため、保存済み情報を表示しています。';
+    error_log('actress.php ActressSearch failed: ' . $e->getMessage());
 }
 
 try {
@@ -163,6 +201,10 @@ require __DIR__ . '/partials/header.php';
     ['label' => '女優一覧', 'url' => public_url('actresses.php')],
     ['label' => $actressDisplayName],
 ]); ?>
+
+<?php if ($apiSyncStatus['attempted']): ?>
+  <div class="admin-notice <?= $apiSyncStatus['success'] ? 'admin-notice--success' : 'admin-notice--error' ?>"><p><?= e((string)$apiSyncStatus['message']) ?></p></div>
+<?php endif; ?>
 
 <section class="pcf-profile pcf-profile--plain">
   <img src="<?= e($profileImage) ?>" alt="<?= e($actressDisplayName) ?>">
