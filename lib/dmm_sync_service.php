@@ -48,12 +48,12 @@ class DmmSyncService
         }
     }
 
-    public function syncMaster(string $kind, ?string $floorId = null, int $offset = 1, int $hits = 100): int
+    public function syncMaster(string $kind, ?string $floorId = null, int $offset = 1, int $hits = 100, array $extraParams = []): int
     {
         $count = 0;
-        $params = [];
-        if ($kind !== 'actress') {
-            $params = ['hits' => min(100, max(1, $hits)), 'offset' => max(1, $offset)];
+        $params = ['hits' => min(100, max(1, $hits)), 'offset' => max(1, $offset)];
+        if ($kind === 'actress') {
+            $params = array_merge($params, $extraParams);
         }
         if ($floorId && $kind !== 'actress') {
             $params['floor_id'] = $floorId;
