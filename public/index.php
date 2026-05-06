@@ -54,6 +54,37 @@ function normalize_movie_url(string $url): string
     return '';
 }
 
+
+function normalize_index_image_url(string $url): string
+{
+    $url = trim($url);
+    if ($url === '') {
+        return '';
+    }
+
+    if (str_starts_with($url, '//')) {
+        return 'https:' . $url;
+    }
+
+    if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+        return $url;
+    }
+
+    return '';
+}
+
+function actress_index_image(array $actress): string
+{
+    foreach (['image_small', 'image_large', 'image_url'] as $key) {
+        $candidate = normalize_index_image_url((string)($actress[$key] ?? ''));
+        if ($candidate !== '') {
+            return $candidate;
+        }
+    }
+
+    return '';
+}
+
 function parse_index_image_urls(?string $value): array
 {
     if ($value === null || trim($value) === '') {
@@ -348,8 +379,19 @@ try {
         $pickupBottom = array_slice($popularRows, 5, 15);
 
         if (db_table_exists($pdo, 'actresses')) {
-            $actressCandidates = $pdo->query('SELECT id,name,image_small FROM actresses ORDER BY (CASE WHEN image_small IS NULL OR image_small = "" THEN 1 ELSE 0 END), id DESC LIMIT 200')->fetchAll();
-            $actresses = pick_random_items($actressCandidates, $seedBase + 10, 15);
+            $actressCandidates = $pdo->query('SELECT id,name,image_small,image_large,image_url FROM actresses ORDER BY (CASE WHEN image_small IS NULL OR image_small = "" THEN 1 ELSE 0 END), id DESC LIMIT 200')->fetchAll();
+            $actressWithImage = [];
+            $actressWithoutImage = [];
+            foreach ($actressCandidates as $candidate) {
+                if (actress_index_image(is_array($candidate) ? $candidate : []) !== '') {
+                    $actressWithImage[] = $candidate;
+                } else {
+                    $actressWithoutImage[] = $candidate;
+                }
+            }
+            $actressWithImage = seeded_shuffle($actressWithImage, $seedBase + 10);
+            $actressWithoutImage = seeded_shuffle($actressWithoutImage, $seedBase + 11);
+            $actresses = array_slice(array_merge($actressWithImage, $actressWithoutImage), 0, 15);
         }
 
         if (db_table_exists($pdo, 'genres') && db_table_exists($pdo, 'item_genres')) {
@@ -484,8 +526,9 @@ $hasHomeContent = $latestTop !== []
     <h2>女優</h2>
     <div class="rail-row rail-row--180">
       <?php foreach ($actresses as $actress): ?>
+        <?php $actressImage = actress_index_image(is_array($actress) ? $actress : []); ?>
         <article class="card rail-card rail-card--180">
-          <?php if (!empty($actress['image_small'])): ?><img class="thumb" src="<?= e((string)$actress['image_small']) ?>" alt="<?= e((string)$actress['name']) ?>"><?php else: ?><div class="rail-card__noimage" style="width:180px;height:180px;">画像なし</div><?php endif; ?>
+          <?php if ($actressImage !== ''): ?><img class="thumb" src="<?= e($actressImage) ?>" alt="<?= e((string)$actress['name']) ?>"><?php else: ?><div class="rail-card__noimage" style="width:180px;height:180px;">画像なし</div><?php endif; ?>
           <a class="rail-card__title" href="<?= e(app_url('public/actress.php?id=' . (int)$actress['id'])) ?>"><?= e((string)$actress['name']) ?></a>
         </article>
       <?php endforeach; ?>
