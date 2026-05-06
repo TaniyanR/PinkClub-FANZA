@@ -125,6 +125,10 @@ if (!function_exists('pcf_render_item_card')) {
             ? public_url('item.php?cid=' . rawurlencode($contentId))
             : public_url('item.php?id=' . (int)($item['id'] ?? 0));
         $sampleMovieUrl = '';
+        $sampleImagesUrl = '';
+        if ($contentId !== '') {
+            $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode($contentId));
+        }
         foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $movieColumn) {
             $candidate = trim((string)($item[$movieColumn] ?? ''));
             if ($candidate !== '') {
@@ -171,6 +175,11 @@ if (!function_exists('pcf_render_item_card')) {
             echo '<a class="sample-button sample-button--enabled" href="' . e($sampleMovieUrl) . '" target="_blank" rel="noopener noreferrer">サンプル動画</a>';
         } else {
             echo '<span class="sample-button sample-button--disabled">サンプル動画</span>';
+        }
+        if ($sampleImagesUrl !== '') {
+            echo '<a class="sample-button sample-button--enabled" href="' . e($sampleImagesUrl) . '" target="_blank" rel="noopener noreferrer">サンプル画像</a>';
+        } else {
+            echo '<span class="sample-button sample-button--disabled">サンプル画像</span>';
         }
         echo '<a class="sample-button sample-button--enabled" href="' . e($itemUrl) . '">詳細ページ</a>';
         echo '</div>';
