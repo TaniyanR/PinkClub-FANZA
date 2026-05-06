@@ -49,6 +49,18 @@ function dedupe_actress_rows(array $rows): array
     return $result;
 }
 
+function actress_list_image(array $row): string
+{
+    foreach (['image_small', 'image_large', 'image_url'] as $key) {
+        $value = trim((string)($row[$key] ?? ''));
+        if ($value !== '') {
+            return $value;
+        }
+    }
+
+    return pcf_placeholder_data_uri('No Photo');
+}
+
 if (db_table_exists('actresses')) {
     try {
         $rows = dedupe_actress_rows(fetch_actresses(10000, 0, 'name'));
@@ -155,9 +167,13 @@ unset($rowsByAlpha);
       <?php if ($groupRows === []): continue; endif; ?>
       <section class="pcf-index-block" id="actress-kana-<?= e(rawurlencode($kana)) ?>">
         <h2 class="pcf-section-title"><?= e($kana) ?>行</h2>
-        <div class="pcf-list-card__meta">
-          <?php foreach ($groupRows as $i => $r): ?>
-            <?php if ($i > 0): ?>　<?php endif; ?><a href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>"><?= e((string)($r['name'] ?? '')) ?></a>
+        <div class="pcf-list-card__meta" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;">
+          <?php foreach ($groupRows as $r): ?>
+            <?php $name = (string)($r['name'] ?? ''); ?>
+            <a href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>" style="display:flex;align-items:center;gap:8px;padding:6px;border:1px solid #e8e8e8;border-radius:6px;text-decoration:none;color:inherit;">
+              <img src="<?= e(actress_list_image($r)) ?>" alt="<?= e($name) ?>" style="width:44px;height:44px;object-fit:cover;border-radius:50%;flex:0 0 44px;">
+              <span><?= e($name) ?></span>
+            </a>
           <?php endforeach; ?>
         </div>
       </section>
@@ -167,11 +183,17 @@ unset($rowsByAlpha);
       <section class="pcf-index-block" id="actress-alpha">
         <h2 class="pcf-section-title">A-Z</h2>
         <?php foreach ($alphaGroups as $letter => $groupRows): ?>
-          <div class="pcf-list-card__meta">
+          <div class="pcf-list-card__meta" style="margin-bottom:12px;">
             <strong><?= e($letter) ?></strong>
-            <?php foreach ($groupRows as $i => $r): ?>
-              <?php if ($i > 0): ?>　<?php endif; ?><a href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>"><?= e((string)($r['name'] ?? '')) ?></a>
-            <?php endforeach; ?>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:6px;">
+              <?php foreach ($groupRows as $r): ?>
+                <?php $name = (string)($r['name'] ?? ''); ?>
+                <a href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>" style="display:flex;align-items:center;gap:8px;padding:6px;border:1px solid #e8e8e8;border-radius:6px;text-decoration:none;color:inherit;">
+                  <img src="<?= e(actress_list_image($r)) ?>" alt="<?= e($name) ?>" style="width:44px;height:44px;object-fit:cover;border-radius:50%;flex:0 0 44px;">
+                  <span><?= e($name) ?></span>
+                </a>
+              <?php endforeach; ?>
+            </div>
           </div>
         <?php endforeach; ?>
       </section>
