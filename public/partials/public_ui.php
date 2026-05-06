@@ -114,6 +114,35 @@ if (!function_exists('pcf_render_breadcrumbs')) {
     }
 }
 
+
+if (!function_exists('pcf_item_has_sample_images')) {
+    function pcf_item_has_sample_images(array $item): bool
+    {
+        $rawJson = (string)($item['raw_json'] ?? '');
+        if ($rawJson !== '') {
+            $raw = json_decode($rawJson, true);
+            if (is_array($raw)) {
+                $sampleImageUrl = $raw['sampleImageURL'] ?? null;
+                if (is_array($sampleImageUrl)) {
+                    foreach (['sample_l', 'sample_s'] as $sampleKey) {
+                        $images = $sampleImageUrl[$sampleKey]['image'] ?? null;
+                        if (is_array($images)) {
+                            foreach ($images as $image) {
+                                if (trim((string)$image) !== '') {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        $imageList = trim((string)($item['image_list'] ?? ''));
+        return $imageList !== '';
+    }
+}
+
 if (!function_exists('pcf_render_item_card')) {
     function pcf_render_item_card(array $item): void
     {
@@ -125,6 +154,10 @@ if (!function_exists('pcf_render_item_card')) {
             ? public_url('item.php?cid=' . rawurlencode($contentId))
             : public_url('item.php?id=' . (int)($item['id'] ?? 0));
         $sampleMovieUrl = '';
+        $sampleImagesUrl = '';
+        if ($contentId !== '' && pcf_item_has_sample_images($item)) {
+            $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode($contentId));
+        }
         foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $movieColumn) {
             $candidate = trim((string)($item[$movieColumn] ?? ''));
             if ($candidate !== '') {
@@ -171,6 +204,11 @@ if (!function_exists('pcf_render_item_card')) {
             echo '<a class="sample-button sample-button--enabled" href="' . e($sampleMovieUrl) . '" target="_blank" rel="noopener noreferrer">サンプル動画</a>';
         } else {
             echo '<span class="sample-button sample-button--disabled">サンプル動画</span>';
+        }
+        if ($sampleImagesUrl !== '') {
+            echo '<a class="sample-button sample-button--enabled" href="' . e($sampleImagesUrl) . '" target="_blank" rel="noopener noreferrer">サンプル画像</a>';
+        } else {
+            echo '<span class="sample-button sample-button--disabled">サンプル画像</span>';
         }
         echo '<a class="sample-button sample-button--enabled" href="' . e($itemUrl) . '">詳細ページ</a>';
         echo '</div>';
