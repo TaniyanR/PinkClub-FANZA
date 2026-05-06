@@ -87,6 +87,8 @@ if ($actressDisplayName === '' || is_invalid_actress_name($actressDisplayName) |
     exit('not found');
 }
 
+$apiSyncStatus = ['attempted' => false, 'success' => false, 'message' => ''];
+
 $profile = [
     'dmm_id' => $dmmId,
     'name' => $actressDisplayName,
@@ -109,6 +111,7 @@ $profile = [
 ];
 
 try {
+    $apiSyncStatus['attempted'] = true;
     $client = dmm_client_for_type('actresses');
     $response = $client->searchActresses(['actress_id' => $dmmId, 'hits' => 1, 'offset' => 1]);
     $apiRows = DmmNormalizer::toList($response['result']['actress'] ?? []);
@@ -167,10 +170,17 @@ try {
                 'image_small' => $profile['image_small'],
                 'image_large' => $profile['image_large'],
             ]);
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            error_log('actress.php upsert_actress failed: ' . $e->getMessage());
         }
+        $apiSyncStatus['success'] = true;
+        $apiSyncStatus['message'] = '女優APIでプロフィールを最新化しました。';
+    } else {
+        $apiSyncStatus['message'] = '女優APIの一致データが見つからなかったため、保存済み情報を表示しています。';
     }
-} catch (Throwable) {
+} catch (Throwable $e) {
+    $apiSyncStatus['message'] = '女優APIの取得に失敗したため、保存済み情報を表示しています。';
+    error_log('actress.php ActressSearch failed: ' . $e->getMessage());
 }
 
 try {
@@ -192,6 +202,10 @@ require __DIR__ . '/partials/header.php';
     ['label' => '女優一覧', 'url' => public_url('actresses.php')],
     ['label' => $actressDisplayName],
 ]); ?>
+
+<?php if ($apiSyncStatus['attempted']): ?>
+  <div class="admin-notice <?= $apiSyncStatus['success'] ? 'admin-notice--success' : 'admin-notice--error' ?>"><p><?= e((string)$apiSyncStatus['message']) ?></p></div>
+<?php endif; ?>
 
 <section class="pcf-profile pcf-profile--plain">
   <img src="<?= e($profileImage) ?>" alt="<?= e($actressDisplayName) ?>">
