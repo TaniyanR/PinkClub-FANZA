@@ -28,6 +28,38 @@ function dedupe_items_for_listing(array $items): array
     return $result;
 }
 
+function fetch_unique_items_for_listing(PDO $pdo, string $orderSql, int $limit, int $offset): array
+{
+    $rows = [];
+    $cursor = max(0, $offset);
+    $chunkSize = max(1, $limit);
+    $maxLoops = 5;
+
+    for ($i = 0; $i < $maxLoops; $i++) {
+        $stmt = $pdo->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
+        $stmt->bindValue(':l', $chunkSize, PDO::PARAM_INT);
+        $stmt->bindValue(':o', $cursor, PDO::PARAM_INT);
+        $stmt->execute();
+        $chunk = $stmt->fetchAll() ?: [];
+        if ($chunk === []) {
+            break;
+        }
+
+        $rows = dedupe_items_for_listing(array_merge($rows, $chunk));
+        if (count($rows) >= $limit) {
+            break;
+        }
+
+        $fetched = count($chunk);
+        $cursor += $fetched;
+        if ($fetched < $chunkSize) {
+            break;
+        }
+    }
+
+    return array_slice($rows, 0, $limit);
+}
+
 $page = max(1, (int)get('page', 1));
 $per = app_config()['pagination']['per_page'] ?? 24;
 $total = 0;
@@ -49,12 +81,7 @@ $orderSqlCandidates = [
 ];
 foreach ($orderSqlCandidates as $orderSql) {
     try {
-        $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
-        $stmt->bindValue(':l', (int)$pg['perPage'], PDO::PARAM_INT);
-        $stmt->bindValue(':o', (int)$pg['offset'], PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll() ?: [];
-        $rows = dedupe_items_for_listing($rows);
+        $rows = fetch_unique_items_for_listing(db(), $orderSql, (int)$pg['perPage'], (int)$pg['offset']);
         break;
     } catch (Throwable) {
         $rows = [];
