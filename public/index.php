@@ -348,8 +348,19 @@ try {
         $pickupBottom = array_slice($popularRows, 5, 15);
 
         if (db_table_exists($pdo, 'actresses')) {
-            $actressCandidates = $pdo->query('SELECT id,name,image_small FROM actresses ORDER BY (CASE WHEN image_small IS NULL OR image_small = "" THEN 1 ELSE 0 END), id DESC LIMIT 200')->fetchAll();
-            $actresses = pick_random_items($actressCandidates, $seedBase + 10, 15);
+            $actressCandidates = $pdo->query('SELECT id,name,image_small,image_large,image_url FROM actresses ORDER BY (CASE WHEN image_small IS NULL OR image_small = "" THEN 1 ELSE 0 END), id DESC LIMIT 200')->fetchAll();
+            $actresses = [];
+            $actressSeen = [];
+            foreach (pick_random_items($actressCandidates, $seedBase + 10, 15) as $candidate) {
+                $actressId = (int)($candidate['id'] ?? 0);
+                if ($actressId > 0 && isset($actressSeen[$actressId])) {
+                    continue;
+                }
+                if ($actressId > 0) {
+                    $actressSeen[$actressId] = true;
+                }
+                $actresses[] = $candidate;
+            }
         }
 
         if (db_table_exists($pdo, 'genres') && db_table_exists($pdo, 'item_genres')) {
@@ -485,7 +496,8 @@ $hasHomeContent = $latestTop !== []
     <div class="rail-row rail-row--180">
       <?php foreach ($actresses as $actress): ?>
         <article class="card rail-card rail-card--180">
-          <?php if (!empty($actress['image_small'])): ?><img class="thumb" src="<?= e((string)$actress['image_small']) ?>" alt="<?= e((string)$actress['name']) ?>"><?php else: ?><div class="rail-card__noimage" style="width:180px;height:180px;">画像なし</div><?php endif; ?>
+          <?php $actressImage = trim((string)($actress['image_small'] ?? '')) !== '' ? (string)$actress['image_small'] : (trim((string)($actress['image_large'] ?? '')) !== '' ? (string)$actress['image_large'] : (string)($actress['image_url'] ?? '')); ?>
+          <?php if (trim($actressImage) !== ''): ?><img class="thumb" src="<?= e($actressImage) ?>" alt="<?= e((string)$actress['name']) ?>"><?php else: ?><div class="rail-card__noimage" style="width:180px;height:180px;">画像なし</div><?php endif; ?>
           <a class="rail-card__title" href="<?= e(app_url('public/actress.php?id=' . (int)$actress['id'])) ?>"><?= e((string)$actress['name']) ?></a>
         </article>
       <?php endforeach; ?>
