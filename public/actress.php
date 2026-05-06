@@ -29,7 +29,6 @@ function actress_profile_value(array $profile, string $key): string
     return $value !== '' ? $value : '未登録';
 }
 
-
 function actress_api_row_score(array $apiRow): int
 {
     $score = 0;
