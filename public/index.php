@@ -348,7 +348,7 @@ try {
         $pickupBottom = array_slice($popularRows, 5, 15);
 
         if (db_table_exists($pdo, 'actresses')) {
-            $actressCandidates = $pdo->query('SELECT id,name,image_small FROM actresses ORDER BY (CASE WHEN image_small IS NULL OR image_small = "" THEN 1 ELSE 0 END), id DESC LIMIT 200')->fetchAll();
+            $actressCandidates = $pdo->query('SELECT id,name,image_small,image_large,image_url FROM actresses ORDER BY (CASE WHEN image_small IS NULL OR image_small = "" THEN 1 ELSE 0 END), id DESC LIMIT 200')->fetchAll();
             $actresses = pick_random_items($actressCandidates, $seedBase + 10, 15);
         }
 
@@ -484,8 +484,11 @@ $hasHomeContent = $latestTop !== []
     <h2>女優</h2>
     <div class="rail-row rail-row--180">
       <?php foreach ($actresses as $actress): ?>
+        <?php $actressImage = trim((string)($actress['image_small'] ?? '')); ?>
+        <?php if ($actressImage === '') { $actressImage = trim((string)($actress['image_large'] ?? '')); } ?>
+        <?php if ($actressImage === '') { $actressImage = trim((string)($actress['image_url'] ?? '')); } ?>
         <article class="card rail-card rail-card--180">
-          <?php if (!empty($actress['image_small'])): ?><img class="thumb" src="<?= e((string)$actress['image_small']) ?>" alt="<?= e((string)$actress['name']) ?>"><?php else: ?><div class="rail-card__noimage" style="width:180px;height:180px;">画像なし</div><?php endif; ?>
+          <?php if ($actressImage !== ''): ?><img class="thumb" src="<?= e($actressImage) ?>" alt="<?= e((string)$actress['name']) ?>"><?php else: ?><div class="rail-card__noimage" style="width:180px;height:180px;">画像なし</div><?php endif; ?>
           <a class="rail-card__title" href="<?= e(app_url('public/actress.php?id=' . (int)$actress['id'])) ?>"><?= e((string)$actress['name']) ?></a>
         </article>
       <?php endforeach; ?>
