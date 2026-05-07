@@ -29,7 +29,7 @@ function dedupe_items_for_listing(array $items): array
 }
 
 $page = max(1, (int)get('page', 1));
-$per = app_config()['pagination']['per_page'] ?? 24;
+$per = 20;
 $total = 0;
 $rows = [];
 
@@ -67,10 +67,22 @@ require __DIR__ . '/partials/header.php';
 <?php pcf_render_hero('商品一覧', '最新の作品を一覧でチェックできます。'); ?>
 
 <?php if ($rows !== []): ?>
-  <section class="pcf-grid">
+  <section class="pcf-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
     <?php foreach ($rows as $r): ?>
       <?php pcf_render_item_card(is_array($r) ? $r : []); ?>
     <?php endforeach; ?>
+    <?php $placeholderCount = max(0, (int)$per - count($rows)); ?>
+    <?php for ($i = 0; $i < $placeholderCount; $i++): ?>
+      <article class="card rail-card rail-card--180 pcf-card pcf-item-card" aria-hidden="true">
+        <img class="thumb pcf-item-card__thumb" src="<?= e(pcf_placeholder_data_uri('No Image')) ?>" alt="" loading="lazy">
+        <span class="rail-card__title pcf-item-card__title">タイトル未設定</span>
+        <div class="sample-buttons">
+          <span class="sample-button sample-button--disabled">サンプル動画</span>
+          <span class="sample-button sample-button--disabled">サンプル画像</span>
+          <span class="sample-button sample-button--disabled">詳細ページ</span>
+        </div>
+      </article>
+    <?php endfor; ?>
   </section>
   <?php pcf_render_pagination($pg, public_url('items.php')); ?>
 <?php else: ?>
