@@ -5,31 +5,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
-function dedupe_items_for_listing(array $items): array
-{
-    $seen = [];
-    $result = [];
-    foreach ($items as $item) {
-        if (!is_array($item)) {
-            continue;
-        }
-        $contentId = strtolower(trim((string)($item['content_id'] ?? '')));
-        $productId = strtolower(trim((string)($item['product_id'] ?? '')));
-        $id = trim((string)($item['id'] ?? ''));
-        $key = $contentId !== '' ? 'content_id:' . $contentId : ($productId !== '' ? 'product_id:' . $productId : ($id !== '' ? 'id:' . $id : ''));
-        if ($key !== '' && isset($seen[$key])) {
-            continue;
-        }
-        if ($key !== '') {
-            $seen[$key] = true;
-        }
-        $result[] = $item;
-    }
-    return $result;
-}
-
 $page = max(1, (int)get('page', 1));
-$per = app_config()['pagination']['per_page'] ?? 24;
+$per = 20;
 $total = 0;
 $rows = [];
 
@@ -42,11 +19,12 @@ try {
 $pg = paginate($total, $page, (int)$per);
 
 $orderSqlCandidates = [
-    'release_date DESC, id DESC',
-    'date_published DESC, id DESC',
+    'created_at DESC, id DESC',
     'updated_at DESC, id DESC',
+    'release_date DESC, id DESC',
     'id DESC',
 ];
+
 foreach ($orderSqlCandidates as $orderSql) {
     try {
         $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
@@ -54,7 +32,6 @@ foreach ($orderSqlCandidates as $orderSql) {
         $stmt->bindValue(':o', (int)$pg['offset'], PDO::PARAM_INT);
         $stmt->execute();
         $rows = $stmt->fetchAll() ?: [];
-        $rows = dedupe_items_for_listing($rows);
         break;
     } catch (Throwable) {
         $rows = [];

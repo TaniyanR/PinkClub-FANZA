@@ -39,8 +39,21 @@
 
 .pcf-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
+}
+
+.pcf-grid .rail-card {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  flex: 1 1 auto;
+}
+
+.pcf-grid .rail-card .thumb,
+.pcf-grid .rail-card .rail-card__noimage {
+  width: 100%;
+  max-width: none;
 }
 
 .pcf-card {
@@ -416,3 +429,7 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+
+

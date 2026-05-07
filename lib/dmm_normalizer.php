@@ -4,6 +4,32 @@ declare(strict_types=1);
 
 class DmmNormalizer
 {
+    private static function firstString(mixed $value): ?string
+    {
+        if (is_string($value)) {
+            $v = trim($value);
+            return $v !== "" ? $v : null;
+        }
+        if (is_array($value)) {
+            foreach ($value as $child) {
+                $found = self::firstString($child);
+                if ($found !== null) {
+                    return $found;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static function firstTitle(array $row): string
+    {
+        $direct = trim((string)($row['title'] ?? ""));
+        if ($direct !== "") {
+            return $direct;
+        }
+        $nested = self::firstString($row['iteminfo']['title'] ?? null);
+        return $nested ?? "";
+    }
     public static function toList(mixed $value): array
     {
         if ($value === null || $value === '') {
@@ -44,7 +70,7 @@ class DmmNormalizer
                 'raw' => $row,
                 'content_id' => $row['content_id'] ?? null,
                 'product_id' => $row['product_id'] ?? null,
-                'title' => $row['title'] ?? '',
+                'title' => self::firstTitle($row),
                 'service_code' => $row['service_code'] ?? '',
                 'service_name' => $row['service_name'] ?? '',
                 'floor_code' => $row['floor_code'] ?? '',
@@ -55,9 +81,9 @@ class DmmNormalizer
                 'review_average' => isset($row['review']['average']) ? (float) $row['review']['average'] : null,
                 'url' => $row['URL'] ?? null,
                 'affiliate_url' => $row['affiliateURL'] ?? null,
-                'image_list' => $row['imageURL']['list'] ?? null,
-                'image_small' => $row['imageURL']['small'] ?? null,
-                'image_large' => $row['imageURL']['large'] ?? null,
+                'image_list' => self::firstString($row['imageURL']['list'] ?? null),
+                'image_small' => self::firstString($row['imageURL']['small'] ?? null),
+                'image_large' => self::firstString($row['imageURL']['large'] ?? null),
                 'sample_movie_url_476' => $sampleMovie['size_476_306'] ?? null,
                 'sample_movie_url_560' => $sampleMovie['size_560_360'] ?? null,
                 'sample_movie_url_644' => $sampleMovie['size_644_414'] ?? null,
