@@ -29,7 +29,7 @@ function dedupe_items_for_listing(array $items): array
 }
 
 $page = max(1, (int)get('page', 1));
-$per = app_config()['pagination']['per_page'] ?? 24;
+$per = 20;
 $total = 0;
 $rows = [];
 
