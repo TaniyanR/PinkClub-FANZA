@@ -12,6 +12,11 @@ $canRenderAd = function_exists('render_ad');
 
 $partnerLinks = [];
 $fixedPages = [];
+$defaultFixedPages = [
+    ['slug' => 'contact', 'title' => 'お問い合わせ', 'href' => public_url('contact.php')],
+    ['slug' => 'links', 'title' => '相互リンク', 'href' => public_url('links.php')],
+    ['slug' => 'link_apply', 'title' => '相互リンク申請', 'href' => public_url('link_apply.php')],
+];
 
 try {
     $stmt = db()->query("SELECT ps.id, ps.name, ps.url, COALESCE(ps.show_link, ps.is_enabled, 1) AS show_link FROM partner_sites ps WHERE COALESCE(ps.show_link, ps.is_enabled, 1) = 1 ORDER BY {$orderBy}");
@@ -35,6 +40,19 @@ try {
 } catch (Throwable $e) {
     $fixedPages = [];
 }
+
+if ($fixedPages === []) {
+    try {
+        $stmt = db()->query('SELECT slug,title FROM pages WHERE is_published=1 ORDER BY id ASC');
+        $fixedPages = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    } catch (Throwable $e) {
+        $fixedPages = [];
+    }
+}
+
+if ($fixedPages === []) {
+    $fixedPages = $defaultFixedPages;
+}
 ?>
 <aside class="sidebar site-sidebar">
     <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
@@ -54,7 +72,9 @@ try {
         <?php else: ?>
             <ul class="sidebar-links sidebar-links--pages">
                 <?php foreach ($fixedPages as $page): ?>
-                    <li><a href="<?= e(public_url('page.php?slug=' . (string)$page['slug'])) ?>"><?= e((string)$page['title']) ?></a></li>
+                    <?php $pageHref = trim((string)($page['href'] ?? '')); ?>
+                    <?php if ($pageHref === '') { $pageHref = public_url('page.php?slug=' . (string)$page['slug']); } ?>
+                    <li><a href="<?= e($pageHref) ?>"><?= e((string)$page['title']) ?></a></li>
                 <?php endforeach; ?>
             </ul>
         <?php endif; ?>
