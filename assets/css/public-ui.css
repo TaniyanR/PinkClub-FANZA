@@ -39,8 +39,21 @@
 
 .pcf-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
+}
+
+.pcf-grid .rail-card {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  flex: 1 1 auto;
+}
+
+.pcf-grid .rail-card .thumb,
+.pcf-grid .rail-card .rail-card__noimage {
+  width: 100%;
+  max-width: none;
 }
 
 .pcf-card {
@@ -413,6 +426,24 @@
   }
 
   .pcf-topic-head {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1200px) {
+  .pcf-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .pcf-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .pcf-grid {
     grid-template-columns: 1fr;
   }
 }
