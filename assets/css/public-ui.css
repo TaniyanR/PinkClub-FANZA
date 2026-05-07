@@ -39,8 +39,21 @@
 
 .pcf-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
+}
+
+.pcf-grid .rail-card {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  flex: 1 1 auto;
+}
+
+.pcf-grid .rail-card .thumb,
+.pcf-grid .rail-card .rail-card__noimage {
+  width: 100%;
+  max-width: none;
 }
 
 .pcf-card {
@@ -415,4 +428,60 @@
   .pcf-topic-head {
     grid-template-columns: 1fr;
   }
+}
+
+
+
+.pcf-grid--items {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.pcf-listing-card {
+  background: #fff;
+  border: 1px solid #d7dbe3;
+  border-radius: 6px;
+  overflow: hidden;
+  padding: 0 0 8px;
+}
+
+.pcf-listing-card__image-link,
+.pcf-listing-card__image {
+  display: block;
+  width: 100%;
+}
+
+.pcf-listing-card__image {
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  background: #f3f5fa;
+}
+
+.pcf-listing-card__title {
+  display: block;
+  color: #1f67a8;
+  text-decoration: none;
+  font-weight: 700;
+  padding: 12px 10px;
+  min-height: 52px;
+}
+
+.pcf-listing-card__buttons {
+  padding: 0 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.pcf-listing-card__btn {
+  display: block;
+  text-align: center;
+  background: #2a54d3;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-weight: 700;
+}
+
+.pcf-listing-card__btn.is-disabled {
+  background: #9aa3b6;
 }
