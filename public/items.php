@@ -29,12 +29,12 @@ function dedupe_items_for_listing(array $items): array
 }
 
 $page = max(1, (int)get('page', 1));
-$per = app_config()['pagination']['per_page'] ?? 24;
+$per = 20;
 $total = 0;
 $rows = [];
 
 try {
-    $total = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+    $total = (int)db()->query("SELECT COUNT(*) FROM items WHERE TRIM(COALESCE(title, '')) <> '' AND TRIM(COALESCE(content_id, '')) <> ''")->fetchColumn();
 } catch (Throwable) {
     $total = 0;
 }
@@ -49,7 +49,7 @@ $orderSqlCandidates = [
 ];
 foreach ($orderSqlCandidates as $orderSql) {
     try {
-        $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
+        $stmt = db()->prepare('SELECT * FROM items WHERE TRIM(COALESCE(title, "")) <> "" AND TRIM(COALESCE(content_id, "")) <> "" ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
         $stmt->bindValue(':l', (int)$pg['perPage'], PDO::PARAM_INT);
         $stmt->bindValue(':o', (int)$pg['offset'], PDO::PARAM_INT);
         $stmt->execute();
@@ -67,7 +67,7 @@ require __DIR__ . '/partials/header.php';
 <?php pcf_render_hero('商品一覧', '最新の作品を一覧でチェックできます。'); ?>
 
 <?php if ($rows !== []): ?>
-  <section class="pcf-grid">
+  <section class="pcf-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
     <?php foreach ($rows as $r): ?>
       <?php pcf_render_item_card(is_array($r) ? $r : []); ?>
     <?php endforeach; ?>
