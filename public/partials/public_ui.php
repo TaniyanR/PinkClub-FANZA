@@ -172,6 +172,9 @@ if (!function_exists('pcf_render_item_card')) {
         } else {
             echo '<span class="sample-button sample-button--disabled">サンプル動画</span>';
         }
+        if ($contentId !== '') {
+            echo '<a class="sample-button sample-button--enabled" href="' . e(public_url('sample_images.php?content_id=' . rawurlencode($contentId))) . '" target="_blank" rel="noopener noreferrer">サンプル画像</a>';
+        }
         echo '<a class="sample-button sample-button--enabled" href="' . e($itemUrl) . '">詳細ページ</a>';
         echo '</div>';
         echo '</article>';
@@ -217,12 +220,22 @@ if (!function_exists('pcf_render_pagination')) {
         }
 
         echo '<nav class="pcf-pagination" aria-label="ページネーション">';
+        if ($page > 1) {
+            $prevQuery = $extraQuery;
+            $prevQuery['page'] = $page - 1;
+            echo '<a class="pcf-pagination__link" href="' . e($path . '?' . http_build_query($prevQuery)) . '">≪ 前</a>';
+        }
         for ($i = 1; $i <= $pages; $i++) {
             $query = $extraQuery;
             $query['page'] = $i;
             $url = $path . '?' . http_build_query($query);
             $class = 'pcf-pagination__link' . ($i === $page ? ' is-current' : '');
             echo '<a class="' . e($class) . '" href="' . e($url) . '">' . e((string)$i) . '</a>';
+        }
+        if ($page < $pages) {
+            $nextQuery = $extraQuery;
+            $nextQuery['page'] = $page + 1;
+            echo '<a class="pcf-pagination__link" href="' . e($path . '?' . http_build_query($nextQuery)) . '">次 ≫</a>';
         }
         echo '</nav>';
     }
