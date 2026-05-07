@@ -67,6 +67,8 @@ if (db_table_exists('item_authors')) {
     }
 }
 
+$list = dedupe_items_by_key($list);
+
 $oldestItem = pcf_pick_oldest_item($list);
 $oldestImage = pcf_item_image(is_array($oldestItem) ? $oldestItem : []);
 

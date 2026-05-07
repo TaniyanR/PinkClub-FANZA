@@ -35,6 +35,15 @@ try {
 } catch (Throwable $e) {
     $fixedPages = [];
 }
+
+if ($fixedPages === []) {
+    try {
+        $stmt = db()->query('SELECT slug,title FROM pages WHERE is_published=1 ORDER BY id ASC');
+        $fixedPages = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    } catch (Throwable $e) {
+        $fixedPages = [];
+    }
+}
 ?>
 <aside class="sidebar site-sidebar">
     <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
