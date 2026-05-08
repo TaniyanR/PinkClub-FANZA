@@ -5,6 +5,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
+
+
 function dedupe_items_for_listing(array $items): array
 {
     $seen = [];
@@ -41,6 +43,9 @@ try {
 
 $pg = paginate($total, $page, (int)$per);
 
+$dedupeOffset = max(0, ((int)$pg['page'] - 1) * (int)$pg['perPage']);
+$dedupeLimit = max(1, (int)$pg['perPage']);
+
 $orderSqlCandidates = [
     'release_date DESC, id DESC',
     'date_published DESC, id DESC',
@@ -49,12 +54,21 @@ $orderSqlCandidates = [
 ];
 foreach ($orderSqlCandidates as $orderSql) {
     try {
-        $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
-        $stmt->bindValue(':l', (int)$pg['perPage'], PDO::PARAM_INT);
-        $stmt->bindValue(':o', (int)$pg['offset'], PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll() ?: [];
-        $rows = dedupe_items_for_listing($rows);
+        $uniqueRows = [];
+        $readOffset = 0;
+        while (count($uniqueRows) < $dedupeOffset + $dedupeLimit) {
+            $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
+            $stmt->bindValue(':l', (int)$dedupeLimit, PDO::PARAM_INT);
+            $stmt->bindValue(':o', (int)$readOffset, PDO::PARAM_INT);
+            $stmt->execute();
+            $chunk = $stmt->fetchAll() ?: [];
+            if ($chunk === []) {
+                break;
+            }
+            $uniqueRows = dedupe_items_for_listing(array_merge($uniqueRows, $chunk));
+            $readOffset += count($chunk);
+        }
+        $rows = array_slice($uniqueRows, $dedupeOffset, $dedupeLimit);
         break;
     } catch (Throwable) {
         $rows = [];
@@ -67,7 +81,7 @@ require __DIR__ . '/partials/header.php';
 <?php pcf_render_hero('商品一覧', '最新の作品を一覧でチェックできます。'); ?>
 
 <?php if ($rows !== []): ?>
-  <section class="pcf-grid">
+  <section class="pcf-grid pcf-grid--cards">
     <?php foreach ($rows as $r): ?>
       <?php pcf_render_item_card(is_array($r) ? $r : []); ?>
     <?php endforeach; ?>
