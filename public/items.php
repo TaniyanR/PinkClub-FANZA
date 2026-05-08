@@ -5,6 +5,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
+
+
 function dedupe_items_for_listing(array $items): array
 {
     $seen = [];
@@ -79,14 +81,11 @@ require __DIR__ . '/partials/header.php';
 <?php pcf_render_hero('商品一覧', '最新の作品を一覧でチェックできます。'); ?>
 
 <?php if ($rows !== []): ?>
-  <ul class="pcf-list">
+  <section class="pcf-grid pcf-grid--cards">
     <?php foreach ($rows as $r): ?>
-      <?php $item = is_array($r) ? $r : []; ?>
-      <?php $contentId = trim((string)($item['content_id'] ?? '')); ?>
-      <?php $itemUrl = $contentId !== '' ? public_url('item.php?cid=' . rawurlencode($contentId)) : public_url('item.php?id=' . (int)($item['id'] ?? 0)); ?>
-      <li><a href="<?= e($itemUrl) ?>"><?= e((string)($item['title'] ?? 'タイトル未設定')) ?></a></li>
+      <?php pcf_render_item_card(is_array($r) ? $r : []); ?>
     <?php endforeach; ?>
-  </ul>
+  </section>
   <?php pcf_render_pagination($pg, public_url('items.php')); ?>
 <?php else: ?>
   <?php pcf_render_empty('商品データがまだ登録されていません。'); ?>
