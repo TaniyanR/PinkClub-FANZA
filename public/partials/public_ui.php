@@ -166,11 +166,20 @@ if (!function_exists('pcf_render_item_card')) {
             echo '<li>価格: ' . e($priceText) . '</li>';
         }
         echo '</ul>';
+        $sampleImageUrl = $contentId !== ''
+            ? public_url('sample_images.php?cid=' . rawurlencode($contentId))
+            : '';
+
         echo '<div class="sample-buttons">';
         if ($sampleMovieUrl !== '') {
             echo '<a class="sample-button sample-button--enabled" href="' . e($sampleMovieUrl) . '" target="_blank" rel="noopener noreferrer">サンプル動画</a>';
         } else {
             echo '<span class="sample-button sample-button--disabled">サンプル動画</span>';
+        }
+        if ($sampleImageUrl !== '') {
+            echo '<a class="sample-button sample-button--enabled" href="' . e($sampleImageUrl) . '">サンプル画像</a>';
+        } else {
+            echo '<span class="sample-button sample-button--disabled">サンプル画像</span>';
         }
         echo '<a class="sample-button sample-button--enabled" href="' . e($itemUrl) . '">詳細ページ</a>';
         echo '</div>';
