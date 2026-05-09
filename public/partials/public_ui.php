@@ -282,26 +282,28 @@ if (!function_exists('pcf_render_item_card')) {
             ? public_url('sample_images.php?content_id=' . rawurlencode($contentId))
             : '';
 
-        echo '<article class="pcf-item-card" style="background:#fff;border:1px solid #d7dce5;border-radius:4px;padding:6px 6px 10px;width:calc((100% - 24px) / 4);max-width:calc((100% - 24px) / 4);min-width:0;box-sizing:border-box;">';
-        echo '<a href="' . e($itemUrl) . '" style="display:flex;gap:2px;text-decoration:none;">';
-        echo '<img src="' . e($imageA) . '" alt="' . e($title) . '" loading="lazy" style="display:block;width:calc(50% - 1px);aspect-ratio:3/4;object-fit:cover;border:1px solid #d7dce5;display:block;">';
-        echo '<img src="' . e($imageB) . '" alt="' . e($title) . '" loading="lazy" style="display:block;width:calc(50% - 1px);aspect-ratio:3/4;object-fit:cover;border:1px solid #d7dce5;display:block;">';
+        echo '<article class="card rail-card rail-card--180 pcf-card pcf-item-card">';
+        echo '<a class="pcf-item-card__thumb-link" href="' . e($itemUrl) . '">';
+        echo '<span style="display:flex;gap:2px;">';
+        echo '<img class="thumb pcf-item-card__thumb" src="' . e($imageA) . '" alt="' . e($title) . '" loading="lazy" style="width:50%;">';
+        echo '<img class="thumb pcf-item-card__thumb" src="' . e($imageB) . '" alt="' . e($title) . '" loading="lazy" style="width:50%;">';
+        echo '</span>';
         echo '</a>';
 
-        echo '<a href="' . e($itemUrl) . '" style="display:block;margin-top:10px;margin-bottom:18px;color:#2f7ba8;font-weight:700;font-size:15px;line-height:1.45;text-decoration:none;">' . e($title) . '</a>';
+        echo '<a class="rail-card__title pcf-item-card__title" href="' . e($itemUrl) . '">' . e($title) . '</a>';
 
-        echo '<div class="sample-buttons" style="display:flex;flex-direction:column;gap:8px;width:100%;">';
+        echo '<div class="sample-buttons">';
         if ($sampleMovieUrl !== '') {
-            echo '<a class="sample-button sample-button--enabled" href="' . e($sampleMovieUrl) . '" target="_blank" rel="noopener noreferrer" style="display:block;background:#2b52d1;color:#fff;text-align:center;padding:8px 12px;border-radius:5px;text-decoration:none;font-weight:700;width:100%;box-sizing:border-box;">サンプル動画</a>';
+            echo '<a class="sample-button sample-button--enabled" href="' . e($sampleMovieUrl) . '" target="_blank" rel="noopener noreferrer">サンプル動画</a>';
         } else {
-            echo '<span class="sample-button sample-button--disabled" style="display:block;background:#9aa3b2;color:#fff;text-align:center;padding:8px 12px;border-radius:5px;font-weight:700;width:100%;box-sizing:border-box;">サンプル動画</span>';
+            echo '<span class="sample-button sample-button--disabled">サンプル動画</span>';
         }
         if ($sampleImageUrl !== '') {
-            echo '<a class="sample-button sample-button--enabled" href="' . e($sampleImageUrl) . '" style="display:block;background:#2b52d1;color:#fff;text-align:center;padding:8px 12px;border-radius:5px;text-decoration:none;font-weight:700;width:100%;box-sizing:border-box;">サンプル画像</a>';
+            echo '<a class="sample-button sample-button--enabled" href="' . e($sampleImageUrl) . '">サンプル画像</a>';
         } else {
-            echo '<span class="sample-button sample-button--disabled" style="display:block;background:#9aa3b2;color:#fff;text-align:center;padding:8px 12px;border-radius:5px;font-weight:700;width:100%;box-sizing:border-box;">サンプル画像</span>';
+            echo '<span class="sample-button sample-button--disabled">サンプル画像</span>';
         }
-        echo '<a class="sample-button sample-button--enabled" href="' . e($itemUrl) . '" style="display:block;background:#2b52d1;color:#fff;text-align:center;padding:8px 12px;border-radius:5px;text-decoration:none;font-weight:700;width:100%;box-sizing:border-box;">詳細ページ</a>';
+        echo '<a class="sample-button sample-button--enabled" href="' . e($itemUrl) . '">詳細ページ</a>';
         echo '</div>';
 
         echo '</article>';

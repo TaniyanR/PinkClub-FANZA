@@ -81,7 +81,7 @@ require __DIR__ . '/partials/header.php';
 <?php pcf_render_hero('商品一覧', '最新の作品を一覧でチェックできます。'); ?>
 
 <?php if ($rows !== []): ?>
-  <section class="pcf-grid pcf-grid--cards">
+  <section class="pcf-grid pcf-grid--cards" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;">
     <?php foreach ($rows as $r): ?>
       <?php pcf_render_item_card(is_array($r) ? $r : []); ?>
     <?php endforeach; ?>
