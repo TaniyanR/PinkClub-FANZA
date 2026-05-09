@@ -5,26 +5,121 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
+
+
+function enrich_items_with_article_data(array $items): array
+{
+    $result = [];
+    $stmt = null;
+
+    foreach ($items as $item) {
+        if (!is_array($item)) {
+            $result[] = $item;
+            continue;
+        }
+
+        $needsTitle = trim((string)($item['title'] ?? '')) === '';
+        $needsImage = trim((string)($item['image_large'] ?? '')) === ''
+            && trim((string)($item['image_small'] ?? '')) === ''
+            && trim((string)($item['image_list'] ?? '')) === '';
+
+        if (!$needsTitle && !$needsImage) {
+            $result[] = $item;
+            continue;
+        }
+
+        $contentId = trim((string)($item['content_id'] ?? ''));
+        $productId = trim((string)($item['product_id'] ?? ''));
+        if ($contentId === '' && $productId === '') {
+            $result[] = $item;
+            continue;
+        }
+
+        try {
+            if ($stmt === null) {
+                $stmt = db()->prepare('SELECT title, image_url FROM articles WHERE product_id IN (?, ?) ORDER BY id DESC LIMIT 1');
+            }
+            $stmt->execute([$contentId, $productId]);
+            $article = $stmt->fetch();
+            if (is_array($article)) {
+                if ($needsTitle) {
+                    $articleTitle = trim((string)($article['title'] ?? ''));
+                    if ($articleTitle !== '') {
+                        $item['title'] = $articleTitle;
+                    }
+                }
+                if ($needsImage) {
+                    $articleImage = trim((string)($article['image_url'] ?? ''));
+                    if ($articleImage !== '') {
+                        $item['image_large'] = $articleImage;
+                    }
+                }
+            }
+        } catch (Throwable) {
+        }
+
+        $result[] = $item;
+    }
+
+    return $result;
+}
+
+function item_row_quality_score(array $item): int
+{
+    $score = 0;
+    if (trim((string)($item['title'] ?? '')) !== '') {
+        $score += 2;
+    }
+    if (trim((string)($item['image_large'] ?? '')) !== '' || trim((string)($item['image_small'] ?? '')) !== '' || trim((string)($item['image_list'] ?? '')) !== '') {
+        $score += 2;
+    }
+    if (trim((string)($item['content_id'] ?? '')) !== '') {
+        $score += 1;
+    }
+    if (trim((string)($item['product_id'] ?? '')) !== '') {
+        $score += 1;
+    }
+    return $score;
+}
+
 function dedupe_items_for_listing(array $items): array
 {
-    $seen = [];
+    $seenIndexByKey = [];
     $result = [];
+
     foreach ($items as $item) {
         if (!is_array($item)) {
             continue;
         }
+
         $contentId = strtolower(trim((string)($item['content_id'] ?? '')));
         $productId = strtolower(trim((string)($item['product_id'] ?? '')));
         $id = trim((string)($item['id'] ?? ''));
         $key = $contentId !== '' ? 'content_id:' . $contentId : ($productId !== '' ? 'product_id:' . $productId : ($id !== '' ? 'id:' . $id : ''));
-        if ($key !== '' && isset($seen[$key])) {
+
+        if ($key === '') {
+            $result[] = $item;
             continue;
         }
-        if ($key !== '') {
-            $seen[$key] = true;
+
+        if (!isset($seenIndexByKey[$key])) {
+            $seenIndexByKey[$key] = count($result);
+            $result[] = $item;
+            continue;
         }
-        $result[] = $item;
+
+        $existingIndex = (int)$seenIndexByKey[$key];
+        $existingItem = $result[$existingIndex] ?? null;
+        if (!is_array($existingItem)) {
+            $result[$existingIndex] = $item;
+            continue;
+        }
+
+        if (item_row_quality_score($item) > item_row_quality_score($existingItem)) {
+            $result[$existingIndex] = $item;
+        }
     }
+
     return $result;
 }
 
@@ -41,6 +136,9 @@ try {
 
 $pg = paginate($total, $page, (int)$per);
 
+$dedupeOffset = max(0, ((int)$pg['page'] - 1) * (int)$pg['perPage']);
+$dedupeLimit = max(1, (int)$pg['perPage']);
+
 $orderSqlCandidates = [
     'release_date DESC, id DESC',
     'date_published DESC, id DESC',
@@ -49,12 +147,21 @@ $orderSqlCandidates = [
 ];
 foreach ($orderSqlCandidates as $orderSql) {
     try {
-        $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
-        $stmt->bindValue(':l', (int)$pg['perPage'], PDO::PARAM_INT);
-        $stmt->bindValue(':o', (int)$pg['offset'], PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll() ?: [];
-        $rows = dedupe_items_for_listing($rows);
+        $uniqueRows = [];
+        $readOffset = 0;
+        while (count($uniqueRows) < $dedupeOffset + $dedupeLimit) {
+            $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
+            $stmt->bindValue(':l', (int)$dedupeLimit, PDO::PARAM_INT);
+            $stmt->bindValue(':o', (int)$readOffset, PDO::PARAM_INT);
+            $stmt->execute();
+            $chunk = $stmt->fetchAll() ?: [];
+            if ($chunk === []) {
+                break;
+            }
+            $uniqueRows = dedupe_items_for_listing(array_merge($uniqueRows, $chunk));
+            $readOffset += count($chunk);
+        }
+        $rows = enrich_items_with_article_data(array_slice($uniqueRows, $dedupeOffset, $dedupeLimit));
         break;
     } catch (Throwable) {
         $rows = [];
@@ -67,7 +174,7 @@ require __DIR__ . '/partials/header.php';
 <?php pcf_render_hero('商品一覧', '最新の作品を一覧でチェックできます。'); ?>
 
 <?php if ($rows !== []): ?>
-  <section class="pcf-grid">
+  <section class="pcf-grid pcf-grid--cards" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;">
     <?php foreach ($rows as $r): ?>
       <?php pcf_render_item_card(is_array($r) ? $r : []); ?>
     <?php endforeach; ?>
