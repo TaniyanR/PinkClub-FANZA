@@ -13,15 +13,120 @@ if (!function_exists('pcf_placeholder_data_uri')) {
     }
 }
 
+if (!function_exists('pcf_parse_image_list_urls')) {
+    function pcf_parse_image_list_urls(string $raw): array
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return [];
+        }
+        $parts = preg_split('/[\r\n,\|\s]+/', $raw) ?: [];
+        $urls = [];
+        foreach ($parts as $part) {
+            $u = trim((string)$part);
+            if ($u !== '') {
+                $urls[] = $u;
+            }
+        }
+        return array_values(array_unique($urls));
+    }
+}
+
+if (!function_exists('pcf_find_item_image_from_duplicates')) {
+    function pcf_find_item_image_from_duplicates(array $item): string
+    {
+        $contentId = trim((string)($item['content_id'] ?? ''));
+        $productId = trim((string)($item['product_id'] ?? ''));
+        if ($contentId === '' && $productId === '') {
+            return '';
+        }
+
+        try {
+            $sql = 'SELECT image_large, image_list, image_small, raw_json FROM items WHERE (content_id = :cid OR product_id = :pid) ORDER BY id DESC LIMIT 30';
+            $stmt = db()->prepare($sql);
+            $stmt->bindValue(':cid', $contentId, PDO::PARAM_STR);
+            $stmt->bindValue(':pid', $productId, PDO::PARAM_STR);
+            $stmt->execute();
+            $rows = $stmt->fetchAll() ?: [];
+            foreach ($rows as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $imageLarge = trim((string)($row['image_large'] ?? ''));
+                if ($imageLarge !== '') {
+                    return $imageLarge;
+                }
+                $imageList = pcf_parse_image_list_urls((string)($row['image_list'] ?? ''));
+                if ($imageList !== []) {
+                    return (string)$imageList[0];
+                }
+                $imageSmall = trim((string)($row['image_small'] ?? ''));
+                if ($imageSmall !== '') {
+                    return $imageSmall;
+                }
+                $rawJson = trim((string)($row['raw_json'] ?? ''));
+                if ($rawJson !== '') {
+                    $raw = json_decode($rawJson, true);
+                    if (is_array($raw)) {
+                        $fallback = trim((string)($raw['imageURL']['large'] ?? $raw['imageURL']['small'] ?? ''));
+                        if ($fallback !== '') {
+                            return $fallback;
+                        }
+                    }
+                }
+            }
+        } catch (Throwable) {
+        }
+
+        return '';
+    }
+}
+
 if (!function_exists('pcf_item_image')) {
     function pcf_item_image(array $item): string
     {
-        foreach (['image_large', 'image_list', 'image_small'] as $key) {
-            $value = trim((string)($item[$key] ?? ''));
-            if ($value !== '') {
-                return $value;
+        $imageLarge = trim((string)($item['image_large'] ?? ''));
+        if ($imageLarge !== '') {
+            return $imageLarge;
+        }
+
+        $imageList = pcf_parse_image_list_urls((string)($item['image_list'] ?? ''));
+        if ($imageList !== []) {
+            return (string)$imageList[0];
+        }
+
+        $imageSmall = trim((string)($item['image_small'] ?? ''));
+        if ($imageSmall !== '') {
+            return $imageSmall;
+        }
+
+        $rawJson = trim((string)($item['raw_json'] ?? ''));
+        if ($rawJson !== '') {
+            $raw = json_decode($rawJson, true);
+            if (is_array($raw)) {
+                $fallback = trim((string)($raw['imageURL']['large'] ?? $raw['imageURL']['small'] ?? ''));
+                if ($fallback !== '') {
+                    return $fallback;
+                }
+                foreach (['package_image', 'packageImage', 'jacket', 'jacketImage', 'imageURLLarge', 'imageURLSmall'] as $rawKey) {
+                    $candidate = trim((string)($raw[$rawKey] ?? ''));
+                    if ($candidate !== '') {
+                        return $candidate;
+                    }
+                }
+                $sampleImage = $raw['sampleImageURL']['sample_l']['image'][0] ?? $raw['sampleImageURL']['sample_s']['image'][0] ?? '';
+                $sampleImage = trim((string)$sampleImage);
+                if ($sampleImage !== '') {
+                    return $sampleImage;
+                }
             }
         }
+
+        $fromDuplicates = pcf_find_item_image_from_duplicates($item);
+        if ($fromDuplicates !== '') {
+            return $fromDuplicates;
+        }
+
         return pcf_placeholder_data_uri('No Image');
     }
 }
@@ -114,12 +219,83 @@ if (!function_exists('pcf_render_breadcrumbs')) {
     }
 }
 
+if (!function_exists('pcf_item_card_images')) {
+    function pcf_item_card_images(array $item): array
+    {
+        $images = [];
+
+        $primary = pcf_item_image($item);
+        if ($primary !== '' && !str_starts_with($primary, 'data:image/svg+xml')) {
+            $images[] = $primary;
+        }
+
+        $imageList = pcf_parse_image_list_urls((string)($item['image_list'] ?? ''));
+        foreach ($imageList as $url) {
+            $candidate = trim((string)$url);
+            if ($candidate !== '' && !in_array($candidate, $images, true)) {
+                $images[] = $candidate;
+            }
+            if (count($images) >= 2) {
+                break;
+            }
+        }
+
+        if (count($images) < 2) {
+            $rawJson = trim((string)($item['raw_json'] ?? ''));
+            if ($rawJson !== '') {
+                $raw = json_decode($rawJson, true);
+                if (is_array($raw)) {
+                    foreach (['sample_l', 'sample_s'] as $sizeKey) {
+                        $rows = $raw['sampleImageURL'][$sizeKey]['image'] ?? null;
+                        if (is_array($rows)) {
+                            foreach ($rows as $row) {
+                                $candidate = trim((string)$row);
+                                if ($candidate !== '' && !in_array($candidate, $images, true)) {
+                                    $images[] = $candidate;
+                                }
+                                if (count($images) >= 2) {
+                                    break 2;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return array_slice($images, 0, 2);
+    }
+}
+
+if (!function_exists('pcf_resolve_item_title')) {
+    function pcf_resolve_item_title(array $item): string
+    {
+        $title = trim((string)($item['title'] ?? ''));
+        if ($title !== '') {
+            return $title;
+        }
+
+        $rawJson = trim((string)($item['raw_json'] ?? ''));
+        if ($rawJson !== '') {
+            $raw = json_decode($rawJson, true);
+            if (is_array($raw)) {
+                foreach (['title', 'name', 'productTitle'] as $key) {
+                    $candidate = trim((string)($raw[$key] ?? ''));
+                    if ($candidate !== '') {
+                        return $candidate;
+                    }
+                }
+            }
+        }
+
+        return 'タイトル未設定';
+    }
+}
+
 if (!function_exists('pcf_render_item_card')) {
     function pcf_render_item_card(array $item): void
     {
-        $title = trim((string)($item['title'] ?? 'タイトル未設定'));
-        $releaseDate = trim((string)($item['release_date'] ?? ''));
-        $priceText = trim((string)($item['price_min_text'] ?? ''));
+        $title = pcf_resolve_item_title($item);
         $contentId = trim((string)($item['content_id'] ?? ''));
         $itemUrl = $contentId !== ''
             ? public_url('item.php?cid=' . rawurlencode($contentId))
@@ -153,27 +329,40 @@ if (!function_exists('pcf_render_item_card')) {
             }
         }
 
-        echo '<article class="card rail-card rail-card--180 pcf-card pcf-item-card">';
-        echo '<a class="pcf-item-card__thumb-link" href="' . e($itemUrl) . '">';
-        echo '<img class="thumb pcf-item-card__thumb" src="' . e(pcf_item_image($item)) . '" alt="' . e($title) . '" loading="lazy">';
+        $cardImages = pcf_item_card_images($item);
+        $imageA = $cardImages[0] ?? pcf_placeholder_data_uri('No Image');
+        $imageB = $cardImages[1] ?? $imageA;
+        $packageImageUrl = pcf_item_image($item);
+        $packageLinkUrl = str_starts_with($packageImageUrl, 'data:image/svg+xml') ? $itemUrl : $packageImageUrl;
+
+        $sampleImageUrl = $contentId !== ''
+            ? public_url('sample_images.php?content_id=' . rawurlencode($contentId))
+            : '';
+
+        echo '<article class="card rail-card pcf-card pcf-item-card" style="width:100%;max-width:none;min-width:0;">';
+        echo '<a class="pcf-item-card__thumb-link" href="' . e($packageLinkUrl) . '"' . ($packageLinkUrl !== $itemUrl ? ' target="_blank" rel="noopener noreferrer"' : '') . '>';
+        echo '<span style="display:flex;gap:2px;">';
+        echo '<img class="thumb pcf-item-card__thumb" src="' . e($imageA) . '" alt="' . e($title) . '" loading="lazy" style="width:50%;aspect-ratio:3/4;object-fit:cover;">';
+        echo '<img class="thumb pcf-item-card__thumb" src="' . e($imageB) . '" alt="' . e($title) . '" loading="lazy" style="width:50%;aspect-ratio:3/4;object-fit:cover;">';
+        echo '</span>';
         echo '</a>';
+
         echo '<a class="rail-card__title pcf-item-card__title" href="' . e($itemUrl) . '">' . e($title) . '</a>';
-        echo '<ul class="pcf-item-card__meta">';
-        if ($releaseDate !== '') {
-            echo '<li>発売日: ' . e(format_date($releaseDate)) . '</li>';
-        }
-        if ($priceText !== '') {
-            echo '<li>価格: ' . e($priceText) . '</li>';
-        }
-        echo '</ul>';
+
         echo '<div class="sample-buttons">';
         if ($sampleMovieUrl !== '') {
             echo '<a class="sample-button sample-button--enabled" href="' . e($sampleMovieUrl) . '" target="_blank" rel="noopener noreferrer">サンプル動画</a>';
         } else {
             echo '<span class="sample-button sample-button--disabled">サンプル動画</span>';
         }
+        if ($sampleImageUrl !== '') {
+            echo '<a class="sample-button sample-button--enabled" href="' . e($sampleImageUrl) . '">サンプル画像</a>';
+        } else {
+            echo '<span class="sample-button sample-button--disabled">サンプル画像</span>';
+        }
         echo '<a class="sample-button sample-button--enabled" href="' . e($itemUrl) . '">詳細ページ</a>';
         echo '</div>';
+
         echo '</article>';
     }
 }
