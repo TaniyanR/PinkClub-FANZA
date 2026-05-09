@@ -102,6 +102,26 @@ if (!function_exists('pcf_find_item_image_from_duplicates')) {
     }
 }
 
+if (!function_exists('pcf_guess_package_image_urls')) {
+    function pcf_guess_package_image_urls(array $item): array
+    {
+        $baseId = trim((string)($item['content_id'] ?? ''));
+        if ($baseId === '') {
+            $baseId = trim((string)($item['product_id'] ?? ''));
+        }
+        $baseId = strtolower(preg_replace('/[^a-z0-9]/i', '', $baseId) ?? '');
+        if ($baseId === '') {
+            return [];
+        }
+
+        return [
+            'https://pics.dmm.co.jp/mono/movie/adult/' . $baseId . '/' . $baseId . 'pl.jpg',
+            'https://pics.dmm.co.jp/mono/movie/adult/' . $baseId . '/' . $baseId . 'ps.jpg',
+            'https://pics.dmm.co.jp/mono/movie/adult/' . $baseId . '/' . $baseId . 'jp.jpg',
+        ];
+    }
+}
+
 if (!function_exists('pcf_item_image')) {
     function pcf_item_image(array $item): string
     {
@@ -153,6 +173,11 @@ if (!function_exists('pcf_item_image')) {
         $fromDuplicates = pcf_find_item_image_from_duplicates($item);
         if ($fromDuplicates !== '') {
             return $fromDuplicates;
+        }
+
+        $guessed = pcf_guess_package_image_urls($item);
+        if ($guessed !== []) {
+            return (string)$guessed[0];
         }
 
         return pcf_placeholder_data_uri('No Image');
@@ -265,6 +290,18 @@ if (!function_exists('pcf_item_card_images')) {
             }
             if (count($images) >= 2) {
                 break;
+            }
+        }
+
+        if (count($images) < 2) {
+            foreach (pcf_guess_package_image_urls($item) as $guessedUrl) {
+                $candidate = trim((string)$guessedUrl);
+                if ($candidate !== '' && !in_array($candidate, $images, true)) {
+                    $images[] = $candidate;
+                }
+                if (count($images) >= 2) {
+                    break;
+                }
             }
         }
 
