@@ -13,15 +13,47 @@ if (!function_exists('pcf_placeholder_data_uri')) {
     }
 }
 
+if (!function_exists('pcf_parse_image_urls')) {
+    function pcf_parse_image_urls(?string $value): array
+    {
+        if ($value === null || trim($value) === '') {
+            return [];
+        }
+
+        $trimmed = trim($value);
+        if ($trimmed !== '' && $trimmed[0] === '[') {
+            $decoded = json_decode($trimmed, true);
+            if (is_array($decoded)) {
+                return array_values(array_filter(array_map('strval', $decoded)));
+            }
+        }
+
+        $parts = preg_split('/[\r\n,|\s]+/', $value);
+        if (!is_array($parts)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map('trim', $parts), static fn(string $v): bool => $v !== ''));
+    }
+}
+
 if (!function_exists('pcf_item_image')) {
     function pcf_item_image(array $item): string
     {
-        foreach (['image_large', 'image_list', 'image_small'] as $key) {
+        foreach (['image_large', 'image_small'] as $key) {
             $value = trim((string)($item[$key] ?? ''));
             if ($value !== '') {
                 return $value;
             }
         }
+
+        foreach (pcf_parse_image_urls((string)($item['image_list'] ?? '')) as $image) {
+            $value = trim((string)$image);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
         return pcf_placeholder_data_uri('No Image');
     }
 }
@@ -166,11 +198,39 @@ if (!function_exists('pcf_render_item_card')) {
             echo '<li>価格: ' . e($priceText) . '</li>';
         }
         echo '</ul>';
+        $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode($contentId));
+        $hasSampleImages = false;
+        $rawJson = (string)($item['raw_json'] ?? '');
+        if ($rawJson !== '') {
+            $raw = json_decode($rawJson, true);
+            if (is_array($raw)) {
+                $sampleImageURL = $raw['sampleImageURL'] ?? null;
+                if (is_array($sampleImageURL)) {
+                    foreach (['sample_l', 'sample_s'] as $sampleKey) {
+                        $images = $sampleImageURL[$sampleKey]['image'] ?? null;
+                        if (is_array($images)) {
+                            foreach ($images as $image) {
+                                if (trim((string)$image) !== '') {
+                                    $hasSampleImages = true;
+                                    break 2;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         echo '<div class="sample-buttons">';
         if ($sampleMovieUrl !== '') {
             echo '<a class="sample-button sample-button--enabled" href="' . e($sampleMovieUrl) . '" target="_blank" rel="noopener noreferrer">サンプル動画</a>';
         } else {
             echo '<span class="sample-button sample-button--disabled">サンプル動画</span>';
+        }
+        if ($hasSampleImages && $contentId !== '') {
+            echo '<a class="sample-button sample-button--enabled" href="' . e($sampleImagesUrl) . '" target="_blank" rel="noopener noreferrer">サンプル画像</a>';
+        } else {
+            echo '<span class="sample-button sample-button--disabled">サンプル画像</span>';
         }
         echo '<a class="sample-button sample-button--enabled" href="' . e($itemUrl) . '">詳細ページ</a>';
         echo '</div>';
