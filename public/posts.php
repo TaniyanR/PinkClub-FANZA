@@ -32,9 +32,11 @@ function dedupe_items_for_list(array $items): array
 function collect_unique_items_for_page(callable $fetcher, int $limit, int $offset): array
 {
     $rows = [];
-    $chunkSize = $limit + 1;
-    $cursor = max(0, $offset);
-    $maxLoops = 5;
+    $offset = max(0, $offset);
+    $targetCount = $offset + $limit + 1;
+    $chunkSize = max($limit + 1, 25);
+    $cursor = 0;
+    $maxLoops = 30;
 
     for ($i = 0; $i < $maxLoops; $i++) {
         $chunk = $fetcher($chunkSize, $cursor);
@@ -43,7 +45,7 @@ function collect_unique_items_for_page(callable $fetcher, int $limit, int $offse
         }
 
         $rows = dedupe_items_for_list(array_merge($rows, $chunk));
-        if (count($rows) > $limit) {
+        if (count($rows) >= $targetCount) {
             break;
         }
 
@@ -54,7 +56,7 @@ function collect_unique_items_for_page(callable $fetcher, int $limit, int $offse
         }
     }
 
-    return $rows;
+    return array_slice($rows, $offset, $limit + 1);
 }
 
 $orderParam = safe_str($_GET['order'] ?? 'date_desc', 20);
