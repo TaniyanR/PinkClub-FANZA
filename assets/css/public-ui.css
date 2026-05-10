@@ -503,6 +503,17 @@
   justify-content: start;
 }
 
+.rail-row--200.rail-row--wide-thumb.rail-row--bottom-horizontal {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.rail-row--200.rail-row--wide-thumb.rail-row--bottom-horizontal .pcf-dm-card {
+  flex: 0 0 380px;
+  min-width: 380px;
+}
+
 .pcf-dm-card {
   width: 100%;
   max-width: 380px;
