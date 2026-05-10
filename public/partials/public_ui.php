@@ -37,10 +37,44 @@ if (!function_exists('pcf_parse_image_urls')) {
     }
 }
 
+if (!function_exists('pcf_first_image_from_mixed')) {
+    function pcf_first_image_from_mixed(mixed $value): string
+    {
+        if (is_string($value)) {
+            foreach (pcf_parse_image_urls($value) as $candidate) {
+                $v = trim((string)$candidate);
+                if ($v !== '') {
+                    return $v;
+                }
+            }
+            return '';
+        }
+        if (!is_array($value)) {
+            return '';
+        }
+        foreach ($value as $child) {
+            if (is_string($child) && trim($child) !== '') {
+                return trim($child);
+            }
+            if (is_array($child)) {
+                foreach (['url', 'src', 'value'] as $k) {
+                    if (isset($child[$k]) && is_string($child[$k]) && trim($child[$k]) !== '') {
+                        return trim((string)$child[$k]);
+                    }
+                }
+            }
+        }
+        return '';
+    }
+}
+
 if (!function_exists('pcf_item_image')) {
     function pcf_item_image(array $item): string
     {
         $candidates = [
+            (string)($item['full_package_url'] ?? ''),
+            (string)($item['main_image_url'] ?? ''),
+            (string)($item['image_url'] ?? ''),
             (string)($item['image_large'] ?? ''),
             (string)($item['image_small'] ?? ''),
             (string)($item['package_image_large'] ?? ''),
@@ -55,6 +89,7 @@ if (!function_exists('pcf_item_image')) {
                 $candidates[] = (string)($raw['packageImage']['small'] ?? '');
                 $candidates[] = (string)($raw['imageURL']['large'] ?? '');
                 $candidates[] = (string)($raw['imageURL']['small'] ?? '');
+                $candidates[] = pcf_first_image_from_mixed($raw['imageURL']['list'] ?? null);
             }
         }
 
@@ -69,18 +104,6 @@ if (!function_exists('pcf_item_image')) {
             $value = trim((string)$image);
             if ($value !== '') {
                 return $value;
-            }
-        }
-
-        if ($rawJson !== '') {
-            $raw = json_decode($rawJson, true);
-            if (is_array($raw)) {
-                foreach (pcf_parse_image_urls((string)($raw['imageURL']['list'] ?? '')) as $image) {
-                    $value = trim((string)$image);
-                    if ($value !== '') {
-                        return $value;
-                    }
-                }
             }
         }
 
