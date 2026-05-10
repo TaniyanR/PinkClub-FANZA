@@ -17,11 +17,38 @@ function dedupe_items_for_listing(array $items): array
         $productId = strtolower(trim((string)($item['product_id'] ?? '')));
         $id = trim((string)($item['id'] ?? ''));
         $key = $contentId !== '' ? 'content_id:' . $contentId : ($productId !== '' ? 'product_id:' . $productId : ($id !== '' ? 'id:' . $id : ''));
+
+        $score = 0;
+        if (trim((string)($item['title'] ?? '')) !== '') {
+            $score += 2;
+        }
+        if (trim((string)($item['image_small'] ?? '')) !== '' || trim((string)($item['image_large'] ?? '')) !== '' || trim((string)($item['image_list'] ?? '')) !== '') {
+            $score += 2;
+        }
+        if (trim((string)($item['affiliate_url'] ?? '')) !== '') {
+            $score += 1;
+        }
+
         if ($key !== '' && isset($seen[$key])) {
+            $index = (int)$seen[$key];
+            $existing = $result[$index] ?? [];
+            $existingScore = 0;
+            if (trim((string)($existing['title'] ?? '')) !== '') {
+                $existingScore += 2;
+            }
+            if (trim((string)($existing['image_small'] ?? '')) !== '' || trim((string)($existing['image_large'] ?? '')) !== '' || trim((string)($existing['image_list'] ?? '')) !== '') {
+                $existingScore += 2;
+            }
+            if (trim((string)($existing['affiliate_url'] ?? '')) !== '') {
+                $existingScore += 1;
+            }
+            if ($score > $existingScore) {
+                $result[$index] = $item;
+            }
             continue;
         }
         if ($key !== '') {
-            $seen[$key] = true;
+            $seen[$key] = count($result);
         }
         $result[] = $item;
     }
@@ -49,12 +76,34 @@ $orderSqlCandidates = [
 ];
 foreach ($orderSqlCandidates as $orderSql) {
     try {
-        $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
-        $stmt->bindValue(':l', (int)$pg['perPage'], PDO::PARAM_INT);
-        $stmt->bindValue(':o', (int)$pg['offset'], PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll() ?: [];
-        $rows = dedupe_items_for_listing($rows);
+        $chunkSize = (int)$pg['perPage'] + 1;
+        $cursor = (int)$pg['offset'];
+        $maxLoops = 6;
+        $collected = [];
+
+        for ($i = 0; $i < $maxLoops; $i++) {
+            $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
+            $stmt->bindValue(':l', $chunkSize, PDO::PARAM_INT);
+            $stmt->bindValue(':o', $cursor, PDO::PARAM_INT);
+            $stmt->execute();
+            $chunk = $stmt->fetchAll() ?: [];
+            if ($chunk === []) {
+                break;
+            }
+
+            $collected = dedupe_items_for_listing(array_merge($collected, $chunk));
+            if (count($collected) > (int)$pg['perPage']) {
+                break;
+            }
+
+            $fetched = count($chunk);
+            $cursor += $fetched;
+            if ($fetched < $chunkSize) {
+                break;
+            }
+        }
+
+        $rows = array_slice($collected, 0, (int)$pg['perPage']);
         break;
     } catch (Throwable) {
         $rows = [];
@@ -67,10 +116,12 @@ require __DIR__ . '/partials/header.php';
 <?php pcf_render_hero('商品一覧', '最新の作品を一覧でチェックできます。'); ?>
 
 <?php if ($rows !== []): ?>
-  <section class="pcf-grid">
+  <section class="rail-section">
+    <div class="rail-row rail-row--200 rail-row--wide-thumb">
     <?php foreach ($rows as $r): ?>
-      <?php pcf_render_item_card(is_array($r) ? $r : []); ?>
+      <?php pcf_render_item_card(is_array($r) ? $r : [], 200, true, true); ?>
     <?php endforeach; ?>
+    </div>
   </section>
   <?php pcf_render_pagination($pg, public_url('items.php')); ?>
 <?php else: ?>
