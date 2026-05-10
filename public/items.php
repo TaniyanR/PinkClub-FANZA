@@ -49,12 +49,34 @@ $orderSqlCandidates = [
 ];
 foreach ($orderSqlCandidates as $orderSql) {
     try {
-        $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
-        $stmt->bindValue(':l', (int)$pg['perPage'], PDO::PARAM_INT);
-        $stmt->bindValue(':o', (int)$pg['offset'], PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll() ?: [];
-        $rows = dedupe_items_for_listing($rows);
+        $chunkSize = (int)$pg['perPage'] + 1;
+        $cursor = (int)$pg['offset'];
+        $maxLoops = 6;
+        $collected = [];
+
+        for ($i = 0; $i < $maxLoops; $i++) {
+            $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
+            $stmt->bindValue(':l', $chunkSize, PDO::PARAM_INT);
+            $stmt->bindValue(':o', $cursor, PDO::PARAM_INT);
+            $stmt->execute();
+            $chunk = $stmt->fetchAll() ?: [];
+            if ($chunk === []) {
+                break;
+            }
+
+            $collected = dedupe_items_for_listing(array_merge($collected, $chunk));
+            if (count($collected) > (int)$pg['perPage']) {
+                break;
+            }
+
+            $fetched = count($chunk);
+            $cursor += $fetched;
+            if ($fetched < $chunkSize) {
+                break;
+            }
+        }
+
+        $rows = array_slice($collected, 0, (int)$pg['perPage']);
         break;
     } catch (Throwable) {
         $rows = [];

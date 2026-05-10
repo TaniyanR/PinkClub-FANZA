@@ -166,11 +166,39 @@ if (!function_exists('pcf_render_item_card')) {
             echo '<li>価格: ' . e($priceText) . '</li>';
         }
         echo '</ul>';
+        $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode($contentId));
+        $hasSampleImages = false;
+        $rawJson = (string)($item['raw_json'] ?? '');
+        if ($rawJson !== '') {
+            $raw = json_decode($rawJson, true);
+            if (is_array($raw)) {
+                $sampleImageURL = $raw['sampleImageURL'] ?? null;
+                if (is_array($sampleImageURL)) {
+                    foreach (['sample_l', 'sample_s'] as $sampleKey) {
+                        $images = $sampleImageURL[$sampleKey]['image'] ?? null;
+                        if (is_array($images)) {
+                            foreach ($images as $image) {
+                                if (trim((string)$image) !== '') {
+                                    $hasSampleImages = true;
+                                    break 2;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         echo '<div class="sample-buttons">';
         if ($sampleMovieUrl !== '') {
             echo '<a class="sample-button sample-button--enabled" href="' . e($sampleMovieUrl) . '" target="_blank" rel="noopener noreferrer">サンプル動画</a>';
         } else {
             echo '<span class="sample-button sample-button--disabled">サンプル動画</span>';
+        }
+        if ($hasSampleImages && $contentId !== '') {
+            echo '<a class="sample-button sample-button--enabled" href="' . e($sampleImagesUrl) . '" target="_blank" rel="noopener noreferrer">サンプル画像</a>';
+        } else {
+            echo '<span class="sample-button sample-button--disabled">サンプル画像</span>';
         }
         echo '<a class="sample-button sample-button--enabled" href="' . e($itemUrl) . '">詳細ページ</a>';
         echo '</div>';
