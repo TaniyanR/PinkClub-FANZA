@@ -4,6 +4,29 @@ declare(strict_types=1);
 
 class DmmNormalizer
 {
+    private static function firstNonEmptyString(mixed ...$values): ?string
+    {
+        foreach ($values as $value) {
+            if (is_string($value) && trim($value) !== '') {
+                return trim($value);
+            }
+        }
+        return null;
+    }
+
+    private static function extractTitle(array $row): string
+    {
+        $infoTitle = $row['iteminfo']['title'][0] ?? [];
+        $title = self::firstNonEmptyString(
+            $row['title'] ?? null,
+            $row['name'] ?? null,
+            $row['productTitle'] ?? null,
+            is_array($infoTitle) ? ($infoTitle['name'] ?? null) : null,
+            is_array($infoTitle) ? ($infoTitle['value'] ?? null) : null
+        );
+        return $title ?? '';
+    }
+
     public static function toList(mixed $value): array
     {
         if ($value === null || $value === '') {
@@ -44,7 +67,7 @@ class DmmNormalizer
                 'raw' => $row,
                 'content_id' => $row['content_id'] ?? null,
                 'product_id' => $row['product_id'] ?? null,
-                'title' => $row['title'] ?? '',
+                'title' => self::extractTitle($row),
                 'service_code' => $row['service_code'] ?? '',
                 'service_name' => $row['service_name'] ?? '',
                 'floor_code' => $row['floor_code'] ?? '',
@@ -55,9 +78,9 @@ class DmmNormalizer
                 'review_average' => isset($row['review']['average']) ? (float) $row['review']['average'] : null,
                 'url' => $row['URL'] ?? null,
                 'affiliate_url' => $row['affiliateURL'] ?? null,
-                'image_list' => $row['imageURL']['list'] ?? null,
-                'image_small' => $row['imageURL']['small'] ?? null,
-                'image_large' => $row['imageURL']['large'] ?? null,
+                'image_list' => self::firstNonEmptyString($row['imageURL']['list'] ?? null, $row['packageImage']['list'] ?? null),
+                'image_small' => self::firstNonEmptyString($row['imageURL']['small'] ?? null, $row['packageImage']['small'] ?? null),
+                'image_large' => self::firstNonEmptyString($row['imageURL']['large'] ?? null, $row['packageImage']['large'] ?? null),
                 'sample_movie_url_476' => $sampleMovie['size_476_306'] ?? null,
                 'sample_movie_url_560' => $sampleMovie['size_560_360'] ?? null,
                 'sample_movie_url_644' => $sampleMovie['size_644_414'] ?? null,
