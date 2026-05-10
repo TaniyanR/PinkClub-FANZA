@@ -154,30 +154,6 @@ function pick_sample_movie_urls_from_raw(array $raw): array
     return array_values(array_unique(array_filter(array_map(static fn($u) => trim((string)$u), $urls))));
 }
 
-
-function dedupe_index_items(array $items): array
-{
-    $seen = [];
-    $result = [];
-    foreach ($items as $item) {
-        if (!is_array($item)) {
-            continue;
-        }
-        $contentId = strtolower(trim((string)($item['content_id'] ?? '')));
-        $productId = strtolower(trim((string)($item['product_id'] ?? '')));
-        $id = trim((string)($item['id'] ?? ''));
-        $key = $contentId !== '' ? 'content_id:' . $contentId : ($productId !== '' ? 'product_id:' . $productId : ($id !== '' ? 'id:' . $id : ''));
-        if ($key !== '' && isset($seen[$key])) {
-            continue;
-        }
-        if ($key !== '') {
-            $seen[$key] = true;
-        }
-        $result[] = $item;
-    }
-    return $result;
-}
-
 function query_all_safe(PDO $pdo, string $sql, array $params = []): array
 {
     try {
@@ -359,7 +335,7 @@ try {
     if ($itemCount > 0) {
         $seedBase = intdiv(time(), 1800);
 
-        $latestRows = dedupe_index_items(fetch_items_with_order_fallback($pdo, [
+        $latestRows = dedupe_items_by_key(fetch_items_with_order_fallback($pdo, [
             'release_date DESC, updated_at DESC, id DESC',
             'date_published DESC, updated_at DESC, id DESC',
             'updated_at DESC, id DESC',
@@ -369,7 +345,7 @@ try {
         $latestBottom = array_slice($latestRows, 5, 15);
         $fallbackItems = array_slice($latestRows, 0, 12);
 
-        $popularRows = dedupe_index_items(fetch_items_with_order_fallback($pdo, [
+        $popularRows = dedupe_items_by_key(fetch_items_with_order_fallback($pdo, [
             'view_count DESC, release_date DESC, id DESC',
             'view_count DESC, date_published DESC, id DESC',
             'view_count DESC, id DESC',
@@ -407,7 +383,7 @@ try {
                      LIMIT 120'
                 );
                 $stmt->execute([':id' => (int)$genre['id']]);
-                $genreItems = pick_random_items(dedupe_index_items($stmt->fetchAll() ?: []), $seedBase + 30 + $index, 15);
+                $genreItems = pick_random_items(dedupe_items_by_key($stmt->fetchAll() ?: []), $seedBase + 30 + $index, 15);
                 $genreRows[] = ['id' => (int)$genre['id'], 'name' => (string)$genre['name'], 'items' => $genreItems];
             }
         }
@@ -429,7 +405,7 @@ try {
                 $seriesSection = [
                     'name' => (string)$picked['name'],
                     'url' => app_url('public/series_one.php?id=' . (int)$picked['id']),
-                    'items' => pick_random_items(dedupe_index_items($stmt->fetchAll() ?: []), $seedBase + 41, 15),
+                    'items' => pick_random_items(dedupe_items_by_key($stmt->fetchAll() ?: []), $seedBase + 41, 15),
                 ];
             }
         }
@@ -451,7 +427,7 @@ try {
                 $makerSection = [
                     'name' => (string)$picked['name'],
                     'url' => app_url('public/maker.php?id=' . (int)$picked['id']),
-                    'items' => pick_random_items(dedupe_index_items($stmt->fetchAll() ?: []), $seedBase + 51, 15),
+                    'items' => pick_random_items(dedupe_items_by_key($stmt->fetchAll() ?: []), $seedBase + 51, 15),
                 ];
             }
         }
@@ -474,7 +450,7 @@ try {
                 $authorSection = [
                     'name' => (string)$picked['name'],
                     'url' => app_url('public/author.php?id=' . (int)$picked['id']),
-                    'items' => pick_random_items(dedupe_index_items($stmt->fetchAll() ?: []), $seedBase + 61, 15),
+                    'items' => pick_random_items(dedupe_items_by_key($stmt->fetchAll() ?: []), $seedBase + 61, 15),
                 ];
             }
         }

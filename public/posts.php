@@ -6,29 +6,6 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/partials/_helpers.php';
 require_once __DIR__ . '/../lib/repository.php';
 
-function dedupe_items_for_list(array $items): array
-{
-    $seen = [];
-    $result = [];
-    foreach ($items as $item) {
-        if (!is_array($item)) {
-            continue;
-        }
-        $contentId = strtolower(trim((string)($item['content_id'] ?? '')));
-        $productId = strtolower(trim((string)($item['product_id'] ?? '')));
-        $id = trim((string)($item['id'] ?? ''));
-        $key = $contentId !== '' ? 'content_id:' . $contentId : ($productId !== '' ? 'product_id:' . $productId : ($id !== '' ? 'id:' . $id : ''));
-        if ($key !== '' && isset($seen[$key])) {
-            continue;
-        }
-        if ($key !== '') {
-            $seen[$key] = true;
-        }
-        $result[] = $item;
-    }
-    return $result;
-}
-
 function collect_unique_items_for_page(callable $fetcher, int $limit, int $offset): array
 {
     $rows = [];
@@ -44,7 +21,7 @@ function collect_unique_items_for_page(callable $fetcher, int $limit, int $offse
             break;
         }
 
-        $rows = dedupe_items_for_list(array_merge($rows, $chunk));
+        $rows = dedupe_items_by_key(array_merge($rows, $chunk));
         if (count($rows) >= $targetCount) {
             break;
         }
