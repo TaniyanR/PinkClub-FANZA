@@ -13,15 +13,47 @@ if (!function_exists('pcf_placeholder_data_uri')) {
     }
 }
 
+if (!function_exists('pcf_parse_image_urls')) {
+    function pcf_parse_image_urls(?string $value): array
+    {
+        if ($value === null || trim($value) === '') {
+            return [];
+        }
+
+        $trimmed = trim($value);
+        if ($trimmed !== '' && $trimmed[0] === '[') {
+            $decoded = json_decode($trimmed, true);
+            if (is_array($decoded)) {
+                return array_values(array_filter(array_map('strval', $decoded)));
+            }
+        }
+
+        $parts = preg_split('/[\r\n,|\s]+/', $value);
+        if (!is_array($parts)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map('trim', $parts), static fn(string $v): bool => $v !== ''));
+    }
+}
+
 if (!function_exists('pcf_item_image')) {
     function pcf_item_image(array $item): string
     {
-        foreach (['image_large', 'image_list', 'image_small'] as $key) {
+        foreach (['image_large', 'image_small'] as $key) {
             $value = trim((string)($item[$key] ?? ''));
             if ($value !== '') {
                 return $value;
             }
         }
+
+        foreach (pcf_parse_image_urls((string)($item['image_list'] ?? '')) as $image) {
+            $value = trim((string)$image);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
         return pcf_placeholder_data_uri('No Image');
     }
 }
@@ -115,7 +147,7 @@ if (!function_exists('pcf_render_breadcrumbs')) {
 }
 
 if (!function_exists('pcf_render_item_card')) {
-    function pcf_render_item_card(array $item): void
+    function pcf_render_item_card(array $item, int $width = 180, bool $preferFullPackageImage = false, bool $useRailStyle = false): void
     {
         $title = trim((string)($item['title'] ?? 'タイトル未設定'));
         $releaseDate = trim((string)($item['release_date'] ?? ''));
@@ -153,24 +185,72 @@ if (!function_exists('pcf_render_item_card')) {
             }
         }
 
-        echo '<article class="card rail-card rail-card--180 pcf-card pcf-item-card">';
+        $thumbUrl = trim((string)($item['image_small'] ?? ''));
+        if ($preferFullPackageImage) {
+            $fullPackageImage = pcf_item_image($item);
+            if ($fullPackageImage !== '') {
+                $thumbUrl = $fullPackageImage;
+            }
+        }
+        if ($thumbUrl === '') {
+            $thumbUrl = trim((string)($item['image_large'] ?? ''));
+        }
+
+        $cardClass = $useRailStyle
+            ? 'card rail-card rail-card--' . (int)$width
+            : 'card rail-card rail-card--' . (int)$width . ' pcf-card pcf-item-card';
+        echo '<article class="' . e($cardClass) . '"' . ($useRailStyle ? '' : ' style="width:' . (int)$width . 'px;min-width:' . (int)$width . 'px;max-width:' . (int)$width . 'px;"') . '>';
         echo '<a class="pcf-item-card__thumb-link" href="' . e($itemUrl) . '">';
-        echo '<img class="thumb pcf-item-card__thumb" src="' . e(pcf_item_image($item)) . '" alt="' . e($title) . '" loading="lazy">';
+        if ($thumbUrl !== '') {
+            echo '<img class="thumb' . ($useRailStyle ? '' : ' pcf-item-card__thumb') . '" src="' . e($thumbUrl) . '" alt="' . e($title) . '" loading="lazy"' . ($useRailStyle ? '' : ' style="width:' . (int)$width . 'px;max-width:' . (int)$width . 'px;"') . '>';
+        } else {
+            echo '<div class="rail-card__noimage"' . ($useRailStyle ? '' : ' style="width:' . (int)$width . 'px;height:' . (int)$width . 'px;"') . '>No Image</div>';
+        }
         echo '</a>';
-        echo '<a class="rail-card__title pcf-item-card__title" href="' . e($itemUrl) . '">' . e($title) . '</a>';
-        echo '<ul class="pcf-item-card__meta">';
-        if ($releaseDate !== '') {
-            echo '<li>発売日: ' . e(format_date($releaseDate)) . '</li>';
+        echo '<a class="rail-card__title' . ($useRailStyle ? '' : ' pcf-item-card__title') . '" href="' . e($itemUrl) . '">' . e($title) . '</a>';
+        if (!$useRailStyle) {
+            echo '<ul class="pcf-item-card__meta">';
+            if ($releaseDate !== '') {
+                echo '<li>発売日: ' . e(format_date($releaseDate)) . '</li>';
+            }
+            if ($priceText !== '') {
+                echo '<li>価格: ' . e($priceText) . '</li>';
+            }
+            echo '</ul>';
         }
-        if ($priceText !== '') {
-            echo '<li>価格: ' . e($priceText) . '</li>';
+        $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode($contentId));
+        $hasSampleImages = false;
+        $rawJson = (string)($item['raw_json'] ?? '');
+        if ($rawJson !== '') {
+            $raw = json_decode($rawJson, true);
+            if (is_array($raw)) {
+                $sampleImageURL = $raw['sampleImageURL'] ?? null;
+                if (is_array($sampleImageURL)) {
+                    foreach (['sample_l', 'sample_s'] as $sampleKey) {
+                        $images = $sampleImageURL[$sampleKey]['image'] ?? null;
+                        if (is_array($images)) {
+                            foreach ($images as $image) {
+                                if (trim((string)$image) !== '') {
+                                    $hasSampleImages = true;
+                                    break 2;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
-        echo '</ul>';
+
         echo '<div class="sample-buttons">';
         if ($sampleMovieUrl !== '') {
             echo '<a class="sample-button sample-button--enabled" href="' . e($sampleMovieUrl) . '" target="_blank" rel="noopener noreferrer">サンプル動画</a>';
         } else {
             echo '<span class="sample-button sample-button--disabled">サンプル動画</span>';
+        }
+        if ($hasSampleImages && $contentId !== '') {
+            echo '<a class="sample-button sample-button--enabled" href="' . e($sampleImagesUrl) . '" target="_blank" rel="noopener noreferrer">サンプル画像</a>';
+        } else {
+            echo '<span class="sample-button sample-button--disabled">サンプル画像</span>';
         }
         echo '<a class="sample-button sample-button--enabled" href="' . e($itemUrl) . '">詳細ページ</a>';
         echo '</div>';
