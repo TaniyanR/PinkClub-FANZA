@@ -13,16 +13,66 @@ if (!function_exists('pcf_placeholder_data_uri')) {
     }
 }
 
+if (!function_exists('pcf_parse_image_urls')) {
+    function pcf_parse_image_urls(?string $value): array
+    {
+        if ($value === null || trim($value) === '') {
+            return [];
+        }
+
+        $trimmed = trim($value);
+        if ($trimmed !== '' && $trimmed[0] === '[') {
+            $decoded = json_decode($trimmed, true);
+            if (is_array($decoded)) {
+                return array_values(array_filter(array_map('strval', $decoded)));
+            }
+        }
+
+        $parts = preg_split('/[\r\n,|\s]+/', $value);
+        if (!is_array($parts)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map('trim', $parts), static fn(string $v): bool => $v !== ''));
+    }
+}
+
 if (!function_exists('pcf_item_image')) {
     function pcf_item_image(array $item): string
     {
-        foreach (['image_large', 'image_list', 'image_small'] as $key) {
-            $value = trim((string)($item[$key] ?? ''));
+        $candidates = [
+            (string)($item['image_large'] ?? ''),
+            (string)($item['image_small'] ?? ''),
+            (string)($item['package_image_large'] ?? ''),
+            (string)($item['package_image_small'] ?? ''),
+        ];
+
+        $rawJson = (string)($item['raw_json'] ?? '');
+        if ($rawJson !== '') {
+            $raw = json_decode($rawJson, true);
+            if (is_array($raw)) {
+                $candidates[] = (string)($raw['packageImage']['large'] ?? '');
+                $candidates[] = (string)($raw['packageImage']['small'] ?? '');
+                $candidates[] = (string)($raw['imageURL']['large'] ?? '');
+                $candidates[] = (string)($raw['imageURL']['small'] ?? '');
+            }
+        }
+
+        foreach ($candidates as $candidate) {
+            $value = trim($candidate);
             if ($value !== '') {
                 return $value;
             }
         }
-        return pcf_placeholder_data_uri('No Image');
+
+        foreach (pcf_parse_image_urls((string)($item['image_list'] ?? '')) as $image) {
+            $value = trim((string)$image);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return '';
     }
 }
 
@@ -115,15 +165,15 @@ if (!function_exists('pcf_render_breadcrumbs')) {
 }
 
 if (!function_exists('pcf_render_item_card')) {
-    function pcf_render_item_card(array $item): void
+    function pcf_render_item_card(array $item, int $width = 180, bool $preferFullPackageImage = false): void
     {
-        $title = trim((string)($item['title'] ?? 'タイトル未設定'));
-        $releaseDate = trim((string)($item['release_date'] ?? ''));
-        $priceText = trim((string)($item['price_min_text'] ?? ''));
+        $title = trim((string)($item['title'] ?? ''));
+        if ($title === '') {
+            $title = 'タイトル未設定';
+        }
         $contentId = trim((string)($item['content_id'] ?? ''));
-        $itemUrl = $contentId !== ''
-            ? public_url('item.php?cid=' . rawurlencode($contentId))
-            : public_url('item.php?id=' . (int)($item['id'] ?? 0));
+        $itemUrl = $contentId !== '' ? public_url('item.php?cid=' . rawurlencode($contentId)) : public_url('item.php?id=' . (int)($item['id'] ?? 0));
+        $imageUrl = trim(pcf_item_image($item));
         $sampleMovieUrl = '';
         foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $movieColumn) {
             $candidate = trim((string)($item[$movieColumn] ?? ''));
@@ -132,52 +182,55 @@ if (!function_exists('pcf_render_item_card')) {
                 break;
             }
         }
-        if ($sampleMovieUrl === '') {
-            $rawJson = (string)($item['raw_json'] ?? '');
-            if ($rawJson !== '') {
-                $raw = json_decode($rawJson, true);
-                if (is_array($raw)) {
-                    $sampleMovie = $raw['sampleMovieURL'] ?? null;
-                    if (is_array($sampleMovie)) {
-                        foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
-                            $candidate = trim((string)($sampleMovie[$movieKey] ?? ''));
-                            if ($candidate !== '') {
-                                $sampleMovieUrl = $candidate;
-                                break;
+
+        $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode($contentId));
+        $hasSampleImages = false;
+        $rawJson = (string)($item['raw_json'] ?? '');
+        if ($rawJson !== '') {
+            $raw = json_decode($rawJson, true);
+            if (is_array($raw)) {
+                $sampleImageURL = $raw['sampleImageURL'] ?? null;
+                if (is_array($sampleImageURL)) {
+                    foreach (['sample_l', 'sample_s'] as $sampleKey) {
+                        $images = $sampleImageURL[$sampleKey]['image'] ?? null;
+                        if (is_array($images)) {
+                            foreach ($images as $image) {
+                                if (trim((string)$image) !== '') {
+                                    $hasSampleImages = true;
+                                    break 2;
+                                }
                             }
                         }
-                    } elseif (is_string($sampleMovie) && trim($sampleMovie) !== '') {
-                        $sampleMovieUrl = trim($sampleMovie);
                     }
                 }
             }
         }
 
-        echo '<article class="card rail-card rail-card--180 pcf-card pcf-item-card">';
-        echo '<a class="pcf-item-card__thumb-link" href="' . e($itemUrl) . '">';
-        echo '<img class="thumb pcf-item-card__thumb" src="' . e(pcf_item_image($item)) . '" alt="' . e($title) . '" loading="lazy">';
-        echo '</a>';
-        echo '<a class="rail-card__title pcf-item-card__title" href="' . e($itemUrl) . '">' . e($title) . '</a>';
-        echo '<ul class="pcf-item-card__meta">';
-        if ($releaseDate !== '') {
-            echo '<li>発売日: ' . e(format_date($releaseDate)) . '</li>';
-        }
-        if ($priceText !== '') {
-            echo '<li>価格: ' . e($priceText) . '</li>';
-        }
-        echo '</ul>';
-        echo '<div class="sample-buttons">';
-        if ($sampleMovieUrl !== '') {
-            echo '<a class="sample-button sample-button--enabled" href="' . e($sampleMovieUrl) . '" target="_blank" rel="noopener noreferrer">サンプル動画</a>';
+        echo '<article class="pcf-dm-card">';
+        echo '<a class="pcf-dm-card__image-link" href="' . e($itemUrl) . '">';
+        if ($imageUrl !== '') {
+            echo '<img class="pcf-dm-card__image" src="' . e($imageUrl) . '" alt="' . e($title) . '" loading="lazy">';
         } else {
-            echo '<span class="sample-button sample-button--disabled">サンプル動画</span>';
+            echo '<div class="pcf-dm-card__no-image">No Image</div>';
         }
-        echo '<a class="sample-button sample-button--enabled" href="' . e($itemUrl) . '">詳細ページ</a>';
+        echo '</a>';
+        echo '<h3 class="pcf-dm-card__title"><a href="' . e($itemUrl) . '">' . e($title) . '</a></h3>';
+        echo '<div class="pcf-dm-card__actions">';
+        if ($sampleMovieUrl !== '') {
+            echo '<a class="pcf-dm-card__button" href="' . e($sampleMovieUrl) . '" target="_blank" rel="noopener noreferrer">サンプル動画</a>';
+        } else {
+            echo '<span class="pcf-dm-card__button is-disabled">サンプル動画</span>';
+        }
+        if ($hasSampleImages && $contentId !== '') {
+            echo '<a class="pcf-dm-card__button" href="' . e($sampleImagesUrl) . '" target="_blank" rel="noopener noreferrer">サンプル画像</a>';
+        } else {
+            echo '<span class="pcf-dm-card__button is-disabled">サンプル画像</span>';
+        }
+        echo '<a class="pcf-dm-card__button" href="' . e($itemUrl) . '">詳細ページ</a>';
         echo '</div>';
         echo '</article>';
     }
 }
-
 
 if (!function_exists('pcf_render_taxonomy_card')) {
     function pcf_render_taxonomy_card(string $name, string $url, mixed $count = null): void
