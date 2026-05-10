@@ -46,8 +46,19 @@ function items_pick_full_package_image(array $item): string
 
 function items_render_pickup_second_row_card(array $item): void
 {
+    $raw = [];
+    $rawJson = (string)($item['raw_json'] ?? '');
+    if ($rawJson !== '') {
+        $decoded = json_decode($rawJson, true);
+        if (is_array($decoded)) {
+            $raw = $decoded;
+        }
+    }
     $itemUrl = public_url('item.php?id=' . (int)($item['id'] ?? 0));
-    $title = (string)($item['title'] ?? '');
+    $title = trim((string)($item['title'] ?? ''));
+    if ($title === '') {
+        $title = trim((string)($raw['title'] ?? $raw['iteminfo']['title'] ?? ''));
+    }
     $sampleMovieUrl = '';
     foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $movieColumn) {
         $candidate = trim((string)($item[$movieColumn] ?? ''));
@@ -56,8 +67,30 @@ function items_render_pickup_second_row_card(array $item): void
             break;
         }
     }
+    if ($sampleMovieUrl === '' && isset($raw['sampleMovieURL'])) {
+        if (is_string($raw['sampleMovieURL'])) {
+            $sampleMovieUrl = trim($raw['sampleMovieURL']);
+        } elseif (is_array($raw['sampleMovieURL'])) {
+            foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
+                $candidate = trim((string)($raw['sampleMovieURL'][$movieKey] ?? ''));
+                if ($candidate !== '') {
+                    $sampleMovieUrl = $candidate;
+                    break;
+                }
+            }
+        }
+    }
     $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')));
     $thumbUrl = items_pick_full_package_image($item);
+    if ($thumbUrl === '' && isset($raw['imageURL']) && is_array($raw['imageURL'])) {
+        foreach (['large', 'list', 'small'] as $imageKey) {
+            $candidate = trim((string)($raw['imageURL'][$imageKey] ?? ''));
+            if ($candidate !== '') {
+                $thumbUrl = $candidate;
+                break;
+            }
+        }
+    }
     $hasImages = $thumbUrl !== '';
     ?>
     <article class="card rail-card rail-card--200" style="width:200px;min-width:200px;max-width:200px;">
