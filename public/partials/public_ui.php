@@ -72,7 +72,51 @@ if (!function_exists('pcf_item_image')) {
             }
         }
 
+        if ($rawJson !== '') {
+            $raw = json_decode($rawJson, true);
+            if (is_array($raw)) {
+                foreach (pcf_parse_image_urls((string)($raw['imageURL']['list'] ?? '')) as $image) {
+                    $value = trim((string)$image);
+                    if ($value !== '') {
+                        return $value;
+                    }
+                }
+            }
+        }
+
         return '';
+    }
+}
+
+
+if (!function_exists('pcf_item_title')) {
+    function pcf_item_title(array $item): string
+    {
+        $raw = [];
+        $rawJson = (string)($item['raw_json'] ?? '');
+        if ($rawJson !== '') {
+            $decoded = json_decode($rawJson, true);
+            if (is_array($decoded)) {
+                $raw = $decoded;
+            }
+        }
+
+        $candidates = [
+            (string)($item['title'] ?? ''),
+            (string)($raw['title'] ?? ''),
+            (string)($raw['name'] ?? ''),
+            (string)($raw['productTitle'] ?? ''),
+            (string)($raw['iteminfo']['title'][0]['name'] ?? ''),
+            (string)($raw['iteminfo']['title'][0]['value'] ?? ''),
+        ];
+
+        foreach ($candidates as $candidate) {
+            $value = trim($candidate);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+        return 'タイトル未設定';
     }
 }
 
@@ -167,10 +211,7 @@ if (!function_exists('pcf_render_breadcrumbs')) {
 if (!function_exists('pcf_render_item_card')) {
     function pcf_render_item_card(array $item, int $width = 180, bool $preferFullPackageImage = false): void
     {
-        $title = trim((string)($item['title'] ?? ''));
-        if ($title === '') {
-            $title = 'タイトル未設定';
-        }
+        $title = pcf_item_title($item);
         $contentId = trim((string)($item['content_id'] ?? ''));
         $itemUrl = $contentId !== '' ? public_url('item.php?cid=' . rawurlencode($contentId)) : public_url('item.php?id=' . (int)($item['id'] ?? 0));
         $imageUrl = trim(pcf_item_image($item));
