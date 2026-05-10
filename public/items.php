@@ -156,7 +156,8 @@ require __DIR__ . '/partials/header.php';
 <?php pcf_render_hero('商品一覧', '最新の作品を一覧でチェックできます。'); ?>
 
 <?php if ($rows !== []): ?>
-  <section class="rail-row rail-row--200 rail-row--wide-thumb">
+  <section class="rail-section">
+    <div class="rail-row rail-row--200 rail-row--wide-thumb">
     <?php foreach ($rows as $r): ?>
       <?php
       $itemRow = is_array($r) ? $r : [];
@@ -173,6 +174,7 @@ require __DIR__ . '/partials/header.php';
       pcf_render_item_card($itemRow, 200, true);
       ?>
     <?php endforeach; ?>
+    </div>
   </section>
   <?php pcf_render_pagination($pg, public_url('items.php')); ?>
 <?php else: ?>

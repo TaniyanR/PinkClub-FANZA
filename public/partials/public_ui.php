@@ -111,7 +111,6 @@ if (!function_exists('pcf_item_image')) {
     }
 }
 
-
 if (!function_exists('pcf_item_title')) {
     function pcf_item_title(array $item): string
     {
