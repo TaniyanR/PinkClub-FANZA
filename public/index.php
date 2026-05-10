@@ -513,13 +513,13 @@ $hasHomeContent = $latestTop !== []
   <section class="rail-section">
     <h2>新着作品</h2>
     <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($latestTop as $item) { render_item_card($item, 210); } ?></div>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb"><?php foreach ($latestBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll"><?php foreach ($latestBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
 
   <section class="rail-section">
     <h2>ピックアップ（人気順）</h2>
     <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($pickupTop as $item) { render_item_card($item, 210); } ?></div>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb"><?php foreach ($pickupBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll"><?php foreach ($pickupBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
 
   <section class="rail-section">
