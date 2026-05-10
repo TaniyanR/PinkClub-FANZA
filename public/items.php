@@ -5,6 +5,77 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
+function items_parse_image_urls(?string $value): array
+{
+    if ($value === null || trim($value) === '') {
+        return [];
+    }
+    $trimmed = trim($value);
+    if ($trimmed !== '' && $trimmed[0] === '[') {
+        $decoded = json_decode($trimmed, true);
+        if (is_array($decoded)) {
+            return array_values(array_filter(array_map('strval', $decoded)));
+        }
+    }
+    $parts = preg_split('/[\r\n,|\s]+/', $value);
+    if (!is_array($parts)) {
+        return [];
+    }
+    return array_values(array_filter(array_map('trim', $parts), static fn(string $v): bool => $v !== ''));
+}
+
+function items_pick_full_package_image(array $item): string
+{
+    foreach (['image_large', 'image_list', 'image_small'] as $key) {
+        if ($key === 'image_list') {
+            foreach (items_parse_image_urls((string)($item['image_list'] ?? '')) as $image) {
+                $candidate = trim((string)$image);
+                if ($candidate !== '') {
+                    return $candidate;
+                }
+            }
+            continue;
+        }
+        $candidate = trim((string)($item[$key] ?? ''));
+        if ($candidate !== '') {
+            return $candidate;
+        }
+    }
+    return '';
+}
+
+function items_render_pickup_second_row_card(array $item): void
+{
+    $itemUrl = public_url('item.php?id=' . (int)($item['id'] ?? 0));
+    $title = (string)($item['title'] ?? '');
+    $sampleMovieUrl = '';
+    foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $movieColumn) {
+        $candidate = trim((string)($item[$movieColumn] ?? ''));
+        if ($candidate !== '') {
+            $sampleMovieUrl = $candidate;
+            break;
+        }
+    }
+    $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')));
+    $thumbUrl = items_pick_full_package_image($item);
+    $hasImages = $thumbUrl !== '';
+    ?>
+    <article class="card rail-card rail-card--200" style="width:200px;min-width:200px;max-width:200px;">
+      <?php if ($thumbUrl !== ''): ?>
+        <img class="thumb" src="<?= e($thumbUrl) ?>" alt="<?= e($title) ?>" style="width:200px;max-width:200px;">
+      <?php else: ?>
+        <div class="rail-card__noimage" style="width:200px;height:200px;">No Image</div>
+      <?php endif; ?>
+      <a class="rail-card__title" href="<?= e($itemUrl) ?>"><?= e($title !== '' ? $title : 'タイトル未設定') ?></a>
+      <div class="sample-buttons">
+        <button type="button" class="<?= e($sampleMovieUrl !== '' ? 'sample-button sample-button--enabled sample-movie-trigger' : 'sample-button sample-button--disabled') ?>" <?= $sampleMovieUrl === '' ? 'disabled' : '' ?> data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e($title) ?>">サンプル動画</button>
+        <button type="button" class="<?= e($hasImages ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled') ?>" <?= !$hasImages ? 'disabled' : '' ?> onclick="<?= $hasImages ? "window.open('" . e($sampleImagesUrl) . "','_blank','noopener,noreferrer,width=760,height=540');" : 'return false;' ?>">サンプル画像</button>
+        <button type="button" class="sample-button sample-button--enabled" onclick="window.location.href='<?= e($itemUrl) ?>';">詳細ページ</button>
+      </div>
+    </article>
+    <?php
+}
+
 function dedupe_items_for_listing(array $items): array
 {
     $seen = [];
@@ -151,7 +222,7 @@ require __DIR__ . '/partials/header.php';
   <section class="rail-section">
     <div class="rail-row rail-row--200 rail-row--wide-thumb">
     <?php foreach ($rows as $r): ?>
-      <?php pcf_render_item_card(is_array($r) ? $r : [], 200, true, true); ?>
+      <?php items_render_pickup_second_row_card(is_array($r) ? $r : []); ?>
     <?php endforeach; ?>
     </div>
   </section>
