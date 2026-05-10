@@ -13,15 +13,47 @@ if (!function_exists('pcf_placeholder_data_uri')) {
     }
 }
 
+if (!function_exists('pcf_parse_image_urls')) {
+    function pcf_parse_image_urls(?string $value): array
+    {
+        if ($value === null || trim($value) === '') {
+            return [];
+        }
+
+        $trimmed = trim($value);
+        if ($trimmed !== '' && $trimmed[0] === '[') {
+            $decoded = json_decode($trimmed, true);
+            if (is_array($decoded)) {
+                return array_values(array_filter(array_map('strval', $decoded)));
+            }
+        }
+
+        $parts = preg_split('/[\r\n,|\s]+/', $value);
+        if (!is_array($parts)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map('trim', $parts), static fn(string $v): bool => $v !== ''));
+    }
+}
+
 if (!function_exists('pcf_item_image')) {
     function pcf_item_image(array $item): string
     {
-        foreach (['image_large', 'image_list', 'image_small'] as $key) {
+        foreach (['image_large', 'image_small'] as $key) {
             $value = trim((string)($item[$key] ?? ''));
             if ($value !== '') {
                 return $value;
             }
         }
+
+        foreach (pcf_parse_image_urls((string)($item['image_list'] ?? '')) as $image) {
+            $value = trim((string)$image);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
         return pcf_placeholder_data_uri('No Image');
     }
 }
