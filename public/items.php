@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/partials/public_ui.php';
+require_once __DIR__ . '/../lib/repository.php';
 
 function items_parse_image_urls(?string $value): array
 {
@@ -276,7 +277,20 @@ require __DIR__ . '/partials/header.php';
 <?php if ($rows !== []): ?>
   <section class="rail-row rail-row--200 rail-row--wide-thumb">
     <?php foreach ($rows as $r): ?>
-      <?php pcf_render_item_card(is_array($r) ? $r : [], 200, true); ?>
+      <?php
+      $itemRow = is_array($r) ? $r : [];
+      $contentId = trim((string)($itemRow['content_id'] ?? ''));
+      if ($contentId !== '' && function_exists('fetch_item_by_content_id')) {
+          try {
+              $resolved = fetch_item_by_content_id($contentId);
+              if (is_array($resolved)) {
+                  $itemRow = array_merge($itemRow, $resolved);
+              }
+          } catch (Throwable) {
+          }
+      }
+      pcf_render_item_card($itemRow, 200, true);
+      ?>
     <?php endforeach; ?>
   </section>
   <?php pcf_render_pagination($pg, public_url('items.php')); ?>
