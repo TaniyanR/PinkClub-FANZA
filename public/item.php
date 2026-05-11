@@ -214,20 +214,20 @@ require __DIR__ . '/partials/header.php';
   </div>
   <?php if ($accessRankingRows !== []): ?>
     <div style="max-height:800px; overflow-y:auto; border:1px solid #ddd;">
-      <table style="width:100%; border-collapse:collapse;">
+      <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
         <thead>
           <tr>
-            <th style="text-align:left; padding:8px; border-bottom:1px solid #ddd;">順位</th>
-            <th style="text-align:left; padding:8px; border-bottom:1px solid #ddd;">作品タイトル</th>
-            <th style="text-align:right; padding:8px; border-bottom:1px solid #ddd;">アクセス数</th>
+            <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
+            <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">作品タイトル</th>
+            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">アクセス数</th>
           </tr>
         </thead>
         <tbody>
           <?php foreach ($accessRankingRows as $index => $rankingRow): ?>
             <tr>
-              <td style="padding:8px; border-bottom:1px solid #eee;"><?= e((string)($index + 1)) ?></td>
-              <td style="padding:8px; border-bottom:1px solid #eee;"><?= e((string)($rankingRow['title'] ?? '')) ?></td>
-              <td style="padding:8px; border-bottom:1px solid #eee; text-align:right;"><?= e((string)((int)($rankingRow['access_count'] ?? 0))) ?></td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><?= e((string)($index + 1)) ?></td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:left;"><?= e((string)($rankingRow['title'] ?? '')) ?></td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><?= e((string)((int)($rankingRow['access_count'] ?? 0))) ?></td>
             </tr>
           <?php endforeach; ?>
         </tbody>
