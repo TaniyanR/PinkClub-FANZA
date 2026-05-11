@@ -16,6 +16,19 @@ try {
     $rows = [];
 }
 
+if (!isset($GLOBALS['pcf_rss_widget_used_keys']) || !is_array($GLOBALS['pcf_rss_widget_used_keys'])) {
+    $GLOBALS['pcf_rss_widget_used_keys'] = [];
+}
+foreach ($rows as $rssRow) {
+    if (!is_array($rssRow)) {
+        continue;
+    }
+    $key = rss_normalize_display_key($rssRow);
+    if ($key !== '') {
+        $GLOBALS['pcf_rss_widget_used_keys'][$key] = true;
+    }
+}
+
 $pageTitle = 'RSS';
 include __DIR__ . '/partials/header.php';
 ?>
