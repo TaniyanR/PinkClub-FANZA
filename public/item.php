@@ -277,7 +277,7 @@ if (db_table_exists('item_authors')) {
     }
 }
 
-$relatedItems = item_unique_rows($relatedItems, ['content_id']);
+$relatedItems = dedupe_items_by_key($relatedItems);
 $actresses = item_unique_rows($actresses, ['id', 'name']);
 $genres = item_unique_rows($genres, ['id', 'name']);
 $makers = item_unique_rows($makers, ['id', 'name']);

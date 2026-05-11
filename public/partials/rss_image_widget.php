@@ -47,6 +47,26 @@ try {
 } catch (Throwable $e) {
     $items = [];
 }
+
+$rssUsedKeys = [];
+if (isset($GLOBALS['pcf_rss_widget_used_keys']) && is_array($GLOBALS['pcf_rss_widget_used_keys'])) {
+    $rssUsedKeys = $GLOBALS['pcf_rss_widget_used_keys'];
+}
+if ($items !== []) {
+    $filteredItems = [];
+    foreach ($items as $item) {
+        $key = rss_normalize_display_key(is_array($item) ? $item : []);
+        if ($key !== '' && isset($rssUsedKeys[$key])) {
+            continue;
+        }
+        if ($key !== '') {
+            $rssUsedKeys[$key] = true;
+        }
+        $filteredItems[] = $item;
+    }
+    $items = $filteredItems;
+}
+$GLOBALS['pcf_rss_widget_used_keys'] = $rssUsedKeys;
 ?>
 <div class="rss-widget rss-widget--image">
     <?php if ($items !== []) : ?>
