@@ -507,6 +507,16 @@ $packageImage = pcf_item_image(is_array($item) ? $item : []);
 if (str_starts_with($packageImage, 'data:image/svg+xml')) {
     $packageImage = '';
 }
+
+$accessRankingRows = [];
+try {
+    $rankingStmt = db()->prepare('SELECT id, title, view_count FROM items ORDER BY view_count DESC, id DESC LIMIT 200');
+    $rankingStmt->execute();
+    $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+} catch (Throwable) {
+    $accessRankingRows = [];
+}
+
 require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_breadcrumbs([
@@ -584,6 +594,36 @@ require __DIR__ . '/partials/header.php';
   <?php else: ?>
     <?php pcf_render_empty('関連作品はありません。'); ?>
   <?php endif; ?>
+
+
+  <section class="block" style="margin-top:24px;">
+    <h2 class="section-title">アクセスランキング</h2>
+    <?php if ($accessRankingRows !== []): ?>
+      <div style="max-height:800px; overflow-y:auto; border:1px solid #ddd;">
+        <table style="width:100%; border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="text-align:left; padding:8px; border-bottom:1px solid #ddd;">順位</th>
+              <th style="text-align:left; padding:8px; border-bottom:1px solid #ddd;">作品タイトル</th>
+              <th style="text-align:right; padding:8px; border-bottom:1px solid #ddd;">アクセス数</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($accessRankingRows as $index => $rankingRow): ?>
+              <tr>
+                <td style="padding:8px; border-bottom:1px solid #eee;"><?= e((string)($index + 1)) ?></td>
+                <td style="padding:8px; border-bottom:1px solid #eee;"><?= e((string)($rankingRow['title'] ?? '')) ?></td>
+                <td style="padding:8px; border-bottom:1px solid #eee; text-align:right;"><?= e((string)((int)($rankingRow['view_count'] ?? 0))) ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php else: ?>
+      <?php pcf_render_empty('アクセスランキングのデータがありません。'); ?>
+    <?php endif; ?>
+  </section>
+
 </article>
 
 <div id="pcf-image-viewer-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:1200;">
