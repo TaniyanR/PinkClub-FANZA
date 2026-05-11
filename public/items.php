@@ -151,9 +151,20 @@ foreach ($orderSqlCandidates as $orderSql) {
 }
 
 
+$accessRankingPeriod = trim((string)get('rank_period', 'daily'));
+$accessRankingTabs = [
+    'daily' => ['label' => '24時間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 1 DAY)'],
+    'weekly' => ['label' => '週間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 7 DAY)'],
+    'monthly' => ['label' => '月間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 1 MONTH)'],
+    'yearly' => ['label' => '年間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 1 YEAR)'],
+];
+if (!isset($accessRankingTabs[$accessRankingPeriod])) {
+    $accessRankingPeriod = 'daily';
+}
 $accessRankingRows = [];
 try {
-    $rankingStmt = db()->prepare('SELECT id, title, view_count FROM items ORDER BY view_count DESC, id DESC LIMIT 200');
+    $whereSql = (string)$accessRankingTabs[$accessRankingPeriod]['where'];
+    $rankingStmt = db()->prepare('SELECT i.id, i.title, COUNT(pv.id) AS access_count FROM page_views pv INNER JOIN items i ON i.id = pv.item_id WHERE ' . $whereSql . ' GROUP BY i.id, i.title ORDER BY access_count DESC, i.id DESC LIMIT 200');
     $rankingStmt->execute();
     $accessRankingRows = $rankingStmt->fetchAll() ?: [];
 } catch (Throwable) {
@@ -194,6 +205,13 @@ require __DIR__ . '/partials/header.php';
 
 <section class="block" style="margin-top:24px;">
   <h2 class="section-title">アクセスランキング</h2>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+    <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
+      <?php $tabUrl = public_url(basename(__FILE__)) . '?rank_period=' . rawurlencode((string)$tabKey); ?>
+      <?php $tabStyle = $accessRankingPeriod === $tabKey ? 'font-weight:700; text-decoration:underline;' : ''; ?>
+      <a href="<?= e($tabUrl) ?>" style="<?= e($tabStyle) ?>"><?= e((string)$tabConfig['label']) ?></a>
+    <?php endforeach; ?>
+  </div>
   <?php if ($accessRankingRows !== []): ?>
     <div style="max-height:800px; overflow-y:auto; border:1px solid #ddd;">
       <table style="width:100%; border-collapse:collapse;">
@@ -209,7 +227,7 @@ require __DIR__ . '/partials/header.php';
             <tr>
               <td style="padding:8px; border-bottom:1px solid #eee;"><?= e((string)($index + 1)) ?></td>
               <td style="padding:8px; border-bottom:1px solid #eee;"><?= e((string)($rankingRow['title'] ?? '')) ?></td>
-              <td style="padding:8px; border-bottom:1px solid #eee; text-align:right;"><?= e((string)((int)($rankingRow['view_count'] ?? 0))) ?></td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:right;"><?= e((string)((int)($rankingRow['access_count'] ?? 0))) ?></td>
             </tr>
           <?php endforeach; ?>
         </tbody>
