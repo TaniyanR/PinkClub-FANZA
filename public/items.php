@@ -150,6 +150,27 @@ foreach ($orderSqlCandidates as $orderSql) {
     }
 }
 
+
+$accessRankingPeriod = trim((string)get('rank_period', 'daily'));
+$accessRankingTabs = [
+    'daily' => ['label' => '24時間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 1 DAY)'],
+    'weekly' => ['label' => '週間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 7 DAY)'],
+    'monthly' => ['label' => '月間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 1 MONTH)'],
+    'yearly' => ['label' => '年間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 1 YEAR)'],
+];
+if (!isset($accessRankingTabs[$accessRankingPeriod])) {
+    $accessRankingPeriod = 'daily';
+}
+$accessRankingRows = [];
+try {
+    $whereSql = (string)$accessRankingTabs[$accessRankingPeriod]['where'];
+    $rankingStmt = db()->prepare('SELECT i.id, i.title, COUNT(pv.id) AS access_count FROM page_views pv INNER JOIN items i ON i.id = pv.item_id WHERE ' . $whereSql . ' GROUP BY i.id, i.title ORDER BY access_count DESC, i.id DESC LIMIT 200');
+    $rankingStmt->execute();
+    $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+} catch (Throwable) {
+    $accessRankingRows = [];
+}
+
 $title = '商品一覧';
 require __DIR__ . '/partials/header.php';
 ?>
@@ -180,5 +201,41 @@ require __DIR__ . '/partials/header.php';
 <?php else: ?>
   <?php pcf_render_empty('商品データがまだ登録されていません。'); ?>
 <?php endif; ?>
+
+
+<section class="block" style="margin-top:24px;">
+  <h2 class="section-title">アクセスランキング</h2>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+    <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
+      <?php $tabUrl = public_url(basename(__FILE__)) . '?rank_period=' . rawurlencode((string)$tabKey); ?>
+      <?php $tabStyle = $accessRankingPeriod === $tabKey ? 'font-weight:700; text-decoration:underline;' : ''; ?>
+      <a href="<?= e($tabUrl) ?>" style="<?= e($tabStyle) ?>"><?= e((string)$tabConfig['label']) ?></a>
+    <?php endforeach; ?>
+  </div>
+  <?php if ($accessRankingRows !== []): ?>
+    <div style="max-height:800px; overflow-y:auto; border:1px solid #ddd;">
+      <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
+        <thead>
+          <tr>
+            <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
+            <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">作品タイトル</th>
+            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">アクセス数</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($accessRankingRows as $index => $rankingRow): ?>
+            <tr>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:center; background:#0b5ed7; color:#fff;"><?= e((string)($index + 1)) ?></td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:center; background:#0b5ed7; color:#fff;"><?= e((string)($rankingRow['title'] ?? '')) ?></td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:center; background:#0b5ed7; color:#fff;"><?= e((string)((int)($rankingRow['access_count'] ?? 0))) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  <?php else: ?>
+    <?php pcf_render_empty('アクセスランキングのデータがありません。'); ?>
+  <?php endif; ?>
+</section>
 
 <?php require __DIR__ . '/partials/footer.php'; ?>
