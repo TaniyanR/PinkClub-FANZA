@@ -150,6 +150,16 @@ foreach ($orderSqlCandidates as $orderSql) {
     }
 }
 
+
+$accessRankingRows = [];
+try {
+    $rankingStmt = db()->prepare('SELECT id, title, view_count FROM items ORDER BY view_count DESC, id DESC LIMIT 200');
+    $rankingStmt->execute();
+    $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+} catch (Throwable) {
+    $accessRankingRows = [];
+}
+
 $title = '商品一覧';
 require __DIR__ . '/partials/header.php';
 ?>
@@ -180,5 +190,34 @@ require __DIR__ . '/partials/header.php';
 <?php else: ?>
   <?php pcf_render_empty('商品データがまだ登録されていません。'); ?>
 <?php endif; ?>
+
+
+<section class="block" style="margin-top:24px;">
+  <h2 class="section-title">アクセスランキング</h2>
+  <?php if ($accessRankingRows !== []): ?>
+    <div style="max-height:800px; overflow-y:auto; border:1px solid #ddd;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #ddd;">順位</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid #ddd;">作品タイトル</th>
+            <th style="text-align:right; padding:8px; border-bottom:1px solid #ddd;">アクセス数</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($accessRankingRows as $index => $rankingRow): ?>
+            <tr>
+              <td style="padding:8px; border-bottom:1px solid #eee;"><?= e((string)($index + 1)) ?></td>
+              <td style="padding:8px; border-bottom:1px solid #eee;"><?= e((string)($rankingRow['title'] ?? '')) ?></td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:right;"><?= e((string)((int)($rankingRow['view_count'] ?? 0))) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  <?php else: ?>
+    <?php pcf_render_empty('アクセスランキングのデータがありません。'); ?>
+  <?php endif; ?>
+</section>
 
 <?php require __DIR__ . '/partials/footer.php'; ?>
