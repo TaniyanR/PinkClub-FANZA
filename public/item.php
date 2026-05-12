@@ -612,17 +612,7 @@ require __DIR__ . '/partials/header.php';
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php
-      $tabQuery = ['rank_period' => (string)$tabKey];
-      if ($id > 0) {
-          $tabQuery['id'] = (string)$id;
-      }
-      if ($contentId !== '') {
-          $tabQuery['content_id'] = $contentId;
-      }
-      if ($cid !== '') {
-          $tabQuery['cid'] = $cid;
-      }
-      $tabUrl = public_url(basename(__FILE__)) . '?' . http_build_query($tabQuery);
+      $tabUrl = public_url('items.php') . '?rank_period=' . rawurlencode((string)$tabKey);
       ?>
       <?php $tabStyle = $accessRankingPeriod === $tabKey ? 'font-weight:700; text-decoration:underline;' : ''; ?>
       <a href="<?= e($tabUrl) ?>" style="<?= e($tabStyle) ?>"><?= e((string)$tabConfig['label']) ?></a>
