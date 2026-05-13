@@ -177,7 +177,7 @@ try {
         $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
     }
 
-    $rankingStmt = db()->prepare('SELECT i.id, i.content_id, i.title, COUNT(pv.id) AS access_count FROM page_views pv INNER JOIN items i ON i.id = pv.item_id WHERE pv.viewed_at >= :period_from GROUP BY i.id, i.title ORDER BY access_count DESC, i.id DESC LIMIT 200');
+    $rankingStmt = db()->prepare('SELECT MAX(i.id) AS id, i.content_id, MAX(i.title) AS title, COUNT(pv.id) AS access_count FROM page_views pv INNER JOIN items i ON i.id = pv.item_id WHERE pv.viewed_at >= :period_from GROUP BY i.content_id ORDER BY access_count DESC, id DESC LIMIT 200');
     $rankingStmt->execute([':period_from' => $periodFrom]);
     $accessRankingRows = $rankingStmt->fetchAll() ?: [];
 } catch (Throwable) {
@@ -219,7 +219,7 @@ require __DIR__ . '/partials/header.php';
   <h2 class="section-title">アクセスランキング</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
-      <?php $tabUrl = public_url(basename(__FILE__)) . '?rank_period=' . rawurlencode((string)$tabKey) . '#access-ranking'; ?>
+      <?php $tabUrl = public_url('items.php') . '?rank_period=' . rawurlencode((string)$tabKey) . '#access-ranking'; ?>
       <?php $tabStyle = $accessRankingPeriod === $tabKey ? 'display:inline-block; padding:6px 12px; border:1px solid #0b5ed7; border-radius:6px; background:#0b5ed7; color:#fff; font-weight:700; text-decoration:none;' : 'display:inline-block; padding:6px 12px; border:1px solid #0b5ed7; border-radius:6px; background:#fff; color:#0b5ed7; font-weight:700; text-decoration:none;'; ?>
       <a href="<?= e($tabUrl) ?>" style="<?= e($tabStyle) ?>"><?= e((string)$tabConfig['label']) ?></a>
     <?php endforeach; ?>
