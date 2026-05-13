@@ -235,7 +235,8 @@ if (!function_exists('pcf_render_item_card')) {
     {
         $title = pcf_item_title($item);
         $contentId = trim((string)($item['content_id'] ?? ''));
-        $itemUrl = $contentId !== '' ? public_url('item.php?cid=' . rawurlencode($contentId)) : public_url('item.php?id=' . (int)($item['id'] ?? 0));
+        $itemId = (int)($item['id'] ?? 0);
+        $itemUrl = $itemId > 0 ? public_url('item.php?id=' . $itemId) : ($contentId !== '' ? public_url('item.php?cid=' . rawurlencode($contentId)) : public_url('items.php'));
         $imageUrl = trim(pcf_item_image($item));
         $sampleMovieUrl = '';
         foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $movieColumn) {
