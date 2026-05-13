@@ -235,8 +235,19 @@ if (!function_exists('pcf_render_item_card')) {
     {
         $title = pcf_item_title($item);
         $contentId = trim((string)($item['content_id'] ?? ''));
+        if ($contentId === '') {
+            $raw = [];
+            $rawJson = (string)($item['raw_json'] ?? '');
+            if ($rawJson !== '') {
+                $decoded = json_decode($rawJson, true);
+                if (is_array($decoded)) {
+                    $raw = $decoded;
+                }
+            }
+            $contentId = trim((string)($raw['content_id'] ?? ''));
+        }
         $itemId = (int)($item['id'] ?? 0);
-        $itemUrl = $itemId > 0 ? public_url('item.php?id=' . $itemId) : ($contentId !== '' ? public_url('item.php?cid=' . rawurlencode($contentId)) : public_url('items.php'));
+        $itemUrl = $itemId > 0 ? public_url('item.php?id=' . $itemId) : public_url('item.php?cid=' . rawurlencode($contentId));
         $imageUrl = trim(pcf_item_image($item));
         $sampleMovieUrl = '';
         foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $movieColumn) {
