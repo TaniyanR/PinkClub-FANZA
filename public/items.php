@@ -150,7 +150,6 @@ foreach ($orderSqlCandidates as $orderSql) {
     }
 }
 
-
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
 $accessRankingTabs = [
     'daily' => ['label' => '24時間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 1 DAY)'],
@@ -215,7 +214,6 @@ require __DIR__ . '/partials/header.php';
 <?php else: ?>
   <?php pcf_render_empty('商品データがまだ登録されていません。'); ?>
 <?php endif; ?>
-
 
 <section id="access-ranking" class="block" style="margin-top:24px;">
   <h2 class="section-title">アクセスランキング</h2>
