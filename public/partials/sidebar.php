@@ -53,6 +53,31 @@ if ($fixedPages === []) {
 if ($fixedPages === []) {
     $fixedPages = $defaultFixedPages;
 }
+
+if ($fixedPages !== []) {
+    $dedupedFixedPages = [];
+    $seenFixedPageKeys = [];
+    foreach ($fixedPages as $page) {
+        if (!is_array($page)) {
+            continue;
+        }
+        $slug = trim((string)($page['slug'] ?? ''));
+        $href = trim((string)($page['href'] ?? ''));
+        $title = trim((string)($page['title'] ?? ''));
+        $key = $slug !== '' ? 'slug:' . mb_strtolower($slug) : ($href !== '' ? 'href:' . rss_normalize_url($href) : '');
+        if ($key === '') {
+            $key = 'title:' . mb_strtolower($title);
+        }
+        if ($key !== '' && isset($seenFixedPageKeys[$key])) {
+            continue;
+        }
+        if ($key !== '') {
+            $seenFixedPageKeys[$key] = true;
+        }
+        $dedupedFixedPages[] = $page;
+    }
+    $fixedPages = $dedupedFixedPages;
+}
 ?>
 <aside class="sidebar site-sidebar">
     <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
