@@ -166,11 +166,11 @@ try {
     if ($accessRankingPeriod === 'daily') {
         $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
     } elseif ($accessRankingPeriod === 'weekly') {
-        $periodFrom = date('Y-m-d 00:00:00', strtotime('-7 days'));
+        $periodFrom = date('Y-m-d H:i:s', strtotime('-7 days'));
     } elseif ($accessRankingPeriod === 'monthly') {
-        $periodFrom = date('Y-m-d 00:00:00', strtotime('-1 month'));
+        $periodFrom = date('Y-m-d H:i:s', strtotime('-1 month'));
     } elseif ($accessRankingPeriod === 'yearly') {
-        $periodFrom = date('Y-m-d 00:00:00', strtotime('-1 year'));
+        $periodFrom = date('Y-m-d H:i:s', strtotime('-1 year'));
     }
 
     if ($periodFrom === null) {

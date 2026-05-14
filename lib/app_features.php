@@ -391,9 +391,7 @@ function rss_normalize_url(string $url): string
     $scheme = strtolower((string)($parts['scheme'] ?? ''));
     $host = strtolower((string)($parts['host'] ?? ''));
     $path = isset($parts['path']) ? rtrim((string)$parts['path'], '/') : '';
-    $query = isset($parts['query']) ? (string)$parts['query'] : '';
-
-    return $scheme . '|' . $host . '|' . $path . '|' . $query;
+    return $scheme . '|' . $host . '|' . $path;
 }
 
 function rss_normalize_display_key(array $item): string
