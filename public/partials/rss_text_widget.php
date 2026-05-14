@@ -48,9 +48,7 @@ foreach ($items as $item) {
     }
 }
 
-if ($filteredItems !== []) {
-    $items = $filteredItems;
-}
+$items = $filteredItems;
 $GLOBALS['pcf_rss_widget_used_keys'] = $rssUsedKeys;
 ?>
 <div class="rss-widget rss-widget--text block">
