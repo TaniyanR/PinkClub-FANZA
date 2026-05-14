@@ -28,13 +28,20 @@ function contact_destination_email(?int $currentUserId): array
 }
 
 $slug = trim((string)($_GET['slug'] ?? ''));
-if ($slug === '') {
+$pageId = (int)($_GET['id'] ?? $_GET['page_id'] ?? 0);
+
+if ($slug === '' && $pageId <= 0) {
     include __DIR__ . '/404.php';
     exit;
 }
 
-$st = db()->prepare('SELECT * FROM fixed_pages WHERE slug=:slug AND is_published=1 LIMIT 1');
-$st->execute([':slug' => $slug]);
+if ($pageId > 0) {
+    $st = db()->prepare('SELECT * FROM fixed_pages WHERE id=:id AND is_published=1 LIMIT 1');
+    $st->execute([':id' => $pageId]);
+} else {
+    $st = db()->prepare('SELECT * FROM fixed_pages WHERE slug=:slug AND is_published=1 LIMIT 1');
+    $st->execute([':slug' => $slug]);
+}
 $p = $st->fetch(PDO::FETCH_ASSOC);
 if (!is_array($p)) {
     include __DIR__ . '/404.php';
@@ -50,7 +57,9 @@ $contactForm = [
     'email' => '',
 ];
 
-if ($slug === 'contact' && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST')) {
+$resolvedSlug = trim((string)($p['slug'] ?? $slug));
+
+if ($resolvedSlug === 'contact' && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST')) {
     $contactForm['subject'] = trim((string)($_POST['subject'] ?? ''));
     $contactForm['message'] = trim((string)($_POST['message'] ?? ''));
     $contactForm['name'] = trim((string)($_POST['name'] ?? ''));
@@ -118,7 +127,7 @@ include __DIR__ . '/partials/header.php';
             <?php echo nl2br(e((string)$p['body'])); ?>
         </section>
 
-        <?php if ($slug === 'contact') : ?>
+        <?php if ($resolvedSlug === 'contact') : ?>
             <section class="block">
                 <h2 class="section-title">お問い合わせフォーム</h2>
                 <?php if ($contactSuccess) : ?>

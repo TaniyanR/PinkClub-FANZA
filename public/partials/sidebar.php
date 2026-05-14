@@ -35,7 +35,7 @@ try {
 }
 
 try {
-    $stmt = db()->query('SELECT slug,title FROM fixed_pages WHERE is_published=1 ORDER BY id ASC');
+    $stmt = db()->query('SELECT id,slug,title FROM fixed_pages WHERE is_published=1 ORDER BY id ASC');
     $fixedPages = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 } catch (Throwable $e) {
     $fixedPages = [];
@@ -43,7 +43,7 @@ try {
 
 if ($fixedPages === []) {
     try {
-        $stmt = db()->query('SELECT slug,title FROM pages WHERE is_published=1 ORDER BY id ASC');
+        $stmt = db()->query('SELECT id,slug,title FROM pages WHERE is_published=1 ORDER BY id ASC');
         $fixedPages = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
     } catch (Throwable $e) {
         $fixedPages = [];
@@ -73,7 +73,7 @@ if ($fixedPages === []) {
             <ul class="sidebar-links sidebar-links--pages">
                 <?php foreach ($fixedPages as $page): ?>
                     <?php $pageHref = trim((string)($page['href'] ?? '')); ?>
-                    <?php if ($pageHref === '') { $pageHref = public_url('page.php?slug=' . (string)$page['slug']); } ?>
+                    <?php if ($pageHref === '') { $pageHref = public_url('page.php?id=' . (string)($page['id'] ?? 0)); } ?>
                     <li><a href="<?= e($pageHref) ?>"><?= e((string)$page['title']) ?></a></li>
                 <?php endforeach; ?>
             </ul>
