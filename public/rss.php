@@ -28,6 +28,25 @@ foreach ($rows as $rssRow) {
         $GLOBALS['pcf_rss_widget_used_keys'][$key] = true;
     }
 }
+$rssUsedKeys = [];
+$filteredRows = [];
+foreach ($rows as $rssRow) {
+    if (!is_array($rssRow)) {
+        continue;
+    }
+    $key = rss_normalize_display_key($rssRow);
+    if ($key === '') {
+        $key = mb_strtolower(trim((string)($rssRow['title'] ?? '')));
+    }
+    if ($key !== '' && isset($rssUsedKeys[$key])) {
+        continue;
+    }
+    if ($key !== '') {
+        $rssUsedKeys[$key] = true;
+    }
+    $filteredRows[] = $rssRow;
+}
+$rows = $filteredRows;
 
 $pageTitle = 'RSS';
 include __DIR__ . '/partials/header.php';
