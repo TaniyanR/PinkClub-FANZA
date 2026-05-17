@@ -379,7 +379,7 @@ try {
                      FROM items i
                      INNER JOIN item_genres ig ON ig.content_id = i.content_id
                      WHERE ig.genre_id = :id
-                     ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC
+                     ORDER BY i.view_count DESC, i.release_date DESC, i.updated_at DESC, i.id DESC
                      LIMIT 120'
                 );
                 $stmt->execute([':id' => (int)$genre['id']]);
@@ -515,8 +515,8 @@ $hasHomeContent = $latestTop !== []
     <h2>ジャンル</h2>
     <?php foreach ($genreRows as $genre): ?>
       <h3><a href="<?= e(app_url('public/genre.php?id=' . (int)$genre['id'])) ?>"><?= e((string)$genre['name']) ?></a></h3>
-      <div class="rail-row rail-row--180">
-        <?php foreach ($genre['items'] as $item) { render_item_card($item, 180, ['name' => (string)$genre['name'], 'url' => app_url('public/genre.php?id=' . (int)$genre['id'])]); } ?>
+      <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal">
+        <?php foreach ($genre['items'] as $item) { render_item_card($item, 200, ['name' => (string)$genre['name'], 'url' => app_url('public/genre.php?id=' . (int)$genre['id'])], true); } ?>
       </div>
     <?php endforeach; ?>
   </section>
