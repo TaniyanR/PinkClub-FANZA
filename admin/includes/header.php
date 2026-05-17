@@ -20,7 +20,13 @@ $menuGroups = [
         ['label' => '自動設定', 'file' => 'api_auto.php'],
     ]],
     ['label' => 'アクセス解析', 'children' => [
-        ['label' => 'グラフ', 'file' => 'analytics.php'],
+        ['label' => 'グラフ', 'file' => 'analytics.php?tab=graph'],
+        ['label' => 'リンク元', 'file' => 'analytics.php?tab=referrer'],
+        ['label' => 'クリック先', 'file' => 'analytics.php?tab=destination'],
+        ['label' => '検索エンジン', 'file' => 'analytics.php?tab=engine'],
+        ['label' => '検索ワード', 'file' => 'analytics.php?tab=keyword'],
+        ['label' => '滞在時間', 'file' => 'analytics.php?tab=duration'],
+        ['label' => 'アクセス設定', 'file' => 'analytics.php?tab=settings'],
     ]],
     ['label' => '固定ページ', 'children' => [
         ['label' => '新規', 'file' => 'pages_new.php'],
