@@ -23,6 +23,9 @@ if ($items !== []) {
     $filteredItems = [];
     foreach ($items as $item) {
         $key = rss_normalize_display_key(is_array($item) ? $item : []);
+        if ($key === '') {
+            $key = mb_strtolower(trim((string)($item['title'] ?? '')));
+        }
         if ($key !== '' && isset($rssUsedKeys[$key])) {
             continue;
         }

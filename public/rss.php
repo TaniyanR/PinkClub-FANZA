@@ -23,6 +23,9 @@ foreach ($rows as $rssRow) {
         continue;
     }
     $key = rss_normalize_display_key($rssRow);
+    if ($key === '') {
+        $key = mb_strtolower(trim((string)($rssRow['title'] ?? '')));
+    }
     if ($key !== '' && isset($rssSeen[$key])) {
         continue;
     }
