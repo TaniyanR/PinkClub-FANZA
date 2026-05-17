@@ -324,8 +324,8 @@ $latestTop = $latestBottom = $pickupTop = $pickupBottom = [];
 $fallbackItems = [];
 $actresses = [];
 $genreRows = [];
-$seriesSection = ['name' => '', 'url' => '', 'items' => []];
-$makerSection = ['name' => '', 'url' => '', 'items' => []];
+$seriesRows = [];
+$makerRows = [];
 $authorSection = ['name' => '', 'url' => '', 'items' => []];
 
 try {
@@ -398,21 +398,22 @@ try {
             $seriesCandidates = $pdo->query('SELECT s.id,s.name,COUNT(isr.id) AS item_count FROM series s INNER JOIN item_series isr ON isr.series_id = s.id GROUP BY s.id,s.name HAVING COUNT(isr.id) > 0 ORDER BY item_count DESC,s.id DESC LIMIT 120')->fetchAll();
             if ($seriesCandidates !== []) {
                 $seriesCandidates = seeded_shuffle($seriesCandidates, $seedBase + 40);
-                $picked = $seriesCandidates[0];
-                $stmt = $pdo->prepare(
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
-                     FROM items i
-                     INNER JOIN item_series isr ON isr.content_id = i.content_id
-                     WHERE isr.series_id = :id
-                     ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC
-                     LIMIT 120'
-                );
-                $stmt->execute([':id' => (int)$picked['id']]);
-                $seriesSection = [
-                    'name' => (string)$picked['name'],
-                    'url' => app_url('public/series_one.php?id=' . (int)$picked['id']),
-                    'items' => pick_random_items(dedupe_items_by_key($stmt->fetchAll() ?: []), $seedBase + 41, 15),
-                ];
+                foreach (array_slice($seriesCandidates, 0, 3) as $index => $picked) {
+                    $stmt = $pdo->prepare(
+                        'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
+                         FROM items i
+                         INNER JOIN item_series isr ON isr.content_id = i.content_id
+                         WHERE isr.series_id = :id
+                         ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC
+                         LIMIT 120'
+                    );
+                    $stmt->execute([':id' => (int)$picked['id']]);
+                    $seriesRows[] = [
+                        'id' => (int)$picked['id'],
+                        'name' => (string)$picked['name'],
+                        'items' => pick_random_items(dedupe_items_by_key($stmt->fetchAll() ?: []), $seedBase + 41 + $index, 15),
+                    ];
+                }
             }
         }
 
@@ -420,21 +421,22 @@ try {
             $makerCandidates = $pdo->query('SELECT m.id,m.name,COUNT(im.id) AS item_count FROM makers m INNER JOIN item_makers im ON im.maker_id = m.id GROUP BY m.id,m.name HAVING COUNT(im.id) > 0 ORDER BY item_count DESC,m.id DESC LIMIT 120')->fetchAll();
             if ($makerCandidates !== []) {
                 $makerCandidates = seeded_shuffle($makerCandidates, $seedBase + 50);
-                $picked = $makerCandidates[0];
-                $stmt = $pdo->prepare(
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
-                     FROM items i
-                     INNER JOIN item_makers im ON im.content_id = i.content_id
-                     WHERE im.maker_id = :id
-                     ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC
-                     LIMIT 120'
-                );
-                $stmt->execute([':id' => (int)$picked['id']]);
-                $makerSection = [
-                    'name' => (string)$picked['name'],
-                    'url' => app_url('public/maker.php?id=' . (int)$picked['id']),
-                    'items' => pick_random_items(dedupe_items_by_key($stmt->fetchAll() ?: []), $seedBase + 51, 15),
-                ];
+                foreach (array_slice($makerCandidates, 0, 3) as $index => $picked) {
+                    $stmt = $pdo->prepare(
+                        'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
+                         FROM items i
+                         INNER JOIN item_makers im ON im.content_id = i.content_id
+                         WHERE im.maker_id = :id
+                         ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC
+                         LIMIT 120'
+                    );
+                    $stmt->execute([':id' => (int)$picked['id']]);
+                    $makerRows[] = [
+                        'id' => (int)$picked['id'],
+                        'name' => (string)$picked['name'],
+                        'items' => pick_random_items(dedupe_items_by_key($stmt->fetchAll() ?: []), $seedBase + 51 + $index, 15),
+                    ];
+                }
             }
         }
 
@@ -472,8 +474,8 @@ $hasHomeContent = $latestTop !== []
     || $pickupBottom !== []
     || $actresses !== []
     || $genreRows !== []
-    || $seriesSection['items'] !== []
-    || $makerSection['items'] !== []
+    || $seriesRows !== []
+    || $makerRows !== []
     || $authorSection['items'] !== [];
 ?>
 
@@ -527,21 +529,27 @@ $hasHomeContent = $latestTop !== []
     <?php endforeach; ?>
   </section>
 
-  <?php if (!empty($seriesSection['items'])): ?>
+  <?php if ($seriesRows !== []): ?>
   <section class="rail-section">
-    <h2>シリーズ<?= $seriesSection['name'] !== '' ? '：' . e($seriesSection['name']) : '' ?></h2>
-    <div class="rail-row rail-row--180">
-      <?php foreach ($seriesSection['items'] as $item) { render_item_card($item, 180, ['name' => (string)$seriesSection['name'], 'url' => (string)$seriesSection['url']]); } ?>
-    </div>
+    <h2>シリーズ</h2>
+    <?php foreach ($seriesRows as $series): ?>
+      <h3><a href="<?= e(app_url('public/series_one.php?id=' . (int)$series['id'])) ?>"><?= e((string)$series['name']) ?></a></h3>
+      <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal">
+        <?php foreach ($series['items'] as $item) { render_item_card($item, 200, ['name' => (string)$series['name'], 'url' => app_url('public/series_one.php?id=' . (int)$series['id'])], true); } ?>
+      </div>
+    <?php endforeach; ?>
   </section>
   <?php endif; ?>
 
-  <?php if (!empty($makerSection['items'])): ?>
+  <?php if ($makerRows !== []): ?>
   <section class="rail-section">
-    <h2>メーカー<?= $makerSection['name'] !== '' ? '：' . e($makerSection['name']) : '' ?></h2>
-    <div class="rail-row rail-row--180">
-      <?php foreach ($makerSection['items'] as $item) { render_item_card($item, 180, ['name' => (string)$makerSection['name'], 'url' => (string)$makerSection['url']]); } ?>
-    </div>
+    <h2>メーカー</h2>
+    <?php foreach ($makerRows as $maker): ?>
+      <h3><a href="<?= e(app_url('public/maker.php?id=' . (int)$maker['id'])) ?>"><?= e((string)$maker['name']) ?></a></h3>
+      <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal">
+        <?php foreach ($maker['items'] as $item) { render_item_card($item, 200, ['name' => (string)$maker['name'], 'url' => app_url('public/maker.php?id=' . (int)$maker['id'])], true); } ?>
+      </div>
+    <?php endforeach; ?>
   </section>
   <?php endif; ?>
 
