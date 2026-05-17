@@ -374,16 +374,26 @@ try {
             $genreCandidates = $pdo->query('SELECT g.id,g.name,COUNT(ig.id) AS item_count FROM genres g INNER JOIN item_genres ig ON ig.genre_id = g.id GROUP BY g.id,g.name HAVING COUNT(ig.id) > 0 ORDER BY item_count DESC,g.id DESC LIMIT 120')->fetchAll();
             $genreCandidates = seeded_shuffle($genreCandidates, $seedBase + 20);
             foreach (array_slice($genreCandidates, 0, 3) as $index => $genre) {
-                $stmt = $pdo->prepare(
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
-                     FROM items i
-                     INNER JOIN item_genres ig ON ig.content_id = i.content_id
-                     WHERE ig.genre_id = :id
-                     ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC
-                     LIMIT 120'
-                );
-                $stmt->execute([':id' => (int)$genre['id']]);
-                $genreItems = pick_random_items(dedupe_items_by_key($stmt->fetchAll() ?: []), $seedBase + 30 + $index, 15);
+                $genreItems = [];
+                foreach ([
+                    'i.view_count DESC, i.release_date DESC, i.updated_at DESC, i.id DESC',
+                    'i.release_date DESC, i.updated_at DESC, i.id DESC',
+                ] as $genreOrderBy) {
+                    $stmt = $pdo->prepare(
+                        'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at
+                         FROM items i
+                         INNER JOIN item_genres ig ON ig.content_id = i.content_id
+                         WHERE ig.genre_id = :id
+                         ORDER BY ' . $genreOrderBy . '
+                         LIMIT 120'
+                    );
+                    $stmt->execute([':id' => (int)$genre['id']]);
+                    $genreItems = $stmt->fetchAll() ?: [];
+                    if ($genreItems !== []) {
+                        break;
+                    }
+                }
+                $genreItems = pick_random_items(dedupe_items_by_key($genreItems), $seedBase + 30 + $index, 15);
                 $genreRows[] = ['id' => (int)$genre['id'], 'name' => (string)$genre['name'], 'items' => $genreItems];
             }
         }
@@ -515,8 +525,8 @@ $hasHomeContent = $latestTop !== []
     <h2>ジャンル</h2>
     <?php foreach ($genreRows as $genre): ?>
       <h3><a href="<?= e(app_url('public/genre.php?id=' . (int)$genre['id'])) ?>"><?= e((string)$genre['name']) ?></a></h3>
-      <div class="rail-row rail-row--180">
-        <?php foreach ($genre['items'] as $item) { render_item_card($item, 180, ['name' => (string)$genre['name'], 'url' => app_url('public/genre.php?id=' . (int)$genre['id'])]); } ?>
+      <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal">
+        <?php foreach ($genre['items'] as $item) { render_item_card($item, 200, ['name' => (string)$genre['name'], 'url' => app_url('public/genre.php?id=' . (int)$genre['id'])], true); } ?>
       </div>
     <?php endforeach; ?>
   </section>
