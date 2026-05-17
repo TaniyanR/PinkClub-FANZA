@@ -21,6 +21,7 @@ $menuGroups = [
     ]],
     ['label' => 'アクセス解析', 'children' => [
         ['label' => 'グラフ', 'file' => 'analytics.php'],
+        ['label' => '詳細', 'file' => 'access_analytics_detail.php'],
     ]],
     ['label' => '固定ページ', 'children' => [
         ['label' => '新規', 'file' => 'pages_new.php'],
