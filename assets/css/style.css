@@ -367,7 +367,7 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .site-main--legacy .card{
   border-radius:4px;
   box-shadow:none;
-  padding:10px;
+  padding:0;
 }
 .site-main--legacy .thumb{max-width:180px}
 .site-main--legacy .rail-card .thumb,
