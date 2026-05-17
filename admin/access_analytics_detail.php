@@ -21,6 +21,9 @@ require __DIR__ . '/includes/header.php';
 <section class="admin-card">
   <h1>アクセス解析（詳細）</h1>
 
+  <p>※この画面のうち、現在実データで計測済みなのは「リンク元」「移動先」です。
+  「検索エンジン」「検索ワード」「滞在時間」は既存ログテーブル未保存のため集計できません（要確認）。</p>
+
   <h2>流入アクセス（最新<?= e((string)$limit) ?>件）</h2>
   <table class="admin-table"><tr><th>日時</th><th>リンク元</th><th>移動先</th><th>検索エンジン</th><th>検索ワード</th><th>滞在時間</th></tr>
     <?php foreach ($inRows as $row): ?>
@@ -28,9 +31,9 @@ require __DIR__ . '/includes/header.php';
         <td><?= e((string)$row['created_at']) ?></td>
         <td><?= e((string)($row['referer_host'] ?? '')) ?></td>
         <td><?= e((string)($row['path'] ?? '')) ?></td>
-        <td>要確認（未計測）</td>
-        <td>要確認（未計測）</td>
-        <td>要確認（未計測）</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
       </tr>
     <?php endforeach; ?>
   </table>
@@ -42,9 +45,9 @@ require __DIR__ . '/includes/header.php';
         <td><?= e((string)$row['created_at']) ?></td>
         <td><?= e((string)($row['path'] ?? '')) ?></td>
         <td><?= e((string)($row['target_url'] ?? '')) ?></td>
-        <td>要確認（未計測）</td>
-        <td>要確認（未計測）</td>
-        <td>要確認（未計測）</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
       </tr>
     <?php endforeach; ?>
   </table>
