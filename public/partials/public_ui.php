@@ -292,7 +292,7 @@ if (!function_exists('pcf_render_item_card')) {
         echo '<h3 class="pcf-dm-card__title"><a href="' . e($itemUrl) . '">' . e($title) . '</a></h3>';
         echo '<div class="pcf-dm-card__actions">';
         if ($sampleMovieUrl !== '') {
-            echo '<a class="pcf-dm-card__button" href="' . e($sampleMovieUrl) . '" target="_blank" rel="noopener noreferrer">サンプル動画</a>';
+            echo '<button type="button" class="pcf-dm-card__button sample-movie-trigger" data-movie-url="' . e($sampleMovieUrl) . '" data-movie-title="' . e($title) . '">サンプル動画</button>';
         } else {
             echo '<span class="pcf-dm-card__button is-disabled">サンプル動画</span>';
         }
