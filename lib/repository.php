@@ -134,8 +134,34 @@ function search_items(string $q, int $limit = 10, int $offset = 0): array
     $limit  = normalize_int($limit, 1, 100);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare('SELECT * FROM items WHERE title LIKE :q ORDER BY release_date DESC, id DESC LIMIT :limit OFFSET :offset');
+    $stmt = db()->prepare(
+        'SELECT DISTINCT i.*
+         FROM items i
+         LEFT JOIN item_actresses ia ON ia.content_id = i.content_id
+         LEFT JOIN item_makers im ON im.content_id = i.content_id
+         LEFT JOIN item_series isr ON isr.content_id = i.content_id
+         LEFT JOIN item_genres ig ON ig.content_id = i.content_id
+         LEFT JOIN item_authors iau ON iau.content_id = i.content_id
+         WHERE (
+             i.title LIKE :q
+             OR ia.actress_name LIKE :q
+             OR im.maker_name LIKE :q
+             OR isr.series_name LIKE :q
+             OR ig.genre_name LIKE :q
+             OR iau.author_name LIKE :q
+         )
+         AND TRIM(COALESCE(i.content_id, "")) <> ""
+         AND TRIM(COALESCE(i.affiliate_url, "")) <> ""
+         AND (
+             i.affiliate_url LIKE :dmm1
+             OR i.affiliate_url LIKE :dmm2
+         )
+         ORDER BY i.release_date DESC, i.id DESC
+         LIMIT :limit OFFSET :offset'
+    );
     $stmt->bindValue(':q',      '%' . $q . '%', PDO::PARAM_STR);
+    $stmt->bindValue(':dmm1',   '%dmm.co.jp%', PDO::PARAM_STR);
+    $stmt->bindValue(':dmm2',   '%fanza%', PDO::PARAM_STR);
     $stmt->bindValue(':limit',  $limit,          PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset,         PDO::PARAM_INT);
     $stmt->execute();
