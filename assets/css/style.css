@@ -409,6 +409,7 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .rail-row--no-scroll{overflow-x:visible;flex-wrap:wrap}
 .rail-row--bottom-scroll{overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap}
 .rail-row--top-shift .rail-card .thumb{position:relative;top:-5px}
+.rail-row--between-gap{margin-bottom:24px}
 .rail-row--300 .rail-card{flex:0 0 300px !important;min-width:300px !important;max-width:300px !important}
 .rail-row--200 .rail-card{flex:0 0 200px !important;min-width:200px !important;max-width:200px !important}
 .rail-row--300 .rail-card .thumb,.rail-row--300 .rail-card .rail-card__noimage{width:300px !important;max-width:300px !important}
@@ -429,6 +430,10 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
   max-width:300px !important;
   height:168px !important;
 }
+
+.rail-row--tall-cards .rail-card .thumb{height:340px;object-fit:cover}
+.rail-row--tall-cards .rail-card .rail-card__noimage{height:340px !important}
+.rail-row--tall-cards.rail-row--wide-thumb .rail-card .thumb{aspect-ratio:auto;height:340px;object-fit:cover}
 .rail-card__title{
   width:100%;
   max-width:100%;
