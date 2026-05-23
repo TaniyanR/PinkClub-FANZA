@@ -77,7 +77,6 @@ require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_breadcrumbs([
     ['label' => 'トップ', 'url' => public_url('index.php')],
-    ['label' => '作者一覧', 'url' => public_url('authors.php')],
     ['label' => (string)($row['name'] ?? '作者詳細')],
 ]); ?>
 
