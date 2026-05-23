@@ -134,15 +134,16 @@ function search_items(string $q, int $limit = 10, int $offset = 0): array
     $limit  = normalize_int($limit, 1, 100);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare('SELECT * FROM items WHERE title LIKE :q ORDER BY release_date DESC, id DESC LIMIT :limit OFFSET :offset');
+    $stmt = db()->prepare('SELECT * FROM items WHERE title LIKE :q AND TRIM(COALESCE(content_id, "")) <> "" AND TRIM(COALESCE(affiliate_url, "")) <> "" AND (affiliate_url LIKE :dmm1 OR affiliate_url LIKE :dmm2) ORDER BY release_date DESC, id DESC LIMIT :limit OFFSET :offset');
     $stmt->bindValue(':q',      '%' . $q . '%', PDO::PARAM_STR);
+    $stmt->bindValue(':dmm1',   '%dmm.co.jp%', PDO::PARAM_STR);
+    $stmt->bindValue(':dmm2',   '%fanza%', PDO::PARAM_STR);
     $stmt->bindValue(':limit',  $limit,          PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset,         PDO::PARAM_INT);
     $stmt->execute();
 
     return $stmt->fetchAll() ?: [];
 }
-
 function fetch_actresses(int $limit = 50, int $offset = 0, string $order = 'name'): array
 {
     $orderBy = normalize_order($order, ['name', 'created_at', 'updated_at'], 'name');
