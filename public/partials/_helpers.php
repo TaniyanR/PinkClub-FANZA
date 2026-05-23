@@ -50,11 +50,14 @@ if (!function_exists('render_shared_content_ad_row')) {
 
         // Reset widget tracking so this row can render independently from sidebar/top widgets.
         $GLOBALS['pcf_rss_widget_used_keys'] = [];
-        $GLOBALS['pcf_rss_widget_max_items'] = 8;
+        $GLOBALS['pcf_rss_widget_max_items'] = 30;
 
         ob_start();
         include __DIR__ . '/rss_text_widget.php';
         $leftRssHtml = trim((string)ob_get_clean());
+
+        // Render right column independently so both columns can fill to max count.
+        $GLOBALS['pcf_rss_widget_used_keys'] = [];
 
         ob_start();
         include __DIR__ . '/rss_text_widget.php';
