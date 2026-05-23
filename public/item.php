@@ -520,6 +520,25 @@ if ($deviceText === '') {
 if ($tagText === '') {
     $tagText = '';
 }
+$tagLinks = [];
+if ($tagText !== '') {
+    $tagCandidates = preg_split('/[\s、,]+/u', $tagText) ?: [];
+    foreach ($tagCandidates as $tagCandidate) {
+        $tagName = trim((string)$tagCandidate);
+        if ($tagName === '') {
+            continue;
+        }
+        if (str_starts_with($tagName, '#')) {
+            $tagName = ltrim($tagName, '#');
+        }
+        $tagName = trim($tagName);
+        if ($tagName === '') {
+            continue;
+        }
+        $tagLinks[] = '<a href="' . e(public_url('posts.php') . '?q=' . rawurlencode($tagName)) . '">#' . e($tagName) . '</a>';
+    }
+    $tagLinks = array_values(array_unique($tagLinks));
+}
 $releaseDateDisplay = (string)format_date((string)($item['release_date'] ?? ''));
 if ($releaseDateDisplay === '') {
     $releaseDateDisplay = (string)format_date((string)($raw['date'] ?? ''));
@@ -645,7 +664,7 @@ require __DIR__ . '/partials/header.php';
           <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">メーカー</th><td style="padding:4px 0; border:0;"><?= $makerLinks !== [] ? implode('、', $makerLinks) : e($rawMakerName !== '' ? $rawMakerName : '―') ?></td></tr>
           <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">レーベル</th><td style="padding:4px 0; border:0;"><?= e($labelName !== '' ? $labelName : '―') ?></td></tr>
           <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">ジャンル</th><td style="padding:4px 0; border:0;"><?= $genreLinks !== [] ? implode('、', $genreLinks) : e($genreText !== '' ? $genreText : '―') ?></td></tr>
-          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">関連タグ</th><td style="padding:4px 0; border:0;"><?= e($tagText !== '' ? $tagText : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">関連タグ</th><td style="padding:4px 0; border:0;"><?= $tagLinks !== [] ? implode(' ', $tagLinks) : e($tagText !== '' ? $tagText : '―') ?></td></tr>
           <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">配信品番</th><td style="padding:4px 0; border:0;"><?= e($contentIdDisplay !== '' ? $contentIdDisplay : '―') ?></td></tr>
           <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">メーカー品番</th><td style="padding:4px 0; border:0;"><?= e($productIdDisplay !== '' ? $productIdDisplay : '―') ?></td></tr>
         </tbody>
