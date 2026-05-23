@@ -600,7 +600,7 @@ $hasHomeContent = $latestTop !== []
   </section>
   <?php if (!empty($seriesSection['items'])): ?>
   <section class="rail-section">
-    <h2>シリーズ<?= $seriesSection['name'] !== '' ? '：' . e($seriesSection['name']) : '' ?></h2>
+    <h2>シリーズ<?= $seriesSection['name'] !== '' ? '：<a href="' . e(app_url('public/series_one.php?id=' . (int)$seriesSection['id'])) . '">' . e($seriesSection['name']) . '</a>' : '' ?></h2>
     <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal">
       <?php foreach ($seriesSection['items'] as $item) { render_item_card($item, 200, ['name' => (string)$seriesSection['name'], 'url' => app_url('public/series_one.php?id=' . (int)$seriesSection['id'])], true); } ?>
     </div>
@@ -609,7 +609,7 @@ $hasHomeContent = $latestTop !== []
 
   <?php if (!empty($makerSection['items'])): ?>
   <section class="rail-section">
-    <h2>メーカー<?= $makerSection['name'] !== '' ? '：' . e($makerSection['name']) : '' ?></h2>
+    <h2>メーカー<?= $makerSection['name'] !== '' ? '：<a href="' . e(app_url('public/maker.php?id=' . (int)$makerSection['id'])) . '">' . e($makerSection['name']) . '</a>' : '' ?></h2>
     <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal">
       <?php foreach ($makerSection['items'] as $item) { render_item_card($item, 200, ['name' => (string)$makerSection['name'], 'url' => app_url('public/maker.php?id=' . (int)$makerSection['id'])], true); } ?>
     </div>
