@@ -646,8 +646,6 @@ require __DIR__ . '/partials/header.php';
           <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">レーベル</th><td style="padding:4px 0; border:0;"><?= e($labelName !== '' ? $labelName : '―') ?></td></tr>
           <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">ジャンル</th><td style="padding:4px 0; border:0;"><?= $genreLinks !== [] ? implode('、', $genreLinks) : e($genreText !== '' ? $genreText : '―') ?></td></tr>
           <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">関連タグ</th><td style="padding:4px 0; border:0;"><?= e($tagText !== '' ? $tagText : '―') ?></td></tr>
-          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">配信品番</th><td style="padding:4px 0; border:0;"><?= e($contentIdDisplay !== '' ? $contentIdDisplay : '―') ?></td></tr>
-          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">メーカー品番</th><td style="padding:4px 0; border:0;"><?= e($productIdDisplay !== '' ? $productIdDisplay : '―') ?></td></tr>
         </tbody>
       </table>
     </div>
