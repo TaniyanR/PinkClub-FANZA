@@ -61,11 +61,16 @@ $copyrightYears = $copyrightStartYear >= $currentYear
     : $copyrightStartYear . '-' . $currentYear;
 
 ?>
-  <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
+  <?php
+  $pageType = $pageType ?? (function_exists('ad_current_page_type') ? ad_current_page_type() : 'home');
+  $isSearchPage = $pageType === 'search' || basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'posts.php';
+  ?>
   </div>
+  <?php if (!$isSearchPage) : ?>
   <div class="site-main__rss">
     <?php render_shared_content_ad_row('content_bottom', $pageType); ?>
   </div>
+  <?php endif; ?>
   </main>
 </div>
 <footer class="site-footer">
