@@ -134,15 +134,57 @@ function search_items(string $q, int $limit = 10, int $offset = 0): array
     $limit  = normalize_int($limit, 1, 100);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare('SELECT * FROM items WHERE title LIKE :q ORDER BY release_date DESC, id DESC LIMIT :limit OFFSET :offset');
-    $stmt->bindValue(':q',      '%' . $q . '%', PDO::PARAM_STR);
-    $stmt->bindValue(':limit',  $limit,          PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset,         PDO::PARAM_INT);
+    $stmt = db()->prepare(
+        'SELECT i.*
+         FROM items i
+         WHERE i.id IN (
+             SELECT i0.id
+             FROM items i0
+             WHERE i0.title LIKE :q
+
+             UNION
+
+             SELECT ia.item_id
+             FROM item_actresses ia
+             WHERE ia.item_id IS NOT NULL
+               AND ia.item_id > 0
+               AND ia.actress_name LIKE :q
+
+             UNION
+
+             SELECT ig.item_id
+             FROM item_genres ig
+             WHERE ig.item_id IS NOT NULL
+               AND ig.item_id > 0
+               AND ig.genre_name LIKE :q
+
+             UNION
+
+             SELECT im.item_id
+             FROM item_makers im
+             WHERE im.item_id IS NOT NULL
+               AND im.item_id > 0
+               AND im.maker_name LIKE :q
+
+             UNION
+
+             SELECT isr.item_id
+             FROM item_series isr
+             WHERE isr.item_id IS NOT NULL
+               AND isr.item_id > 0
+               AND isr.series_name LIKE :q
+         )
+         AND TRIM(COALESCE(i.content_id, "")) <> ""
+         ORDER BY i.release_date DESC, i.id DESC
+         LIMIT :limit OFFSET :offset'
+    );
+    $stmt->bindValue(':q', '%' . $q . '%', PDO::PARAM_STR);
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
 
     return $stmt->fetchAll() ?: [];
 }
-
 function fetch_actresses(int $limit = 50, int $offset = 0, string $order = 'name'): array
 {
     $orderBy = normalize_order($order, ['name', 'created_at', 'updated_at'], 'name');
