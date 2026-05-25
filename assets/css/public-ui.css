@@ -538,3 +538,26 @@
 @media (max-width: 900px) {
   .rail-row--200.rail-row--wide-thumb { grid-template-columns: 1fr; }
 }
+
+.product-grid--4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  direction: rtl;
+}
+
+.product-grid--4 .product-card {
+  direction: ltr;
+}
+
+@media (max-width: 1024px) {
+  .product-grid--4 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .product-grid--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
