@@ -134,15 +134,89 @@ function search_items(string $q, int $limit = 10, int $offset = 0): array
     $limit  = normalize_int($limit, 1, 100);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare('SELECT * FROM items WHERE title LIKE :q ORDER BY release_date DESC, id DESC LIMIT :limit OFFSET :offset');
-    $stmt->bindValue(':q',      '%' . $q . '%', PDO::PARAM_STR);
-    $stmt->bindValue(':limit',  $limit,          PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset,         PDO::PARAM_INT);
+    $keyword = '%' . $q . '%';
+
+    $stmt = db()->prepare(
+        'SELECT i.*
+         FROM items i
+         WHERE i.id IN (
+             SELECT i0.id
+             FROM items i0
+             WHERE i0.title LIKE :q1
+               AND TRIM(COALESCE(i0.content_id, "")) <> ""
+               AND TRIM(COALESCE(i0.service_code, "")) <> ""
+               AND TRIM(COALESCE(i0.floor_code, "")) <> ""
+
+             UNION
+
+             SELECT ia.item_id
+             FROM item_actresses ia
+             INNER JOIN items i1 ON i1.id = ia.item_id
+             WHERE ia.item_id IS NOT NULL
+               AND ia.item_id > 0
+               AND ia.actress_name LIKE :q2
+               AND TRIM(COALESCE(i1.content_id, "")) <> ""
+               AND TRIM(COALESCE(i1.service_code, "")) <> ""
+               AND TRIM(COALESCE(i1.floor_code, "")) <> ""
+
+             UNION
+
+             SELECT ig.item_id
+             FROM item_genres ig
+             INNER JOIN items i2 ON i2.id = ig.item_id
+             WHERE ig.item_id IS NOT NULL
+               AND ig.item_id > 0
+               AND ig.genre_name LIKE :q3
+               AND TRIM(COALESCE(i2.content_id, "")) <> ""
+               AND TRIM(COALESCE(i2.service_code, "")) <> ""
+               AND TRIM(COALESCE(i2.floor_code, "")) <> ""
+
+             UNION
+
+             SELECT im.item_id
+             FROM item_makers im
+             INNER JOIN items i3 ON i3.id = im.item_id
+             WHERE im.item_id IS NOT NULL
+               AND im.item_id > 0
+               AND im.maker_name LIKE :q4
+               AND TRIM(COALESCE(i3.content_id, "")) <> ""
+               AND TRIM(COALESCE(i3.service_code, "")) <> ""
+               AND TRIM(COALESCE(i3.floor_code, "")) <> ""
+
+             UNION
+
+             SELECT isr.item_id
+             FROM item_series isr
+             INNER JOIN items i4 ON i4.id = isr.item_id
+             WHERE isr.item_id IS NOT NULL
+               AND isr.item_id > 0
+               AND isr.series_name LIKE :q5
+               AND TRIM(COALESCE(i4.content_id, "")) <> ""
+               AND TRIM(COALESCE(i4.service_code, "")) <> ""
+               AND TRIM(COALESCE(i4.floor_code, "")) <> ""
+         )
+         AND TRIM(COALESCE(i.affiliate_url, "")) <> ""
+         AND (i.affiliate_url LIKE :dmm1 OR i.affiliate_url LIKE :dmm2)
+         AND (i.url LIKE :dmm1 OR i.url LIKE :dmm2)
+         AND (i.image_small LIKE :http OR i.image_large LIKE :http)
+         AND CHAR_LENGTH(TRIM(COALESCE(i.content_id, ""))) >= 8
+         ORDER BY i.release_date DESC, i.id DESC
+         LIMIT :limit OFFSET :offset'
+    );
+    $stmt->bindValue(':q1', $keyword, PDO::PARAM_STR);
+    $stmt->bindValue(':q2', $keyword, PDO::PARAM_STR);
+    $stmt->bindValue(':q3', $keyword, PDO::PARAM_STR);
+    $stmt->bindValue(':q4', $keyword, PDO::PARAM_STR);
+    $stmt->bindValue(':q5', $keyword, PDO::PARAM_STR);
+    $stmt->bindValue(':dmm1', '%dmm.co.jp%', PDO::PARAM_STR);
+    $stmt->bindValue(':dmm2', '%fanza%', PDO::PARAM_STR);
+    $stmt->bindValue(':http', 'http%', PDO::PARAM_STR);
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
 
     return $stmt->fetchAll() ?: [];
 }
-
 function fetch_actresses(int $limit = 50, int $offset = 0, string $order = 'name'): array
 {
     $orderBy = normalize_order($order, ['name', 'created_at', 'updated_at'], 'name');
