@@ -140,10 +140,13 @@ function search_items(string $q, int $limit = 10, int $offset = 0): array
          FROM items i
          WHERE i.title LIKE :q
            AND TRIM(COALESCE(i.content_id, "")) <> ""
+           AND CHAR_LENGTH(TRIM(COALESCE(i.content_id, ""))) <= 64
+           AND TRIM(COALESCE(i.content_id, "")) REGEXP :cid_pattern
            AND TRIM(COALESCE(i.service_code, "")) <> ""
            AND TRIM(COALESCE(i.floor_code, "")) <> ""
            AND TRIM(COALESCE(i.affiliate_url, "")) <> ""
            AND (i.affiliate_url LIKE :dmm1 OR i.affiliate_url LIKE :dmm2)
+           AND TRIM(COALESCE(i.release_date, "")) <> ""
            AND (i.image_small LIKE :img1 OR i.image_small LIKE :img2 OR i.image_large LIKE :img3 OR i.image_large LIKE :img4)
          ORDER BY i.release_date DESC, i.id DESC
          LIMIT :limit OFFSET :offset'
@@ -151,6 +154,7 @@ function search_items(string $q, int $limit = 10, int $offset = 0): array
     $stmt->bindValue(':q', $keyword, PDO::PARAM_STR);
     $stmt->bindValue(':dmm1', '%dmm.co.jp%', PDO::PARAM_STR);
     $stmt->bindValue(':dmm2', '%fanza%', PDO::PARAM_STR);
+    $stmt->bindValue(':cid_pattern', '^[A-Za-z0-9._-]+$', PDO::PARAM_STR);
     $stmt->bindValue(':img1', '%dmm.co.jp%', PDO::PARAM_STR);
     $stmt->bindValue(':img2', '%fanza%', PDO::PARAM_STR);
     $stmt->bindValue(':img3', '%dmm.co.jp%', PDO::PARAM_STR);
