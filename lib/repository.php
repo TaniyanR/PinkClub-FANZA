@@ -133,16 +133,34 @@ function search_items(string $q, int $limit = 10, int $offset = 0): array
 
     $limit  = normalize_int($limit, 1, 100);
     $offset = max(0, $offset);
+    $keyword = '%' . $q . '%';
 
-    $stmt = db()->prepare('SELECT * FROM items WHERE title LIKE :q ORDER BY release_date DESC, id DESC LIMIT :limit OFFSET :offset');
-    $stmt->bindValue(':q',      '%' . $q . '%', PDO::PARAM_STR);
-    $stmt->bindValue(':limit',  $limit,          PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset,         PDO::PARAM_INT);
+    $stmt = db()->prepare(
+        'SELECT i.*
+         FROM items i
+         WHERE i.title LIKE :q
+           AND TRIM(COALESCE(i.content_id, "")) <> ""
+           AND TRIM(COALESCE(i.service_code, "")) <> ""
+           AND TRIM(COALESCE(i.floor_code, "")) <> ""
+           AND TRIM(COALESCE(i.affiliate_url, "")) <> ""
+           AND (i.affiliate_url LIKE :dmm1 OR i.affiliate_url LIKE :dmm2)
+           AND (i.image_small LIKE :img1 OR i.image_small LIKE :img2 OR i.image_large LIKE :img3 OR i.image_large LIKE :img4)
+         ORDER BY i.release_date DESC, i.id DESC
+         LIMIT :limit OFFSET :offset'
+    );
+    $stmt->bindValue(':q', $keyword, PDO::PARAM_STR);
+    $stmt->bindValue(':dmm1', '%dmm.co.jp%', PDO::PARAM_STR);
+    $stmt->bindValue(':dmm2', '%fanza%', PDO::PARAM_STR);
+    $stmt->bindValue(':img1', '%dmm.co.jp%', PDO::PARAM_STR);
+    $stmt->bindValue(':img2', '%fanza%', PDO::PARAM_STR);
+    $stmt->bindValue(':img3', '%dmm.co.jp%', PDO::PARAM_STR);
+    $stmt->bindValue(':img4', '%fanza%', PDO::PARAM_STR);
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
 
     return $stmt->fetchAll() ?: [];
 }
-
 function fetch_actresses(int $limit = 50, int $offset = 0, string $order = 'name'): array
 {
     $orderBy = normalize_order($order, ['name', 'created_at', 'updated_at'], 'name');
