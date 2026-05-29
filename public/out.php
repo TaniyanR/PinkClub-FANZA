@@ -31,7 +31,7 @@ if (!$valid || !in_array($scheme, ['http', 'https'], true)) {
 try {
     analytics_log_out($to, $ref, $path);
 } catch (Throwable $e) {
-    log_message('out.php tracking error: ' . $e->getMessage());
+    error_log('out.php tracking error: ' . $e->getMessage());
 }
 
 header('Location: ' . $to, true, 302);
