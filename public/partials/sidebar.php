@@ -9,6 +9,7 @@ require_once __DIR__ . '/_helpers.php';
 $sortMode = site_setting_get('link.sort_mode', 'registered');
 $orderBy = $sortMode === 'kana' ? 'ps.name ASC, ps.id ASC' : 'ps.id DESC';
 $canRenderAd = function_exists('render_ad');
+$sidebarSearchKeyword = function_exists('safe_str') ? safe_str($_GET['q'] ?? '', 100) : trim((string)($_GET['q'] ?? ''));
 
 $partnerLinks = [];
 $fixedPages = [];
@@ -56,6 +57,14 @@ if ($fixedPages === []) {
 ?>
 <aside class="sidebar site-sidebar">
     <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
+
+    <section class="sidebar-block">
+        <h2 class="sidebar-block__title">作品検索</h2>
+        <form method="get" action="<?= e(public_url('items.php')) ?>" style="display:grid;gap:8px;">
+            <input type="search" name="q" value="<?= e($sidebarSearchKeyword) ?>" placeholder="キーワードを入力" maxlength="100" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #dcdcde;border-radius:4px;">
+            <button class="pcf-btn" type="submit" style="border:0;cursor:pointer;">検索</button>
+        </form>
+    </section>
 
     <section class="sidebar-block">
         <h2 class="sidebar-block__title">固定ページ</h2>

@@ -56,6 +56,12 @@ function dedupe_items_for_listing(array $items): array
     return $result;
 }
 
+
+function listing_search_like(string $value): string
+{
+    return strtr($value, ["\\" => "\\\\", '%' => '\\%', '_' => '\\_']);
+}
+
 function is_displayable_item_for_listing(array $item): bool
 {
     $title = trim((string)($item['title'] ?? ''));
@@ -93,60 +99,106 @@ function is_displayable_item_for_listing(array $item): bool
 
 $page = max(1, (int)get('page', 1));
 $per = app_config()['pagination']['per_page'] ?? 24;
+$keyword = safe_str(get('q', ''), 100);
+$searchWords = $keyword === '' ? [] : preg_split('/\s+/u', $keyword, -1, PREG_SPLIT_NO_EMPTY);
+if (!is_array($searchWords)) {
+    $searchWords = [];
+}
+$searchWords = array_slice(array_values(array_unique($searchWords)), 0, 5);
+$isSearch = $searchWords !== [];
 $total = 0;
 $rows = [];
 
-try {
-    $total = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
-} catch (Throwable) {
-    $total = 0;
-}
+if ($isSearch) {
+    $where = ['TRIM(COALESCE(title, "")) <> ""', 'title <> "タイトル未設定"', '(COALESCE(image_small, "") <> "" OR COALESCE(image_large, "") <> "" OR COALESCE(image_list, "") <> "" OR raw_json LIKE "%imageURL%")'];
+    $params = [];
+    foreach ($searchWords as $index => $word) {
+        $key = ':q' . $index;
+        $where[] = 'title LIKE ' . $key . " ESCAPE '\\\\'";
+        $params[$key] = '%' . listing_search_like((string)$word) . '%';
+    }
 
-$pg = paginate($total, $page, (int)$per);
-
-$orderSqlCandidates = [
-    'view_count DESC, release_date DESC, id DESC',
-    'view_count DESC, date_published DESC, id DESC',
-    'view_count DESC, id DESC',
-    'release_date DESC, id DESC',
-    'date_published DESC, id DESC',
-    'updated_at DESC, id DESC',
-    'id DESC',
-];
-foreach ($orderSqlCandidates as $orderSql) {
     try {
-        $chunkSize = (int)$pg['perPage'] + 1;
-        $cursor = (int)$pg['offset'];
-        $maxLoops = 6;
-        $collected = [];
-
-        for ($i = 0; $i < $maxLoops; $i++) {
-            $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
-            $stmt->bindValue(':l', $chunkSize, PDO::PARAM_INT);
-            $stmt->bindValue(':o', $cursor, PDO::PARAM_INT);
-            $stmt->execute();
-            $chunk = $stmt->fetchAll() ?: [];
-            if ($chunk === []) {
-                break;
-            }
-
-            $rawFetched = count($chunk);
-            $chunk = array_values(array_filter($chunk, static fn(array $row): bool => is_displayable_item_for_listing($row)));
-            $collected = dedupe_items_for_listing(array_merge($collected, $chunk));
-            if (count($collected) > (int)$pg['perPage']) {
-                break;
-            }
-
-            $cursor += $rawFetched;
-            if ($rawFetched < $chunkSize) {
-                break;
-            }
+        $countStmt = db()->prepare('SELECT COUNT(*) FROM items WHERE ' . implode(' AND ', $where));
+        foreach ($params as $key => $value) {
+            $countStmt->bindValue($key, $value, PDO::PARAM_STR);
         }
+        $countStmt->execute();
+        $total = (int)$countStmt->fetchColumn();
+    } catch (Throwable) {
+        $total = 0;
+    }
 
-        $rows = array_slice($collected, 0, (int)$pg['perPage']);
-        break;
+    $pg = paginate($total, $page, (int)$per);
+
+    try {
+        $stmt = db()->prepare('SELECT * FROM items WHERE ' . implode(' AND ', $where) . " ORDER BY CASE WHEN title = :exact THEN 0 WHEN title LIKE :prefix ESCAPE '\\\\' THEN 1 ELSE 2 END, view_count DESC, release_date DESC, id DESC LIMIT :l OFFSET :o");
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value, PDO::PARAM_STR);
+        }
+        $stmt->bindValue(':exact', $keyword, PDO::PARAM_STR);
+        $stmt->bindValue(':prefix', listing_search_like($keyword) . '%', PDO::PARAM_STR);
+        $stmt->bindValue(':l', (int)$pg['perPage'], PDO::PARAM_INT);
+        $stmt->bindValue(':o', (int)$pg['offset'], PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = array_values(array_filter($stmt->fetchAll() ?: [], static fn(array $row): bool => is_displayable_item_for_listing($row)));
+        $rows = dedupe_items_for_listing($rows);
     } catch (Throwable) {
         $rows = [];
+    }
+} else {
+    try {
+        $total = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+    } catch (Throwable) {
+        $total = 0;
+    }
+
+    $pg = paginate($total, $page, (int)$per);
+
+    $orderSqlCandidates = [
+        'view_count DESC, release_date DESC, id DESC',
+        'view_count DESC, date_published DESC, id DESC',
+        'view_count DESC, id DESC',
+        'release_date DESC, id DESC',
+        'date_published DESC, id DESC',
+        'updated_at DESC, id DESC',
+        'id DESC',
+    ];
+    foreach ($orderSqlCandidates as $orderSql) {
+        try {
+            $chunkSize = (int)$pg['perPage'] + 1;
+            $cursor = (int)$pg['offset'];
+            $maxLoops = 6;
+            $collected = [];
+
+            for ($i = 0; $i < $maxLoops; $i++) {
+                $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
+                $stmt->bindValue(':l', $chunkSize, PDO::PARAM_INT);
+                $stmt->bindValue(':o', $cursor, PDO::PARAM_INT);
+                $stmt->execute();
+                $chunk = $stmt->fetchAll() ?: [];
+                if ($chunk === []) {
+                    break;
+                }
+
+                $rawFetched = count($chunk);
+                $chunk = array_values(array_filter($chunk, static fn(array $row): bool => is_displayable_item_for_listing($row)));
+                $collected = dedupe_items_for_listing(array_merge($collected, $chunk));
+                if (count($collected) > (int)$pg['perPage']) {
+                    break;
+                }
+
+                $cursor += $rawFetched;
+                if ($rawFetched < $chunkSize) {
+                    break;
+                }
+            }
+
+            $rows = array_slice($collected, 0, (int)$pg['perPage']);
+            break;
+        } catch (Throwable) {
+            $rows = [];
+        }
     }
 }
 
@@ -161,33 +213,35 @@ if (!isset($accessRankingTabs[$accessRankingPeriod])) {
     $accessRankingPeriod = 'daily';
 }
 $accessRankingRows = [];
-try {
-    $periodFrom = null;
-    if ($accessRankingPeriod === 'daily') {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
-    } elseif ($accessRankingPeriod === 'weekly') {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-7 days'));
-    } elseif ($accessRankingPeriod === 'monthly') {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-1 month'));
-    } elseif ($accessRankingPeriod === 'yearly') {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-1 year'));
-    }
+if (!$isSearch) {
+    try {
+        $periodFrom = null;
+        if ($accessRankingPeriod === 'daily') {
+            $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
+        } elseif ($accessRankingPeriod === 'weekly') {
+            $periodFrom = date('Y-m-d H:i:s', strtotime('-7 days'));
+        } elseif ($accessRankingPeriod === 'monthly') {
+            $periodFrom = date('Y-m-d H:i:s', strtotime('-1 month'));
+        } elseif ($accessRankingPeriod === 'yearly') {
+            $periodFrom = date('Y-m-d H:i:s', strtotime('-1 year'));
+        }
 
-    if ($periodFrom === null) {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
-    }
+        if ($periodFrom === null) {
+            $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
+        }
 
-    $rankingStmt = db()->prepare('SELECT i.id, i.content_id, i.title, COUNT(pv.id) AS access_count FROM page_views pv INNER JOIN items i ON i.id = pv.item_id WHERE pv.viewed_at >= :period_from GROUP BY i.id, i.title ORDER BY access_count DESC, i.id DESC LIMIT 200');
-    $rankingStmt->execute([':period_from' => $periodFrom]);
-    $accessRankingRows = $rankingStmt->fetchAll() ?: [];
-} catch (Throwable) {
-    $accessRankingRows = [];
+        $rankingStmt = db()->prepare('SELECT i.id, i.content_id, i.title, COUNT(pv.id) AS access_count FROM page_views pv INNER JOIN items i ON i.id = pv.item_id WHERE pv.viewed_at >= :period_from GROUP BY i.id, i.title ORDER BY access_count DESC, i.id DESC LIMIT 200');
+        $rankingStmt->execute([':period_from' => $periodFrom]);
+        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        $accessRankingRows = [];
+    }
 }
 
-$title = '商品一覧';
+$title = $isSearch ? '検索結果: ' . $keyword : '商品一覧';
 require __DIR__ . '/partials/header.php';
 ?>
-<?php pcf_render_hero('商品一覧', '最新の作品を一覧でチェックできます。'); ?>
+<?php pcf_render_hero($title, $isSearch ? '作品タイトルにキーワードを含む作品を表示しています。' : '最新の作品を一覧でチェックできます。'); ?>
 
 <?php if ($rows !== []): ?>
   <section class="rail-section">
@@ -210,11 +264,12 @@ require __DIR__ . '/partials/header.php';
     <?php endforeach; ?>
     </div>
   </section>
-  <?php pcf_render_pagination($pg, public_url('items.php')); ?>
+  <?php pcf_render_pagination($pg, public_url('items.php'), $isSearch ? ['q' => $keyword] : []); ?>
 <?php else: ?>
-  <?php pcf_render_empty('商品データがまだ登録されていません。'); ?>
+  <?php pcf_render_empty($isSearch ? '検索条件に一致する作品が見つかりませんでした。' : '商品データがまだ登録されていません。'); ?>
 <?php endif; ?>
 
+<?php if (!$isSearch): ?>
 <section id="access-ranking" class="block" style="margin-top:24px;">
   <h2 class="section-title">アクセスランキング</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
@@ -254,5 +309,7 @@ require __DIR__ . '/partials/header.php';
     <?php pcf_render_empty('アクセスランキングのデータがありません。'); ?>
   <?php endif; ?>
 </section>
+
+<?php endif; ?>
 
 <?php require __DIR__ . '/partials/footer.php'; ?>
