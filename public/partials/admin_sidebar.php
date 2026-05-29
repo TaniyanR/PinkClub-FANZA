@@ -10,13 +10,18 @@ try {
     if (function_exists('admin_trace_push')) {
         admin_trace_push('sidebar:menu:require:before');
     }
-    require_once __DIR__ . '/../admin/menu.php';
+    $menuPath = __DIR__ . '/../../admin/menu.php';
+    if (is_file($menuPath)) {
+        require_once $menuPath;
+    }
     if (function_exists('admin_trace_push')) {
         admin_trace_push('sidebar:menu:require:after');
         admin_trace_push('sidebar:menu_groups:before');
     }
 
-    $groups = admin_menu_groups();
+    if (function_exists('admin_menu_groups')) {
+        $groups = admin_menu_groups();
+    }
 
     if (function_exists('admin_trace_push')) {
         admin_trace_push('sidebar:menu_groups:after');

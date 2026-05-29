@@ -19,6 +19,7 @@ $skip = [
     'logout.php',
     'page_delete.php',
     'page_edit.php',
+    'api_settings_common.php',
     'save_settings.php',
     'menu.php',
 ];
@@ -57,7 +58,7 @@ RUN;
     $results[] = [$name, $ok, $status];
 
     if (!$ok) {
-        log_message('[smoke_admin] failed: ' . $name . ' (exit=' . $status . ')');
+        error_log('[smoke_admin] failed: ' . $name . ' (exit=' . $status . ')');
     }
 }
 

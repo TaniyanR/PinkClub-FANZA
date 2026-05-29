@@ -121,12 +121,6 @@ function paginate_items(array $rows, int $limit): array
 }
 
 /**
- * Appends non-null, non-empty query parameters to a path.
- * Returns a root-relative URL suitable for href attributes.
- */
-
-
-/**
  * Keeps first appearance order while removing duplicates by known item keys.
  */
 function dedupe_items_by_key(array $items): array

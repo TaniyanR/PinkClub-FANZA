@@ -10,7 +10,7 @@ function main(): int
         echo '[' . date('Y-m-d H:i:s') . "] maybe_run_scheduled_jobs() executed\n";
         return 0;
     } catch (Throwable $e) {
-        log_message('[auto_import] ' . $e->getMessage());
+        error_log('[auto_import] ' . $e->getMessage());
         fwrite(STDERR, $e->getMessage() . "\n");
         return 1;
     }
