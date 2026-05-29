@@ -5,6 +5,7 @@ require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/db.php';
 
 $path = (string)parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+$searchQuery = trim((string)($_GET['q'] ?? ''));
 
 $navItems = [
     ['href' => public_url(''), 'label' => 'TOP'],
@@ -40,4 +41,8 @@ try {
         <?php if ($index > 0): ?><span class="site-nav__sep" aria-hidden="true"> | </span><?php endif; ?>
         <a class="<?= $isActive ? 'is-active' : '' ?>" href="<?= e($item['href']) ?>"><?= e($item['label']) ?></a>
     <?php endforeach; ?>
+    <form class="site-search" method="get" action="<?= e(public_url('search.php')) ?>">
+        <input class="site-search__input" type="search" name="q" value="<?= e($searchQuery) ?>" placeholder="商品検索" aria-label="商品検索">
+        <button class="site-search__button" type="submit">検索</button>
+    </form>
 </nav>

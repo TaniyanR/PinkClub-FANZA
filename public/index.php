@@ -206,12 +206,31 @@ function query_all_safe(PDO $pdo, string $sql, array $params = []): array
     }
 }
 
+function index_items_product_source_where(PDO $pdo): string
+{
+    static $where = null;
+    if ($where !== null) {
+        return $where;
+    }
+
+    try {
+        $stmt = $pdo->prepare('SHOW COLUMNS FROM items LIKE :column');
+        $stmt->execute([':column' => 'item_source']);
+        $where = $stmt->fetch(PDO::FETCH_ASSOC) ? ' WHERE item_source = "fanza_product"' : '';
+    } catch (Throwable) {
+        $where = '';
+    }
+
+    return $where;
+}
+
 function fetch_items_with_order_fallback(PDO $pdo, array $orderByCandidates, int $limit): array
 {
     $limit = max(1, min(300, $limit));
+    $sourceWhereSql = index_items_product_source_where($pdo);
 
     foreach ($orderByCandidates as $orderBy) {
-        $rows = query_all_safe($pdo, 'SELECT * FROM items ORDER BY ' . $orderBy . ' LIMIT ' . $limit);
+        $rows = query_all_safe($pdo, 'SELECT * FROM items' . $sourceWhereSql . ' ORDER BY ' . $orderBy . ' LIMIT ' . $limit);
         if ($rows !== []) {
             return $rows;
         }
@@ -359,7 +378,7 @@ $authorSection = ['name' => '', 'url' => '', 'items' => []];
 
 try {
     $pdo = db();
-    $itemCount = (int)$pdo->query('SELECT COUNT(*) FROM items')->fetchColumn();
+    $itemCount = (int)$pdo->query('SELECT COUNT(*) FROM items' . index_items_product_source_where($pdo))->fetchColumn();
 
     if ($itemCount > 0) {
         $seedBase = intdiv(time(), 1800);
