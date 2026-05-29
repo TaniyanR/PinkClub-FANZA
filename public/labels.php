@@ -21,7 +21,7 @@ include __DIR__ . '/partials/header.php';
             <div class="section-head"><h1 class="section-title">レーベル一覧</h1></div>
             <div class="taxonomy-grid">
                 <?php foreach ($labels as $label) : ?>
-                    <a class="taxonomy-card" href="/posts.php?q=<?php echo urlencode((string)$label['name']); ?>">
+                    <a class="taxonomy-card" href="/posts.php">
                         <div class="taxonomy-card__media">Label</div>
                         <div class="taxonomy-card__name"><?php echo e((string)$label['name']); ?></div>
                     </a>

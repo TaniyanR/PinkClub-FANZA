@@ -55,17 +55,12 @@ if (!in_array($limit, $allowedLimits, true)) {
 
 $page = normalize_int((int)($_GET['page'] ?? 1), 1, 100000);
 $offset = ($page - 1) * $limit;
-$q = safe_str($_GET['q'] ?? '', 100);
-
-$rows = $q !== ''
-    ? collect_unique_items_for_page(static fn(int $chunkLimit, int $chunkOffset): array => search_items($q, $chunkLimit, $chunkOffset), $limit, $offset)
-    : collect_unique_items_for_page(static fn(int $chunkLimit, int $chunkOffset): array => fetch_items($order, $chunkLimit, $chunkOffset), $limit, $offset);
+$rows = collect_unique_items_for_page(static fn(int $chunkLimit, int $chunkOffset): array => fetch_items($order, $chunkLimit, $chunkOffset), $limit, $offset);
 [$items, $hasNext] = paginate_items($rows, $limit);
 
-$pageTitle = $q !== '' ? sprintf('検索結果: %s', $q) : '作品一覧';
-$pageDescription = $q !== '' ? sprintf('「%s」の検索結果です。', $q) : 'FANZA作品一覧。検索・並び替え・ページング対応。';
+$pageTitle = '作品一覧';
+$pageDescription = 'FANZA作品一覧。並び替え・ページング対応。';
 $canonicalUrl = canonical_url('/posts.php', [
-    'q' => $q,
     'order' => $orderParam !== 'date_desc' ? $orderParam : null,
     'limit' => $limit !== 24 ? (string)$limit : null,
     'page' => $page > 1 ? (string)$page : null,
@@ -76,12 +71,9 @@ include __DIR__ . '/partials/header.php';
         <section class="block">
             <div class="section-head">
                 <h1 class="section-title">作品一覧</h1>
-                <span class="section-sub"><?php echo $q !== '' ? e('検索: ' . $q) : '実データ表示'; ?></span>
+                <span class="section-sub">実データ表示</span>
             </div>
             <form class="controls" method="get" action="/posts.php">
-                <?php if ($q !== '') : ?>
-                    <input type="hidden" name="q" value="<?php echo e($q); ?>">
-                <?php endif; ?>
                 <div class="controls__group">
                     <label>並び替え
                         <select name="order">
@@ -132,7 +124,7 @@ include __DIR__ . '/partials/header.php';
 
         <nav class="pagination" aria-label="ページネーション">
             <?php
-            $baseQuery = ['q' => $q, 'order' => $orderParam, 'limit' => (string)$limit];
+            $baseQuery = ['order' => $orderParam, 'limit' => (string)$limit];
             ?>
             <?php if ($page > 1) : ?>
                 <a class="page-btn" href="<?php echo e(build_url('/posts.php', array_merge($baseQuery, ['page' => (string)($page - 1)]))); ?>">前へ</a>

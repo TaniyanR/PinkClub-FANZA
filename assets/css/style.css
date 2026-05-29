@@ -193,9 +193,6 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
 .sidebar-block--ad1 ~ .sidebar-block--text-rss{margin-top:20px}
 .sidebar-block--text-rss + .sidebar-block--ad2{margin-top:20px}
 .sidebar-block__title{margin:0 0 10px;font-size:16px}
-.sidebar-search-form{display:grid;gap:8px}
-.sidebar-search-form__input{width:100%;box-sizing:border-box;padding:8px;border:1px solid #c3c4c7;border-radius:4px}
-.sidebar-search-form__button{padding:8px 10px;border:1px solid #2271b1;background:#2271b1;color:#fff;border-radius:4px;cursor:pointer}
 .sidebar-empty{margin:0;color:#646970}
 .sidebar-image-links,.sidebar-links{list-style:none;margin:0;padding:0;display:grid;gap:4px;min-width:0;max-width:100%}
 .sidebar-image-links img{width:100%;height:auto;display:block;border-radius:4px}
