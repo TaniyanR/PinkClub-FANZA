@@ -110,7 +110,7 @@ $total = 0;
 $rows = [];
 
 if ($isSearch) {
-    $where = ['TRIM(COALESCE(title, "")) <> ""', 'title <> "タイトル未設定"', '(COALESCE(image_small, "") <> "" OR COALESCE(image_large, "") <> "" OR COALESCE(image_list, "") <> "" OR raw_json LIKE "%imageURL%")'];
+    $where = ['TRIM(COALESCE(title, "")) <> ""', 'TRIM(COALESCE(title, "")) <> "タイトル未設定"', '(COALESCE(image_small, "") <> "" OR COALESCE(image_large, "") <> "" OR COALESCE(image_list, "") <> "" OR raw_json LIKE "%imageURL%")'];
     $params = [];
     foreach ($searchWords as $index => $word) {
         $key = ':q' . $index;
@@ -250,7 +250,7 @@ require __DIR__ . '/partials/header.php';
       <?php
       $itemRow = is_array($r) ? $r : [];
       $contentId = trim((string)($itemRow['content_id'] ?? ''));
-      if ($contentId !== '' && function_exists('fetch_item_by_content_id')) {
+      if (!$isSearch && $contentId !== '' && function_exists('fetch_item_by_content_id')) {
           try {
               $resolved = fetch_item_by_content_id($contentId);
               if (is_array($resolved)) {
