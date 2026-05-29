@@ -170,6 +170,11 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
 .site-nav a{display:inline-block;color:#ffe4f1;text-decoration:none;font-weight:600;padding:4px 8px;border-radius:4px;transition:background-color .2s ease,color .2s ease}
 .site-nav a:hover,.site-nav a:focus-visible{background:#ffffff;color:#d63384;outline:none}
 .site-nav__sep{color:#fff}
+.site-search{margin-top:10px;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.site-search__label{font-size:13px;font-weight:700;color:#fff}
+.site-search__input{width:min(100%,320px);padding:7px 9px;border:1px solid #dcdcde;border-radius:4px;box-sizing:border-box}
+.site-search__button{padding:7px 14px;border:1px solid #ff4da6;border-radius:4px;background:#ff4da6;color:#fff;font-weight:700;cursor:pointer}
+.site-search__button:hover,.site-search__button:focus-visible{background:#d63384;border-color:#d63384}
 
 .site-layout{
   width:100%;
