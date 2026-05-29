@@ -93,11 +93,24 @@ function is_displayable_item_for_listing(array $item): bool
 
 $page = max(1, (int)get('page', 1));
 $per = app_config()['pagination']['per_page'] ?? 24;
+$searchQuery = trim((string)get('q', ''));
+if ($searchQuery !== '') {
+    $searchQuery = mb_substr($searchQuery, 0, 100, 'UTF-8');
+}
+$searchLike = '%' . addcslashes($searchQuery, '\\%_') . '%';
+$searchParams = [':q_title' => $searchLike, ':q_content_id' => $searchLike, ':q_product_id' => $searchLike];
+$searchWhereSql = "(title LIKE :q_title ESCAPE '\\\\' OR content_id LIKE :q_content_id ESCAPE '\\\\' OR product_id LIKE :q_product_id ESCAPE '\\\\')";
 $total = 0;
 $rows = [];
 
 try {
-    $total = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+    if ($searchQuery !== '') {
+        $countStmt = db()->prepare('SELECT COUNT(*) FROM items WHERE ' . $searchWhereSql);
+        $countStmt->execute($searchParams);
+        $total = (int)$countStmt->fetchColumn();
+    } else {
+        $total = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+    }
 } catch (Throwable) {
     $total = 0;
 }
@@ -121,7 +134,14 @@ foreach ($orderSqlCandidates as $orderSql) {
         $collected = [];
 
         for ($i = 0; $i < $maxLoops; $i++) {
-            $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
+            if ($searchQuery !== '') {
+                $stmt = db()->prepare('SELECT * FROM items WHERE ' . $searchWhereSql . ' ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
+                foreach ($searchParams as $paramName => $paramValue) {
+                    $stmt->bindValue($paramName, $paramValue, PDO::PARAM_STR);
+                }
+            } else {
+                $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
+            }
             $stmt->bindValue(':l', $chunkSize, PDO::PARAM_INT);
             $stmt->bindValue(':o', $cursor, PDO::PARAM_INT);
             $stmt->execute();
@@ -184,10 +204,14 @@ try {
     $accessRankingRows = [];
 }
 
-$title = '商品一覧';
+$title = $searchQuery !== '' ? '検索結果' : '商品一覧';
 require __DIR__ . '/partials/header.php';
 ?>
-<?php pcf_render_hero('商品一覧', '最新の作品を一覧でチェックできます。'); ?>
+<?php if ($searchQuery !== ''): ?>
+  <?php pcf_render_hero('検索結果', '「' . $searchQuery . '」の商品検索結果です。'); ?>
+<?php else: ?>
+  <?php pcf_render_hero('商品一覧', '最新の作品を一覧でチェックできます。'); ?>
+<?php endif; ?>
 
 <?php if ($rows !== []): ?>
   <section class="rail-section">
@@ -210,9 +234,9 @@ require __DIR__ . '/partials/header.php';
     <?php endforeach; ?>
     </div>
   </section>
-  <?php pcf_render_pagination($pg, public_url('items.php')); ?>
+  <?php pcf_render_pagination($pg, public_url('items.php'), $searchQuery !== '' ? ['q' => $searchQuery] : []); ?>
 <?php else: ?>
-  <?php pcf_render_empty('商品データがまだ登録されていません。'); ?>
+  <?php pcf_render_empty($searchQuery !== '' ? '検索条件に一致する商品がありません。' : '商品データがまだ登録されていません。'); ?>
 <?php endif; ?>
 
 <section id="access-ranking" class="block" style="margin-top:24px;">
