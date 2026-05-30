@@ -95,9 +95,11 @@ $page = max(1, (int)get('page', 1));
 $per = app_config()['pagination']['per_page'] ?? 24;
 $total = 0;
 $rows = [];
+$sourceWhere = function_exists('items_product_source_where') ? items_product_source_where() : '';
+$sourceWhereSql = $sourceWhere !== '' ? ' WHERE ' . $sourceWhere : '';
 
 try {
-    $total = (int)db()->query('SELECT COUNT(*) FROM items')->fetchColumn();
+    $total = (int)db()->query('SELECT COUNT(*) FROM items' . $sourceWhereSql)->fetchColumn();
 } catch (Throwable) {
     $total = 0;
 }
@@ -121,7 +123,7 @@ foreach ($orderSqlCandidates as $orderSql) {
         $collected = [];
 
         for ($i = 0; $i < $maxLoops; $i++) {
-            $stmt = db()->prepare('SELECT * FROM items ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
+            $stmt = db()->prepare('SELECT * FROM items' . $sourceWhereSql . ' ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
             $stmt->bindValue(':l', $chunkSize, PDO::PARAM_INT);
             $stmt->bindValue(':o', $cursor, PDO::PARAM_INT);
             $stmt->execute();

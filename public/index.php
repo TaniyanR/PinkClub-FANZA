@@ -206,12 +206,62 @@ function query_all_safe(PDO $pdo, string $sql, array $params = []): array
     }
 }
 
+function index_table_exists(PDO $pdo, string $table): bool
+{
+    if (!in_array($table, ['rss_items', 'rss_sources'], true)) {
+        return false;
+    }
+
+    try {
+        $stmt = $pdo->prepare('SHOW TABLES LIKE :table_name');
+        $stmt->execute([':table_name' => $table]);
+        return (bool)$stmt->fetch(PDO::FETCH_NUM);
+    } catch (Throwable) {
+        return false;
+    }
+}
+
+function index_column_exists(PDO $pdo, string $table, string $column): bool
+{
+    if (!in_array($table, ['items', 'rss_sources'], true)) {
+        return false;
+    }
+
+    try {
+        $stmt = $pdo->prepare('SHOW COLUMNS FROM ' . $table . ' LIKE :column');
+        $stmt->execute([':column' => $column]);
+        return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Throwable) {
+        return false;
+    }
+}
+
+function index_items_product_source_where(PDO $pdo): string
+{
+    static $where = null;
+    if ($where !== null) {
+        return $where;
+    }
+
+    $parts = [];
+    if (index_column_exists($pdo, 'items', 'item_source')) {
+        $parts[] = 'items.item_source = "fanza_product"';
+    }
+    if (index_table_exists($pdo, 'rss_items') && index_table_exists($pdo, 'rss_sources') && index_column_exists($pdo, 'rss_sources', 'source_type')) {
+        $parts[] = 'NOT EXISTS (SELECT 1 FROM rss_items ri INNER JOIN rss_sources rs ON rs.id = ri.source_id WHERE rs.source_type = "partner_link" AND (ri.title = items.title OR ri.url = items.url OR ri.url = items.affiliate_url))';
+    }
+
+    $where = $parts !== [] ? ' WHERE ' . implode(' AND ', $parts) : '';
+    return $where;
+}
+
 function fetch_items_with_order_fallback(PDO $pdo, array $orderByCandidates, int $limit): array
 {
     $limit = max(1, min(300, $limit));
+    $sourceWhereSql = index_items_product_source_where($pdo);
 
     foreach ($orderByCandidates as $orderBy) {
-        $rows = query_all_safe($pdo, 'SELECT * FROM items ORDER BY ' . $orderBy . ' LIMIT ' . $limit);
+        $rows = query_all_safe($pdo, 'SELECT * FROM items' . $sourceWhereSql . ' ORDER BY ' . $orderBy . ' LIMIT ' . $limit);
         if ($rows !== []) {
             return $rows;
         }
@@ -359,7 +409,7 @@ $authorSection = ['name' => '', 'url' => '', 'items' => []];
 
 try {
     $pdo = db();
-    $itemCount = (int)$pdo->query('SELECT COUNT(*) FROM items')->fetchColumn();
+    $itemCount = (int)$pdo->query('SELECT COUNT(*) FROM items' . index_items_product_source_where($pdo))->fetchColumn();
 
     if ($itemCount > 0) {
         $seedBase = intdiv(time(), 1800);
