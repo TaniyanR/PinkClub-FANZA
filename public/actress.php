@@ -94,6 +94,10 @@ try {
 }
 
 $apiSyncStatus = ['attempted' => false, 'success' => false, 'message' => ''];
+$actressPage = max(1, (int)get('page', 1));
+$limit = 24;
+$offset = ($actressPage - 1) * $limit;
+$hasNext = false;
 
 $profile = [
     'dmm_id' => $dmmId,
@@ -185,9 +189,10 @@ try {
 }
 
 try {
-    $list = dedupe_items_by_key(fetch_items_by_actress((int)$row['id'], 100, 0));
+    [$list, $hasNext] = paginate_items(dedupe_items_by_key(fetch_items_by_actress((int)$row['id'], $limit + 1, $offset)), $limit);
 } catch (Throwable) {
     $list = [];
+    $hasNext = false;
 }
 
 $profileImage = actress_profile_image($profile);
@@ -278,6 +283,15 @@ require __DIR__ . '/partials/header.php';
   <section class="pcf-related-grid">
     <?php foreach ($list as $item): pcf_render_item_card(is_array($item) ? $item : []); endforeach; ?>
   </section>
+  <nav class="pcf-pagination" aria-label="ページネーション">
+    <?php if ($actressPage > 1): ?>
+      <a class="pcf-pagination__link" href="<?= e(public_url('actress.php') . '?' . http_build_query(['id' => $id, 'page' => $actressPage - 1])) ?>">前へ</a>
+    <?php endif; ?>
+    <span class="pcf-pagination__link is-current"><?= e((string)$actressPage) ?></span>
+    <?php if ($hasNext): ?>
+      <a class="pcf-pagination__link" href="<?= e(public_url('actress.php') . '?' . http_build_query(['id' => $id, 'page' => $actressPage + 1])) ?>">次へ</a>
+    <?php endif; ?>
+  </nav>
 <?php else: ?>
   <?php pcf_render_empty('関連作品はまだありません。'); ?>
 <?php endif; ?>
