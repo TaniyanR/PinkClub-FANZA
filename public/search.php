@@ -55,50 +55,6 @@ function search_item_affiliate_url(array $item): string
     return trim((string)($raw['affiliateURL'] ?? ''));
 }
 
-function search_item_has_sample_movie(array $item): bool
-{
-    foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $key) {
-        if (trim((string)($item[$key] ?? '')) !== '') {
-            return true;
-        }
-    }
-
-    $raw = search_item_raw($item);
-    $sampleMovie = $raw['sampleMovieURL'] ?? null;
-    if (is_array($sampleMovie)) {
-        foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $key) {
-            if (trim((string)($sampleMovie[$key] ?? '')) !== '') {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
-function search_item_has_sample_images(array $item): bool
-{
-    $raw = search_item_raw($item);
-    $sampleImageURL = $raw['sampleImageURL'] ?? null;
-    if (!is_array($sampleImageURL)) {
-        return false;
-    }
-
-    foreach (['sample_l', 'sample_s'] as $sampleKey) {
-        $images = $sampleImageURL[$sampleKey]['image'] ?? null;
-        if (!is_array($images)) {
-            continue;
-        }
-        foreach ($images as $image) {
-            if (trim((string)$image) !== '') {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
 function search_item_matches_partner_rss(array $item): bool
 {
     $title = trim(pcf_item_title($item));
@@ -129,6 +85,80 @@ function search_item_matches_partner_rss(array $item): bool
     }
 }
 
+function search_normalize_query(string $value): string
+{
+    $value = str_replace('　', ' ', trim($value));
+    $value = preg_replace('/\s+/u', ' ', $value) ?? '';
+    return trim($value);
+}
+
+function search_query_terms(string $query): array
+{
+    $query = search_normalize_query($query);
+    if ($query === '') {
+        return [];
+    }
+
+    $parts = preg_split('/\s+/u', $query) ?: [];
+    $terms = [];
+    foreach ($parts as $part) {
+        $term = trim((string)$part);
+        if ($term === '') {
+            continue;
+        }
+        $terms[$term] = true;
+    }
+
+    return array_slice(array_keys($terms), 0, 8);
+}
+
+function search_compact_text(string $value): string
+{
+    $value = mb_strtolower($value, 'UTF-8');
+    return preg_replace("/[\s　「」『』【】（）()［］\[\]｛｝{}・,，、。.!！?？:：;；ー－―‐\"'“”‘’]+/u", '', $value) ?? '';
+}
+
+function search_text_contains(string $haystack, string $needle): bool
+{
+    $haystack = (string)$haystack;
+    $needle = trim($needle);
+    if ($needle === '') {
+        return false;
+    }
+
+    if (mb_stripos($haystack, $needle, 0, 'UTF-8') !== false) {
+        return true;
+    }
+
+    $compactHaystack = search_compact_text($haystack);
+    $compactNeedle = search_compact_text($needle);
+    return $compactNeedle !== '' && mb_strpos($compactHaystack, $compactNeedle, 0, 'UTF-8') !== false;
+}
+
+function search_item_matches_query(array $item, string $query): bool
+{
+    $terms = search_query_terms($query);
+    if ($terms === []) {
+        return false;
+    }
+
+    $title = pcf_item_title($item);
+    $rawJson = (string)($item['raw_json'] ?? '');
+    $contentId = trim((string)($item['content_id'] ?? ''));
+    $productId = trim((string)($item['product_id'] ?? ''));
+
+    foreach ($terms as $term) {
+        if ($contentId === $term || $productId === $term) {
+            return true;
+        }
+        if (search_text_contains($title, $term) || search_text_contains($rawJson, $term)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function search_item_is_displayable(array $item): bool
 {
     if (search_item_matches_partner_rss($item)) {
@@ -147,15 +177,7 @@ function search_item_is_displayable(array $item): bool
         return false;
     }
 
-    if (search_item_affiliate_url($item) === '') {
-        return false;
-    }
-
-    if (!search_item_has_sample_movie($item)) {
-        return false;
-    }
-
-    return search_item_has_sample_images($item);
+    return true;
 }
 
 function search_fetch_items(string $query, int $limit, int $offset): array
@@ -165,9 +187,26 @@ function search_fetch_items(string $query, int $limit, int $offset): array
         return [];
     }
 
-    $like = '%' . addcslashes($query, '\\%_') . '%';
-    $params = [':q_title' => $like, ':q_exact_content_id' => $query, ':q_exact_product_id' => $query];
-    $whereSql = "(title LIKE :q_title ESCAPE '\\\\' OR content_id = :q_exact_content_id OR product_id = :q_exact_product_id)";
+    $terms = search_query_terms($query);
+    if ($terms === []) {
+        return [];
+    }
+
+    $params = [];
+    $termWhere = [];
+    foreach ($terms as $index => $term) {
+        $titleParam = ':q_title_' . $index;
+        $rawParam = ':q_raw_json_' . $index;
+        $contentParam = ':q_content_id_' . $index;
+        $productParam = ':q_product_id_' . $index;
+        $like = '%' . addcslashes($term, '\%_') . '%';
+        $params[$titleParam] = $like;
+        $params[$rawParam] = $like;
+        $params[$contentParam] = $term;
+        $params[$productParam] = $term;
+        $termWhere[] = "(title LIKE {$titleParam} ESCAPE '\\\\' OR raw_json LIKE {$rawParam} ESCAPE '\\\\' OR content_id = {$contentParam} OR product_id = {$productParam})";
+    }
+    $whereSql = '(' . implode(' OR ', $termWhere) . ')';
     $sourceWhere = function_exists('items_product_source_where') ? items_product_source_where() : '';
     if ($sourceWhere !== '') {
         $whereSql .= ' AND ' . $sourceWhere;
@@ -204,7 +243,7 @@ function search_fetch_items(string $query, int $limit, int $offset): array
                 }
 
                 $rawFetched = count($chunk);
-                $chunk = array_values(array_filter($chunk, static fn(array $row): bool => search_item_is_displayable($row)));
+                $chunk = array_values(array_filter($chunk, static fn(array $row): bool => search_item_matches_query($row, $query) && search_item_is_displayable($row)));
                 $collected = dedupe_items_by_key(array_merge($collected, $chunk));
                 if (count($collected) >= $targetCount) {
                     break;
@@ -224,7 +263,7 @@ function search_fetch_items(string $query, int $limit, int $offset): array
     return [];
 }
 
-$searchQuery = safe_str($_GET['q'] ?? '', 100);
+$searchQuery = safe_str($_GET['q'] ?? '', 200);
 $page = normalize_int((int)($_GET['page'] ?? 1), 1, 100000);
 $limit = (int)(app_config()['pagination']['per_page'] ?? 24);
 $offset = ($page - 1) * $limit;
