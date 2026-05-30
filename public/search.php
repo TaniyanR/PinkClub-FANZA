@@ -55,50 +55,6 @@ function search_item_affiliate_url(array $item): string
     return trim((string)($raw['affiliateURL'] ?? ''));
 }
 
-function search_item_has_sample_movie(array $item): bool
-{
-    foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $key) {
-        if (trim((string)($item[$key] ?? '')) !== '') {
-            return true;
-        }
-    }
-
-    $raw = search_item_raw($item);
-    $sampleMovie = $raw['sampleMovieURL'] ?? null;
-    if (is_array($sampleMovie)) {
-        foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $key) {
-            if (trim((string)($sampleMovie[$key] ?? '')) !== '') {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
-function search_item_has_sample_images(array $item): bool
-{
-    $raw = search_item_raw($item);
-    $sampleImageURL = $raw['sampleImageURL'] ?? null;
-    if (!is_array($sampleImageURL)) {
-        return false;
-    }
-
-    foreach (['sample_l', 'sample_s'] as $sampleKey) {
-        $images = $sampleImageURL[$sampleKey]['image'] ?? null;
-        if (!is_array($images)) {
-            continue;
-        }
-        foreach ($images as $image) {
-            if (trim((string)$image) !== '') {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
 function search_item_matches_partner_rss(array $item): bool
 {
     $title = trim(pcf_item_title($item));
@@ -193,15 +149,14 @@ function search_item_matches_query(array $item, string $query): bool
 
     foreach ($terms as $term) {
         if ($contentId === $term || $productId === $term) {
-            continue;
+            return true;
         }
         if (search_text_contains($title, $term) || search_text_contains($rawJson, $term)) {
-            continue;
+            return true;
         }
-        return false;
     }
 
-    return true;
+    return false;
 }
 
 function search_item_is_displayable(array $item): bool
