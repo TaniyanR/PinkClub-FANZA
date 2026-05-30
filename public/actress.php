@@ -87,6 +87,12 @@ if ($actressDisplayName === '' || is_invalid_actress_name($actressDisplayName) |
     exit('not found');
 }
 
+try {
+    analytics_log_actress_page_view((int)$row['id']);
+} catch (Throwable $e) {
+    error_log('actress page view logging failed: ' . $e->getMessage());
+}
+
 $apiSyncStatus = ['attempted' => false, 'success' => false, 'message' => ''];
 $actressPage = max(1, (int)get('page', 1));
 $limit = 24;
@@ -219,7 +225,11 @@ try {
         $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
     }
 
-    $rankingStmt = db()->prepare('SELECT a.id, a.dmm_id, a.name, COUNT(DISTINCT pv.id) AS access_count FROM page_views pv INNER JOIN item_actresses ia ON ia.item_id = pv.item_id INNER JOIN actresses a ON a.dmm_id = ia.dmm_id WHERE pv.viewed_at >= :period_from GROUP BY a.id, a.dmm_id, a.name ORDER BY access_count DESC, a.id DESC LIMIT 200');
+    if (!analytics_ensure_tables()) {
+        throw new RuntimeException('analytics tables are not available');
+    }
+
+    $rankingStmt = db()->prepare("SELECT a.id, a.dmm_id, a.name, COUNT(se.id) AS access_count FROM site_events se INNER JOIN actresses a ON se.path = CONCAT('/actress.php?id=', a.id) WHERE se.event_type = 'pv' AND se.created_at >= :period_from GROUP BY a.id, a.dmm_id, a.name ORDER BY access_count DESC, a.id DESC LIMIT 200");
     $rankingStmt->execute([':period_from' => $periodFrom]);
     $accessRankingRows = $rankingStmt->fetchAll() ?: [];
     $accessRankingRows = array_values(array_filter($accessRankingRows, static function ($rankingRow): bool {
