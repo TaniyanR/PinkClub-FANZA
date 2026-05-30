@@ -129,24 +129,79 @@ function search_item_matches_partner_rss(array $item): bool
     }
 }
 
-function search_item_matches_query(array $item, string $query): bool
+function search_normalize_query(string $value): string
 {
-    $query = trim($query);
+    $value = str_replace('　', ' ', trim($value));
+    $value = preg_replace('/\s+/u', ' ', $value) ?? '';
+    return trim($value);
+}
+
+function search_query_terms(string $query): array
+{
+    $query = search_normalize_query($query);
     if ($query === '') {
+        return [];
+    }
+
+    $parts = preg_split('/\s+/u', $query) ?: [];
+    $terms = [];
+    foreach ($parts as $part) {
+        $term = trim((string)$part);
+        if ($term === '') {
+            continue;
+        }
+        $terms[$term] = true;
+    }
+
+    return array_slice(array_keys($terms), 0, 8);
+}
+
+function search_compact_text(string $value): string
+{
+    $value = mb_strtolower($value, 'UTF-8');
+    return preg_replace("/[\s　「」『』【】（）()［］\[\]｛｝{}・,，、。.!！?？:：;；ー－―‐\"'“”‘’]+/u", '', $value) ?? '';
+}
+
+function search_text_contains(string $haystack, string $needle): bool
+{
+    $haystack = (string)$haystack;
+    $needle = trim($needle);
+    if ($needle === '') {
         return false;
     }
 
-    if (mb_stripos(pcf_item_title($item), $query, 0, 'UTF-8') !== false) {
+    if (mb_stripos($haystack, $needle, 0, 'UTF-8') !== false) {
         return true;
     }
 
-    foreach (['content_id', 'product_id'] as $key) {
-        if (trim((string)($item[$key] ?? '')) === $query) {
-            return true;
-        }
+    $compactHaystack = search_compact_text($haystack);
+    $compactNeedle = search_compact_text($needle);
+    return $compactNeedle !== '' && mb_strpos($compactHaystack, $compactNeedle, 0, 'UTF-8') !== false;
+}
+
+function search_item_matches_query(array $item, string $query): bool
+{
+    $terms = search_query_terms($query);
+    if ($terms === []) {
+        return false;
     }
 
-    return false;
+    $title = pcf_item_title($item);
+    $rawJson = (string)($item['raw_json'] ?? '');
+    $contentId = trim((string)($item['content_id'] ?? ''));
+    $productId = trim((string)($item['product_id'] ?? ''));
+
+    foreach ($terms as $term) {
+        if ($contentId === $term || $productId === $term) {
+            continue;
+        }
+        if (search_text_contains($title, $term) || search_text_contains($rawJson, $term)) {
+            continue;
+        }
+        return false;
+    }
+
+    return true;
 }
 
 function search_item_is_displayable(array $item): bool
@@ -167,15 +222,7 @@ function search_item_is_displayable(array $item): bool
         return false;
     }
 
-    if (search_item_affiliate_url($item) === '') {
-        return false;
-    }
-
-    if (!search_item_has_sample_movie($item)) {
-        return false;
-    }
-
-    return search_item_has_sample_images($item);
+    return true;
 }
 
 function search_fetch_items(string $query, int $limit, int $offset): array
@@ -185,9 +232,26 @@ function search_fetch_items(string $query, int $limit, int $offset): array
         return [];
     }
 
-    $like = '%' . addcslashes($query, '\\%_') . '%';
-    $params = [':q_title' => $like, ':q_raw_json' => $like, ':q_exact_content_id' => $query, ':q_exact_product_id' => $query];
-    $whereSql = "(title LIKE :q_title ESCAPE '\\\\' OR raw_json LIKE :q_raw_json ESCAPE '\\\\' OR content_id = :q_exact_content_id OR product_id = :q_exact_product_id)";
+    $terms = search_query_terms($query);
+    if ($terms === []) {
+        return [];
+    }
+
+    $params = [];
+    $termWhere = [];
+    foreach ($terms as $index => $term) {
+        $titleParam = ':q_title_' . $index;
+        $rawParam = ':q_raw_json_' . $index;
+        $contentParam = ':q_content_id_' . $index;
+        $productParam = ':q_product_id_' . $index;
+        $like = '%' . addcslashes($term, '\%_') . '%';
+        $params[$titleParam] = $like;
+        $params[$rawParam] = $like;
+        $params[$contentParam] = $term;
+        $params[$productParam] = $term;
+        $termWhere[] = "(title LIKE {$titleParam} ESCAPE '\\\\' OR raw_json LIKE {$rawParam} ESCAPE '\\\\' OR content_id = {$contentParam} OR product_id = {$productParam})";
+    }
+    $whereSql = '(' . implode(' OR ', $termWhere) . ')';
     $sourceWhere = function_exists('items_product_source_where') ? items_product_source_where() : '';
     if ($sourceWhere !== '') {
         $whereSql .= ' AND ' . $sourceWhere;
@@ -244,7 +308,7 @@ function search_fetch_items(string $query, int $limit, int $offset): array
     return [];
 }
 
-$searchQuery = safe_str($_GET['q'] ?? '', 100);
+$searchQuery = safe_str($_GET['q'] ?? '', 200);
 $page = normalize_int((int)($_GET['page'] ?? 1), 1, 100000);
 $limit = (int)(app_config()['pagination']['per_page'] ?? 24);
 $offset = ($page - 1) * $limit;
