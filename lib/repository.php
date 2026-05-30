@@ -86,7 +86,9 @@ function fetch_items(string $orderBy = 'date_published_desc', int $limit = 10, i
     $limit  = normalize_int($limit, 1, 100);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare("SELECT * FROM items ORDER BY {$orderBySql} LIMIT :limit OFFSET :offset");
+    $sourceWhere = items_product_source_where();
+    $whereSql = $sourceWhere !== '' ? ' WHERE ' . $sourceWhere : '';
+    $stmt = db()->prepare("SELECT * FROM items{$whereSql} ORDER BY {$orderBySql} LIMIT :limit OFFSET :offset");
     $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
@@ -119,6 +121,59 @@ function fetch_item_by_content_id(string $contentId): ?array
 function fetch_item_by_cid(string $cid): ?array
 {
     return fetch_item_by_content_id($cid);
+}
+
+function items_table_exists(string $table): bool
+{
+    if (!in_array($table, ['items', 'rss_items', 'rss_sources'], true)) {
+        return false;
+    }
+
+    try {
+        $stmt = db()->prepare('SHOW TABLES LIKE :table_name');
+        $stmt->execute([':table_name' => $table]);
+        return (bool)$stmt->fetch(PDO::FETCH_NUM);
+    } catch (Throwable) {
+        return false;
+    }
+}
+
+function items_column_exists(string $column, string $table = 'items'): bool
+{
+    if (!in_array($table, ['items', 'rss_sources'], true)) {
+        return false;
+    }
+
+    try {
+        $stmt = db()->prepare('SHOW COLUMNS FROM ' . $table . ' LIKE :column');
+        $stmt->execute([':column' => $column]);
+        return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Throwable) {
+        return false;
+    }
+}
+
+function ensure_items_item_source_column(): void
+{
+    if (!items_column_exists('item_source')) {
+        db()->exec('ALTER TABLE items ADD COLUMN item_source VARCHAR(32) NOT NULL DEFAULT "unknown" AFTER product_id');
+    }
+}
+
+function items_product_source_where(string $alias = ''): string
+{
+    $outerPrefix = $alias !== '' ? $alias : 'items';
+    $where = [];
+
+    if (items_column_exists('item_source')) {
+        $where[] = $outerPrefix . '.item_source = "fanza_product"';
+    }
+
+    if (items_table_exists('rss_items') && items_table_exists('rss_sources') && items_column_exists('source_type', 'rss_sources')) {
+        $where[] = 'NOT EXISTS (SELECT 1 FROM rss_items ri INNER JOIN rss_sources rs ON rs.id = ri.source_id WHERE rs.source_type = "partner_link" AND (ri.title = ' . $outerPrefix . '.title OR ri.url = ' . $outerPrefix . '.url OR ri.url = ' . $outerPrefix . '.affiliate_url))';
+    }
+
+    return implode(' AND ', $where);
 }
 
 function fetch_actresses(int $limit = 50, int $offset = 0, string $order = 'name'): array
@@ -860,6 +915,7 @@ function upsert_item(array $item): array
         'content_id'           => $contentId,
         'product_id'           => (string)($item['product_id'] ?? ''),
         'title'                => (string)($item['title'] ?? ''),
+        'item_source'          => 'fanza_product',
         'url'                  => (string)($item['url'] ?? ''),
         'affiliate_url'        => (string)($item['affiliate_url'] ?? ''),
         'image_list'           => (string)($item['image_list'] ?? ''),
@@ -877,6 +933,8 @@ function upsert_item(array $item): array
         'price_min'            => (isset($item['price_min']) && is_numeric($item['price_min'])) ? (int)$item['price_min'] : null,
     ];
 
+    ensure_items_item_source_column();
+
     $stmt = $pdo->prepare('SELECT id FROM items WHERE content_id = :content_id');
     $stmt->execute([':content_id' => $payload['content_id']]);
     $existingId = $stmt->fetchColumn();
@@ -884,6 +942,7 @@ function upsert_item(array $item): array
     if ($existingId) {
         $sql = 'UPDATE items
                 SET product_id           = :product_id,
+                    item_source          = :item_source,
                     title                = :title,
                     url                  = :url,
                     affiliate_url        = :affiliate_url,
@@ -905,6 +964,7 @@ function upsert_item(array $item): array
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             ':product_id'           => $payload['product_id'],
+            ':item_source'          => $payload['item_source'],
             ':title'                => $payload['title'],
             ':url'                  => $payload['url'],
             ':affiliate_url'        => $payload['affiliate_url'],
@@ -929,17 +989,18 @@ function upsert_item(array $item): array
     }
 
     $sql = 'INSERT INTO items
-            (content_id, product_id, title, url, affiliate_url, image_list, image_small, image_large,
+            (content_id, product_id, item_source, title, url, affiliate_url, image_list, image_small, image_large,
              sample_movie_url_476, sample_movie_url_560, sample_movie_url_644, sample_movie_url_720,
              raw_json, date_published, service_code, floor_code, category_name, price_min, created_at, updated_at)
             VALUES
-            (:content_id, :product_id, :title, :url, :affiliate_url, :image_list, :image_small, :image_large,
+            (:content_id, :product_id, :item_source, :title, :url, :affiliate_url, :image_list, :image_small, :image_large,
              :sample_movie_url_476, :sample_movie_url_560, :sample_movie_url_644, :sample_movie_url_720,
              :raw_json, :date_published, :service_code, :floor_code, :category_name, :price_min, :created_at, :updated_at)';
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
         ':content_id'           => $payload['content_id'],
         ':product_id'           => $payload['product_id'],
+        ':item_source'          => $payload['item_source'],
         ':title'                => $payload['title'],
         ':url'                  => $payload['url'],
         ':affiliate_url'        => $payload['affiliate_url'],

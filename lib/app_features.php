@@ -309,41 +309,86 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
     return ['ok' => true, 'message' => 'updated'];
 }
 
+function rss_table_column_exists(string $table, string $column): bool
+{
+    if (!in_array($table, ['rss_sources', 'partner_rss'], true)) {
+        return false;
+    }
+
+    try {
+        $stmt = db()->prepare('SHOW COLUMNS FROM ' . $table . ' LIKE :column');
+        $stmt->execute([':column' => $column]);
+        return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Throwable) {
+        return false;
+    }
+}
+
 function rss_ensure_tables(): void
 {
     $pdo = db();
-    $pdo->exec('CREATE TABLE IF NOT EXISTS rss_sources (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,name VARCHAR(255) NOT NULL,feed_url VARCHAR(1000) NOT NULL,is_enabled TINYINT(1) NOT NULL DEFAULT 1,last_fetched_at DATETIME NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,UNIQUE KEY uk_rss_source_feed (feed_url)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    $pdo->exec('CREATE TABLE IF NOT EXISTS rss_sources (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,name VARCHAR(255) NOT NULL,feed_url VARCHAR(1000) NOT NULL,source_type VARCHAR(32) NOT NULL DEFAULT "general",source_ref_id BIGINT UNSIGNED NULL,is_enabled TINYINT(1) NOT NULL DEFAULT 1,last_fetched_at DATETIME NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,UNIQUE KEY uk_rss_source_feed (feed_url),INDEX idx_rss_sources_type_ref (source_type,source_ref_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
     $pdo->exec('CREATE TABLE IF NOT EXISTS rss_items (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,source_id BIGINT UNSIGNED NOT NULL,title VARCHAR(255) NOT NULL,url VARCHAR(500) NOT NULL,published_at DATETIME NULL,summary TEXT NULL,guid VARCHAR(500) NOT NULL,image_url TEXT NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE KEY uk_rss_guid (source_id,guid),INDEX idx_rss_pub (published_at),CONSTRAINT fk_rss_items_source FOREIGN KEY (source_id) REFERENCES rss_sources(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    if (!rss_table_column_exists('rss_sources', 'source_type')) {
+        $pdo->exec('ALTER TABLE rss_sources ADD COLUMN source_type VARCHAR(32) NOT NULL DEFAULT "general" AFTER feed_url');
+    }
+    if (!rss_table_column_exists('rss_sources', 'source_ref_id')) {
+        $pdo->exec('ALTER TABLE rss_sources ADD COLUMN source_ref_id BIGINT UNSIGNED NULL AFTER source_type');
+    }
+    if (!rss_table_column_exists('partner_rss', 'show_rss')) {
+        try {
+            $pdo->exec('ALTER TABLE partner_rss ADD COLUMN show_rss TINYINT(1) NOT NULL DEFAULT 1');
+        } catch (Throwable) {
+        }
+    }
+    try {
+        $pdo->exec('CREATE INDEX idx_rss_sources_type_ref ON rss_sources(source_type, source_ref_id)');
+    } catch (Throwable) {
+    }
 }
 
 function rss_sync_partner_sources(): void
 {
     $pdo = db();
-    $partnerFeeds = $pdo->query('SELECT ps.name, pr.feed_url FROM partner_rss pr INNER JOIN partner_sites ps ON ps.id = pr.partner_site_id WHERE COALESCE(pr.show_rss, pr.is_enabled, 1)=1')->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $partnerFeeds = $pdo->query('SELECT pr.id AS rss_id, ps.name, pr.feed_url, COALESCE(pr.show_rss, pr.is_enabled, 1) AS rss_enabled FROM partner_rss pr INNER JOIN partner_sites ps ON ps.id = pr.partner_site_id')->fetchAll(PDO::FETCH_ASSOC) ?: [];
     $find = $pdo->prepare('SELECT id FROM rss_sources WHERE feed_url = :feed LIMIT 1');
-    $insert = $pdo->prepare('INSERT INTO rss_sources(name,feed_url,is_enabled,created_at,updated_at) VALUES(:name,:feed,1,NOW(),NOW())');
-    $update = $pdo->prepare('UPDATE rss_sources SET name=:name,is_enabled=1,updated_at=NOW() WHERE id=:id');
+    $insert = $pdo->prepare('INSERT INTO rss_sources(name,feed_url,source_type,source_ref_id,is_enabled,created_at,updated_at) VALUES(:name,:feed,"partner_link",:ref,:enabled,NOW(),NOW())');
+    $update = $pdo->prepare('UPDATE rss_sources SET name=:name,source_type="partner_link",source_ref_id=:ref,is_enabled=:enabled,updated_at=NOW() WHERE id=:id');
+    $seenIds = [];
 
     foreach ($partnerFeeds as $feed) {
         $feedUrl = trim((string)($feed['feed_url'] ?? ''));
         if ($feedUrl === '') {
             continue;
         }
+        $rssId = (int)($feed['rss_id'] ?? 0);
+        if ($rssId > 0) {
+            $seenIds[] = $rssId;
+        }
         $name = trim((string)($feed['name'] ?? 'RSS'));
+        $enabled = (int)($feed['rss_enabled'] ?? 0) === 1 ? 1 : 0;
         $find->execute([':feed' => $feedUrl]);
         $id = (int)($find->fetchColumn() ?: 0);
         if ($id > 0) {
-            $update->execute([':name' => $name, ':id' => $id]);
+            $update->execute([':name' => $name, ':ref' => $rssId > 0 ? $rssId : null, ':enabled' => $enabled, ':id' => $id]);
             continue;
         }
-        $insert->execute([':name' => $name, ':feed' => $feedUrl]);
+        $insert->execute([':name' => $name, ':feed' => $feedUrl, ':ref' => $rssId > 0 ? $rssId : null, ':enabled' => $enabled]);
+    }
+
+    if ($seenIds !== []) {
+        $placeholders = implode(',', array_fill(0, count($seenIds), '?'));
+        $stmt = $pdo->prepare('UPDATE rss_sources SET is_enabled=0, updated_at=NOW() WHERE source_type = "partner_link" AND source_ref_id IS NOT NULL AND source_ref_id NOT IN (' . $placeholders . ')');
+        $stmt->execute($seenIds);
+    } else {
+        $pdo->exec('UPDATE rss_sources SET is_enabled=0, updated_at=NOW() WHERE source_type = "partner_link"');
     }
 }
 
 function rss_refresh_stale_sources(int $maxSources = 1, int $staleAfterSec = 900, int $fetchTimeoutSec = 2): void
 {
     $pdo = db();
-    $stmt = $pdo->query('SELECT id,last_fetched_at FROM rss_sources WHERE is_enabled=1 ORDER BY COALESCE(last_fetched_at, "1970-01-01 00:00:00") ASC, id ASC');
+    $stmt = $pdo->query('SELECT id,last_fetched_at FROM rss_sources WHERE is_enabled=1 AND source_type = "partner_link" ORDER BY COALESCE(last_fetched_at, "1970-01-01 00:00:00") ASC, id ASC');
     $sources = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
     $refreshed = 0;
 
@@ -422,13 +467,13 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
     $sqlWithImage = 'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.guid, ri.published_at, ri.image_url '
         . 'FROM rss_items ri '
         . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id '
-        . 'WHERE rs.is_enabled = 1 AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY) '
+        . 'WHERE rs.is_enabled = 1 AND rs.source_type = "partner_link" AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY) '
         . 'ORDER BY ri.published_at DESC, ri.id DESC';
 
     $sqlWithoutImage = 'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.guid, ri.published_at '
         . 'FROM rss_items ri '
         . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id '
-        . 'WHERE rs.is_enabled = 1 AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY) '
+        . 'WHERE rs.is_enabled = 1 AND rs.source_type = "partner_link" AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY) '
         . 'ORDER BY ri.published_at DESC, ri.id DESC';
 
     try {

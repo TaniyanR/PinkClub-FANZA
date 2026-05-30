@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS items (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   content_id VARCHAR(128) NOT NULL UNIQUE,
   product_id VARCHAR(128) NULL,
+  item_source VARCHAR(32) NOT NULL DEFAULT 'unknown',
   title TEXT NOT NULL,
   service_code VARCHAR(64) NULL,
   service_name VARCHAR(255) NULL,

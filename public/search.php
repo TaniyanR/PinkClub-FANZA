@@ -1,0 +1,282 @@
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/partials/public_ui.php';
+require_once __DIR__ . '/../lib/repository.php';
+
+function search_item_has_product_source(array $item): bool
+{
+    if (array_key_exists('item_source', $item)) {
+        return (string)($item['item_source'] ?? '') === 'fanza_product';
+    }
+
+    foreach (['affiliate_url', 'service_code', 'floor_code', 'sample_movie_url_476', 'sample_movie_url_560', 'sample_movie_url_644', 'sample_movie_url_720'] as $key) {
+        if (trim((string)($item[$key] ?? '')) !== '') {
+            return true;
+        }
+    }
+
+    $rawJson = (string)($item['raw_json'] ?? '');
+    if ($rawJson !== '') {
+        $raw = json_decode($rawJson, true);
+        if (is_array($raw)) {
+            foreach (['affiliateURL', 'service_code', 'floor_code', 'sampleMovieURL'] as $key) {
+                if (isset($raw[$key])) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+function search_item_raw(array $item): array
+{
+    $rawJson = (string)($item['raw_json'] ?? '');
+    if ($rawJson === '') {
+        return [];
+    }
+
+    $decoded = json_decode($rawJson, true);
+    return is_array($decoded) ? $decoded : [];
+}
+
+function search_item_affiliate_url(array $item): string
+{
+    $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
+    if ($affiliateUrl !== '') {
+        return $affiliateUrl;
+    }
+
+    $raw = search_item_raw($item);
+    return trim((string)($raw['affiliateURL'] ?? ''));
+}
+
+function search_item_has_sample_movie(array $item): bool
+{
+    foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $key) {
+        if (trim((string)($item[$key] ?? '')) !== '') {
+            return true;
+        }
+    }
+
+    $raw = search_item_raw($item);
+    $sampleMovie = $raw['sampleMovieURL'] ?? null;
+    if (is_array($sampleMovie)) {
+        foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $key) {
+            if (trim((string)($sampleMovie[$key] ?? '')) !== '') {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+function search_item_has_sample_images(array $item): bool
+{
+    $raw = search_item_raw($item);
+    $sampleImageURL = $raw['sampleImageURL'] ?? null;
+    if (!is_array($sampleImageURL)) {
+        return false;
+    }
+
+    foreach (['sample_l', 'sample_s'] as $sampleKey) {
+        $images = $sampleImageURL[$sampleKey]['image'] ?? null;
+        if (!is_array($images)) {
+            continue;
+        }
+        foreach ($images as $image) {
+            if (trim((string)$image) !== '') {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+function search_item_matches_partner_rss(array $item): bool
+{
+    $title = trim(pcf_item_title($item));
+    $url = trim((string)($item['url'] ?? ''));
+    $affiliateUrl = search_item_affiliate_url($item);
+    $imageSmall = trim((string)($item['image_small'] ?? ''));
+    $imageLarge = trim((string)($item['image_large'] ?? ''));
+
+    if ($title === '' && $url === '' && $affiliateUrl === '' && $imageSmall === '' && $imageLarge === '') {
+        return false;
+    }
+
+    try {
+        $stmt = db()->prepare('SELECT 1 FROM rss_items ri INNER JOIN rss_sources rs ON rs.id = ri.source_id WHERE rs.source_type = "partner_link" AND (ri.title = :title OR ri.url = :url OR ri.url = :affiliate_url OR ri.image_url = :image_small OR ri.image_url = :image_large) LIMIT 1');
+        $stmt->execute([':title' => $title, ':url' => $url, ':affiliate_url' => $affiliateUrl, ':image_small' => $imageSmall, ':image_large' => $imageLarge]);
+        if ($stmt->fetchColumn()) {
+            return true;
+        }
+    } catch (Throwable) {
+    }
+
+    try {
+        $stmt = db()->prepare('SELECT 1 FROM rss_items WHERE title = :title OR url = :url OR url = :affiliate_url OR image_url = :image_small OR image_url = :image_large LIMIT 1');
+        $stmt->execute([':title' => $title, ':url' => $url, ':affiliate_url' => $affiliateUrl, ':image_small' => $imageSmall, ':image_large' => $imageLarge]);
+        return (bool)$stmt->fetchColumn();
+    } catch (Throwable) {
+        return false;
+    }
+}
+
+function search_item_matches_query(array $item, string $query): bool
+{
+    $query = trim($query);
+    if ($query === '') {
+        return false;
+    }
+
+    if (mb_stripos(pcf_item_title($item), $query, 0, 'UTF-8') !== false) {
+        return true;
+    }
+
+    foreach (['content_id', 'product_id'] as $key) {
+        if (trim((string)($item[$key] ?? '')) === $query) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function search_item_is_displayable(array $item): bool
+{
+    if (search_item_matches_partner_rss($item)) {
+        return false;
+    }
+
+    if (!search_item_has_product_source($item)) {
+        return false;
+    }
+
+    if (pcf_item_title($item) === 'タイトル未設定') {
+        return false;
+    }
+
+    if (trim(pcf_item_image($item)) === '') {
+        return false;
+    }
+
+    if (search_item_affiliate_url($item) === '') {
+        return false;
+    }
+
+    if (!search_item_has_sample_movie($item)) {
+        return false;
+    }
+
+    return search_item_has_sample_images($item);
+}
+
+function search_fetch_items(string $query, int $limit, int $offset): array
+{
+    $query = trim($query);
+    if ($query === '') {
+        return [];
+    }
+
+    $like = '%' . addcslashes($query, '\\%_') . '%';
+    $params = [':q_title' => $like, ':q_raw_json' => $like, ':q_exact_content_id' => $query, ':q_exact_product_id' => $query];
+    $whereSql = "(title LIKE :q_title ESCAPE '\\\\' OR raw_json LIKE :q_raw_json ESCAPE '\\\\' OR content_id = :q_exact_content_id OR product_id = :q_exact_product_id)";
+    $sourceWhere = function_exists('items_product_source_where') ? items_product_source_where() : '';
+    if ($sourceWhere !== '') {
+        $whereSql .= ' AND ' . $sourceWhere;
+    }
+    $orderSqlCandidates = [
+        'view_count DESC, release_date DESC, id DESC',
+        'view_count DESC, date_published DESC, id DESC',
+        'view_count DESC, id DESC',
+        'release_date DESC, id DESC',
+        'date_published DESC, id DESC',
+        'updated_at DESC, id DESC',
+        'id DESC',
+    ];
+
+    foreach ($orderSqlCandidates as $orderSql) {
+        try {
+            $chunkSize = max($limit + 1, 25);
+            $cursor = 0;
+            $targetCount = $offset + $limit + 1;
+            $maxLoops = 30;
+            $collected = [];
+
+            for ($i = 0; $i < $maxLoops; $i++) {
+                $stmt = db()->prepare('SELECT * FROM items WHERE ' . $whereSql . ' ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
+                foreach ($params as $paramName => $paramValue) {
+                    $stmt->bindValue($paramName, $paramValue, PDO::PARAM_STR);
+                }
+                $stmt->bindValue(':l', $chunkSize, PDO::PARAM_INT);
+                $stmt->bindValue(':o', $cursor, PDO::PARAM_INT);
+                $stmt->execute();
+                $chunk = $stmt->fetchAll() ?: [];
+                if ($chunk === []) {
+                    break;
+                }
+
+                $rawFetched = count($chunk);
+                $chunk = array_values(array_filter($chunk, static fn(array $row): bool => search_item_matches_query($row, $query) && search_item_is_displayable($row)));
+                $collected = dedupe_items_by_key(array_merge($collected, $chunk));
+                if (count($collected) >= $targetCount) {
+                    break;
+                }
+
+                $cursor += $rawFetched;
+                if ($rawFetched < $chunkSize) {
+                    break;
+                }
+            }
+
+            return array_slice($collected, $offset, $limit + 1);
+        } catch (Throwable) {
+        }
+    }
+
+    return [];
+}
+
+$searchQuery = safe_str($_GET['q'] ?? '', 100);
+$page = normalize_int((int)($_GET['page'] ?? 1), 1, 100000);
+$limit = (int)(app_config()['pagination']['per_page'] ?? 24);
+$offset = ($page - 1) * $limit;
+$searchRows = search_fetch_items($searchQuery, $limit, $offset);
+[$searchItems, $searchHasNext] = paginate_items($searchRows, $limit);
+
+$title = '検索結果';
+require __DIR__ . '/partials/header.php';
+?>
+<?php pcf_render_hero('検索結果', $searchQuery !== '' ? '「' . $searchQuery . '」の商品検索結果です。' : 'キーワードを入力して商品を検索できます。'); ?>
+
+<?php if ($searchQuery === ''): ?>
+  <?php pcf_render_empty('検索キーワードを入力してください。'); ?>
+<?php elseif ($searchItems !== []): ?>
+  <section class="rail-section">
+    <div class="rail-row rail-row--200 rail-row--wide-thumb">
+    <?php foreach ($searchItems as $item): ?>
+      <?php pcf_render_item_card(is_array($item) ? $item : [], 200, true); ?>
+    <?php endforeach; ?>
+    </div>
+  </section>
+  <nav class="pcf-pagination" aria-label="ページネーション">
+    <?php if ($page > 1): ?>
+      <a class="pcf-pagination__link" href="<?= e(public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $page - 1])) ?>">前へ</a>
+    <?php endif; ?>
+    <span class="pcf-pagination__link is-current"><?= e((string)$page) ?></span>
+    <?php if ($searchHasNext): ?>
+      <a class="pcf-pagination__link" href="<?= e(public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $page + 1])) ?>">次へ</a>
+    <?php endif; ?>
+  </nav>
+<?php else: ?>
+  <?php pcf_render_empty('検索条件に一致する商品がありません。'); ?>
+<?php endif; ?>
+
+<?php require __DIR__ . '/partials/footer.php'; ?>
