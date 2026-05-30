@@ -187,6 +187,48 @@ try {
 $profileImage = actress_profile_image($profile);
 $actressDisplayName = $profile['name'];
 
+$accessRankingPeriod = trim((string)get('rank_period', 'daily'));
+$accessRankingTabs = [
+    'daily' => ['label' => '24時間'],
+    'weekly' => ['label' => '週間'],
+    'monthly' => ['label' => '月間'],
+    'yearly' => ['label' => '年間'],
+];
+if (!isset($accessRankingTabs[$accessRankingPeriod])) {
+    $accessRankingPeriod = 'daily';
+}
+$accessRankingRows = [];
+try {
+    $periodFrom = null;
+    if ($accessRankingPeriod === 'daily') {
+        $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
+    } elseif ($accessRankingPeriod === 'weekly') {
+        $periodFrom = date('Y-m-d H:i:s', strtotime('-7 days'));
+    } elseif ($accessRankingPeriod === 'monthly') {
+        $periodFrom = date('Y-m-d H:i:s', strtotime('-1 month'));
+    } elseif ($accessRankingPeriod === 'yearly') {
+        $periodFrom = date('Y-m-d H:i:s', strtotime('-1 year'));
+    }
+
+    if ($periodFrom === null) {
+        $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
+    }
+
+    $rankingStmt = db()->prepare('SELECT a.id, a.dmm_id, a.name, COUNT(DISTINCT pv.id) AS access_count FROM page_views pv INNER JOIN item_actresses ia ON ia.item_id = pv.item_id INNER JOIN actresses a ON a.dmm_id = ia.dmm_id WHERE pv.viewed_at >= :period_from GROUP BY a.id, a.dmm_id, a.name ORDER BY access_count DESC, a.id DESC LIMIT 200');
+    $rankingStmt->execute([':period_from' => $periodFrom]);
+    $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+    $accessRankingRows = array_values(array_filter($accessRankingRows, static function ($rankingRow): bool {
+        if (!is_array($rankingRow)) {
+            return false;
+        }
+        $rankingName = trim((string)($rankingRow['name'] ?? ''));
+        $rankingDmmId = trim((string)($rankingRow['dmm_id'] ?? ''));
+        return $rankingName !== '' && !is_invalid_actress_name($rankingName) && ctype_digit($rankingDmmId);
+    }));
+} catch (Throwable) {
+    $accessRankingRows = [];
+}
+
 unset($title, $pageTitle);
 $title = $actressDisplayName;
 $pageTitle = $actressDisplayName;
@@ -229,5 +271,45 @@ require __DIR__ . '/partials/header.php';
 <?php else: ?>
   <?php pcf_render_empty('関連作品はまだありません。'); ?>
 <?php endif; ?>
+
+<section id="access-ranking" class="block" style="margin-top:24px;">
+  <h2 class="section-title">女優アクセスランキング</h2>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+    <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
+      <?php $tabUrl = public_url('actress.php') . '?id=' . rawurlencode((string)$id) . '&rank_period=' . rawurlencode((string)$tabKey) . '#access-ranking'; ?>
+      <?php $tabStyle = $accessRankingPeriod === $tabKey ? 'display:inline-block; padding:6px 12px; border:1px solid #0b5ed7; border-radius:6px; background:#0b5ed7; color:#fff; font-weight:700; text-decoration:none;' : 'display:inline-block; padding:6px 12px; border:1px solid #0b5ed7; border-radius:6px; background:#fff; color:#0b5ed7; font-weight:700; text-decoration:none;'; ?>
+      <a href="<?= e($tabUrl) ?>" style="<?= e($tabStyle) ?>"><?= e((string)$tabConfig['label']) ?></a>
+    <?php endforeach; ?>
+  </div>
+  <?php if ($accessRankingRows !== []): ?>
+    <div style="max-height:800px; overflow-y:auto; border:1px solid #ddd;">
+      <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
+        <thead>
+          <tr>
+            <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
+            <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">女優名</th>
+            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">アクセス数</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($accessRankingRows as $index => $rankingRow): ?>
+            <tr>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><?= e((string)($index + 1)) ?></td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:left;">
+                <?php
+                $rankingActressUrl = public_url('actress.php') . '?id=' . rawurlencode((string)($rankingRow['id'] ?? ''));
+                ?>
+                <a href="<?= e($rankingActressUrl) ?>"><?= e((string)($rankingRow['name'] ?? '')) ?></a>
+              </td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><?= e((string)((int)($rankingRow['access_count'] ?? 0))) ?></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  <?php else: ?>
+    <?php pcf_render_empty('女優アクセスランキングのデータがありません。'); ?>
+  <?php endif; ?>
+</section>
 
 <?php require __DIR__ . '/partials/footer.php'; ?>
