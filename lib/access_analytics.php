@@ -68,6 +68,37 @@ function analytics_log_out(string $targetUrl, string $refCode, string $path): vo
     $pdo->prepare('UPDATE daily_stats SET out_count = out_count + 1, updated_at = NOW() WHERE stat_date=:d')->execute([':d' => $today]);
 }
 
+function analytics_log_actress_page_view(int $actressId): void
+{
+    $actressId = max(0, $actressId);
+    if ($actressId <= 0 || (function_exists('auth_user') && auth_user())) {
+        return;
+    }
+
+    if (!analytics_ensure_tables()) {
+        return;
+    }
+
+    $path = '/actress.php?id=' . $actressId;
+    $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
+    $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+    $ipHash = $ip !== '' ? hash('sha256', $ip . '|' . $ua . '|pinkclub') : null;
+    $uaHash = $ua !== '' ? hash('sha256', $ua) : null;
+
+    $pdo = db();
+    $seenStmt = $pdo->prepare("SELECT id FROM site_events WHERE event_type = 'pv' AND path = :path AND ip_hash = :ip_hash AND DATE(created_at) = CURDATE() LIMIT 1");
+    $seenStmt->execute([':path' => $path, ':ip_hash' => $ipHash]);
+    if ($seenStmt->fetchColumn()) {
+        return;
+    }
+
+    $pdo->prepare("INSERT INTO site_events(event_type,path,ua_hash,ip_hash,created_at) VALUES('pv',:path,:ua,:ip,NOW())")->execute([
+        ':path' => $path,
+        ':ua' => $uaHash,
+        ':ip' => $ipHash,
+    ]);
+}
+
 function analytics_ensure_tables(): bool
 {
     static $ok = false;
@@ -86,6 +117,7 @@ function analytics_ensure_tables(): bool
         $pdo->exec('CREATE TABLE IF NOT EXISTS visit_sessions (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,stat_date DATE NOT NULL,visitor_hash CHAR(64) NOT NULL,first_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE KEY uk_visit_daily (stat_date, visitor_hash)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
         $pdo->exec('CREATE TABLE IF NOT EXISTS in_logs (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,ref_code VARCHAR(64) NULL,referer_host VARCHAR(255) NULL,path VARCHAR(255) NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
         $pdo->exec('CREATE TABLE IF NOT EXISTS out_logs (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,ref_code VARCHAR(64) NULL,target_url TEXT NOT NULL,path VARCHAR(255) NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+        $pdo->exec("CREATE TABLE IF NOT EXISTS site_events (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,event_type ENUM('in','out','pv') NOT NULL,path VARCHAR(255) NULL,referrer VARCHAR(500) NULL,ua_hash CHAR(64) NULL,ip_hash CHAR(64) NULL,session_id_hash CHAR(64) NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,INDEX idx_site_events_type_date (event_type, created_at),INDEX idx_site_events_session_date (session_id_hash, created_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         $pdo->exec('CREATE TABLE IF NOT EXISTS partner_sites (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,name VARCHAR(255) NOT NULL,ref_code VARCHAR(64) NOT NULL UNIQUE,url TEXT NOT NULL,is_enabled TINYINT(1) NOT NULL DEFAULT 1,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
         $pdo->exec('CREATE TABLE IF NOT EXISTS partner_rss (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,partner_site_id BIGINT UNSIGNED NOT NULL,feed_url TEXT NOT NULL,is_enabled TINYINT(1) NOT NULL DEFAULT 1,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,INDEX idx_partner_rss_partner (partner_site_id),CONSTRAINT fk_partner_rss_site FOREIGN KEY (partner_site_id) REFERENCES partner_sites(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
         $pdo->exec('CREATE TABLE IF NOT EXISTS mutual_links (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,site_name VARCHAR(255) NOT NULL,site_url TEXT NOT NULL,link_url TEXT NULL,rss_url TEXT NULL,contact_email VARCHAR(255) NULL,apply_type VARCHAR(32) NOT NULL DEFAULT "link_only",rule_text TEXT NULL,rule_json LONGTEXT NULL,status VARCHAR(20) NOT NULL DEFAULT "pending",is_enabled TINYINT(1) NOT NULL DEFAULT 1,enabled TINYINT(1) NOT NULL DEFAULT 1,display_order INT NOT NULL DEFAULT 100,display_position VARCHAR(32) NOT NULL DEFAULT "sidebar",rss_enabled TINYINT(1) NOT NULL DEFAULT 0,banner_image_url TEXT NULL,image_url TEXT NULL,approved_at DATETIME NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,INDEX idx_mutual_links_status (status),INDEX idx_mutual_links_status_enabled_order (status,is_enabled,display_order,id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
