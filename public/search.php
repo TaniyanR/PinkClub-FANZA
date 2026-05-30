@@ -278,12 +278,10 @@ require __DIR__ . '/partials/header.php';
 <?php if ($searchQuery === ''): ?>
   <?php pcf_render_empty('検索キーワードを入力してください。'); ?>
 <?php elseif ($searchItems !== []): ?>
-  <section class="rail-section">
-    <div class="rail-row rail-row--200 rail-row--wide-thumb">
+  <section class="pcf-related-grid">
     <?php foreach ($searchItems as $item): ?>
-      <?php pcf_render_item_card(is_array($item) ? $item : [], 200, true); ?>
+      <?php pcf_render_item_card(is_array($item) ? $item : []); ?>
     <?php endforeach; ?>
-    </div>
   </section>
   <nav class="pcf-pagination" aria-label="ページネーション">
     <?php if ($page > 1): ?>
