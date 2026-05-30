@@ -58,6 +58,9 @@ function track_page_view(?string $itemCid = null): void
     if (str_starts_with($path, '/admin/')) {
         return;
     }
+    if (function_exists('auth_user') && auth_user()) {
+        return;
+    }
 
     app_session_start();
     $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
