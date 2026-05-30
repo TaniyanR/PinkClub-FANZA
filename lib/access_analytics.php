@@ -15,7 +15,7 @@ function analytics_track_request(): void
     $isAdminRequest = preg_match('#/(?:admin)(?:/|$)#', $path) === 1;
     $isLoginRequest = str_ends_with($path, '/public/login0718.php') || str_ends_with($path, '/public/login.php');
 
-    if ($isAdminRequest || $isLoginRequest) {
+    if ($isAdminRequest || $isLoginRequest || (function_exists('auth_user') && auth_user())) {
         return;
     }
 
