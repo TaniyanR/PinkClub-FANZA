@@ -92,7 +92,7 @@ function is_displayable_item_for_listing(array $item): bool
 }
 
 $page = max(1, (int)get('page', 1));
-$per = app_config()['pagination']['per_page'] ?? 24;
+$per = 32;
 $total = 0;
 $rows = [];
 $sourceWhere = function_exists('items_product_source_where') ? items_product_source_where() : '';
@@ -107,9 +107,6 @@ try {
 $pg = paginate($total, $page, (int)$per);
 
 $orderSqlCandidates = [
-    'view_count DESC, release_date DESC, id DESC',
-    'view_count DESC, date_published DESC, id DESC',
-    'view_count DESC, id DESC',
     'release_date DESC, id DESC',
     'date_published DESC, id DESC',
     'updated_at DESC, id DESC',
@@ -193,7 +190,7 @@ require __DIR__ . '/partials/header.php';
 
 <?php if ($rows !== []): ?>
   <section class="rail-section">
-    <div class="rail-row rail-row--200 rail-row--wide-thumb">
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--items-grid">
     <?php foreach ($rows as $r): ?>
       <?php
       $itemRow = is_array($r) ? $r : [];
