@@ -99,7 +99,7 @@ $canonicalHref = isset($canonicalUrl) && is_string($canonicalUrl) && $canonicalU
   <?php require __DIR__ . '/sidebar.php'; ?>
   <main class="content site-main site-main--legacy">
     <?php $scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? '')); ?>
-    <?php $autoBreadcrumbSkip = ['item.php', 'genre.php', 'series_detail.php', 'author.php', 'maker.php', 'actress.php']; ?>
+    <?php $autoBreadcrumbSkip = ['item.php', 'genre.php', 'series_detail.php', 'series_one.php', 'author.php', 'maker.php', 'actress.php']; ?>
     <?php if ($scriptName !== 'index.php' && !in_array($scriptName, $autoBreadcrumbSkip, true)): ?>
       <nav class="pcf-breadcrumb" aria-label="パンくず">
         <span class="pcf-breadcrumb__item"><a href="<?= e(public_url('')) ?>">ホーム</a></span>
