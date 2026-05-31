@@ -190,6 +190,44 @@ class DmmSyncService
         return ['synced_count' => $total, 'next_offset' => $currentOffset];
     }
 
+    public function syncItemsByParams(string $siteCode, string $serviceCode, string $floorCode, int $required, array $extraParams = []): array
+    {
+        $remaining = max(1, $required);
+        $currentOffset = 1;
+        $total = 0;
+        $totalCount = 0;
+        $contentIds = [];
+
+        while ($remaining > 0) {
+            $hits = min(100, $remaining);
+            $requestParams = array_merge($extraParams, ['hits' => $hits, 'offset' => $currentOffset]);
+            $response = $this->client->fetchItems($siteCode, $serviceCode, $floorCode, $requestParams);
+            if ($totalCount === 0) {
+                $totalCount = (int)($response['result']['total_count'] ?? $response['result']['total'] ?? 0);
+            }
+            $items = DmmNormalizer::normalizeItemsResponse($response);
+            if ($items === []) {
+                break;
+            }
+            foreach ($items as $item) {
+                $contentId = trim((string)($item['content_id'] ?? ''));
+                if ($contentId !== '') {
+                    $contentIds[] = $contentId;
+                }
+            }
+
+            $total += $this->saveItems($items, 'items');
+            $remaining -= $hits;
+            $currentOffset += $hits;
+
+            if (count($items) < $hits) {
+                break;
+            }
+        }
+
+        return ['synced_count' => $total, 'total_count' => $totalCount, 'content_ids' => array_values(array_unique($contentIds))];
+    }
+
     private function saveItems(array $items, string $logType): int
     {
         $count = 0;
