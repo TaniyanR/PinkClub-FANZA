@@ -615,6 +615,40 @@ function fetch_items_by_maker(int $makerId, int $limit, int $offset = 0): array
     }
 }
 
+function count_items_by_series(int $seriesId): int
+{
+    $seriesId = max(1, $seriesId);
+
+    try {
+        $stmt = db()->prepare(
+            'SELECT COUNT(DISTINCT items.id)
+             FROM items
+             INNER JOIN item_series ON items.content_id = item_series.content_id
+             WHERE item_series.series_id = :id'
+        );
+        $stmt->execute([':id' => $seriesId]);
+        $count = (int)$stmt->fetchColumn();
+        if ($count > 0) {
+            return $count;
+        }
+    } catch (Throwable) {
+    }
+
+    try {
+        $stmt = db()->prepare(
+            'SELECT COUNT(DISTINCT items.id)
+             FROM items
+             INNER JOIN series_master ON series_master.id       = :id
+             INNER JOIN item_series   ON item_series.dmm_id     = series_master.dmm_id
+             WHERE items.id = item_series.item_id'
+        );
+        $stmt->execute([':id' => $seriesId]);
+        return (int)$stmt->fetchColumn();
+    } catch (Throwable) {
+        return 0;
+    }
+}
+
 function fetch_items_by_series(int $seriesId, int $limit, int $offset = 0): array
 {
     $seriesId = max(1, $seriesId);
