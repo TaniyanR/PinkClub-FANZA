@@ -58,45 +58,25 @@ function dedupe_items_for_listing(array $items): array
 
 function is_displayable_item_for_listing(array $item): bool
 {
-    $title = trim((string)($item['title'] ?? ''));
-    $raw = [];
-    $rawJson = (string)($item['raw_json'] ?? '');
-    if ($rawJson !== '') {
-        $decoded = json_decode($rawJson, true);
-        if (is_array($decoded)) {
-            $raw = $decoded;
-        }
-    }
+    $title = trim(pcf_item_title($item));
     if ($title === '' || $title === 'タイトル未設定') {
-        $title = trim((string)($raw['title'] ?? $raw['iteminfo']['title'] ?? ''));
-        if ($title === '') {
-            return false;
-        }
+        return false;
     }
 
-    foreach (['image_small', 'image_large', 'image_list'] as $key) {
-        if (trim((string)($item[$key] ?? '')) !== '') {
-            return true;
-        }
-    }
-
-    if ($raw !== []) {
-        foreach (['small', 'large', 'list'] as $imageKey) {
-            if (trim((string)($raw['imageURL'][$imageKey] ?? '')) !== '') {
-                return true;
-            }
-        }
-    }
-
-    return false;
+    return trim(pcf_item_image($item)) !== '';
 }
 
 $page = max(1, (int)get('page', 1));
-$per = app_config()['pagination']['per_page'] ?? 24;
+$per = 32;
 $total = 0;
 $rows = [];
 $sourceWhere = function_exists('items_product_source_where') ? items_product_source_where() : '';
-$sourceWhereSql = $sourceWhere !== '' ? ' WHERE ' . $sourceWhere : '';
+$listingWhereParts = [];
+if ($sourceWhere !== '') {
+    $listingWhereParts[] = $sourceWhere;
+}
+$listingWhereParts[] = '(COALESCE(items.title, "") <> "" AND COALESCE(items.title, "") <> "タイトル未設定" AND (COALESCE(items.image_small, "") <> "" OR COALESCE(items.image_large, "") <> "" OR COALESCE(items.image_list, "") <> ""))';
+$sourceWhereSql = ' WHERE ' . implode(' AND ', $listingWhereParts);
 
 try {
     $total = (int)db()->query('SELECT COUNT(*) FROM items' . $sourceWhereSql)->fetchColumn();
@@ -107,10 +87,9 @@ try {
 $pg = paginate($total, $page, (int)$per);
 
 $orderSqlCandidates = [
-    'view_count DESC, release_date DESC, id DESC',
-    'view_count DESC, date_published DESC, id DESC',
-    'view_count DESC, id DESC',
+    'release_date DESC, updated_at DESC, id DESC',
     'release_date DESC, id DESC',
+    'date_published DESC, updated_at DESC, id DESC',
     'date_published DESC, id DESC',
     'updated_at DESC, id DESC',
     'id DESC',
@@ -193,20 +172,10 @@ require __DIR__ . '/partials/header.php';
 
 <?php if ($rows !== []): ?>
   <section class="rail-section">
-    <div class="rail-row rail-row--200 rail-row--wide-thumb">
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--items-grid">
     <?php foreach ($rows as $r): ?>
       <?php
       $itemRow = is_array($r) ? $r : [];
-      $contentId = trim((string)($itemRow['content_id'] ?? ''));
-      if ($contentId !== '' && function_exists('fetch_item_by_content_id')) {
-          try {
-              $resolved = fetch_item_by_content_id($contentId);
-              if (is_array($resolved)) {
-                  $itemRow = array_merge($itemRow, $resolved);
-              }
-          } catch (Throwable) {
-          }
-      }
       pcf_render_item_card($itemRow, 200, true);
       ?>
     <?php endforeach; ?>
