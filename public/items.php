@@ -6,147 +6,89 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/partials/public_ui.php';
 require_once __DIR__ . '/../lib/repository.php';
 
-function dedupe_items_for_listing(array $items): array
+
+function items_listing_table_exists(string $table): bool
 {
-    $seen = [];
-    $result = [];
-    foreach ($items as $item) {
-        if (!is_array($item)) {
-            continue;
-        }
-        $contentId = strtolower(trim((string)($item['content_id'] ?? '')));
-        $productId = strtolower(trim((string)($item['product_id'] ?? '')));
-        $id = trim((string)($item['id'] ?? ''));
-        $key = $contentId !== '' ? 'content_id:' . $contentId : ($productId !== '' ? 'product_id:' . $productId : ($id !== '' ? 'id:' . $id : ''));
-
-        $score = 0;
-        if (trim((string)($item['title'] ?? '')) !== '') {
-            $score += 2;
-        }
-        if (trim((string)($item['image_small'] ?? '')) !== '' || trim((string)($item['image_large'] ?? '')) !== '' || trim((string)($item['image_list'] ?? '')) !== '') {
-            $score += 2;
-        }
-        if (trim((string)($item['affiliate_url'] ?? '')) !== '') {
-            $score += 1;
-        }
-
-        if ($key !== '' && isset($seen[$key])) {
-            $index = (int)$seen[$key];
-            $existing = $result[$index] ?? [];
-            $existingScore = 0;
-            if (trim((string)($existing['title'] ?? '')) !== '') {
-                $existingScore += 2;
-            }
-            if (trim((string)($existing['image_small'] ?? '')) !== '' || trim((string)($existing['image_large'] ?? '')) !== '' || trim((string)($existing['image_list'] ?? '')) !== '') {
-                $existingScore += 2;
-            }
-            if (trim((string)($existing['affiliate_url'] ?? '')) !== '') {
-                $existingScore += 1;
-            }
-            if ($score > $existingScore) {
-                $result[$index] = $item;
-            }
-            continue;
-        }
-        if ($key !== '') {
-            $seen[$key] = count($result);
-        }
-        $result[] = $item;
+    if (!in_array($table, ['articles'], true)) {
+        return false;
     }
-    return $result;
+
+    try {
+        $stmt = db()->prepare('SHOW TABLES LIKE :table_name');
+        $stmt->execute([':table_name' => $table]);
+        return (bool)$stmt->fetch(PDO::FETCH_NUM);
+    } catch (Throwable) {
+        return false;
+    }
 }
 
-function is_displayable_item_for_listing(array $item): bool
+function items_listing_article_to_item(array $article): array
 {
-    $title = trim((string)($item['title'] ?? ''));
-    $raw = [];
-    $rawJson = (string)($item['raw_json'] ?? '');
-    if ($rawJson !== '') {
-        $decoded = json_decode($rawJson, true);
-        if (is_array($decoded)) {
-            $raw = $decoded;
-        }
-    }
-    if ($title === '' || $title === 'タイトル未設定') {
-        $title = trim((string)($raw['title'] ?? $raw['iteminfo']['title'] ?? ''));
-        if ($title === '') {
-            return false;
-        }
-    }
+    $productId = trim((string)($article['product_id'] ?? ''));
 
-    foreach (['image_small', 'image_large', 'image_list'] as $key) {
-        if (trim((string)($item[$key] ?? '')) !== '') {
-            return true;
-        }
-    }
-
-    if ($raw !== []) {
-        foreach (['small', 'large', 'list'] as $imageKey) {
-            if (trim((string)($raw['imageURL'][$imageKey] ?? '')) !== '') {
-                return true;
-            }
-        }
-    }
-
-    return false;
+    return [
+        'id' => 0,
+        'content_id' => $productId,
+        'product_id' => $productId,
+        'title' => (string)($article['title'] ?? ''),
+        'affiliate_url' => (string)($article['affiliate_url'] ?? ''),
+        'image_small' => (string)($article['image_url'] ?? ''),
+        'image_large' => (string)($article['image_url'] ?? ''),
+        'release_date' => (string)($article['release_date'] ?? ''),
+        'created_at' => (string)($article['created_at'] ?? ''),
+        'updated_at' => (string)($article['updated_at'] ?? ''),
+    ];
 }
 
 $page = max(1, (int)get('page', 1));
-$per = app_config()['pagination']['per_page'] ?? 24;
+$per = 32;
 $total = 0;
 $rows = [];
 $sourceWhere = function_exists('items_product_source_where') ? items_product_source_where() : '';
 $sourceWhereSql = $sourceWhere !== '' ? ' WHERE ' . $sourceWhere : '';
 
-try {
-    $total = (int)db()->query('SELECT COUNT(*) FROM items' . $sourceWhereSql)->fetchColumn();
-} catch (Throwable) {
-    $total = 0;
+$useArticles = false;
+if (items_listing_table_exists('articles')) {
+    try {
+        $useArticles = (int)db()->query('SELECT COUNT(*) FROM articles')->fetchColumn() > 0;
+    } catch (Throwable) {
+        $useArticles = false;
+    }
 }
 
-$pg = paginate($total, $page, (int)$per);
-
-$orderSqlCandidates = [
-    'view_count DESC, release_date DESC, id DESC',
-    'view_count DESC, date_published DESC, id DESC',
-    'view_count DESC, id DESC',
-    'release_date DESC, id DESC',
-    'date_published DESC, id DESC',
-    'updated_at DESC, id DESC',
-    'id DESC',
-];
-foreach ($orderSqlCandidates as $orderSql) {
+if ($useArticles) {
     try {
-        $chunkSize = (int)$pg['perPage'] + 1;
-        $cursor = (int)$pg['offset'];
-        $maxLoops = 6;
-        $collected = [];
+        $total = (int)db()->query('SELECT COUNT(*) FROM articles')->fetchColumn();
+    } catch (Throwable) {
+        $total = 0;
+    }
 
-        for ($i = 0; $i < $maxLoops; $i++) {
-            $stmt = db()->prepare('SELECT * FROM items' . $sourceWhereSql . ' ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
-            $stmt->bindValue(':l', $chunkSize, PDO::PARAM_INT);
-            $stmt->bindValue(':o', $cursor, PDO::PARAM_INT);
-            $stmt->execute();
-            $chunk = $stmt->fetchAll() ?: [];
-            if ($chunk === []) {
-                break;
-            }
+    $pg = paginate($total, $page, (int)$per);
 
-            $rawFetched = count($chunk);
-            $chunk = array_values(array_filter($chunk, static fn(array $row): bool => is_displayable_item_for_listing($row)));
-            $collected = dedupe_items_for_listing(array_merge($collected, $chunk));
-            if (count($collected) > (int)$pg['perPage']) {
-                break;
-            }
+    try {
+        $stmt = db()->prepare('SELECT * FROM articles ORDER BY release_date DESC, created_at DESC, id DESC LIMIT :l OFFSET :o');
+        $stmt->bindValue(':l', (int)$pg['perPage'], PDO::PARAM_INT);
+        $stmt->bindValue(':o', (int)$pg['offset'], PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = array_map(static fn(array $article): array => items_listing_article_to_item($article), $stmt->fetchAll() ?: []);
+    } catch (Throwable) {
+        $rows = [];
+    }
+} else {
+    try {
+        $total = (int)db()->query('SELECT COUNT(*) FROM items' . $sourceWhereSql)->fetchColumn();
+    } catch (Throwable) {
+        $total = 0;
+    }
 
-            $cursor += $rawFetched;
-            if ($rawFetched < $chunkSize) {
-                break;
-            }
-        }
+    $pg = paginate($total, $page, (int)$per);
 
-        $rows = array_slice($collected, 0, (int)$pg['perPage']);
-        break;
+    try {
+        $stmt = db()->prepare('SELECT * FROM items' . $sourceWhereSql . ' ORDER BY created_at DESC, id DESC LIMIT :l OFFSET :o');
+        $stmt->bindValue(':l', (int)$pg['perPage'], PDO::PARAM_INT);
+        $stmt->bindValue(':o', (int)$pg['offset'], PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll() ?: [];
     } catch (Throwable) {
         $rows = [];
     }
@@ -193,20 +135,10 @@ require __DIR__ . '/partials/header.php';
 
 <?php if ($rows !== []): ?>
   <section class="rail-section">
-    <div class="rail-row rail-row--200 rail-row--wide-thumb">
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--items-grid" style="display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; overflow:visible; padding-bottom:0;">
     <?php foreach ($rows as $r): ?>
       <?php
       $itemRow = is_array($r) ? $r : [];
-      $contentId = trim((string)($itemRow['content_id'] ?? ''));
-      if ($contentId !== '' && function_exists('fetch_item_by_content_id')) {
-          try {
-              $resolved = fetch_item_by_content_id($contentId);
-              if (is_array($resolved)) {
-                  $itemRow = array_merge($itemRow, $resolved);
-              }
-          } catch (Throwable) {
-          }
-      }
       pcf_render_item_card($itemRow, 200, true);
       ?>
     <?php endforeach; ?>
