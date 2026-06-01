@@ -111,6 +111,33 @@ if (!function_exists('pcf_item_image')) {
     }
 }
 
+if (!function_exists('pcf_first_text_from_mixed')) {
+    function pcf_first_text_from_mixed(mixed $value): string
+    {
+        if (is_string($value)) {
+            return trim($value);
+        }
+        if (!is_array($value)) {
+            return '';
+        }
+
+        foreach (['title', 'name', 'value', 'text'] as $key) {
+            if (isset($value[$key]) && is_string($value[$key]) && trim($value[$key]) !== '') {
+                return trim((string)$value[$key]);
+            }
+        }
+
+        foreach ($value as $child) {
+            $text = pcf_first_text_from_mixed($child);
+            if ($text !== '') {
+                return $text;
+            }
+        }
+
+        return '';
+    }
+}
+
 if (!function_exists('pcf_item_title')) {
     function pcf_item_title(array $item): string
     {
@@ -128,13 +155,12 @@ if (!function_exists('pcf_item_title')) {
             (string)($raw['title'] ?? ''),
             (string)($raw['name'] ?? ''),
             (string)($raw['productTitle'] ?? ''),
-            (string)($raw['iteminfo']['title'][0]['name'] ?? ''),
-            (string)($raw['iteminfo']['title'][0]['value'] ?? ''),
+            pcf_first_text_from_mixed($raw['iteminfo']['title'] ?? null),
         ];
 
         foreach ($candidates as $candidate) {
             $value = trim($candidate);
-            if ($value !== '') {
+            if ($value !== '' && $value !== 'タイトル未設定') {
                 return $value;
             }
         }
