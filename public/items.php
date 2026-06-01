@@ -20,7 +20,7 @@ function dedupe_items_for_listing(array $items): array
         $key = $contentId !== '' ? 'content_id:' . $contentId : ($productId !== '' ? 'product_id:' . $productId : ($id !== '' ? 'id:' . $id : ''));
 
         $score = 0;
-        if (trim((string)($item['title'] ?? '')) !== '') {
+        if (listing_item_title($item) !== '') {
             $score += 2;
         }
         if (trim((string)($item['image_small'] ?? '')) !== '' || trim((string)($item['image_large'] ?? '')) !== '' || trim((string)($item['image_list'] ?? '')) !== '') {
@@ -34,7 +34,7 @@ function dedupe_items_for_listing(array $items): array
             $index = (int)$seen[$key];
             $existing = $result[$index] ?? [];
             $existingScore = 0;
-            if (trim((string)($existing['title'] ?? '')) !== '') {
+            if (listing_item_title(is_array($existing) ? $existing : []) !== '') {
                 $existingScore += 2;
             }
             if (trim((string)($existing['image_small'] ?? '')) !== '' || trim((string)($existing['image_large'] ?? '')) !== '' || trim((string)($existing['image_list'] ?? '')) !== '') {
@@ -56,100 +56,74 @@ function dedupe_items_for_listing(array $items): array
     return $result;
 }
 
+function listing_item_title(array $item): string
+{
+    $title = trim(pcf_item_title($item));
+    return $title !== 'タイトル未設定' ? $title : '';
+}
+
+function prepare_listing_item_for_card(array $item): array
+{
+    $title = listing_item_title($item);
+    if ($title !== '') {
+        $item['title'] = $title;
+    }
+
+    return $item;
+}
+
 function is_displayable_item_for_listing(array $item): bool
 {
-    $title = trim((string)($item['title'] ?? ''));
-    $raw = [];
-    $rawJson = (string)($item['raw_json'] ?? '');
-    if ($rawJson !== '') {
-        $decoded = json_decode($rawJson, true);
-        if (is_array($decoded)) {
-            $raw = $decoded;
-        }
+    if (listing_item_title($item) === '') {
+        return false;
     }
-    if ($title === '' || $title === 'タイトル未設定') {
-        $title = trim((string)($raw['title'] ?? $raw['iteminfo']['title'] ?? ''));
-        if ($title === '') {
-            return false;
+
+    return trim(pcf_item_image($item)) !== '';
+}
+
+function collect_newest_items_for_listing(string $whereSql): array
+{
+    $displayable = [];
+    $cursor = 0;
+    $chunkSize = 200;
+
+    while (true) {
+        $stmt = db()->prepare('SELECT * FROM items' . $whereSql . ' ORDER BY release_date DESC, updated_at DESC, id DESC LIMIT :l OFFSET :o');
+        $stmt->bindValue(':l', $chunkSize, PDO::PARAM_INT);
+        $stmt->bindValue(':o', $cursor, PDO::PARAM_INT);
+        $stmt->execute();
+        $chunk = $stmt->fetchAll() ?: [];
+        if ($chunk === []) {
+            break;
+        }
+
+        $prepared = array_map(static fn(array $row): array => prepare_listing_item_for_card($row), $chunk);
+        $displayable = dedupe_items_for_listing(array_merge($displayable, array_values(array_filter($prepared, static fn(array $row): bool => is_displayable_item_for_listing($row)))));
+        $cursor += count($chunk);
+        if (count($chunk) < $chunkSize) {
+            break;
         }
     }
 
-    foreach (['image_small', 'image_large', 'image_list'] as $key) {
-        if (trim((string)($item[$key] ?? '')) !== '') {
-            return true;
-        }
-    }
-
-    if ($raw !== []) {
-        foreach (['small', 'large', 'list'] as $imageKey) {
-            if (trim((string)($raw['imageURL'][$imageKey] ?? '')) !== '') {
-                return true;
-            }
-        }
-    }
-
-    return false;
+    return $displayable;
 }
 
 $page = max(1, (int)get('page', 1));
-$per = app_config()['pagination']['per_page'] ?? 24;
+$per = 32;
 $total = 0;
 $rows = [];
 $sourceWhere = function_exists('items_product_source_where') ? items_product_source_where() : '';
 $sourceWhereSql = $sourceWhere !== '' ? ' WHERE ' . $sourceWhere : '';
 
 try {
-    $total = (int)db()->query('SELECT COUNT(*) FROM items' . $sourceWhereSql)->fetchColumn();
+    $displayableRows = collect_newest_items_for_listing($sourceWhereSql);
+    $total = count($displayableRows);
+    $pg = paginate($total, $page, (int)$per);
+    $rows = array_slice($displayableRows, (int)$pg['offset'], (int)$pg['perPage']);
 } catch (Throwable) {
     $total = 0;
-}
-
-$pg = paginate($total, $page, (int)$per);
-
-$orderSqlCandidates = [
-    'view_count DESC, release_date DESC, id DESC',
-    'view_count DESC, date_published DESC, id DESC',
-    'view_count DESC, id DESC',
-    'release_date DESC, id DESC',
-    'date_published DESC, id DESC',
-    'updated_at DESC, id DESC',
-    'id DESC',
-];
-foreach ($orderSqlCandidates as $orderSql) {
-    try {
-        $chunkSize = (int)$pg['perPage'] + 1;
-        $cursor = (int)$pg['offset'];
-        $maxLoops = 6;
-        $collected = [];
-
-        for ($i = 0; $i < $maxLoops; $i++) {
-            $stmt = db()->prepare('SELECT * FROM items' . $sourceWhereSql . ' ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
-            $stmt->bindValue(':l', $chunkSize, PDO::PARAM_INT);
-            $stmt->bindValue(':o', $cursor, PDO::PARAM_INT);
-            $stmt->execute();
-            $chunk = $stmt->fetchAll() ?: [];
-            if ($chunk === []) {
-                break;
-            }
-
-            $rawFetched = count($chunk);
-            $chunk = array_values(array_filter($chunk, static fn(array $row): bool => is_displayable_item_for_listing($row)));
-            $collected = dedupe_items_for_listing(array_merge($collected, $chunk));
-            if (count($collected) > (int)$pg['perPage']) {
-                break;
-            }
-
-            $cursor += $rawFetched;
-            if ($rawFetched < $chunkSize) {
-                break;
-            }
-        }
-
-        $rows = array_slice($collected, 0, (int)$pg['perPage']);
-        break;
-    } catch (Throwable) {
-        $rows = [];
-    }
+    $pg = paginate($total, $page, (int)$per);
+    $rows = [];
 }
 
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
@@ -193,20 +167,10 @@ require __DIR__ . '/partials/header.php';
 
 <?php if ($rows !== []): ?>
   <section class="rail-section">
-    <div class="rail-row rail-row--200 rail-row--wide-thumb">
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--items-grid" style="display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; overflow:visible; padding-bottom:0;">
     <?php foreach ($rows as $r): ?>
       <?php
-      $itemRow = is_array($r) ? $r : [];
-      $contentId = trim((string)($itemRow['content_id'] ?? ''));
-      if ($contentId !== '' && function_exists('fetch_item_by_content_id')) {
-          try {
-              $resolved = fetch_item_by_content_id($contentId);
-              if (is_array($resolved)) {
-                  $itemRow = array_merge($itemRow, $resolved);
-              }
-          } catch (Throwable) {
-          }
-      }
+      $itemRow = prepare_listing_item_for_card(is_array($r) ? $r : []);
       pcf_render_item_card($itemRow, 200, true);
       ?>
     <?php endforeach; ?>
