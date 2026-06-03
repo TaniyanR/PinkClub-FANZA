@@ -6,150 +6,27 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/partials/public_ui.php';
 require_once __DIR__ . '/../lib/repository.php';
 
-function dedupe_items_for_listing(array $items): array
-{
-    $seen = [];
-    $result = [];
-    foreach ($items as $item) {
-        if (!is_array($item)) {
-            continue;
-        }
-        $contentId = strtolower(trim((string)($item['content_id'] ?? '')));
-        $productId = strtolower(trim((string)($item['product_id'] ?? '')));
-        $id = trim((string)($item['id'] ?? ''));
-        $key = $contentId !== '' ? 'content_id:' . $contentId : ($productId !== '' ? 'product_id:' . $productId : ($id !== '' ? 'id:' . $id : ''));
-
-        $score = 0;
-        if (trim((string)($item['title'] ?? '')) !== '') {
-            $score += 2;
-        }
-        if (trim((string)($item['image_small'] ?? '')) !== '' || trim((string)($item['image_large'] ?? '')) !== '' || trim((string)($item['image_list'] ?? '')) !== '') {
-            $score += 2;
-        }
-        if (trim((string)($item['affiliate_url'] ?? '')) !== '') {
-            $score += 1;
-        }
-
-        if ($key !== '' && isset($seen[$key])) {
-            $index = (int)$seen[$key];
-            $existing = $result[$index] ?? [];
-            $existingScore = 0;
-            if (trim((string)($existing['title'] ?? '')) !== '') {
-                $existingScore += 2;
-            }
-            if (trim((string)($existing['image_small'] ?? '')) !== '' || trim((string)($existing['image_large'] ?? '')) !== '' || trim((string)($existing['image_list'] ?? '')) !== '') {
-                $existingScore += 2;
-            }
-            if (trim((string)($existing['affiliate_url'] ?? '')) !== '') {
-                $existingScore += 1;
-            }
-            if ($score > $existingScore) {
-                $result[$index] = $item;
-            }
-            continue;
-        }
-        if ($key !== '') {
-            $seen[$key] = count($result);
-        }
-        $result[] = $item;
-    }
-    return $result;
-}
-
-function is_displayable_item_for_listing(array $item): bool
-{
-    $title = trim((string)($item['title'] ?? ''));
-    $raw = [];
-    $rawJson = (string)($item['raw_json'] ?? '');
-    if ($rawJson !== '') {
-        $decoded = json_decode($rawJson, true);
-        if (is_array($decoded)) {
-            $raw = $decoded;
-        }
-    }
-    if ($title === '' || $title === 'タイトル未設定') {
-        $title = trim((string)($raw['title'] ?? $raw['iteminfo']['title'] ?? ''));
-        if ($title === '') {
-            return false;
-        }
-    }
-
-    foreach (['image_small', 'image_large', 'image_list'] as $key) {
-        if (trim((string)($item[$key] ?? '')) !== '') {
-            return true;
-        }
-    }
-
-    if ($raw !== []) {
-        foreach (['small', 'large', 'list'] as $imageKey) {
-            if (trim((string)($raw['imageURL'][$imageKey] ?? '')) !== '') {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
 $page = max(1, (int)get('page', 1));
-$per = app_config()['pagination']['per_page'] ?? 24;
+$per = 32;
+$sourceWhere = function_exists('items_product_source_where') ? items_product_source_where() : '';
+$whereSql = $sourceWhere !== '' ? ' WHERE ' . $sourceWhere : '';
 $total = 0;
 $rows = [];
-$sourceWhere = function_exists('items_product_source_where') ? items_product_source_where() : '';
-$sourceWhereSql = $sourceWhere !== '' ? ' WHERE ' . $sourceWhere : '';
-
 try {
-    $total = (int)db()->query('SELECT COUNT(*) FROM items' . $sourceWhereSql)->fetchColumn();
+    $total = (int)db()->query('SELECT COUNT(*) FROM items' . $whereSql)->fetchColumn();
 } catch (Throwable) {
     $total = 0;
 }
 
 $pg = paginate($total, $page, (int)$per);
 
-$orderSqlCandidates = [
-    'view_count DESC, release_date DESC, id DESC',
-    'view_count DESC, date_published DESC, id DESC',
-    'view_count DESC, id DESC',
-    'release_date DESC, id DESC',
-    'date_published DESC, id DESC',
-    'updated_at DESC, id DESC',
-    'id DESC',
-];
-foreach ($orderSqlCandidates as $orderSql) {
-    try {
-        $chunkSize = (int)$pg['perPage'] + 1;
-        $cursor = (int)$pg['offset'];
-        $maxLoops = 6;
-        $collected = [];
-
-        for ($i = 0; $i < $maxLoops; $i++) {
-            $stmt = db()->prepare('SELECT * FROM items' . $sourceWhereSql . ' ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
-            $stmt->bindValue(':l', $chunkSize, PDO::PARAM_INT);
-            $stmt->bindValue(':o', $cursor, PDO::PARAM_INT);
-            $stmt->execute();
-            $chunk = $stmt->fetchAll() ?: [];
-            if ($chunk === []) {
-                break;
-            }
-
-            $rawFetched = count($chunk);
-            $chunk = array_values(array_filter($chunk, static fn(array $row): bool => is_displayable_item_for_listing($row)));
-            $collected = dedupe_items_for_listing(array_merge($collected, $chunk));
-            if (count($collected) > (int)$pg['perPage']) {
-                break;
-            }
-
-            $cursor += $rawFetched;
-            if ($rawFetched < $chunkSize) {
-                break;
-            }
-        }
-
-        $rows = array_slice($collected, 0, (int)$pg['perPage']);
-        break;
-    } catch (Throwable) {
-        $rows = [];
-    }
+try {
+    $limit = (int)$pg['perPage'];
+    $offset = (int)$pg['offset'];
+    $stmt = db()->query('SELECT * FROM items' . $whereSql . ' ORDER BY release_date DESC, updated_at DESC, id DESC LIMIT ' . $limit . ' OFFSET ' . $offset);
+    $rows = $stmt ? ($stmt->fetchAll() ?: []) : [];
+} catch (Throwable) {
+    $rows = [];
 }
 
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
@@ -193,24 +70,18 @@ require __DIR__ . '/partials/header.php';
 
 <?php if ($rows !== []): ?>
   <section class="rail-section">
-    <div class="rail-row rail-row--200 rail-row--wide-thumb">
-    <?php foreach ($rows as $r): ?>
-      <?php
-      $itemRow = is_array($r) ? $r : [];
-      $contentId = trim((string)($itemRow['content_id'] ?? ''));
-      if ($contentId !== '' && function_exists('fetch_item_by_content_id')) {
-          try {
-              $resolved = fetch_item_by_content_id($contentId);
-              if (is_array($resolved)) {
-                  $itemRow = array_merge($itemRow, $resolved);
-              }
-          } catch (Throwable) {
-          }
-      }
-      pcf_render_item_card($itemRow, 200, true);
-      ?>
+    <?php foreach (array_chunk($rows, 4) as $itemRowGroup): ?>
+      <div style="display:flex; gap:16px; margin-bottom:16px; align-items:stretch;">
+        <?php foreach ($itemRowGroup as $r): ?>
+          <div style="flex:0 0 calc((100% - 48px) / 4); max-width:calc((100% - 48px) / 4); min-width:0;">
+            <?php
+            $itemRow = is_array($r) ? $r : [];
+            pcf_render_item_card($itemRow, 200, true);
+            ?>
+          </div>
+        <?php endforeach; ?>
+      </div>
     <?php endforeach; ?>
-    </div>
   </section>
   <?php pcf_render_pagination($pg, public_url('items.php')); ?>
 <?php else: ?>
