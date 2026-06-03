@@ -58,37 +58,12 @@ function dedupe_items_for_listing(array $items): array
 
 function is_displayable_item_for_listing(array $item): bool
 {
-    $title = trim((string)($item['title'] ?? ''));
-    $raw = [];
-    $rawJson = (string)($item['raw_json'] ?? '');
-    if ($rawJson !== '') {
-        $decoded = json_decode($rawJson, true);
-        if (is_array($decoded)) {
-            $raw = $decoded;
-        }
-    }
+    $title = trim(pcf_item_title($item));
     if ($title === '' || $title === 'タイトル未設定') {
-        $title = trim((string)($raw['title'] ?? $raw['iteminfo']['title'] ?? ''));
-        if ($title === '') {
-            return false;
-        }
+        return false;
     }
 
-    foreach (['image_small', 'image_large', 'image_list'] as $key) {
-        if (trim((string)($item[$key] ?? '')) !== '') {
-            return true;
-        }
-    }
-
-    if ($raw !== []) {
-        foreach (['small', 'large', 'list'] as $imageKey) {
-            if (trim((string)($raw['imageURL'][$imageKey] ?? '')) !== '') {
-                return true;
-            }
-        }
-    }
-
-    return false;
+    return trim(pcf_item_image($item)) !== '';
 }
 
 $page = max(1, (int)get('page', 1));
@@ -107,19 +82,20 @@ try {
 $pg = paginate($total, $page, (int)$per);
 
 $orderSqlCandidates = [
+    'release_date DESC, id DESC',
+    'date_published DESC, id DESC',
     'view_count DESC, release_date DESC, id DESC',
     'view_count DESC, date_published DESC, id DESC',
     'view_count DESC, id DESC',
-    'release_date DESC, id DESC',
-    'date_published DESC, id DESC',
     'updated_at DESC, id DESC',
     'id DESC',
 ];
+$bestRows = [];
 foreach ($orderSqlCandidates as $orderSql) {
     try {
         $chunkSize = (int)$pg['perPage'] + 1;
         $cursor = (int)$pg['offset'];
-        $maxLoops = 6;
+        $maxLoops = max(1, (int)ceil(max(1, $total - $cursor) / $chunkSize));
         $collected = [];
 
         for ($i = 0; $i < $maxLoops; $i++) {
@@ -145,11 +121,20 @@ foreach ($orderSqlCandidates as $orderSql) {
             }
         }
 
-        $rows = array_slice($collected, 0, (int)$pg['perPage']);
-        break;
+        $candidateRows = array_slice($collected, 0, (int)$pg['perPage']);
+        if (count($candidateRows) > count($bestRows)) {
+            $bestRows = $candidateRows;
+        }
+        if (count($candidateRows) >= (int)$pg['perPage']) {
+            $rows = $candidateRows;
+            break;
+        }
     } catch (Throwable) {
         $rows = [];
     }
+}
+if ($rows === [] && $bestRows !== []) {
+    $rows = $bestRows;
 }
 
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
