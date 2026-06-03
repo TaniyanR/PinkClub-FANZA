@@ -498,7 +498,7 @@
 
 .rail-row--200.rail-row--wide-thumb {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 380px));
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   justify-content: start;
 }
@@ -516,7 +516,7 @@
 
 .pcf-dm-card {
   width: 100%;
-  max-width: 380px;
+  max-width: 100%;
   background: #fff;
   border: 1px solid #d9d9d9;
   border-radius: 4px;
@@ -536,5 +536,20 @@
 .pcf-dm-card__button.is-disabled { background:#9ca3af; color:#fff; cursor:not-allowed; }
 
 @media (max-width: 900px) {
+  .rail-row--200.rail-row--wide-thumb { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
   .rail-row--200.rail-row--wide-thumb { grid-template-columns: 1fr; }
+}
+
+.items-page-grid .rail-card {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+.items-page-grid .rail-card .thumb,
+.items-page-grid .rail-card .rail-card__noimage {
+  width: 100% !important;
+  max-width: 100% !important;
 }

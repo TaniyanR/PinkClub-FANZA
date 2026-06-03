@@ -37,13 +37,44 @@ if (!function_exists('pcf_parse_image_urls')) {
     }
 }
 
+if (!function_exists('pcf_maybe_decode_json_value')) {
+    function pcf_maybe_decode_json_value(mixed $value): mixed
+    {
+        if (!is_string($value)) {
+            return $value;
+        }
+        $trimmed = trim($value);
+        if ($trimmed === '' || ($trimmed[0] !== '{' && $trimmed[0] !== '[')) {
+            return $value;
+        }
+        $decoded = json_decode($trimmed, true);
+        if (is_string($decoded)) {
+            $decodedAgain = json_decode($decoded, true);
+            return is_array($decodedAgain) ? $decodedAgain : $decoded;
+        }
+        return is_array($decoded) ? $decoded : $value;
+    }
+}
+
+if (!function_exists('pcf_looks_like_image_url')) {
+    function pcf_looks_like_image_url(string $value): bool
+    {
+        $v = trim($value);
+        if ($v === '') {
+            return false;
+        }
+        return (bool)preg_match('#^(?:https?:)?//#i', $v) && (bool)preg_match('#(?:\.(?:jpe?g|png|gif|webp)(?:[?&].*)?$|/mono/|/digital/|pics\.dmm\.)#i', $v);
+    }
+}
+
 if (!function_exists('pcf_first_image_from_mixed')) {
     function pcf_first_image_from_mixed(mixed $value): string
     {
+        $value = pcf_maybe_decode_json_value($value);
         if (is_string($value)) {
             foreach (pcf_parse_image_urls($value) as $candidate) {
                 $v = trim((string)$candidate);
-                if ($v !== '') {
+                if (pcf_looks_like_image_url($v)) {
                     return $v;
                 }
             }
@@ -52,18 +83,81 @@ if (!function_exists('pcf_first_image_from_mixed')) {
         if (!is_array($value)) {
             return '';
         }
-        foreach ($value as $child) {
-            if (is_string($child) && trim($child) !== '') {
-                return trim($child);
-            }
-            if (is_array($child)) {
-                foreach (['url', 'src', 'value'] as $k) {
-                    if (isset($child[$k]) && is_string($child[$k]) && trim($child[$k]) !== '') {
-                        return trim((string)$child[$k]);
-                    }
+
+        foreach (['large', 'small', 'list', 'image', 'url', 'src', 'value'] as $key) {
+            if (array_key_exists($key, $value)) {
+                $candidate = pcf_first_image_from_mixed($value[$key]);
+                if ($candidate !== '') {
+                    return $candidate;
                 }
             }
         }
+
+        foreach ($value as $child) {
+            $candidate = pcf_first_image_from_mixed($child);
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+        return '';
+    }
+}
+
+if (!function_exists('pcf_first_text_from_mixed')) {
+    function pcf_first_text_from_mixed(mixed $value): string
+    {
+        $value = pcf_maybe_decode_json_value($value);
+        if (is_string($value) || is_numeric($value)) {
+            return trim((string)$value);
+        }
+        if (!is_array($value)) {
+            return '';
+        }
+
+        foreach (['name', 'value', 'title', 'productTitle'] as $key) {
+            if (isset($value[$key])) {
+                $candidate = pcf_first_text_from_mixed($value[$key]);
+                if ($candidate !== '') {
+                    return $candidate;
+                }
+            }
+        }
+
+        foreach ($value as $child) {
+            $candidate = pcf_first_text_from_mixed($child);
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        return '';
+    }
+}
+
+if (!function_exists('pcf_first_text_by_keys_from_mixed')) {
+    function pcf_first_text_by_keys_from_mixed(mixed $value, array $keys): string
+    {
+        $value = pcf_maybe_decode_json_value($value);
+        if (!is_array($value)) {
+            return '';
+        }
+
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $value)) {
+                $candidate = pcf_first_text_from_mixed($value[$key]);
+                if ($candidate !== '') {
+                    return $candidate;
+                }
+            }
+        }
+
+        foreach ($value as $child) {
+            $candidate = pcf_first_text_by_keys_from_mixed($child, $keys);
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
         return '';
     }
 }
@@ -83,13 +177,14 @@ if (!function_exists('pcf_item_image')) {
 
         $rawJson = (string)($item['raw_json'] ?? '');
         if ($rawJson !== '') {
-            $raw = json_decode($rawJson, true);
+            $raw = pcf_maybe_decode_json_value($rawJson);
             if (is_array($raw)) {
                 $candidates[] = (string)($raw['packageImage']['large'] ?? '');
                 $candidates[] = (string)($raw['packageImage']['small'] ?? '');
                 $candidates[] = (string)($raw['imageURL']['large'] ?? '');
                 $candidates[] = (string)($raw['imageURL']['small'] ?? '');
                 $candidates[] = pcf_first_image_from_mixed($raw['imageURL']['list'] ?? null);
+                $candidates[] = pcf_first_image_from_mixed($raw);
             }
         }
 
@@ -117,24 +212,24 @@ if (!function_exists('pcf_item_title')) {
         $raw = [];
         $rawJson = (string)($item['raw_json'] ?? '');
         if ($rawJson !== '') {
-            $decoded = json_decode($rawJson, true);
+            $decoded = pcf_maybe_decode_json_value($rawJson);
             if (is_array($decoded)) {
                 $raw = $decoded;
             }
         }
 
         $candidates = [
-            (string)($item['title'] ?? ''),
-            (string)($raw['title'] ?? ''),
-            (string)($raw['name'] ?? ''),
-            (string)($raw['productTitle'] ?? ''),
-            (string)($raw['iteminfo']['title'][0]['name'] ?? ''),
-            (string)($raw['iteminfo']['title'][0]['value'] ?? ''),
+            pcf_first_text_from_mixed($item['title'] ?? ''),
+            pcf_first_text_from_mixed($raw['title'] ?? ''),
+            pcf_first_text_from_mixed($raw['name'] ?? ''),
+            pcf_first_text_from_mixed($raw['productTitle'] ?? ''),
+            pcf_first_text_from_mixed($raw['iteminfo']['title'] ?? ''),
+            pcf_first_text_by_keys_from_mixed($raw, ['title', 'productTitle']),
         ];
 
         foreach ($candidates as $candidate) {
             $value = trim($candidate);
-            if ($value !== '') {
+            if ($value !== '' && $value !== 'タイトル未設定') {
                 return $value;
             }
         }
@@ -345,12 +440,38 @@ if (!function_exists('pcf_render_pagination')) {
         }
 
         echo '<nav class="pcf-pagination" aria-label="ページネーション">';
-        for ($i = 1; $i <= $pages; $i++) {
+        if ($page > 1) {
+            $query = $extraQuery;
+            $query['page'] = $page - 1;
+            $url = $path . '?' . http_build_query($query);
+            echo '<a class="pcf-pagination__link" href="' . e($url) . '">&laquo;</a>';
+        }
+
+        $displayPages = [1, $pages];
+        for ($i = max(1, $page - 2); $i <= min($pages, $page + 2); $i++) {
+            $displayPages[] = $i;
+        }
+        $displayPages = array_values(array_unique($displayPages));
+        sort($displayPages);
+
+        $previousDisplayPage = 0;
+        foreach ($displayPages as $i) {
+            if ($previousDisplayPage > 0 && $i > $previousDisplayPage + 1) {
+                echo '<span class="pcf-pagination__ellipsis">...</span>';
+            }
             $query = $extraQuery;
             $query['page'] = $i;
             $url = $path . '?' . http_build_query($query);
             $class = 'pcf-pagination__link' . ($i === $page ? ' is-current' : '');
             echo '<a class="' . e($class) . '" href="' . e($url) . '">' . e((string)$i) . '</a>';
+            $previousDisplayPage = $i;
+        }
+
+        if ($page < $pages) {
+            $query = $extraQuery;
+            $query['page'] = $page + 1;
+            $url = $path . '?' . http_build_query($query);
+            echo '<a class="pcf-pagination__link" href="' . e($url) . '">&raquo;</a>';
         }
         echo '</nav>';
     }
