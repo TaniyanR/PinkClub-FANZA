@@ -107,11 +107,11 @@ try {
 $pg = paginate($total, $page, (int)$per);
 
 $orderSqlCandidates = [
+    'release_date DESC, id DESC',
+    'date_published DESC, id DESC',
     'view_count DESC, release_date DESC, id DESC',
     'view_count DESC, date_published DESC, id DESC',
     'view_count DESC, id DESC',
-    'release_date DESC, id DESC',
-    'date_published DESC, id DESC',
     'updated_at DESC, id DESC',
     'id DESC',
 ];
