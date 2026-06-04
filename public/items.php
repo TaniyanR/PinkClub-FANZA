@@ -360,9 +360,9 @@ require __DIR__ . '/partials/header.php';
 <?php else: ?>
   <section class="rail-section">
     <h2>新着作品</h2>
-    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($latestTop as $item) { render_item_card($item, 210); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($latestTop as $item) { render_item_card($item, 200, null, true); } ?></div>
     <div style="height:24px;"></div>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal"><?php foreach ($latestBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($latestBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
 <?php endif; ?>
 

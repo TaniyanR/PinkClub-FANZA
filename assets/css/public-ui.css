@@ -603,3 +603,8 @@
   color: #fff;
   cursor: not-allowed;
 }
+.site-main--legacy:has(.pcf-breadcrumb) .rail-section .rail-row--200.rail-row--wide-thumb {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  overflow-x: visible;
+}
