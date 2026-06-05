@@ -202,13 +202,14 @@ function index_items_product_source_where(PDO $pdo): string
     return $where;
 }
 
-function fetch_items_with_order_fallback(PDO $pdo, array $orderByCandidates, int $limit): array
+function fetch_items_with_order_fallback(PDO $pdo, array $orderByCandidates, int $limit, int $offset = 0): array
 {
     $limit = max(1, min(300, $limit));
+    $offset = max(0, $offset);
     $sourceWhereSql = index_items_product_source_where($pdo);
 
     foreach ($orderByCandidates as $orderBy) {
-        $rows = query_all_safe($pdo, 'SELECT * FROM items' . $sourceWhereSql . ' ORDER BY ' . $orderBy . ' LIMIT ' . $limit);
+        $rows = query_all_safe($pdo, 'SELECT * FROM items' . $sourceWhereSql . ' ORDER BY ' . $orderBy . ' LIMIT ' . $limit . ' OFFSET ' . $offset);
         if ($rows !== []) {
             return $rows;
         }
@@ -317,25 +318,31 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
 
 $title = '商品一覧';
 $itemCount = 0;
-$latestTop = $latestBottom = [];
+$latestItems = [];
+$pages = 1;
+$hasNextPage = false;
 $fallbackItems = [];
+$page = normalize_int((int)($_GET['page'] ?? 1), 1, 100000);
+$limit = (int)(app_config()['pagination']['per_page'] ?? 32);
+$offset = 0;
 
 try {
     $pdo = db();
     $itemCount = (int)$pdo->query('SELECT COUNT(*) FROM items' . index_items_product_source_where($pdo))->fetchColumn();
 
     if ($itemCount > 0) {
-        $usedHomeItemKeys = [];
-        $latestRows = fetch_items_with_order_fallback($pdo, [
+        $pg = paginate($itemCount, $page, $limit);
+        $page = (int)$pg['page'];
+        $pages = (int)$pg['pages'];
+        $offset = (int)$pg['offset'];
+        $latestItems = fetch_items_with_order_fallback($pdo, [
             'release_date DESC, updated_at DESC, id DESC',
             'date_published DESC, updated_at DESC, id DESC',
             'updated_at DESC, id DESC',
             'id DESC',
-        ], 40);
-        $latestRows = take_unique_items_for_home($latestRows, $usedHomeItemKeys, 20);
-        $latestTop = array_slice($latestRows, 0, 5);
-        $latestBottom = array_slice($latestRows, 5, 15);
-        $fallbackItems = array_slice($latestRows, 0, 12);
+        ], $limit, $offset);
+        $hasNextPage = $page < $pages;
+        $fallbackItems = array_slice($latestItems, 0, 12);
     }
 } catch (Throwable $e) {
     error_log('public/items.php failed: ' . $e->getMessage());
@@ -346,7 +353,7 @@ require __DIR__ . '/partials/header.php';
 
 <?php if ($itemCount === 0): ?>
   <div class="card"><p>まだ商品データが同期されていません。管理画面のAPI設定から「同期実行（DB保存）」を行ってください。</p></div>
-<?php elseif ($latestTop === [] && $latestBottom === []): ?>
+<?php elseif ($latestItems === []): ?>
   <div class="card">
     <h2>表示できる本文データがまだありません</h2>
     <p>商品データは存在しますが、新着作品を組み立てられませんでした。</p>
@@ -360,9 +367,16 @@ require __DIR__ . '/partials/header.php';
 <?php else: ?>
   <section class="rail-section">
     <h2>新着作品</h2>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($latestTop as $item) { render_item_card($item, 200, null, true); } ?></div>
-    <div style="height:24px;"></div>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($latestBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($latestItems as $item) { render_item_card($item, 200, null, true); } ?></div>
+    <nav class="pcf-pagination" aria-label="ページネーション">
+      <?php if ($page > 1): ?>
+        <a class="pcf-pagination__link" href="<?= e(public_url('items.php') . '?' . http_build_query(['page' => $page - 1])) ?>">前へ</a>
+      <?php endif; ?>
+      <span class="pcf-pagination__link is-current"><?= e((string)$page) ?> / <?= e((string)$pages) ?></span>
+      <?php if ($hasNextPage): ?>
+        <a class="pcf-pagination__link" href="<?= e(public_url('items.php') . '?' . http_build_query(['page' => $page + 1])) ?>">次へ</a>
+      <?php endif; ?>
+    </nav>
   </section>
 <?php endif; ?>
 
