@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
-require_once __DIR__ . '/partials/public_ui.php';
 
 function take_unique_items_for_home(array $items, array &$usedKeys, int $limit): array
 {
@@ -324,8 +323,8 @@ $displayItems = [];
 $pages = 1;
 $hasNextPage = false;
 $fallbackItems = [];
-$page = normalize_int((int)($_GET['page'] ?? 1), 1, 100000);
-$limit = (int)(app_config()['pagination']['per_page'] ?? 32);
+$page = max(1, min((int)($_GET['page'] ?? 1), 100000));
+$limit = max(1, (int)(app_config()['pagination']['per_page'] ?? 32));
 $offset = 0;
 
 try {
@@ -364,7 +363,7 @@ require __DIR__ . '/partials/header.php';
   <?php if ($fallbackItems !== []): ?>
     <section class="rail-section">
       <h2>取得できた作品</h2>
-      <div class="rail-row rail-row--180"><?php foreach ($fallbackItems as $item) { pcf_render_item_card($item); } ?></div>
+      <div class="rail-row rail-row--180"><?php foreach ($fallbackItems as $item) { render_item_card($item, 180); } ?></div>
     </section>
   <?php endif; ?>
 <?php else: ?>
@@ -381,7 +380,7 @@ require __DIR__ . '/partials/header.php';
         <?php endif; ?>
       </nav>
     <?php endif; ?>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($displayItems as $item) { pcf_render_item_card($item, 200, true); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($displayItems as $item) { render_item_card($item, 200, null, true); } ?></div>
     <?php if ($pages > 1): ?>
       <nav class="pcf-pagination" aria-label="ページネーション">
         <?php if ($page > 1): ?>
