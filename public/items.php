@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/partials/public_ui.php';
 
 function take_unique_items_for_home(array $items, array &$usedKeys, int $limit): array
 {
@@ -363,7 +364,7 @@ require __DIR__ . '/partials/header.php';
   <?php if ($fallbackItems !== []): ?>
     <section class="rail-section">
       <h2>取得できた作品</h2>
-      <div class="rail-row rail-row--180"><?php foreach ($fallbackItems as $item) { render_item_card($item, 180); } ?></div>
+      <div class="rail-row rail-row--180"><?php foreach ($fallbackItems as $item) { pcf_render_item_card($item); } ?></div>
     </section>
   <?php endif; ?>
 <?php else: ?>
@@ -380,13 +381,7 @@ require __DIR__ . '/partials/header.php';
         <?php endif; ?>
       </nav>
     <?php endif; ?>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($displayItems as $item) {
-      try {
-          render_item_card($item, 200, null, true);
-      } catch (Throwable $e) {
-          error_log('public/items.php card render failed: ' . $e->getMessage());
-      }
-    } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($displayItems as $item) { pcf_render_item_card($item, 200, true); } ?></div>
     <?php if ($pages > 1): ?>
       <nav class="pcf-pagination" aria-label="ページネーション">
         <?php if ($page > 1): ?>
