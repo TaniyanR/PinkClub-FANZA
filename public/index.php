@@ -421,9 +421,8 @@ try {
             'updated_at DESC, id DESC',
             'id DESC',
         ], 40);
-        $latestRows = take_unique_items_for_home($latestRows, $usedHomeItemKeys, 20);
+        $latestRows = take_unique_items_for_home($latestRows, $usedHomeItemKeys, 5);
         $latestTop = array_slice($latestRows, 0, 5);
-        $latestBottom = array_slice($latestRows, 5, 15);
         $fallbackItems = array_slice($latestRows, 0, 12);
 
         $popularRows = fetch_items_with_order_fallback($pdo, [
@@ -432,9 +431,8 @@ try {
             'view_count DESC, id DESC',
             'id DESC',
         ], 80);
-        $popularRows = take_unique_items_for_home($popularRows, $usedHomeItemKeys, 20);
+        $popularRows = take_unique_items_for_home($popularRows, $usedHomeItemKeys, 5);
         $pickupTop = array_slice($popularRows, 0, 5);
-        $pickupBottom = array_slice($popularRows, 5, 15);
 
         if (db_table_exists($pdo, 'actresses')) {
             $actressCandidates = $pdo->query('SELECT id,name,image_small,image_large,image_url FROM actresses ORDER BY (CASE WHEN image_small IS NULL OR image_small = "" THEN 1 ELSE 0 END), id DESC LIMIT 200')->fetchAll();
@@ -616,16 +614,12 @@ $hasHomeContent = $latestTop !== []
 <?php else: ?>
   <section class="rail-section">
     <h2>新着作品</h2>
-    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($latestTop as $item) { render_item_card($item, 210); } ?></div>
-    <div style="height:24px;"></div>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal"><?php foreach ($latestBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($latestTop as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
 
   <section class="rail-section">
     <h2>ピックアップ（人気順）</h2>
-    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($pickupTop as $item) { render_item_card($item, 210); } ?></div>
-    <div style="height:24px;"></div>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal"><?php foreach ($pickupBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($pickupTop as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
 
   <section class="rail-section">
