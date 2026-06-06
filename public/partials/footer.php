@@ -68,11 +68,45 @@ $copyrightYears = $copyrightStartYear >= $currentYear
   </div>
   </main>
 </div>
+<button type="button" class="page-top-button" aria-label="トップに戻る">↑ トップへ</button>
 <footer class="site-footer">
   <div class="site-footer__credit">
     <a href="https://affiliate.dmm.com/api/"><img src="https://p.dmm.co.jp/p/affiliate/web_service/r18_135_17.gif" width="135" height="17" alt="WEB SERVICE BY FANZA" /></a>
   </div>
   <div class="site-footer__copy">© <?= e($copyrightYears) ?> <?= e($siteName) ?></div>
 </footer>
+<script>
+(function () {
+  var header = document.querySelector('.site-header');
+  var button = document.querySelector('.page-top-button');
+  if (!header || !button) {
+    return;
+  }
+
+  var updateButton = function () {
+    button.classList.toggle('is-visible', header.getBoundingClientRect().bottom <= 0);
+  };
+
+  button.addEventListener('click', function () {
+    if ('scrollBehavior' in document.documentElement.style) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.scrollTo(0, 0);
+    }
+  });
+
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      button.classList.toggle('is-visible', !entries[0].isIntersecting);
+    });
+    observer.observe(header);
+  } else {
+    window.addEventListener('scroll', updateButton);
+    window.addEventListener('resize', updateButton);
+  }
+
+  updateButton();
+}());
+</script>
 </body>
 </html>
