@@ -317,7 +317,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
 
 $title = '商品一覧';
 $itemCount = 0;
-$latestTop = $latestBottom = [];
+$latestItems = [];
 $fallbackItems = [];
 
 try {
@@ -332,10 +332,8 @@ try {
             'updated_at DESC, id DESC',
             'id DESC',
         ], 40);
-        $latestRows = take_unique_items_for_home($latestRows, $usedHomeItemKeys, 20);
-        $latestTop = array_slice($latestRows, 0, 5);
-        $latestBottom = array_slice($latestRows, 5, 15);
-        $fallbackItems = array_slice($latestRows, 0, 12);
+        $latestItems = take_unique_items_for_home($latestRows, $usedHomeItemKeys, 20);
+        $fallbackItems = array_slice($latestItems, 0, 12);
     }
 } catch (Throwable $e) {
     error_log('public/items.php failed: ' . $e->getMessage());
@@ -346,7 +344,7 @@ require __DIR__ . '/partials/header.php';
 
 <?php if ($itemCount === 0): ?>
   <div class="card"><p>まだ商品データが同期されていません。管理画面のAPI設定から「同期実行（DB保存）」を行ってください。</p></div>
-<?php elseif ($latestTop === [] && $latestBottom === []): ?>
+<?php elseif ($latestItems === []): ?>
   <div class="card">
     <h2>表示できる本文データがまだありません</h2>
     <p>商品データは存在しますが、新着作品を組み立てられませんでした。</p>
@@ -360,9 +358,7 @@ require __DIR__ . '/partials/header.php';
 <?php else: ?>
   <section class="rail-section">
     <h2>新着作品</h2>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($latestTop as $item) { render_item_card($item, 200, null, true); } ?></div>
-    <div style="height:24px;"></div>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($latestBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($latestItems as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
 <?php endif; ?>
 
