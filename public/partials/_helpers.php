@@ -37,6 +37,31 @@ if (!function_exists('should_show_ad')) {
     }
 }
 
+if (!function_exists('render_shared_text_rss_widget')) {
+    function render_shared_text_rss_widget(): void
+    {
+        $prevUsedKeys = $GLOBALS['pcf_rss_widget_used_keys'] ?? null;
+        $prevMaxItems = $GLOBALS['pcf_rss_widget_max_items'] ?? null;
+
+        $GLOBALS['pcf_rss_widget_used_keys'] = [];
+        unset($GLOBALS['pcf_rss_widget_max_items']);
+
+        include __DIR__ . '/rss_text_widget.php';
+
+        if ($prevUsedKeys === null) {
+            unset($GLOBALS['pcf_rss_widget_used_keys']);
+        } else {
+            $GLOBALS['pcf_rss_widget_used_keys'] = $prevUsedKeys;
+        }
+
+        if ($prevMaxItems === null) {
+            unset($GLOBALS['pcf_rss_widget_max_items']);
+        } else {
+            $GLOBALS['pcf_rss_widget_max_items'] = $prevMaxItems;
+        }
+    }
+}
+
 if (!function_exists('render_shared_content_ad_row')) {
     function render_shared_content_ad_row(string $position_key, string $page_type): void
     {
