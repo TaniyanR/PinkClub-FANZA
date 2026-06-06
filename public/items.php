@@ -203,6 +203,16 @@ function index_items_product_source_where(PDO $pdo): string
     return $where;
 }
 
+function items_is_smartphone_request(): bool
+{
+    $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
+    if ($ua === '') {
+        return false;
+    }
+
+    return (bool)preg_match('/iPhone|iPod|Android.+Mobile|Windows Phone|BlackBerry/i', $ua);
+}
+
 function fetch_items_with_order_fallback(PDO $pdo, array $orderByCandidates, int $limit, int $offset = 0): array
 {
     $limit = max(1, min(300, $limit));
@@ -320,7 +330,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
 $title = '商品一覧';
 $itemCount = 0;
 $page = max(1, (int)get('page', 1));
-$per = (int)(app_config()['pagination']['per_page'] ?? 32);
+$per = items_is_smartphone_request() ? 20 : (int)(app_config()['pagination']['per_page'] ?? 32);
 $pg = paginate(0, $page, $per);
 $latestItems = [];
 $fallbackItems = [];
