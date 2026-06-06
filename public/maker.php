@@ -54,6 +54,12 @@ if ($row === null || $makerName === '' || pcf_is_noise_name($makerName) || $make
     exit('not found');
 }
 
+try {
+    analytics_log_maker_page_view((int)$row['id']);
+} catch (Throwable $e) {
+    error_log('maker page view logging failed: ' . $e->getMessage());
+}
+
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
 $accessRankingTabs = [
     'daily' => ['label' => '24時間'],
@@ -78,20 +84,16 @@ if ($accessRankingPeriod === 'daily') {
 if ($periodFrom === null) {
     $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
 }
-foreach ([
-    'SELECT g.id, g.name, COUNT(DISTINCT pv.id) AS access_count FROM page_views pv INNER JOIN items i ON i.id = pv.item_id INNER JOIN item_genres ig ON ig.content_id = i.content_id INNER JOIN genres g ON g.id = ig.genre_id WHERE pv.viewed_at >= :period_from GROUP BY g.id, g.name ORDER BY access_count DESC, g.id DESC LIMIT 200',
-    'SELECT g.id, g.name, COUNT(DISTINCT pv.id) AS access_count FROM page_views pv INNER JOIN items i ON i.id = pv.item_id INNER JOIN item_genres ig ON ig.item_id = i.id INNER JOIN genres g ON g.dmm_id = ig.dmm_id WHERE pv.viewed_at >= :period_from GROUP BY g.id, g.name ORDER BY access_count DESC, g.id DESC LIMIT 200',
-] as $rankingSql) {
-    try {
-        $rankingStmt = db()->prepare($rankingSql);
-        $rankingStmt->execute([':period_from' => $periodFrom]);
-        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
-        if ($accessRankingRows !== []) {
-            break;
-        }
-    } catch (Throwable) {
-        $accessRankingRows = [];
+try {
+    if (!analytics_ensure_tables()) {
+        throw new RuntimeException('analytics tables are not available');
     }
+
+    $rankingStmt = db()->prepare("SELECT m.id, m.dmm_id, m.name, COUNT(se.id) AS access_count FROM site_events se INNER JOIN makers m ON se.path = CONCAT('/maker.php?id=', m.id) WHERE se.event_type = 'pv' AND se.created_at >= :period_from GROUP BY m.id, m.dmm_id, m.name ORDER BY access_count DESC, m.id DESC LIMIT 200");
+    $rankingStmt->execute([':period_from' => $periodFrom]);
+    $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+} catch (Throwable) {
+    $accessRankingRows = [];
 }
 
 $title = $makerName;
@@ -127,7 +129,7 @@ require __DIR__ . '/partials/header.php';
 <?php endif; ?>
 
 <section id="access-ranking" class="block" style="margin-top:24px;">
-  <h2 class="section-title">ジャンルアクセスランキング</h2>
+  <h2 class="section-title">メーカーアクセスランキング</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php $tabUrl = public_url('maker.php') . '?id=' . rawurlencode((string)$id) . '&rank_period=' . rawurlencode((string)$tabKey) . '#access-ranking'; ?>
@@ -141,7 +143,7 @@ require __DIR__ . '/partials/header.php';
         <thead>
           <tr>
             <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
-            <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">ジャンル名</th>
+            <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">メーカー名</th>
             <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">アクセス数</th>
           </tr>
         </thead>
@@ -151,9 +153,9 @@ require __DIR__ . '/partials/header.php';
               <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><?= e((string)($index + 1)) ?></td>
               <td style="padding:8px; border-bottom:1px solid #eee; text-align:left;">
                 <?php
-                $rankingGenreUrl = public_url('genre.php') . '?id=' . rawurlencode((string)($rankingRow['id'] ?? ''));
+                $rankingMakerUrl = public_url('maker.php') . '?id=' . rawurlencode((string)($rankingRow['id'] ?? ''));
                 ?>
-                <a href="<?= e($rankingGenreUrl) ?>"><?= e((string)($rankingRow['name'] ?? '')) ?></a>
+                <a href="<?= e($rankingMakerUrl) ?>"><?= e((string)($rankingRow['name'] ?? '')) ?></a>
               </td>
               <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><?= e((string)((int)($rankingRow['access_count'] ?? 0))) ?></td>
             </tr>
@@ -162,7 +164,7 @@ require __DIR__ . '/partials/header.php';
       </table>
     </div>
   <?php else: ?>
-    <?php pcf_render_empty('ジャンルアクセスランキングのデータがありません。'); ?>
+    <?php pcf_render_empty('メーカーアクセスランキングのデータがありません。'); ?>
   <?php endif; ?>
 </section>
 

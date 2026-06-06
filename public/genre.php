@@ -98,13 +98,18 @@ if ($row === null) {
 }
 
 $genreName = pcf_genre_display_name($row);
+try {
+    analytics_log_genre_page_view((int)$row['id']);
+} catch (Throwable $e) {
+    error_log('genre page view logging failed: ' . $e->getMessage());
+}
 
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
 $accessRankingTabs = [
-    'daily' => ['label' => '24時間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 1 DAY)'],
-    'weekly' => ['label' => '週間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 7 DAY)'],
-    'monthly' => ['label' => '月間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 1 MONTH)'],
-    'yearly' => ['label' => '年間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 1 YEAR)'],
+    'daily' => ['label' => '24時間'],
+    'weekly' => ['label' => '週間'],
+    'monthly' => ['label' => '月間'],
+    'yearly' => ['label' => '年間'],
 ];
 if (!isset($accessRankingTabs[$accessRankingPeriod])) {
     $accessRankingPeriod = 'daily';
@@ -126,32 +131,15 @@ try {
         $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
     }
 
-    $rankingStmt = db()->prepare('SELECT i.id, i.content_id, i.title, COUNT(pv.id) AS access_count FROM page_views pv INNER JOIN items i ON i.id = pv.item_id INNER JOIN item_genres ig ON i.content_id = ig.content_id WHERE ig.genre_id = :genre_id AND pv.viewed_at >= :period_from GROUP BY i.id, i.title ORDER BY access_count DESC, i.id DESC LIMIT 200');
-    $rankingStmt->execute([':genre_id' => (int)$row['id'], ':period_from' => $periodFrom]);
+    if (!analytics_ensure_tables()) {
+        throw new RuntimeException('analytics tables are not available');
+    }
+
+    $rankingStmt = db()->prepare("SELECT g.id, g.dmm_id, g.name, COUNT(se.id) AS access_count FROM site_events se INNER JOIN genres g ON se.path = CONCAT('/genre.php?id=', g.id) WHERE se.event_type = 'pv' AND se.created_at >= :period_from GROUP BY g.id, g.dmm_id, g.name ORDER BY access_count DESC, g.id DESC LIMIT 200");
+    $rankingStmt->execute([':period_from' => $periodFrom]);
     $accessRankingRows = $rankingStmt->fetchAll() ?: [];
 } catch (Throwable) {
-    try {
-        $periodFrom = null;
-        if ($accessRankingPeriod === 'daily') {
-            $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
-        } elseif ($accessRankingPeriod === 'weekly') {
-            $periodFrom = date('Y-m-d H:i:s', strtotime('-7 days'));
-        } elseif ($accessRankingPeriod === 'monthly') {
-            $periodFrom = date('Y-m-d H:i:s', strtotime('-1 month'));
-        } elseif ($accessRankingPeriod === 'yearly') {
-            $periodFrom = date('Y-m-d H:i:s', strtotime('-1 year'));
-        }
-
-        if ($periodFrom === null) {
-            $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
-        }
-
-        $rankingStmt = db()->prepare('SELECT i.id, i.content_id, i.title, COUNT(pv.id) AS access_count FROM page_views pv INNER JOIN items i ON i.id = pv.item_id INNER JOIN genres g ON g.id = :genre_id INNER JOIN item_genres ig ON ig.dmm_id = g.dmm_id WHERE i.id = ig.item_id AND pv.viewed_at >= :period_from GROUP BY i.id, i.title ORDER BY access_count DESC, i.id DESC LIMIT 200');
-        $rankingStmt->execute([':genre_id' => (int)$row['id'], ':period_from' => $periodFrom]);
-        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
-    } catch (Throwable) {
-        $accessRankingRows = [];
-    }
+    $accessRankingRows = [];
 }
 
 $title = $genreName;
@@ -176,7 +164,7 @@ require __DIR__ . '/partials/header.php';
 <?php endif; ?>
 
 <section id="access-ranking" class="block" style="margin-top:24px;">
-  <h2 class="section-title"><?= e($genreName) ?>アクセスランキング</h2>
+  <h2 class="section-title">ジャンルアクセスランキング</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php
@@ -193,7 +181,7 @@ require __DIR__ . '/partials/header.php';
         <thead>
           <tr>
             <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
-            <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">作品タイトル</th>
+            <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">ジャンル名</th>
             <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">アクセス数</th>
           </tr>
         </thead>
@@ -203,9 +191,9 @@ require __DIR__ . '/partials/header.php';
               <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><?= e((string)($index + 1)) ?></td>
               <td style="padding:8px; border-bottom:1px solid #eee; text-align:left;">
                 <?php
-                $rankingItemUrl = public_url('item.php') . '?id=' . rawurlencode((string)($rankingRow['id'] ?? ''));
+                $rankingGenreUrl = public_url('genre.php') . '?id=' . rawurlencode((string)($rankingRow['id'] ?? ''));
                 ?>
-                <a href="<?= e($rankingItemUrl) ?>"><?= e((string)($rankingRow['title'] ?? '')) ?></a>
+                <a href="<?= e($rankingGenreUrl) ?>"><?= e((string)($rankingRow['name'] ?? '')) ?></a>
               </td>
               <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><?= e((string)((int)($rankingRow['access_count'] ?? 0))) ?></td>
             </tr>

@@ -20,42 +20,15 @@ function pcf_series_access_period_from(string $period): string
     return date('Y-m-d H:i:s', strtotime('-24 hours'));
 }
 
-function pcf_fetch_series_access_ranking(int $seriesId, string $periodFrom): array
+function pcf_fetch_series_access_ranking(string $periodFrom): array
 {
-    $seriesId = max(1, $seriesId);
-
     try {
-        $stmt = db()->prepare(
-            'SELECT i.id, i.content_id, i.title, COUNT(pv.id) AS access_count
-             FROM page_views pv
-             INNER JOIN items i ON i.id = pv.item_id
-             INNER JOIN item_series isr ON i.content_id = isr.content_id
-             WHERE isr.series_id = :series_id AND pv.viewed_at >= :period_from
-             GROUP BY i.id, i.content_id, i.title
-             ORDER BY access_count DESC, i.id DESC
-             LIMIT 200'
-        );
-        $stmt->execute([':series_id' => $seriesId, ':period_from' => $periodFrom]);
-        $rows = $stmt->fetchAll() ?: [];
-        if ($rows !== []) {
-            return $rows;
+        if (!analytics_ensure_tables()) {
+            throw new RuntimeException('analytics tables are not available');
         }
-    } catch (Throwable) {
-    }
 
-    try {
-        $stmt = db()->prepare(
-            'SELECT i.id, i.content_id, i.title, COUNT(pv.id) AS access_count
-             FROM page_views pv
-             INNER JOIN items i ON i.id = pv.item_id
-             INNER JOIN series_master sm ON sm.id = :series_id
-             INNER JOIN item_series isr ON isr.dmm_id = sm.dmm_id
-             WHERE i.id = isr.item_id AND pv.viewed_at >= :period_from
-             GROUP BY i.id, i.content_id, i.title
-             ORDER BY access_count DESC, i.id DESC
-             LIMIT 200'
-        );
-        $stmt->execute([':series_id' => $seriesId, ':period_from' => $periodFrom]);
+        $stmt = db()->prepare("SELECT sm.id, sm.dmm_id, sm.name, COUNT(se.id) AS access_count FROM site_events se INNER JOIN series_master sm ON se.path = CONCAT('/series_detail.php?id=', sm.id) WHERE se.event_type = 'pv' AND se.created_at >= :period_from GROUP BY sm.id, sm.dmm_id, sm.name ORDER BY access_count DESC, sm.id DESC LIMIT 200");
+        $stmt->execute([':period_from' => $periodFrom]);
         return $stmt->fetchAll() ?: [];
     } catch (Throwable) {
         return [];
@@ -88,6 +61,11 @@ if ($series === null) {
 }
 
 $seriesName = (string)($series['name'] ?? 'シリーズ詳細');
+try {
+    analytics_log_series_page_view((int)$series['id']);
+} catch (Throwable $e) {
+    error_log('series page view logging failed: ' . $e->getMessage());
+}
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
 $accessRankingTabs = [
     'daily' => ['label' => '24時間'],
@@ -98,7 +76,7 @@ $accessRankingTabs = [
 if (!isset($accessRankingTabs[$accessRankingPeriod])) {
     $accessRankingPeriod = 'daily';
 }
-$accessRankingRows = pcf_fetch_series_access_ranking((int)$series['id'], pcf_series_access_period_from($accessRankingPeriod));
+$accessRankingRows = pcf_fetch_series_access_ranking(pcf_series_access_period_from($accessRankingPeriod));
 
 $title = $seriesName;
 require __DIR__ . '/partials/header.php';
@@ -121,7 +99,7 @@ require __DIR__ . '/partials/header.php';
 <?php endif; ?>
 
 <section id="access-ranking" class="block" style="margin-top:24px;">
-  <h2 class="section-title">ジャンルアクセスランキング</h2>
+  <h2 class="section-title">シリーズアクセスランキング</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php $tabUrl = public_url('series_detail.php') . '?' . http_build_query(['id' => (int)$series['id'], 'rank_period' => (string)$tabKey]) . '#access-ranking'; ?>
@@ -135,17 +113,16 @@ require __DIR__ . '/partials/header.php';
         <thead>
           <tr>
             <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
-            <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">作品タイトル</th>
+            <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">シリーズ名</th>
             <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">アクセス数</th>
           </tr>
         </thead>
         <tbody>
           <?php foreach ($accessRankingRows as $accessIndex => $accessRow): ?>
-            <?php $itemId = (int)($accessRow['id'] ?? 0); ?>
-            <?php $itemUrl = $itemId > 0 ? public_url('item.php?id=' . $itemId) : public_url('item.php?cid=' . rawurlencode((string)($accessRow['content_id'] ?? ''))); ?>
+            <?php $seriesUrl = public_url('series_detail.php') . '?id=' . rawurlencode((string)($accessRow['id'] ?? '')); ?>
             <tr>
               <td style="text-align:center; padding:8px; border-bottom:1px solid #eee; font-weight:700;"><?= e((string)($accessIndex + 1)) ?></td>
-              <td style="padding:8px; border-bottom:1px solid #eee; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><a href="<?= e($itemUrl) ?>"><?= e((string)($accessRow['title'] ?? '')) ?></a></td>
+              <td style="padding:8px; border-bottom:1px solid #eee; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><a href="<?= e($seriesUrl) ?>"><?= e((string)($accessRow['name'] ?? '')) ?></a></td>
               <td style="text-align:center; padding:8px; border-bottom:1px solid #eee;"><?= e((string)((int)($accessRow['access_count'] ?? 0))) ?></td>
             </tr>
           <?php endforeach; ?>
@@ -153,7 +130,7 @@ require __DIR__ . '/partials/header.php';
       </table>
     </div>
   <?php else: ?>
-    <?php pcf_render_empty('アクセスランキングはまだありません。'); ?>
+    <?php pcf_render_empty('シリーズアクセスランキングのデータがありません。'); ?>
   <?php endif; ?>
 </section>
 
