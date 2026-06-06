@@ -606,6 +606,8 @@ require __DIR__ . '/partials/header.php';
       <div class="sample-movie-modal__frame-wrap" style="width: min(720px, calc(100% - 400px)); max-width: 100%; aspect-ratio: 720 / 480;">
         <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" scrolling="no" width="720" height="480"></iframe>
       </div>
+      <?php else: ?>
+      <div class="sample-movie-modal__frame-wrap" style="width: min(720px, calc(100% - 400px)); max-width: 100%; aspect-ratio: 720 / 480; visibility:hidden;" aria-hidden="true"></div>
       <?php endif; ?>
       <?php if ($sampleImagesSmallLargeMap !== []): ?>
       <div style="width:392px; max-width:100%; height:480px; overflow:hidden;"><div style="display:grid; grid-template-rows:repeat(6, 72px); grid-auto-flow:column; grid-auto-columns:92px; gap:8px; align-content:start;">
