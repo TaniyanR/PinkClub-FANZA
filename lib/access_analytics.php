@@ -68,10 +68,10 @@ function analytics_log_out(string $targetUrl, string $refCode, string $path): vo
     $pdo->prepare('UPDATE daily_stats SET out_count = out_count + 1, updated_at = NOW() WHERE stat_date=:d')->execute([':d' => $today]);
 }
 
-function analytics_log_actress_page_view(int $actressId): void
+function analytics_log_taxonomy_page_view(string $path): void
 {
-    $actressId = max(0, $actressId);
-    if ($actressId <= 0 || (function_exists('auth_user') && auth_user())) {
+    $path = trim($path);
+    if ($path === '' || (function_exists('auth_user') && auth_user())) {
         return;
     }
 
@@ -79,7 +79,6 @@ function analytics_log_actress_page_view(int $actressId): void
         return;
     }
 
-    $path = '/actress.php?id=' . $actressId;
     $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
     $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
     $ipHash = $ip !== '' ? hash('sha256', $ip . '|' . $ua . '|pinkclub') : null;
@@ -97,6 +96,46 @@ function analytics_log_actress_page_view(int $actressId): void
         ':ua' => $uaHash,
         ':ip' => $ipHash,
     ]);
+}
+
+function analytics_log_actress_page_view(int $actressId): void
+{
+    $actressId = max(0, $actressId);
+    if ($actressId <= 0) {
+        return;
+    }
+
+    analytics_log_taxonomy_page_view('/actress.php?id=' . $actressId);
+}
+
+function analytics_log_genre_page_view(int $genreId): void
+{
+    $genreId = max(0, $genreId);
+    if ($genreId <= 0) {
+        return;
+    }
+
+    analytics_log_taxonomy_page_view('/genre.php?id=' . $genreId);
+}
+
+function analytics_log_maker_page_view(int $makerId): void
+{
+    $makerId = max(0, $makerId);
+    if ($makerId <= 0) {
+        return;
+    }
+
+    analytics_log_taxonomy_page_view('/maker.php?id=' . $makerId);
+}
+
+function analytics_log_series_page_view(int $seriesId): void
+{
+    $seriesId = max(0, $seriesId);
+    if ($seriesId <= 0) {
+        return;
+    }
+
+    analytics_log_taxonomy_page_view('/series_detail.php?id=' . $seriesId);
 }
 
 function analytics_ensure_tables(): bool

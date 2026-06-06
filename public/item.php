@@ -670,7 +670,7 @@ require __DIR__ . '/partials/header.php';
 
 
   <section id="access-ranking" class="block" style="margin-top:24px;">
-    <h2 class="section-title">アクセスランキング</h2>
+    <h2 class="section-title">商品アクセスランキング</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php
@@ -717,7 +717,7 @@ require __DIR__ . '/partials/header.php';
         </table>
       </div>
     <?php else: ?>
-      <?php pcf_render_empty('アクセスランキングのデータがありません。'); ?>
+      <?php pcf_render_empty('商品アクセスランキングのデータがありません。'); ?>
     <?php endif; ?>
   </section>
 
