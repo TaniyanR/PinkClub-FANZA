@@ -15,6 +15,12 @@ $navItems = [
     ['href' => public_url('makers.php'), 'label' => 'メーカー一覧'],
     ['href' => public_url('series_list.php'), 'label' => 'シリーズ一覧'],
 ];
+$mobileMainItems = $navItems;
+$mobileInfoItems = [
+    ['href' => public_url('page.php?slug=about'), 'label' => 'サイトについて'],
+    ['href' => public_url('page.php?slug=privacy-policy'), 'label' => 'Privacy Policy'],
+    ['href' => public_url('page.php?slug=contact'), 'label' => 'お問い合わせ'],
+];
 
 try {
     $stmt = db()->query('SELECT slug,title FROM fixed_pages WHERE is_published = 1 ORDER BY id ASC');
@@ -35,6 +41,25 @@ try {
 } catch (Throwable $e) {
 }
 ?>
+<details class="site-mobile-menu only-sp">
+    <summary class="site-mobile-menu__summary">メニュー</summary>
+    <div class="site-mobile-menu__body">
+        <div class="site-mobile-menu__group">
+            <?php foreach ($mobileMainItems as $item) : ?>
+                <a href="<?= e($item['href']) ?>"><?= e($item['label']) ?></a>
+            <?php endforeach; ?>
+        </div>
+        <div class="site-mobile-menu__group">
+            <?php foreach ($mobileInfoItems as $item) : ?>
+                <a href="<?= e($item['href']) ?>"><?= e($item['label']) ?></a>
+            <?php endforeach; ?>
+        </div>
+        <form class="site-mobile-menu__search" method="get" action="<?= e(public_url('search.php')) ?>">
+            <input class="site-search__input" type="search" name="q" value="<?= e($searchQuery) ?>" placeholder="商品検索" aria-label="商品検索">
+            <button class="site-search__button" type="submit">検索</button>
+        </form>
+    </div>
+</details>
 <nav class="site-nav" aria-label="グローバルナビゲーション">
     <?php foreach ($navItems as $index => $item) : ?>
         <?php $isActive = $path === parse_url($item['href'], PHP_URL_PATH); ?>
