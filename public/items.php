@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/partials/public_ui.php';
 
 function take_unique_items_for_home(array $items, array &$usedKeys, int $limit): array
 {
@@ -202,13 +203,14 @@ function index_items_product_source_where(PDO $pdo): string
     return $where;
 }
 
-function fetch_items_with_order_fallback(PDO $pdo, array $orderByCandidates, int $limit): array
+function fetch_items_with_order_fallback(PDO $pdo, array $orderByCandidates, int $limit, int $offset = 0): array
 {
     $limit = max(1, min(300, $limit));
+    $offset = max(0, $offset);
     $sourceWhereSql = index_items_product_source_where($pdo);
 
     foreach ($orderByCandidates as $orderBy) {
-        $rows = query_all_safe($pdo, 'SELECT * FROM items' . $sourceWhereSql . ' ORDER BY ' . $orderBy . ' LIMIT ' . $limit);
+        $rows = query_all_safe($pdo, 'SELECT * FROM items' . $sourceWhereSql . ' ORDER BY ' . $orderBy . ' LIMIT ' . $limit . ' OFFSET ' . $offset);
         if ($rows !== []) {
             return $rows;
         }
@@ -317,6 +319,9 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
 
 $title = '商品一覧';
 $itemCount = 0;
+$page = max(1, (int)get('page', 1));
+$per = (int)(app_config()['pagination']['per_page'] ?? 32);
+$pg = paginate(0, $page, $per);
 $latestItems = [];
 $fallbackItems = [];
 
@@ -325,14 +330,15 @@ try {
     $itemCount = (int)$pdo->query('SELECT COUNT(*) FROM items' . index_items_product_source_where($pdo))->fetchColumn();
 
     if ($itemCount > 0) {
+        $pg = paginate($itemCount, $page, $per);
         $usedHomeItemKeys = [];
         $latestRows = fetch_items_with_order_fallback($pdo, [
             'release_date DESC, updated_at DESC, id DESC',
             'date_published DESC, updated_at DESC, id DESC',
             'updated_at DESC, id DESC',
             'id DESC',
-        ], 40);
-        $latestItems = take_unique_items_for_home($latestRows, $usedHomeItemKeys, 20);
+        ], $per + 8, (int)$pg['offset']);
+        $latestItems = take_unique_items_for_home($latestRows, $usedHomeItemKeys, $per);
         $fallbackItems = array_slice($latestItems, 0, 12);
     }
 } catch (Throwable $e) {
@@ -359,6 +365,7 @@ require __DIR__ . '/partials/header.php';
   <section class="rail-section">
     <h2>新着作品</h2>
     <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($latestItems as $item) { render_item_card($item, 200, null, true); } ?></div>
+    <?php pcf_render_pagination($pg, public_url('items.php')); ?>
   </section>
 <?php endif; ?>
 
