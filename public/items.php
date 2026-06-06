@@ -282,6 +282,22 @@ function pick_full_package_image(array $item): string
     return '';
 }
 
+function items_is_mobile_request(): bool
+{
+    $userAgent = strtolower((string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+    if ($userAgent === '') {
+        return false;
+    }
+
+    foreach (['iphone', 'ipod', 'android', 'mobile', 'windows phone'] as $needle) {
+        if (str_contains($userAgent, $needle)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function render_item_card(array $item, int $width = 180, ?array $taxonomy = null, bool $preferFullPackageImage = false): void
 {
     $itemUrl = app_url('public/item.php?id=' . (int)$item['id']);
@@ -320,7 +336,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
 $title = '商品一覧';
 $itemCount = 0;
 $page = max(1, (int)get('page', 1));
-$per = 20;
+$per = items_is_mobile_request() ? 20 : (int)(app_config()['pagination']['per_page'] ?? 32);
 $pg = paginate(0, $page, $per);
 $latestItems = [];
 $fallbackItems = [];

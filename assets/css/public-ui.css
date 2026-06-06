@@ -667,3 +667,10 @@
   gap: 14px;
   overflow-x: visible;
 }
+
+@media (max-width: 768px) {
+  .site-main--legacy:has(.pcf-breadcrumb) .rail-section .rail-row--200.rail-row--wide-thumb.rail-row--no-scroll .rail-card .thumb {
+    aspect-ratio: auto;
+    height: auto !important;
+  }
+}
