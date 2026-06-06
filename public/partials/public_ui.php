@@ -237,6 +237,77 @@ if (!function_exists('pcf_item_title')) {
     }
 }
 
+if (!function_exists('pcf_normalize_movie_url')) {
+    function pcf_normalize_movie_url(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
+
+        if (str_starts_with($url, '//')) {
+            return 'https:' . $url;
+        }
+
+        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+            return $url;
+        }
+
+        return '';
+    }
+}
+
+if (!function_exists('pcf_collect_movie_urls_from_value')) {
+    function pcf_collect_movie_urls_from_value(mixed $value, array &$urls): void
+    {
+        if (is_string($value)) {
+            $candidate = pcf_normalize_movie_url($value);
+            if ($candidate !== '') {
+                $urls[] = $candidate;
+            }
+            return;
+        }
+
+        if (!is_array($value)) {
+            return;
+        }
+
+        foreach ($value as $child) {
+            pcf_collect_movie_urls_from_value($child, $urls);
+        }
+    }
+}
+
+if (!function_exists('pcf_pick_sample_movie_urls_from_raw')) {
+    function pcf_pick_sample_movie_urls_from_raw(array $raw): array
+    {
+        $urls = [];
+        foreach (['sampleMovieURL', 'sample_movie_url', 'sampleMovieUrl'] as $movieKeyName) {
+            $rawMovie = $raw[$movieKeyName] ?? null;
+
+            if (is_string($rawMovie)) {
+                $candidate = pcf_normalize_movie_url($rawMovie);
+                if ($candidate !== '') {
+                    $urls[] = $candidate;
+                }
+            }
+
+            if (is_array($rawMovie)) {
+                foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
+                    $candidate = pcf_normalize_movie_url((string)($rawMovie[$movieKey] ?? ''));
+                    if ($candidate !== '') {
+                        $urls[] = $candidate;
+                    }
+                }
+
+                pcf_collect_movie_urls_from_value($rawMovie, $urls);
+            }
+        }
+
+        return array_values(array_unique(array_filter(array_map(static fn($u) => trim((string)$u), $urls))));
+    }
+}
+
 if (!function_exists('pcf_render_hero')) {
     function pcf_render_hero(string $title, string $subtitle = ''): void
     {
@@ -345,33 +416,47 @@ if (!function_exists('pcf_render_item_card')) {
         $itemUrl = $itemId > 0 ? public_url('item.php?id=' . $itemId) : public_url('item.php?cid=' . rawurlencode($contentId));
         $imageUrl = trim(pcf_item_image($item));
         $sampleMovieUrl = '';
+        $raw = [];
+        $rawJson = (string)($item['raw_json'] ?? '');
+        if ($rawJson !== '') {
+            $decoded = json_decode($rawJson, true);
+            if (is_array($decoded)) {
+                $raw = $decoded;
+            }
+        }
         foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $movieColumn) {
-            $candidate = trim((string)($item[$movieColumn] ?? ''));
+            $candidate = pcf_normalize_movie_url((string)($item[$movieColumn] ?? ''));
             if ($candidate !== '') {
                 $sampleMovieUrl = $candidate;
                 break;
             }
         }
+        if ($sampleMovieUrl === '') {
+            $movieUrls = pcf_pick_sample_movie_urls_from_raw($raw);
+            $sampleMovieUrl = (string)($movieUrls[0] ?? '');
+        }
 
         $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode($contentId));
         $hasSampleImages = false;
-        $rawJson = (string)($item['raw_json'] ?? '');
-        if ($rawJson !== '') {
-            $raw = json_decode($rawJson, true);
-            if (is_array($raw)) {
-                $sampleImageURL = $raw['sampleImageURL'] ?? null;
-                if (is_array($sampleImageURL)) {
-                    foreach (['sample_l', 'sample_s'] as $sampleKey) {
-                        $images = $sampleImageURL[$sampleKey]['image'] ?? null;
-                        if (is_array($images)) {
-                            foreach ($images as $image) {
-                                if (trim((string)$image) !== '') {
-                                    $hasSampleImages = true;
-                                    break 2;
-                                }
-                            }
+        $sampleImageURL = $raw['sampleImageURL'] ?? null;
+        if (is_array($sampleImageURL)) {
+            foreach (['sample_l', 'sample_s'] as $sampleKey) {
+                $images = $sampleImageURL[$sampleKey]['image'] ?? null;
+                if (is_array($images)) {
+                    foreach ($images as $image) {
+                        if (trim((string)$image) !== '') {
+                            $hasSampleImages = true;
+                            break 2;
                         }
                     }
+                }
+            }
+        }
+        if (!$hasSampleImages) {
+            foreach (pcf_parse_image_urls((string)($item['image_list'] ?? '')) as $image) {
+                if (trim((string)$image) !== '') {
+                    $hasSampleImages = true;
+                    break;
                 }
             }
         }
