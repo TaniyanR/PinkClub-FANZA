@@ -471,6 +471,34 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .rail-card__meta{font-size:13px;color:#2271b1;text-decoration:none}
 .rail-card__noimage{height:180px;display:flex;align-items:center;justify-content:center;background:#f0f0f1;border-radius:6px;color:#646970}
 .sample-buttons{display:flex;flex-direction:column;gap:6px;width:100%;max-width:100%;overflow:visible}
+
+@media (max-width: 768px){
+  .site-main--legacy .rail-row--home-actresses,
+  .site-main--legacy .rail-row--home-taxonomy{
+    display:flex !important;
+    flex-wrap:wrap !important;
+    overflow-x:visible !important;
+    overflow-y:visible !important;
+  }
+  .site-main--legacy .rail-row--home-actresses .rail-card,
+  .site-main--legacy .rail-row--home-taxonomy .rail-card{
+    flex:0 0 calc((100% - 12px) / 2) !important;
+    width:calc((100% - 12px) / 2) !important;
+    min-width:0 !important;
+    max-width:none !important;
+  }
+  .site-main--legacy .rail-row--home-actresses .rail-card:nth-child(n+7),
+  .site-main--legacy .rail-row--home-taxonomy .rail-card:nth-child(n+3){
+    display:none !important;
+  }
+  .site-main--legacy .rail-row--home-actresses .rail-card .thumb,
+  .site-main--legacy .rail-row--home-actresses .rail-card .rail-card__noimage,
+  .site-main--legacy .rail-row--home-taxonomy .rail-card .thumb,
+  .site-main--legacy .rail-row--home-taxonomy .rail-card .rail-card__noimage{
+    width:100% !important;
+    max-width:100% !important;
+  }
+}
 .sample-button{border:none;border-radius:4px;padding:6px 10px;width:100%;font-size:12px;cursor:pointer;white-space:normal;flex:0 0 auto}
 .sample-button--enabled{background:#1d4ed8;color:#fff}
 .sample-button--disabled{background:#9ca3af;color:#fff;cursor:not-allowed}
