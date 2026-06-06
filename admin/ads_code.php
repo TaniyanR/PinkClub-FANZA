@@ -12,7 +12,7 @@ $positions = [
     'sidebar_bottom' => 'サイド広告１（300x250）',
     'content_bottom' => 'サイド広告２（300x250）',
     'sp_header_below' => 'SPヘッダー下',
-    'sp_footer_above' => 'SPヘッダー上',
+    'sp_footer_above' => 'SPフッター上',
 ];
 
 try {
