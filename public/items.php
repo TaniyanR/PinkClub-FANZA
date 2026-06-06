@@ -321,6 +321,10 @@ $title = '商品一覧';
 $itemCount = 0;
 $page = max(1, (int)get('page', 1));
 $per = (int)(app_config()['pagination']['per_page'] ?? 32);
+$userAgent = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
+if ($userAgent !== '' && preg_match('/Android.*Mobile|iPhone|iPod|Windows Phone|BlackBerry|webOS/i', $userAgent)) {
+    $per = 20;
+}
 $pg = paginate(0, $page, $per);
 $latestItems = [];
 $fallbackItems = [];
