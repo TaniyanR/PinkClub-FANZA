@@ -610,7 +610,7 @@ require __DIR__ . '/partials/header.php';
       <div class="sample-movie-modal__frame-wrap" style="width: min(720px, calc(100% - 400px)); max-width: 100%; aspect-ratio: 720 / 480; background:#d9d9d9; color:#666; display:flex; align-items:center; justify-content:center; font-weight:700;">no movie</div>
       <?php endif; ?>
       <?php if ($sampleImagesSmallLargeMap !== []): ?>
-      <div style="width:392px; max-width:100%; height:480px; overflow:hidden;"><div style="display:grid; grid-template-rows:repeat(6, 72px); grid-auto-flow:column; grid-auto-columns:92px; gap:8px; align-content:start;">
+      <div style="width:392px; max-width:100%; height:480px; overflow-x:auto; overflow-y:hidden;"><div style="display:grid; grid-template-rows:repeat(6, 72px); grid-auto-flow:column; grid-auto-columns:92px; gap:8px; align-content:start;">
         <?php foreach ($sampleImagesSmallLargeMap as $i => $imagePair): ?>
           <a href="<?= e((string)$imagePair['large']) ?>" class="pcf-image-viewer-trigger" data-image-index="<?= e((string)$i) ?>" style="display:block;">
             <img src="<?= e((string)$imagePair['small']) ?>" alt="サンプル画像 <?= e((string)($i + 1)) ?>" loading="lazy" style="display:block; width:100%; height:72px; object-fit:contain;">

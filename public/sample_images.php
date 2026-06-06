@@ -87,11 +87,11 @@ if ($images === []) {
     body { font-family: Arial, sans-serif; margin: 12px; background: #f8f9fa; overflow-y: hidden; }
     h1 { font-size: 18px; margin-bottom: 12px; position: sticky; top: 0; background: #f8f9fa; padding: 6px 0; }
     .message { text-align: center; color: #555; margin-top: 32px; }
-    .sample-scroll { display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden; padding-bottom: 6px; }
+    .sample-scroll { display: flex; flex-wrap: nowrap; gap: 10px; overflow-x: auto; overflow-y: hidden; padding-bottom: 6px; }
     .sample-scroll::-webkit-scrollbar { height: 10px; }
     .sample-scroll::-webkit-scrollbar-thumb { background: #b9bdc5; border-radius: 8px; }
-    .sample-frame { width: min(720px, 88vw); flex: 0 0 min(720px, 88vw); max-width: none; background: #fff; border: 1px solid #dcdcde; margin: 0; display: flex; align-items: center; justify-content: center; }
-    .sample-frame img { width: 100%; height: auto; object-fit: contain; display: block; }
+    .sample-frame { width: min(720px, 88vw); height: calc(100vh - 86px); flex: 0 0 min(720px, 88vw); max-width: none; background: #fff; border: 1px solid #dcdcde; margin: 0; display: flex; align-items: center; justify-content: center; }
+    .sample-frame img { width: 100%; height: 100%; object-fit: contain; display: block; }
   </style>
 </head>
 <body>
