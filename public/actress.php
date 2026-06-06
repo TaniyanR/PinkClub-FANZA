@@ -336,4 +336,62 @@ require __DIR__ . '/partials/header.php';
   <?php endif; ?>
 </section>
 
+<div id="sample-movie-modal" class="sample-movie-modal" aria-hidden="true">
+  <div class="sample-movie-modal__overlay" data-movie-close="1"></div>
+  <div class="sample-movie-modal__dialog" role="dialog" aria-modal="true" aria-label="サンプル動画プレイヤー">
+    <button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>
+    <div id="sample-movie-title" class="sample-movie-modal__title">サンプル動画</div>
+    <div class="sample-movie-modal__frame-wrap">
+      <iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  const modal = document.getElementById('sample-movie-modal');
+  const frame = document.getElementById('sample-movie-frame');
+  const titleNode = document.getElementById('sample-movie-title');
+  if (!modal || !frame || !titleNode) return;
+
+  const openMovie = (url, title) => {
+    if (!url) return;
+    const normalizedTitle = String(title || '').trim();
+    titleNode.textContent = normalizedTitle !== '' ? normalizedTitle : 'サンプル動画';
+    modal.style.setProperty('--movie-modal-width', '900px');
+    frame.src = url;
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+  };
+
+  const closeMovie = () => {
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+    frame.src = 'about:blank';
+    modal.style.removeProperty('--movie-modal-width');
+    titleNode.textContent = 'サンプル動画';
+  };
+
+  document.addEventListener('click', (event) => {
+    const trigger = event.target.closest('.sample-movie-trigger');
+    if (trigger && !trigger.disabled) {
+      event.preventDefault();
+      const card = trigger.closest('.pcf-dm-card');
+      const fallbackTitle = card ? (card.querySelector('.pcf-dm-card__title')?.textContent || '') : '';
+      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || fallbackTitle);
+      return;
+    }
+
+    if (event.target.closest('[data-movie-close="1"]')) {
+      event.preventDefault();
+      closeMovie();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && modal.classList.contains('is-open')) {
+      closeMovie();
+    }
+  });
+})();
+</script>
 <?php require __DIR__ . '/partials/footer.php'; ?>
