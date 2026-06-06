@@ -320,7 +320,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
 $title = '商品一覧';
 $itemCount = 0;
 $page = max(1, (int)get('page', 1));
-$per = (int)(app_config()['pagination']['per_page'] ?? 32);
+$per = 20;
 $pg = paginate(0, $page, $per);
 $latestItems = [];
 $fallbackItems = [];
