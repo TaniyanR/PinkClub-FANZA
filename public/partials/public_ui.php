@@ -529,7 +529,7 @@ if (!function_exists('pcf_render_item_card')) {
         $raw = [];
         $rawJson = (string)($item['raw_json'] ?? '');
         if ($rawJson !== '') {
-            $decoded = json_decode($rawJson, true);
+            $decoded = pcf_maybe_decode_json_value($rawJson);
             if (is_array($decoded)) {
                 $raw = $decoded;
             }

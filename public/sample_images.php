@@ -25,8 +25,29 @@ function sample_images_parse_list(?string $value): array
     return array_values(array_filter(array_map('trim', $parts), static fn(string $v): bool => $v !== ''));
 }
 
+function sample_images_maybe_decode_json_value(mixed $value): mixed
+{
+    if (!is_string($value)) {
+        return $value;
+    }
+
+    $trimmed = trim($value);
+    if ($trimmed === '' || ($trimmed[0] !== '{' && $trimmed[0] !== '[')) {
+        return $value;
+    }
+
+    $decoded = json_decode($trimmed, true);
+    if (is_string($decoded)) {
+        $decodedAgain = json_decode($decoded, true);
+        return is_array($decodedAgain) ? $decodedAgain : $decoded;
+    }
+
+    return is_array($decoded) ? $decoded : $value;
+}
+
 function sample_images_collect_from_value(mixed $value, array &$images): void
 {
+    $value = sample_images_maybe_decode_json_value($value);
     if (is_string($value)) {
         foreach (sample_images_parse_list($value) as $candidate) {
             $url = trim((string)$candidate);
@@ -60,7 +81,7 @@ if (!$item) {
     exit('指定の商品が見つかりません。');
 }
 
-$decoded = json_decode((string)($item['raw_json'] ?? ''), true);
+$decoded = sample_images_maybe_decode_json_value((string)($item['raw_json'] ?? ''));
 $images = [];
 if (is_array($decoded) && isset($decoded['sampleImageURL']) && is_array($decoded['sampleImageURL'])) {
     foreach (['sample_l', 'sample_s'] as $sizeKey) {
