@@ -25,6 +25,27 @@ function sample_images_parse_list(?string $value): array
     return array_values(array_filter(array_map('trim', $parts), static fn(string $v): bool => $v !== ''));
 }
 
+function sample_images_collect_from_value(mixed $value, array &$images): void
+{
+    if (is_string($value)) {
+        foreach (sample_images_parse_list($value) as $candidate) {
+            $url = trim((string)$candidate);
+            if ($url !== '') {
+                $images[] = $url;
+            }
+        }
+        return;
+    }
+
+    if (!is_array($value)) {
+        return;
+    }
+
+    foreach ($value as $child) {
+        sample_images_collect_from_value($child, $images);
+    }
+}
+
 $contentId = trim((string)get('content_id', ''));
 if ($contentId === '') {
     http_response_code(404);
@@ -43,17 +64,11 @@ $decoded = json_decode((string)($item['raw_json'] ?? ''), true);
 $images = [];
 if (is_array($decoded) && isset($decoded['sampleImageURL']) && is_array($decoded['sampleImageURL'])) {
     foreach (['sample_l', 'sample_s'] as $sizeKey) {
-        $list = $decoded['sampleImageURL'][$sizeKey]['image'] ?? null;
-        if (is_array($list)) {
-            foreach ($list as $image) {
-                $url = trim((string)$image);
-                if ($url !== '') {
-                    $images[] = $url;
-                }
-            }
-            if ($images !== []) {
-                break;
-            }
+        $sampleImages = [];
+        sample_images_collect_from_value($decoded['sampleImageURL'][$sizeKey]['image'] ?? null, $sampleImages);
+        if ($sampleImages !== []) {
+            $images = array_merge($images, $sampleImages);
+            break;
         }
     }
 }
