@@ -63,12 +63,18 @@ $copyrightYears = $copyrightStartYear >= $currentYear
 ?>
   <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
   </div>
-  <div class="site-main__rss">
+  <div class="site-main__rss only-pc">
     <?php render_shared_content_ad_row('content_bottom', $pageType); ?>
   </div>
   </main>
 </div>
 <button type="button" class="page-top-button" aria-label="トップに戻る">↑ トップへ</button>
+<?php if (function_exists('render_ad')): ?>
+<div class="only-sp site-ad"><?php render_ad('sp_footer_above', $pageType, 'sp'); ?></div>
+<?php endif; ?>
+<div class="site-main__rss only-sp">
+  <?php render_shared_content_ad_row('content_bottom', $pageType); ?>
+</div>
 <footer class="site-footer">
   <div class="site-footer__credit">
     <a href="https://affiliate.dmm.com/api/"><img src="https://p.dmm.co.jp/p/affiliate/web_service/r18_135_17.gif" width="135" height="17" alt="WEB SERVICE BY FANZA" /></a>

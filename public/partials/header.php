@@ -86,15 +86,17 @@ $canonicalHref = isset($canonicalUrl) && is_string($canonicalUrl) && $canonicalU
       <?php elseif ($canRenderAd && (!function_exists('should_show_ad') || should_show_ad('header_left_728x90', $pageType, 'pc'))) : ?>
         <div class="site-ad"><?php render_ad('header_left_728x90', $pageType, 'pc'); ?></div>
       <?php endif; ?>
-      <?php if ($canRenderAd): ?>
-      <div class="only-sp"><?php render_ad('sp_footer_above', $pageType, 'sp'); ?></div>
-      <div class="only-sp"><?php render_ad('sp_header_below', $pageType, 'sp'); ?></div>
-      <?php endif; ?>
     </div>
   </div>
 
   <?php require __DIR__ . '/nav_search.php'; ?>
 </header>
+<?php if ($canRenderAd): ?>
+<div class="only-sp site-ad"><?php render_ad('sp_header_below', $pageType, 'sp'); ?></div>
+<?php endif; ?>
+<div class="site-main__rss only-sp">
+  <?php render_shared_content_ad_row('content_bottom', $pageType); ?>
+</div>
 <div class="layout site-layout">
   <?php require __DIR__ . '/sidebar.php'; ?>
   <main class="content site-main site-main--legacy">
