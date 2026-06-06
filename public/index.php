@@ -624,7 +624,7 @@ $hasHomeContent = $latestTop !== []
 
   <section class="rail-section">
     <h2>女優</h2>
-    <div class="rail-row rail-row--180">
+    <div class="rail-row rail-row--180 rail-row--home-actresses">
       <?php foreach ($actresses as $actress): ?>
         <?php $actressImage = actress_index_image(is_array($actress) ? $actress : []); ?>
         <article class="card rail-card rail-card--180">
@@ -639,7 +639,7 @@ $hasHomeContent = $latestTop !== []
     <h2>ジャンル</h2>
     <?php foreach ($genreRows as $genre): ?>
       <h3><a href="<?= e(app_url('public/genre.php?id=' . (int)$genre['id'])) ?>"><?= e((string)$genre['name']) ?></a></h3>
-      <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal">
+      <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal rail-row--home-taxonomy">
         <?php foreach ($genre['items'] as $item) { render_item_card($item, 200, ['name' => (string)$genre['name'], 'url' => app_url('public/genre.php?id=' . (int)$genre['id'])], true); } ?>
       </div>
     <?php endforeach; ?>
@@ -647,7 +647,7 @@ $hasHomeContent = $latestTop !== []
   <?php if (!empty($seriesSection['items'])): ?>
   <section class="rail-section">
     <h2>シリーズ<?= $seriesSection['name'] !== '' ? '：<a href="' . e(app_url('public/series_one.php?id=' . (int)$seriesSection['id'])) . '">' . e($seriesSection['name']) . '</a>' : '' ?></h2>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal">
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal rail-row--home-taxonomy">
       <?php foreach ($seriesSection['items'] as $item) { render_item_card($item, 200, ['name' => (string)$seriesSection['name'], 'url' => app_url('public/series_one.php?id=' . (int)$seriesSection['id'])], true); } ?>
     </div>
   </section>
@@ -656,7 +656,7 @@ $hasHomeContent = $latestTop !== []
   <?php if (!empty($makerSection['items'])): ?>
   <section class="rail-section">
     <h2>メーカー<?= $makerSection['name'] !== '' ? '：<a href="' . e(app_url('public/maker.php?id=' . (int)$makerSection['id'])) . '">' . e($makerSection['name']) . '</a>' : '' ?></h2>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal">
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal rail-row--home-taxonomy">
       <?php foreach ($makerSection['items'] as $item) { render_item_card($item, 200, ['name' => (string)$makerSection['name'], 'url' => app_url('public/maker.php?id=' . (int)$makerSection['id'])], true); } ?>
     </div>
   </section>

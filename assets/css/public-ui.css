@@ -514,6 +514,34 @@
   min-width: 380px;
 }
 
+@media (max-width: 900px) {
+  .site-main--legacy .rail-row--home-actresses,
+  .site-main--legacy .rail-row--home-taxonomy {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+  }
+  .site-main--legacy .rail-row--home-actresses .rail-card,
+  .site-main--legacy .rail-row--home-taxonomy .rail-card {
+    flex: 0 0 calc((100% - 12px) / 2) !important;
+    width: calc((100% - 12px) / 2) !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+  .site-main--legacy .rail-row--home-actresses .rail-card:nth-child(n+7),
+  .site-main--legacy .rail-row--home-taxonomy .rail-card:nth-child(n+3) {
+    display: none !important;
+  }
+  .site-main--legacy .rail-row--home-actresses .rail-card .thumb,
+  .site-main--legacy .rail-row--home-actresses .rail-card .rail-card__noimage,
+  .site-main--legacy .rail-row--home-taxonomy .rail-card .thumb,
+  .site-main--legacy .rail-row--home-taxonomy .rail-card .rail-card__noimage {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
 .pcf-dm-card {
   width: 100%;
   max-width: 100%;
