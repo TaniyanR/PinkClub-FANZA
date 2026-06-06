@@ -218,4 +218,5 @@ require __DIR__ . '/partials/header.php';
   <?php endif; ?>
 </section>
 
+<?php pcf_render_sample_movie_modal(); ?>
 <?php require __DIR__ . '/partials/footer.php'; ?>

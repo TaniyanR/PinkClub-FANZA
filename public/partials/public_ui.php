@@ -308,6 +308,116 @@ if (!function_exists('pcf_pick_sample_movie_urls_from_raw')) {
     }
 }
 
+if (!function_exists('pcf_collect_sample_image_urls_from_value')) {
+    function pcf_collect_sample_image_urls_from_value(mixed $value, array &$images): void
+    {
+        $value = pcf_maybe_decode_json_value($value);
+        if (is_string($value)) {
+            foreach (pcf_parse_image_urls($value) as $candidate) {
+                $url = trim((string)$candidate);
+                if ($url !== '') {
+                    $images[] = $url;
+                }
+            }
+            return;
+        }
+
+        if (!is_array($value)) {
+            return;
+        }
+
+        foreach ($value as $child) {
+            pcf_collect_sample_image_urls_from_value($child, $images);
+        }
+    }
+}
+
+if (!function_exists('pcf_pick_sample_image_urls_from_raw')) {
+    function pcf_pick_sample_image_urls_from_raw(array $raw): array
+    {
+        $images = [];
+        $sampleImageURL = $raw['sampleImageURL'] ?? null;
+        if (is_array($sampleImageURL)) {
+            foreach (['sample_l', 'sample_s'] as $sampleKey) {
+                $sampleImages = [];
+                pcf_collect_sample_image_urls_from_value($sampleImageURL[$sampleKey]['image'] ?? null, $sampleImages);
+                if ($sampleImages !== []) {
+                    $images = array_merge($images, $sampleImages);
+                    break;
+                }
+            }
+        }
+
+        return array_values(array_unique(array_filter(array_map(static fn($u) => trim((string)$u), $images))));
+    }
+}
+
+if (!function_exists('pcf_render_sample_movie_modal')) {
+    function pcf_render_sample_movie_modal(): void
+    {
+        ?>
+<div id="sample-movie-modal" class="sample-movie-modal" aria-hidden="true">
+  <div class="sample-movie-modal__overlay" data-movie-close="1"></div>
+  <div class="sample-movie-modal__dialog" role="dialog" aria-modal="true" aria-label="サンプル動画プレイヤー">
+    <button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>
+    <div id="sample-movie-title" class="sample-movie-modal__title">サンプル動画</div>
+    <div class="sample-movie-modal__frame-wrap">
+      <iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  const modal = document.getElementById('sample-movie-modal');
+  const frame = document.getElementById('sample-movie-frame');
+  const titleNode = document.getElementById('sample-movie-title');
+  if (!modal || !frame || !titleNode) return;
+
+  const openMovie = (url, title) => {
+    if (!url) return;
+    const normalizedTitle = String(title || '').trim();
+    titleNode.textContent = normalizedTitle !== '' ? normalizedTitle : 'サンプル動画';
+    modal.style.setProperty('--movie-modal-width', '900px');
+    frame.src = url;
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+  };
+
+  const closeMovie = () => {
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+    frame.src = 'about:blank';
+    modal.style.removeProperty('--movie-modal-width');
+    titleNode.textContent = 'サンプル動画';
+  };
+
+  document.addEventListener('click', (event) => {
+    const trigger = event.target.closest('.sample-movie-trigger');
+    if (trigger && !trigger.disabled) {
+      event.preventDefault();
+      const card = trigger.closest('.pcf-dm-card');
+      const fallbackTitle = card ? (card.querySelector('.pcf-dm-card__title')?.textContent || '') : '';
+      openMovie(trigger.dataset.movieUrl || '', trigger.dataset.movieTitle || fallbackTitle);
+      return;
+    }
+
+    if (event.target.closest('[data-movie-close="1"]')) {
+      event.preventDefault();
+      closeMovie();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && modal.classList.contains('is-open')) {
+      closeMovie();
+    }
+  });
+})();
+</script>
+<?php
+    }
+}
+
 if (!function_exists('pcf_render_hero')) {
     function pcf_render_hero(string $title, string $subtitle = ''): void
     {
@@ -437,21 +547,7 @@ if (!function_exists('pcf_render_item_card')) {
         }
 
         $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode($contentId));
-        $hasSampleImages = false;
-        $sampleImageURL = $raw['sampleImageURL'] ?? null;
-        if (is_array($sampleImageURL)) {
-            foreach (['sample_l', 'sample_s'] as $sampleKey) {
-                $images = $sampleImageURL[$sampleKey]['image'] ?? null;
-                if (is_array($images)) {
-                    foreach ($images as $image) {
-                        if (trim((string)$image) !== '') {
-                            $hasSampleImages = true;
-                            break 2;
-                        }
-                    }
-                }
-            }
-        }
+        $hasSampleImages = pcf_pick_sample_image_urls_from_raw($raw) !== [];
         if (!$hasSampleImages) {
             foreach (pcf_parse_image_urls((string)($item['image_list'] ?? '')) as $image) {
                 if (trim((string)$image) !== '') {
