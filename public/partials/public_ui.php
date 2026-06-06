@@ -548,14 +548,6 @@ if (!function_exists('pcf_render_item_card')) {
 
         $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode($contentId));
         $hasSampleImages = pcf_pick_sample_image_urls_from_raw($raw) !== [];
-        if (!$hasSampleImages) {
-            foreach (pcf_parse_image_urls((string)($item['image_list'] ?? '')) as $image) {
-                if (trim((string)$image) !== '') {
-                    $hasSampleImages = true;
-                    break;
-                }
-            }
-        }
 
         echo '<article class="pcf-dm-card">';
         echo '<a class="pcf-dm-card__image-link" href="' . e($itemUrl) . '">';
