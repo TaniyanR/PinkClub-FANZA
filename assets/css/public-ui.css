@@ -600,6 +600,19 @@
     width: 100% !important;
     max-width: 100% !important;
   }
+
+  .site-main--legacy:has(.pcf-breadcrumb) .rail-section .rail-card .thumb {
+    height: auto !important;
+  }
+
+  .pcf-dm-card__image-link {
+    display: block;
+    height: auto;
+  }
+
+  .pcf-dm-card__image {
+    height: auto;
+  }
 }
 
 .site-main--legacy:has(.pcf-breadcrumb) .rail-section .rail-card {
