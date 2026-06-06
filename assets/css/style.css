@@ -174,6 +174,9 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
 .site-search__input{width:180px;max-width:45vw;padding:6px 8px;border:1px solid #dcdcde;border-radius:4px;font-size:14px}
 .site-search__button{padding:6px 12px;border:1px solid #ff4da6;border-radius:4px;background:#ff4da6;color:#fff;font-weight:700;cursor:pointer}
 .site-search__button:hover,.site-search__button:focus-visible{background:#d63384;border-color:#d63384;outline:none}
+.page-top-button{position:fixed;right:18px;bottom:18px;z-index:1000;border:1px solid #ff4da6;border-radius:999px;background:#ff4da6;color:#fff;padding:10px 14px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.18);cursor:pointer;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s ease,visibility .2s ease}
+.page-top-button.is-visible{opacity:1;visibility:visible;pointer-events:auto}
+.page-top-button:hover,.page-top-button:focus-visible{background:#d63384;border-color:#d63384;outline:none}
 
 .site-layout{
   width:100%;
