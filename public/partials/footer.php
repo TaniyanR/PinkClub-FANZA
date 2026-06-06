@@ -64,7 +64,7 @@ $copyrightYears = $copyrightStartYear >= $currentYear
   <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
   </div>
   <div class="site-main__rss">
-    <?php render_shared_content_ad_row('content_bottom', $pageType); ?>
+    <?php try { render_shared_content_ad_row('content_bottom', $pageType); } catch (Throwable $e) { error_log('footer content RSS skipped: ' . $e->getMessage()); } ?>
   </div>
   </main>
 </div>
