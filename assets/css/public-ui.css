@@ -544,6 +544,13 @@
     width: 100% !important;
     max-width: 100% !important;
   }
+  .site-main--legacy .rail-row--home-taxonomy .rail-card .thumb {
+    aspect-ratio: auto;
+    height: auto;
+  }
+  .site-main--legacy .rail-row--home-taxonomy .rail-card .rail-card__noimage {
+    height: 210px !important;
+  }
 }
 
 .pcf-dm-card {
