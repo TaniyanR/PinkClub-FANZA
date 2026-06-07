@@ -423,6 +423,10 @@
     line-height: 1.35;
   }
 
+  .site-main--legacy:has(.pcf-item-main) .pcf-related-grid {
+    grid-template-columns: 1fr;
+  }
+
   .pcf-item-samples {
     display: block !important;
   }
