@@ -237,6 +237,10 @@ $genres = [];
 $makers = [];
 $seriesList = [];
 $authors = [];
+$viewport = (string)($_COOKIE['pcf_viewport'] ?? '');
+$clientHintMobile = trim((string)($_SERVER['HTTP_SEC_CH_UA_MOBILE'] ?? ''));
+$userAgent = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
+$isMobileViewport = $viewport === 'sp' || $clientHintMobile === '?1' || ($userAgent !== '' && preg_match('/Android.*Mobile|iPhone|iPod|Windows Phone|BlackBerry|webOS/i', $userAgent));
 
 try {
     update_items_view_count();
@@ -280,6 +284,9 @@ if (db_table_exists('item_authors')) {
 }
 
 $relatedItems = dedupe_items_by_key($relatedItems);
+if ($isMobileViewport) {
+    $relatedItems = array_slice($relatedItems, 0, 10);
+}
 $actresses = item_unique_rows($actresses, ['id', 'name']);
 $genres = item_unique_rows($genres, ['id', 'name']);
 $makers = item_unique_rows($makers, ['id', 'name']);
@@ -661,7 +668,7 @@ require __DIR__ . '/partials/header.php';
 
   <h2 class="pcf-section-title">関連作品</h2>
   <?php if ($relatedItems !== []): ?>
-    <section class="pcf-related-grid">
+    <section class="pcf-related-grid pcf-item-related-grid">
       <?php foreach ($relatedItems as $related): pcf_render_item_card(is_array($related) ? $related : []); endforeach; ?>
     </section>
   <?php else: ?>
