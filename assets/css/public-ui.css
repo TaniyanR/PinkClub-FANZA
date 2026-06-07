@@ -427,6 +427,10 @@
     grid-template-columns: 1fr;
   }
 
+  .pcf-genre-related-grid {
+    grid-template-columns: 1fr;
+  }
+
   .pcf-item-related-grid .pcf-dm-card:nth-child(n+11) {
     display: none;
   }
