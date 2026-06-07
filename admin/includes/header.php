@@ -41,11 +41,14 @@ $titleText = (string)($title ?? APP_NAME);
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= e($titleText) ?></title>
   <link rel="stylesheet" href="<?= e(asset_url('css/style.css')) ?>">
 </head>
 <body class="admin-page">
+<input class="admin-menu-toggle" type="checkbox" id="admin-menu-toggle" hidden>
 <header class="admin-topbar">
+  <label class="admin-menu-toggle__button" for="admin-menu-toggle" aria-label="管理メニューを開閉">☰</label>
   <div class="admin-topbar__brand"><a href="<?= e(admin_url('index.php')) ?>">PinkClub FANZA 管理</a></div>
   <div class="admin-topbar__right">
     <a href="<?= e(public_url('')) ?>" target="_blank" rel="noopener noreferrer">フロント表示</a>
