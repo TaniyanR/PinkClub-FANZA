@@ -79,6 +79,17 @@ body.admin-page .admin-notice p{margin:0}
 body.admin-page .flash.success,body.admin-page .admin-notice--success{background:#edfaef;border-color:#74c278}
 body.admin-page .flash.error,body.admin-page .admin-notice--error{background:#fdf0f0;border-color:#d63638}
 body.admin-page .admin-menu__badge{display:inline-block;margin-left:8px;padding:1px 6px;border-radius:999px;font-size:11px;font-weight:700;color:#2d1a00;background:#ffdb8a;border:1px solid #ffbe46}
+@media (max-width: 768px){
+  body.admin-page{min-width:0}
+  body.admin-page .admin-topbar{height:var(--admin-topbar-height);align-items:center;gap:10px;box-sizing:border-box;overflow-x:auto;white-space:nowrap;padding:0 10px}
+  body.admin-page .admin-topbar__right{flex:0 0 auto;gap:10px}
+  body.admin-page .admin-topbar a{font-size:13px;white-space:nowrap}
+  body.admin-page .admin-shell{padding-top:var(--admin-topbar-height)}
+  body.admin-page .admin-sidebar{position:static;width:auto;max-height:240px;border-top:1px solid #2c3338;border-bottom:1px solid #2c3338}
+  body.admin-page .admin-main{margin-left:0;padding:12px;overflow-x:auto}
+  body.admin-page input,body.admin-page select,body.admin-page textarea{box-sizing:border-box;max-width:100%}
+  body.admin-page .admin-table{display:block;overflow-x:auto}
+}
 
 /* Shared public/login/setup styles */
 body{
