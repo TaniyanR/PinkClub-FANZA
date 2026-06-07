@@ -429,7 +429,7 @@
 
   .pcf-item-sample-movie {
     width: 100% !important;
-    height: 66.6667vw;
+    height: 60vw;
     min-height: 260px;
     max-height: 480px;
     aspect-ratio: auto !important;
