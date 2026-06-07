@@ -671,3 +671,21 @@
   aspect-ratio: auto;
   height: auto !important;
 }
+
+@media (max-width: 900px) {
+  .pcf-item-samples {
+    flex-direction: column;
+    flex-wrap: nowrap !important;
+  }
+
+  .pcf-item-samples__movie {
+    width: 100% !important;
+  }
+
+  .pcf-item-samples__images {
+    width: 100% !important;
+    height: auto !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+}

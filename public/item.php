@@ -601,16 +601,16 @@ require __DIR__ . '/partials/header.php';
   <h1 class="pcf-hero__title"><?= e($breadcrumbTitle) ?></h1>
 
   <?php if ($sampleMovieUrl !== '' || $sampleImagesSmallLargeMap !== []): ?>
-    <div style="display:flex; gap:8px; align-items:flex-start; flex-wrap:nowrap;">
+    <div class="pcf-item-samples" style="display:flex; gap:8px; align-items:flex-start; flex-wrap:nowrap;">
       <?php if ($sampleMovieUrl !== ''): ?>
-      <div class="sample-movie-modal__frame-wrap" style="width: min(720px, calc(100% - 400px)); max-width: 100%; aspect-ratio: 720 / 480;">
+      <div class="sample-movie-modal__frame-wrap pcf-item-samples__movie" style="width: min(720px, calc(100% - 400px)); max-width: 100%; aspect-ratio: 720 / 480;">
         <iframe class="sample-movie-modal__frame" src="<?= e($sampleMovieUrl) ?>" allow="autoplay; fullscreen" referrerpolicy="no-referrer" scrolling="no" width="720" height="480"></iframe>
       </div>
       <?php else: ?>
-      <div class="sample-movie-modal__frame-wrap" style="width: min(720px, calc(100% - 400px)); max-width: 100%; aspect-ratio: 720 / 480; background:#d9d9d9; color:#666; display:flex; align-items:center; justify-content:center; font-weight:700;">no movie</div>
+      <div class="sample-movie-modal__frame-wrap pcf-item-samples__movie" style="width: min(720px, calc(100% - 400px)); max-width: 100%; aspect-ratio: 720 / 480; background:#d9d9d9; color:#666; display:flex; align-items:center; justify-content:center; font-weight:700;">no movie</div>
       <?php endif; ?>
       <?php if ($sampleImagesSmallLargeMap !== []): ?>
-      <div style="width:392px; max-width:100%; height:480px; overflow:hidden;"><div style="display:grid; grid-template-rows:repeat(6, 72px); grid-auto-flow:column; grid-auto-columns:92px; gap:8px; align-content:start;">
+      <div class="pcf-item-samples__images" style="width:392px; max-width:100%; height:480px; overflow:hidden;"><div style="display:grid; grid-template-rows:repeat(6, 72px); grid-auto-flow:column; grid-auto-columns:92px; gap:8px; align-content:start;">
         <?php foreach ($sampleImagesSmallLargeMap as $i => $imagePair): ?>
           <a href="<?= e((string)$imagePair['large']) ?>" class="pcf-image-viewer-trigger" data-image-index="<?= e((string)$i) ?>" style="display:block;">
             <img src="<?= e((string)$imagePair['small']) ?>" alt="サンプル画像 <?= e((string)($i + 1)) ?>" loading="lazy" style="display:block; width:100%; height:72px; object-fit:contain;">
