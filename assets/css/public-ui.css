@@ -608,6 +608,16 @@
 .pcf-dm-card__button.is-disabled { background:#9ca3af; color:#fff; cursor:not-allowed; }
 
 @media (max-width: 900px) {
+  .pcf-actress-profile { display:block !important; }
+  .pcf-actress-profile__title { grid-column:auto !important; }
+  .pcf-actress-profile__image { display:block !important; width:100% !important; max-width:100% !important; height:auto !important; aspect-ratio:auto !important; margin:0 0 16px; }
+  .pcf-actress-profile__details { grid-template-columns:1fr !important; gap:8px !important; }
+  .pcf-actress-related-grid { grid-template-columns:1fr !important; }
+  .pcf-actress-related-grid .pcf-dm-card__image-link { height:auto; }
+  .pcf-actress-related-grid .pcf-dm-card__image { height:auto; }
+}
+
+@media (max-width: 900px) {
   .rail-row--200.rail-row--wide-thumb { grid-template-columns: repeat(2, 1fr); }
 }
 
