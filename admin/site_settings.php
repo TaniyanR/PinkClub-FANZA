@@ -57,6 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate_or_fail((string)post('_csrf', ''));
     $siteName = trim((string)post('site_name', ''));
     $siteUrl = trim((string)post('site_url', ''));
+    $rssUrl = trim((string)post('site_rss_url', ''));
     $tagline = trim((string)post('site_tagline', ''));
     $keywords = trim((string)post('site_keywords', ''));
 
@@ -64,6 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'site.title' => $siteName,
         'site.name' => $siteName,
         'site.url' => $siteUrl,
+        'site.rss_url' => $rssUrl,
         'site.tagline' => $tagline,
         'site.keywords' => $keywords,
     ];
@@ -108,6 +110,9 @@ require __DIR__ . '/includes/header.php';
     </label>
     <label>URL
       <input type="url" name="site_url" value="<?= e(site_setting_get('site.url', app_url())) ?>">
+    </label>
+    <label>RSS URL
+      <input type="url" name="site_rss_url" value="<?= e(site_setting_get('site.rss_url', public_url('feed.php'))) ?>">
     </label>
     <label>キャッチフレーズ（検索結果説明用）
       <input type="text" name="site_tagline" value="<?= e(site_setting_get('site.tagline', '')) ?>">
