@@ -321,10 +321,13 @@ $title = '商品一覧';
 $itemCount = 0;
 $page = max(1, (int)get('page', 1));
 $per = (int)(app_config()['pagination']['per_page'] ?? 32);
+$viewport = (string)($_COOKIE['pcf_viewport'] ?? '');
+$clientHintMobile = trim((string)($_SERVER['HTTP_SEC_CH_UA_MOBILE'] ?? ''));
 $userAgent = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
-if ($userAgent !== '' && preg_match('/Android.*Mobile|iPhone|iPod|Windows Phone|BlackBerry|webOS/i', $userAgent)) {
+if ($viewport === 'sp' || $clientHintMobile === '?1' || ($userAgent !== '' && preg_match('/Android.*Mobile|iPhone|iPod|Windows Phone|BlackBerry|webOS/i', $userAgent))) {
     $per = 20;
 }
+$itemsViewportMode = $per === 20 ? 'sp' : 'pc';
 $pg = paginate(0, $page, $per);
 $latestItems = [];
 $fallbackItems = [];
@@ -351,6 +354,20 @@ try {
 
 require __DIR__ . '/partials/header.php';
 ?>
+<script>
+(() => {
+  if (!window.matchMedia) return;
+  const expected = window.matchMedia('(max-width: 768px)').matches ? 'sp' : 'pc';
+  const rendered = '<?= e($itemsViewportMode) ?>';
+  const current = document.cookie.split('; ').find((row) => row.startsWith('pcf_viewport='))?.split('=')[1] || '';
+  if (current !== expected) {
+    document.cookie = 'pcf_viewport=' + expected + '; path=/; max-age=86400; SameSite=Lax';
+  }
+  if (rendered !== expected) {
+    window.location.reload();
+  }
+})();
+</script>
 
 <?php if ($itemCount === 0): ?>
   <div class="card"><p>まだ商品データが同期されていません。管理画面のAPI設定から「同期実行（DB保存）」を行ってください。</p></div>
