@@ -661,7 +661,7 @@ require __DIR__ . '/partials/header.php';
 
   <h2 class="pcf-section-title">関連作品</h2>
   <?php if ($relatedItems !== []): ?>
-    <section class="pcf-related-grid">
+    <section class="pcf-related-grid pcf-item-related-grid">
       <?php foreach ($relatedItems as $related): pcf_render_item_card(is_array($related) ? $related : []); endforeach; ?>
     </section>
   <?php else: ?>

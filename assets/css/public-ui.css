@@ -441,6 +441,10 @@
     height: auto !important;
     overflow: visible !important;
   }
+
+  .pcf-item-related-grid {
+    grid-template-columns: 1fr;
+  }
 }
 .item-card-list {
   display: flex;
