@@ -74,7 +74,7 @@ function pcf_genre_display_name(array $row): string
 
 $id = (int)get('id', 0);
 $page = max(1, (int)get('page', 1));
-$per = 24;
+$per = 20;
 $row = null;
 $list = [];
 $total = 0;
@@ -155,7 +155,7 @@ require __DIR__ . '/partials/header.php';
 
 <h2 class="pcf-section-title"><?= e($genreName) ?>一覧</h2>
 <?php if ($list !== []): ?>
-  <section class="pcf-related-grid">
+  <section class="pcf-related-grid pcf-genre-related-grid">
     <?php foreach ($list as $item): pcf_render_item_card(is_array($item) ? $item : []); endforeach; ?>
   </section>
   <?php pcf_render_pagination($pg, public_url('genre.php'), ['id' => (int)$row['id']]); ?>
