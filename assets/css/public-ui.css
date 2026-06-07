@@ -416,6 +416,32 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 768px) {
+  .pcf-item-title {
+    font-size: 20px;
+    line-height: 1.35;
+  }
+
+  .pcf-item-samples {
+    display: block !important;
+  }
+
+  .pcf-item-sample-movie {
+    width: 100% !important;
+    height: 68vw;
+    min-height: 280px;
+    max-height: 480px;
+    aspect-ratio: auto !important;
+    margin-bottom: 8px;
+  }
+
+  .pcf-item-sample-thumbs {
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+}
 .item-card-list {
   display: flex;
   flex-direction: column;
