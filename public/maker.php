@@ -10,7 +10,7 @@ $id = (int)get('id', 0);
 $row = null;
 $list = [];
 $makerPage = max(1, (int)get('page', 1));
-$limit = 24;
+$limit = 20;
 $offset = ($makerPage - 1) * $limit;
 $hasNext = false;
 try {
@@ -112,7 +112,7 @@ require __DIR__ . '/partials/header.php';
 
 <h2 class="pcf-section-title"><?= e($makerName) ?>一覧</h2>
 <?php if ($list !== []): ?>
-  <section class="pcf-related-grid">
+  <section class="pcf-related-grid pcf-maker-related-grid">
     <?php foreach ($list as $item): pcf_render_item_card(is_array($item) ? $item : []); endforeach; ?>
   </section>
   <nav class="pcf-pagination" aria-label="ページネーション">
