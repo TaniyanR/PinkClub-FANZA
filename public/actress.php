@@ -255,11 +255,11 @@ require __DIR__ . '/partials/header.php';
     ['label' => $actressDisplayName],
 ]); ?>
 
-<section class="pcf-profile pcf-profile--plain" style="display:grid;grid-template-columns:minmax(220px,320px) 1fr;gap:20px;align-items:start;">
-  <img src="<?= e($profileImage) ?>" alt="<?= e($actressDisplayName) ?>" style="width:100%;max-width:320px;aspect-ratio:1/1;object-fit:cover;border-radius:6px;">
-  <div class="pcf-profile__body">
+<section class="pcf-profile pcf-profile--plain pcf-actress-profile" style="display:grid;grid-template-columns:minmax(220px,320px) 1fr;gap:20px;align-items:start;">
+  <img class="pcf-actress-profile__image" src="<?= e($profileImage) ?>" alt="<?= e($actressDisplayName) ?>" style="width:100%;max-width:320px;aspect-ratio:1/1;object-fit:cover;border-radius:6px;">
+  <div class="pcf-profile__body pcf-actress-profile__body">
     <h1 class="pcf-hero__title" style="margin:0 0 16px;padding:0 0 6px 8px;border-left:8px solid #002bff;border-bottom:2px solid #002bff;"><?= e($actressDisplayName) ?></h1>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+    <div class="pcf-actress-profile__details" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
       <dl class="pcf-detail-list" style="margin:0;">
         <div><dt>よみ</dt><dd><?= e(actress_profile_value($profile, 'ruby')) ?></dd></div>
         <div><dt>誕生日</dt><dd><?= e(!empty($profile['birthday']) ? format_date((string)$profile['birthday']) : '未登録') ?></dd></div>
@@ -280,7 +280,7 @@ require __DIR__ . '/partials/header.php';
 
 <h2 class="pcf-section-title" style="margin:15px 0 12px;padding-bottom:10px;border-bottom:2px solid #d7dbe3;"><?= e($actressDisplayName) ?>の作品</h2>
 <?php if ($list !== []): ?>
-  <section class="pcf-related-grid">
+  <section class="pcf-related-grid pcf-item-related-grid pcf-actress-related-grid">
     <?php foreach ($list as $item): pcf_render_item_card(is_array($item) ? $item : []); endforeach; ?>
   </section>
   <nav class="pcf-pagination" aria-label="ページネーション">
