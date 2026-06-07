@@ -441,6 +441,13 @@
     height: auto !important;
     overflow: visible !important;
   }
+
+  .pcf-item-sample-thumbs > div {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-template-rows: none !important;
+    grid-auto-flow: row !important;
+    grid-auto-columns: auto !important;
+  }
 }
 .item-card-list {
   display: flex;
