@@ -459,6 +459,22 @@
     min-height: 170px;
   }
 
+  .pcf-series-related-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pcf-series-related-grid .pcf-dm-card__image-link {
+    height: auto;
+  }
+
+  .pcf-series-related-grid .pcf-dm-card__image {
+    height: auto;
+  }
+
+  .pcf-series-related-grid .pcf-dm-card__no-image {
+    min-height: 170px;
+  }
+
   .pcf-item-related-grid .pcf-dm-card:nth-child(n+11) {
     display: none;
   }

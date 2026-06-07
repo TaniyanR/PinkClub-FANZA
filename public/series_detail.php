@@ -38,6 +38,13 @@ function pcf_fetch_series_access_ranking(string $periodFrom): array
 $id = (int)get('id', 0);
 $page = max(1, (int)get('page', 1));
 $per = 24;
+$viewport = (string)($_COOKIE['pcf_viewport'] ?? '');
+$clientHintMobile = trim((string)($_SERVER['HTTP_SEC_CH_UA_MOBILE'] ?? ''));
+$userAgent = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
+if ($viewport === 'sp' || $clientHintMobile === '?1' || ($userAgent !== '' && preg_match('/Android.*Mobile|iPhone|iPod|Windows Phone|BlackBerry|webOS/i', $userAgent))) {
+    $per = 20;
+}
+$seriesViewportMode = $per === 20 ? 'sp' : 'pc';
 $series = null;
 $seriesItems = [];
 $total = 0;
@@ -81,6 +88,20 @@ $accessRankingRows = pcf_fetch_series_access_ranking(pcf_series_access_period_fr
 $title = $seriesName;
 require __DIR__ . '/partials/header.php';
 ?>
+<script>
+(() => {
+  if (!window.matchMedia) return;
+  const expected = window.matchMedia('(max-width: 768px)').matches ? 'sp' : 'pc';
+  const rendered = '<?= e($seriesViewportMode) ?>';
+  const current = document.cookie.split('; ').find((row) => row.startsWith('pcf_viewport='))?.split('=')[1] || '';
+  if (current !== expected) {
+    document.cookie = 'pcf_viewport=' + expected + '; path=/; max-age=86400; SameSite=Lax';
+  }
+  if (rendered !== expected) {
+    window.location.reload();
+  }
+})();
+</script>
 <?php pcf_render_breadcrumbs([
     ['label' => 'トップ', 'url' => public_url('index.php')],
     ['label' => 'シリーズ一覧', 'url' => public_url('series_list.php')],
@@ -90,8 +111,8 @@ require __DIR__ . '/partials/header.php';
 
 <h2 class="pcf-section-title"><?= e($seriesName) ?>一覧</h2>
 <?php if ($seriesItems !== []): ?>
-  <section class="pcf-related-grid">
-    <?php foreach ($seriesItems as $item): pcf_render_item_card(is_array($item) ? $item : []); endforeach; ?>
+  <section class="pcf-related-grid pcf-series-related-grid">
+    <?php foreach ($seriesItems as $item): pcf_render_item_card(is_array($item) ? $item : [], 180, $seriesViewportMode === 'sp'); endforeach; ?>
   </section>
   <?php pcf_render_pagination($pg, public_url('series_detail.php'), ['id' => (int)$series['id']]); ?>
 <?php else: ?>

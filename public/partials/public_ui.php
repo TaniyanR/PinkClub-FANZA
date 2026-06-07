@@ -525,6 +525,15 @@ if (!function_exists('pcf_render_item_card')) {
         $itemId = (int)($item['id'] ?? 0);
         $itemUrl = $itemId > 0 ? public_url('item.php?id=' . $itemId) : public_url('item.php?cid=' . rawurlencode($contentId));
         $imageUrl = trim(pcf_item_image($item));
+        if ($preferFullPackageImage) {
+            foreach ([(string)($item['image_large'] ?? ''), pcf_first_image_from_mixed($item['image_list'] ?? ''), (string)($item['image_small'] ?? '')] as $imageCandidate) {
+                $fullPackageImage = trim($imageCandidate);
+                if ($fullPackageImage !== '') {
+                    $imageUrl = $fullPackageImage;
+                    break;
+                }
+            }
+        }
         $sampleMovieUrl = '';
         $raw = [];
         $rawJson = (string)($item['raw_json'] ?? '');
