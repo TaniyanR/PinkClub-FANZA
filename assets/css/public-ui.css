@@ -443,6 +443,42 @@
     min-height: 170px;
   }
 
+  .pcf-actress-profile {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px !important;
+  }
+
+  .pcf-actress-profile__body {
+    display: contents;
+  }
+
+  .pcf-actress-profile .pcf-hero__title {
+    order: 1;
+    margin-bottom: 0 !important;
+  }
+
+  .pcf-actress-profile__image {
+    order: 2;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    aspect-ratio: auto !important;
+  }
+
+  .pcf-actress-profile__details {
+    order: 3;
+    display: block !important;
+  }
+
+  .pcf-actress-profile__details .pcf-detail-list + .pcf-detail-list {
+    margin-top: 8px !important;
+  }
+
+  .pcf-actress-related-grid .pcf-dm-card:nth-child(n+11) {
+    display: block;
+  }
+
   .pcf-item-samples {
     display: block !important;
   }
