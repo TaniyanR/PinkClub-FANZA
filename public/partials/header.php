@@ -95,7 +95,7 @@ $canonicalHref = isset($canonicalUrl) && is_string($canonicalUrl) && $canonicalU
 <div class="only-sp site-ad"><?php render_ad('sp_header_below', $pageType, 'sp'); ?></div>
 <?php endif; ?>
 <div class="site-main__rss only-sp">
-  <?php render_shared_text_rss_widget(); ?>
+  <?php render_shared_mobile_rss_widget(); ?>
 </div>
 <div class="layout site-layout">
   <?php require __DIR__ . '/sidebar.php'; ?>

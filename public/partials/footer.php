@@ -73,7 +73,7 @@ $copyrightYears = $copyrightStartYear >= $currentYear
 <div class="only-sp site-ad"><?php render_ad('sp_footer_above', $pageType, 'sp'); ?></div>
 <?php endif; ?>
 <div class="site-main__rss only-sp">
-  <?php render_shared_text_rss_widget(); ?>
+  <?php render_shared_mobile_rss_widget(); ?>
 </div>
 <footer class="site-footer">
   <div class="site-footer__credit">

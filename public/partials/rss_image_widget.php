@@ -10,7 +10,10 @@ rss_refresh_stale_sources(1, 900, 2);
 
 $items = [];
 try {
-    $items = rss_pick_display_items(5, true, 14);
+    $items = array_merge(rss_widget_direct_items(20, true), rss_pick_display_items(20, true, 14));
+    if (count($items) > 1) {
+        shuffle($items);
+    }
 } catch (Throwable $e) {
     $items = [];
 }
@@ -21,6 +24,7 @@ if (isset($GLOBALS['pcf_rss_widget_used_keys']) && is_array($GLOBALS['pcf_rss_wi
 }
 if ($items !== []) {
     $filteredItems = [];
+    $maxItems = 5;
     foreach ($items as $item) {
         $key = rss_normalize_display_key(is_array($item) ? $item : []);
         if ($key === '') {
@@ -33,6 +37,9 @@ if ($items !== []) {
             $rssUsedKeys[$key] = true;
         }
         $filteredItems[] = $item;
+        if (count($filteredItems) >= $maxItems) {
+            break;
+        }
     }
     $items = $filteredItems;
 }
