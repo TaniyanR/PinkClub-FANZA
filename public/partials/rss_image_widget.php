@@ -11,6 +11,9 @@ rss_refresh_stale_sources(1, 900, 2);
 $items = [];
 try {
     $items = rss_pick_display_items(5, true, 14);
+    if ($items === []) {
+        $items = rss_widget_direct_items(5, true);
+    }
 } catch (Throwable $e) {
     $items = [];
 }

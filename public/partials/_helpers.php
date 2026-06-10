@@ -37,6 +37,109 @@ if (!function_exists('should_show_ad')) {
     }
 }
 
+
+if (!function_exists('rss_widget_direct_items')) {
+    function rss_widget_direct_items(int $limit, bool $requireImage = false): array
+    {
+        if ($limit <= 0 || !function_exists('db')) {
+            return [];
+        }
+
+        try {
+            $stmt = db()->query('SELECT ps.name AS source_name, pr.feed_url FROM partner_rss pr INNER JOIN partner_sites ps ON ps.id = pr.partner_site_id WHERE pr.feed_url <> "" AND COALESCE(pr.show_rss, pr.is_enabled, 1) = 1 ORDER BY RAND() LIMIT 20');
+            $sources = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        } catch (Throwable) {
+            try {
+                $stmt = db()->query('SELECT ps.name AS source_name, pr.feed_url FROM partner_rss pr INNER JOIN partner_sites ps ON ps.id = pr.partner_site_id WHERE pr.feed_url <> "" AND pr.is_enabled = 1 ORDER BY RAND() LIMIT 20');
+                $sources = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            } catch (Throwable) {
+                $sources = [];
+            }
+        }
+
+        if (!is_array($sources) || $sources === []) {
+            return [];
+        }
+
+        $items = [];
+        $seen = [];
+        $context = stream_context_create(['http' => ['timeout' => 2, 'user_agent' => 'PinkClubRSS/1.0']]);
+        foreach ($sources as $source) {
+            $feedUrl = trim((string)($source['feed_url'] ?? ''));
+            if ($feedUrl === '') {
+                continue;
+            }
+
+            $xmlRaw = @file_get_contents($feedUrl, false, $context);
+            if (!is_string($xmlRaw) || $xmlRaw === '') {
+                continue;
+            }
+
+            libxml_use_internal_errors(true);
+            $xml = simplexml_load_string($xmlRaw);
+            if ($xml === false) {
+                continue;
+            }
+
+            $feedItems = $xml->channel->item ?? $xml->item ?? $xml->entry ?? [];
+            foreach ($feedItems as $feedItem) {
+                $link = trim((string)($feedItem->link ?? ''));
+                if ($link === '') {
+                    foreach ($feedItem->link ?? [] as $linkNode) {
+                        $attrs = $linkNode->attributes();
+                        $href = trim((string)($attrs['href'] ?? ''));
+                        if ($href !== '') {
+                            $link = $href;
+                            break;
+                        }
+                    }
+                }
+                $title = trim((string)($feedItem->title ?? ''));
+                if ($title === '' || $link === '') {
+                    continue;
+                }
+
+                $imageUrl = function_exists('rss_extract_first_image_url') ? rss_extract_first_image_url($feedItem) : '';
+                if ($requireImage && $imageUrl === '') {
+                    continue;
+                }
+
+                $guid = trim((string)($feedItem->guid ?? $feedItem->id ?? $link));
+                $key = function_exists('rss_normalize_url') ? rss_normalize_url($link) : mb_strtolower($link);
+                if ($key !== '' && isset($seen[$key])) {
+                    continue;
+                }
+                if ($key !== '') {
+                    $seen[$key] = true;
+                }
+
+                $publishedAt = trim((string)($feedItem->pubDate ?? $feedItem->published ?? $feedItem->updated ?? ''));
+                $timestamp = $publishedAt !== '' ? strtotime($publishedAt) : false;
+                $items[] = [
+                    'title' => $title,
+                    'link' => $link,
+                    'guid' => $guid,
+                    'published_at' => $timestamp !== false ? date('Y-m-d H:i:s', $timestamp) : '',
+                    'image_url' => $imageUrl,
+                    'source_id' => 0,
+                    'source_name' => (string)($source['source_name'] ?? ''),
+                ];
+
+                if (count($items) >= $limit * 4) {
+                    break 2;
+                }
+            }
+        }
+
+        if ($items === []) {
+            return [];
+        }
+
+        shuffle($items);
+        return array_slice($items, 0, $limit);
+    }
+}
+
 if (!function_exists('render_shared_text_rss_widget')) {
     function render_shared_text_rss_widget(): void
     {
