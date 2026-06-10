@@ -314,7 +314,7 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
 
 function rss_table_column_exists(string $table, string $column): bool
 {
-    if (!in_array($table, ['rss_sources', 'partner_rss'], true)) {
+    if (!in_array($table, ['rss_sources', 'partner_rss', 'mutual_links'], true)) {
         return false;
     }
 
@@ -354,20 +354,37 @@ function rss_sync_partner_sources(): void
 {
     $pdo = db();
     $partnerFeeds = $pdo->query('SELECT pr.id AS rss_id, ps.name, pr.feed_url, COALESCE(pr.show_rss, pr.is_enabled, 1) AS rss_enabled FROM partner_rss pr INNER JOIN partner_sites ps ON ps.id = pr.partner_site_id')->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $mutualFeeds = [];
+    if (rss_table_column_exists('mutual_links', 'rss_url')) {
+        $mutualWhere = ['rss_url IS NOT NULL', 'rss_url <> ""'];
+        if (rss_table_column_exists('mutual_links', 'status')) {
+            $mutualWhere[] = 'status = "approved"';
+        }
+        if (rss_table_column_exists('mutual_links', 'is_enabled')) {
+            $mutualWhere[] = 'is_enabled = 1';
+        }
+        if (rss_table_column_exists('mutual_links', 'rss_enabled')) {
+            $mutualWhere[] = 'rss_enabled = 1';
+        }
+        try {
+            $mutualFeeds = $pdo->query('SELECT id AS rss_id, site_name AS name, rss_url AS feed_url, 1 AS rss_enabled FROM mutual_links WHERE ' . implode(' AND ', $mutualWhere))->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Throwable $e) {
+            $mutualFeeds = [];
+        }
+    }
+    $partnerFeeds = array_merge($partnerFeeds, $mutualFeeds);
     $find = $pdo->prepare('SELECT id FROM rss_sources WHERE feed_url = :feed LIMIT 1');
     $insert = $pdo->prepare('INSERT INTO rss_sources(name,feed_url,source_type,source_ref_id,is_enabled,created_at,updated_at) VALUES(:name,:feed,"partner_link",:ref,:enabled,NOW(),NOW())');
     $update = $pdo->prepare('UPDATE rss_sources SET name=:name,source_type="partner_link",source_ref_id=:ref,is_enabled=:enabled,updated_at=NOW() WHERE id=:id');
-    $seenIds = [];
+    $seenFeeds = [];
 
     foreach ($partnerFeeds as $feed) {
         $feedUrl = trim((string)($feed['feed_url'] ?? ''));
         if ($feedUrl === '') {
             continue;
         }
+        $seenFeeds[$feedUrl] = true;
         $rssId = (int)($feed['rss_id'] ?? 0);
-        if ($rssId > 0) {
-            $seenIds[] = $rssId;
-        }
         $name = trim((string)($feed['name'] ?? 'RSS'));
         $enabled = (int)($feed['rss_enabled'] ?? 0) === 1 ? 1 : 0;
         $find->execute([':feed' => $feedUrl]);
@@ -379,10 +396,10 @@ function rss_sync_partner_sources(): void
         $insert->execute([':name' => $name, ':feed' => $feedUrl, ':ref' => $rssId > 0 ? $rssId : null, ':enabled' => $enabled]);
     }
 
-    if ($seenIds !== []) {
-        $placeholders = implode(',', array_fill(0, count($seenIds), '?'));
-        $stmt = $pdo->prepare('UPDATE rss_sources SET is_enabled=0, updated_at=NOW() WHERE source_type = "partner_link" AND source_ref_id IS NOT NULL AND source_ref_id NOT IN (' . $placeholders . ')');
-        $stmt->execute($seenIds);
+    if ($seenFeeds !== []) {
+        $placeholders = implode(',', array_fill(0, count($seenFeeds), '?'));
+        $stmt = $pdo->prepare('UPDATE rss_sources SET is_enabled=0, updated_at=NOW() WHERE source_type = "partner_link" AND feed_url NOT IN (' . $placeholders . ')');
+        $stmt->execute(array_keys($seenFeeds));
     } else {
         $pdo->exec('UPDATE rss_sources SET is_enabled=0, updated_at=NOW() WHERE source_type = "partner_link"');
     }
