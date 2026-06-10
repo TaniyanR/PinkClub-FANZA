@@ -9,7 +9,7 @@ rss_widget_bootstrap();
 
 $items = [];
 try {
-    $items = rss_pick_display_items(50, false, 14);
+    $items = array_merge(rss_widget_direct_items(50, false), rss_pick_display_items(50, false, 14));
 } catch (Throwable $e) {
     $items = [];
 }
