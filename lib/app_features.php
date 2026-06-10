@@ -198,6 +198,12 @@ function rss_extract_first_image_url(SimpleXMLElement $item): string
     }
 
     $description = (string)($item->description ?? '');
+    if ($description === '') {
+        $description = (string)($item->summary ?? '');
+    }
+    if ($description === '') {
+        $description = (string)($item->content ?? '');
+    }
     if ($description !== '' && preg_match("/<img[^>]+src=['\"]([^'\"]+)['\"]/i", $description, $matches) === 1) {
         return trim((string)($matches[1] ?? ''));
     }
@@ -211,6 +217,92 @@ function rss_extract_first_image_url(SimpleXMLElement $item): string
     }
 
     return '';
+}
+
+function rss_feed_items(SimpleXMLElement $xml): array
+{
+    if (isset($xml->channel->item)) {
+        return iterator_to_array($xml->channel->item, false);
+    }
+
+    if (isset($xml->item)) {
+        return iterator_to_array($xml->item, false);
+    }
+
+    if (isset($xml->entry)) {
+        return iterator_to_array($xml->entry, false);
+    }
+
+    return [];
+}
+
+function rss_item_link(SimpleXMLElement $item): string
+{
+    $link = trim((string)($item->link ?? ''));
+    if ($link !== '') {
+        return $link;
+    }
+
+    foreach ($item->link ?? [] as $linkNode) {
+        $attrs = $linkNode->attributes();
+        $href = trim((string)($attrs['href'] ?? ''));
+        $rel = trim((string)($attrs['rel'] ?? ''));
+        if ($href !== '' && ($rel === '' || $rel === 'alternate')) {
+            return $href;
+        }
+    }
+
+    return '';
+}
+
+function rss_item_date(SimpleXMLElement $item): string
+{
+    $dateText = trim((string)($item->pubDate ?? ''));
+    if ($dateText === '') {
+        $dateText = trim((string)($item->published ?? ''));
+    }
+    if ($dateText === '') {
+        $dateText = trim((string)($item->updated ?? ''));
+    }
+
+    $namespaces = $item->getNameSpaces(true);
+    if ($dateText === '' && isset($namespaces['dc'])) {
+        $dc = $item->children($namespaces['dc']);
+        $dateText = trim((string)($dc->date ?? ''));
+    }
+
+    $timestamp = strtotime($dateText !== '' ? $dateText : 'now');
+    return date('Y-m-d H:i:s', $timestamp !== false ? $timestamp : time());
+}
+
+function rss_item_summary(SimpleXMLElement $item): string
+{
+    $summary = (string)($item->description ?? '');
+    if ($summary === '') {
+        $summary = (string)($item->summary ?? '');
+    }
+    if ($summary === '') {
+        $summary = (string)($item->content ?? '');
+    }
+
+    return $summary;
+}
+
+function rss_item_categories(SimpleXMLElement $item): array
+{
+    $categories = [];
+    foreach ($item->category ?? [] as $category) {
+        $value = trim((string)$category);
+        if ($value === '') {
+            $attrs = $category->attributes();
+            $value = trim((string)($attrs['term'] ?? ''));
+        }
+        if ($value !== '') {
+            $categories[] = $value;
+        }
+    }
+
+    return $categories;
 }
 
 function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
@@ -239,7 +331,7 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
     $ngCategoryWords = array_values(array_filter(array_map('trim', $ngCategoryWords), static fn(string $v): bool => $v !== ''));
     $ngTagWords = array_values(array_filter(array_map('trim', $ngTagWords), static fn(string $v): bool => $v !== ''));
 
-    $items = $xml->channel->item ?? [];
+    $items = rss_feed_items($xml);
     $insertWithImage = null;
     $insertWithoutImage = null;
 
@@ -252,15 +344,13 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
     $insertWithoutImage = $pdo->prepare('INSERT IGNORE INTO rss_items (source_id,title,url,published_at,summary,guid,created_at) VALUES (:sid,:title,:url,:pub,:summary,:guid,NOW())');
 
     foreach ($items as $item) {
-        $guid = (string)($item->guid ?? $item->link ?? '');
-        if ($guid === '') {
+        $link = rss_item_link($item);
+        $guid = (string)($item->guid ?? $item->id ?? $link);
+        if ($guid === '' || $link === '') {
             continue;
         }
 
-        $categories = [];
-        foreach ($item->category ?? [] as $c) {
-            $categories[] = trim((string)$c);
-        }
+        $categories = rss_item_categories($item);
 
         $isBlocked = false;
         foreach ($ngCategoryWords as $ng) {
@@ -290,9 +380,9 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
         $params = [
             ':sid' => $sourceId,
             ':title' => mb_substr((string)($item->title ?? ''), 0, 255),
-            ':url' => mb_substr((string)($item->link ?? ''), 0, 500),
-            ':pub' => date('Y-m-d H:i:s', strtotime((string)($item->pubDate ?? 'now'))),
-            ':summary' => mb_substr(strip_tags((string)($item->description ?? '')), 0, 2000),
+            ':url' => mb_substr($link, 0, 500),
+            ':pub' => rss_item_date($item),
+            ':summary' => mb_substr(strip_tags(rss_item_summary($item)), 0, 2000),
             ':guid' => mb_substr($guid, 0, 500),
         ];
 
@@ -467,16 +557,19 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
     $pdo = db();
     $rows = [];
 
+    $recentWhere = ' AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY) ';
     $sqlWithImage = 'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.guid, ri.published_at, ri.image_url '
         . 'FROM rss_items ri '
         . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id '
-        . 'WHERE rs.is_enabled = 1 AND rs.source_type = "partner_link" AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY) '
+        . 'WHERE rs.is_enabled = 1 AND rs.source_type = "partner_link"'
+        . $recentWhere
         . 'ORDER BY ri.published_at DESC, ri.id DESC';
 
     $sqlWithoutImage = 'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.guid, ri.published_at '
         . 'FROM rss_items ri '
         . 'INNER JOIN rss_sources rs ON rs.id = ri.source_id '
-        . 'WHERE rs.is_enabled = 1 AND rs.source_type = "partner_link" AND ri.published_at >= DATE_SUB(NOW(), INTERVAL :days DAY) '
+        . 'WHERE rs.is_enabled = 1 AND rs.source_type = "partner_link"'
+        . $recentWhere
         . 'ORDER BY ri.published_at DESC, ri.id DESC';
 
     try {
@@ -489,6 +582,28 @@ function rss_pick_display_items(int $limit, bool $requireImage = false, int $day
         $stmt->bindValue(':days', $days, PDO::PARAM_INT);
         $stmt->execute();
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    $hasImageRow = false;
+    if ($requireImage && is_array($rows)) {
+        foreach ($rows as $row) {
+            if (trim((string)($row['image_url'] ?? '')) !== '') {
+                $hasImageRow = true;
+                break;
+            }
+        }
+    }
+
+    if ($rows === [] || ($requireImage && !$hasImageRow)) {
+        $sqlWithImage = str_replace($recentWhere, ' ', $sqlWithImage);
+        $sqlWithoutImage = str_replace($recentWhere, ' ', $sqlWithoutImage);
+        try {
+            $stmt = $pdo->query($sqlWithImage);
+            $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        } catch (Throwable $e) {
+            $stmt = $pdo->query($sqlWithoutImage);
+            $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        }
     }
 
     if (!is_array($rows) || $rows === []) {
