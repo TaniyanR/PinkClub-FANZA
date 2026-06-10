@@ -70,7 +70,7 @@ if (!function_exists('rss_widget_direct_items')) {
         shuffle($sources);
         $items = [];
         $seen = [];
-        $perSourceLimit = $requireImage ? 5 : max(3, (int)ceil($limit / 5));
+        $perSourceLimit = $requireImage ? 5 : 5;
         $context = stream_context_create(['http' => ['timeout' => 2, 'user_agent' => 'PinkClubRSS/1.0']]);
         foreach ($sources as $source) {
             $feedUrl = trim((string)($source['feed_url'] ?? ''));
@@ -191,7 +191,6 @@ if (!function_exists('render_shared_mobile_rss_widget')) {
         $GLOBALS['pcf_rss_widget_used_keys'] = [];
         unset($GLOBALS['pcf_rss_widget_max_items']);
 
-        include __DIR__ . '/rss_image_widget.php';
         include __DIR__ . '/rss_text_widget.php';
 
         if ($prevUsedKeys === null) {
