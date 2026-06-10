@@ -226,11 +226,13 @@ function rss_fetch_source(int $sourceId, int $timeoutSec = 4): array
     $ctx = stream_context_create(['http' => ['timeout' => $timeoutSec, 'user_agent' => 'PinkClubRSS/1.0']]);
     $xmlRaw = @file_get_contents((string)$source['feed_url'], false, $ctx);
     if (!is_string($xmlRaw) || $xmlRaw === '') {
+        $pdo->prepare('UPDATE rss_sources SET last_fetched_at=NOW() WHERE id=:id')->execute([':id' => $sourceId]);
         return ['ok' => false, 'message' => 'fetch failed'];
     }
     libxml_use_internal_errors(true);
     $xml = simplexml_load_string($xmlRaw);
     if ($xml === false) {
+        $pdo->prepare('UPDATE rss_sources SET last_fetched_at=NOW() WHERE id=:id')->execute([':id' => $sourceId]);
         return ['ok' => false, 'message' => 'xml parse failed'];
     }
 
