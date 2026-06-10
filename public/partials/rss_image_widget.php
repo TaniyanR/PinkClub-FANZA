@@ -6,11 +6,15 @@ require_once __DIR__ . '/../../lib/app_features.php';
 require_once __DIR__ . '/../../lib/db.php';
 
 rss_widget_bootstrap();
-rss_refresh_stale_sources(1, 900, 2);
+rss_refresh_stale_sources(5, 900, 2);
 
 $items = [];
 try {
     $items = rss_pick_display_items(5, true, 14);
+    if ($items === []) {
+        rss_refresh_stale_sources(5, 60, 2);
+        $items = rss_pick_display_items(5, true, 3650);
+    }
 } catch (Throwable $e) {
     $items = [];
 }

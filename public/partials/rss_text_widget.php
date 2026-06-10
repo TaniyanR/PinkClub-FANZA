@@ -10,6 +10,10 @@ rss_widget_bootstrap();
 $items = [];
 try {
     $items = rss_pick_display_items(50, false, 14);
+    if ($items === []) {
+        rss_refresh_stale_sources(5, 60, 2);
+        $items = rss_pick_display_items(50, false, 3650);
+    }
 } catch (Throwable $e) {
     $items = [];
 }
