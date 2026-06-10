@@ -310,6 +310,27 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
   .site-sidebar{display:none}
 }
 
+@media (min-width: 769px) and (max-width: 1024px){
+  .site-header{position:relative;padding-right:104px}
+  .site-header__right{display:none}
+  .site-nav{display:none}
+  .site-mobile-menu.only-sp{display:block}
+  .site-mobile-menu{position:absolute;top:14px;right:20px;z-index:1001;background:transparent;border:0;box-shadow:none}
+  .site-mobile-menu__summary{display:block;width:62px;height:48px;padding:0;border:4px solid #5d5d5d;border-radius:10px;background:#f8f8f8;color:transparent;cursor:pointer;list-style:none;box-sizing:border-box;overflow:hidden}
+  .site-mobile-menu__summary::-webkit-details-marker{display:none}
+  .site-mobile-menu__summary::before{content:'';display:block;width:30px;height:22px;margin:9px auto 0;background:linear-gradient(#5d5d5d,#5d5d5d) 0 0 / 100% 4px no-repeat,linear-gradient(#5d5d5d,#5d5d5d) 0 9px / 100% 4px no-repeat,linear-gradient(#5d5d5d,#5d5d5d) 0 18px / 100% 4px no-repeat;border-radius:2px}
+  .site-mobile-menu__summary::after{content:''}
+  .site-mobile-menu[open] .site-mobile-menu__summary::after{content:''}
+  .site-mobile-menu__body{position:absolute;top:56px;right:0;width:min(320px, calc(100vw - 40px));display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px;background:#fff;border:1px solid #dcdcde;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.12);box-sizing:border-box}
+  .site-mobile-menu__group{display:grid;gap:6px}
+  .site-mobile-menu__group a{display:block;padding:8px 10px;border:1px solid #dcdcde;border-radius:4px;color:#1d2327;text-decoration:none;font-size:13px;background:#f6f7f7}
+  .site-mobile-menu__search{grid-column:1 / -1;display:flex;gap:6px}
+  .site-mobile-menu__search .site-search__input{width:100%;max-width:none}
+  .site-layout{flex-direction:column}
+  .site-sidebar{display:none}
+  .sidebar{display:none}
+}
+
 /* Front UI unified layout */
 .layout{display:flex;align-items:flex-start;gap:16px;width:100%;padding:16px;box-sizing:border-box}
 .site-layout--rss-bottom{padding-top:0;margin-top:-8px}
