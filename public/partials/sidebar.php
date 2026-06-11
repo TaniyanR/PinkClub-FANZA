@@ -11,6 +11,7 @@ $orderBy = $sortMode === 'kana' ? 'ps.name ASC, ps.id ASC' : 'ps.id DESC';
 $canRenderAd = function_exists('render_ad');
 
 $partnerLinks = [];
+$textRssSiteCount = null;
 $fixedPages = [];
 $defaultFixedPages = [
     ['slug' => 'contact', 'title' => 'お問い合わせ', 'href' => public_url('contact.php')],
@@ -32,6 +33,18 @@ try {
     }
 } catch (Throwable $e) {
     $partnerLinks = [];
+}
+
+try {
+    $stmt = db()->query('SELECT COUNT(DISTINCT pr.partner_site_id) FROM partner_rss pr INNER JOIN partner_sites ps ON ps.id = pr.partner_site_id WHERE pr.feed_url <> "" AND COALESCE(pr.show_rss, pr.is_enabled, 1) = 1');
+    $textRssSiteCount = $stmt ? (int)$stmt->fetchColumn() : null;
+} catch (Throwable $e) {
+    try {
+        $stmt = db()->query('SELECT COUNT(DISTINCT pr.partner_site_id) FROM partner_rss pr INNER JOIN partner_sites ps ON ps.id = pr.partner_site_id WHERE pr.feed_url <> "" AND pr.is_enabled = 1');
+        $textRssSiteCount = $stmt ? (int)$stmt->fetchColumn() : null;
+    } catch (Throwable $e) {
+        $textRssSiteCount = null;
+    }
 }
 
 try {
@@ -86,7 +99,31 @@ if ($fixedPages === []) {
 
     <section class="sidebar-block sidebar-block--text-rss">
         <h2 class="sidebar-block__title">テキストRSS</h2>
-        <?php include __DIR__ . '/rss_text_widget.php'; ?>
+        <?php
+        $prevTextRssUsedKeys = $GLOBALS['pcf_rss_widget_used_keys'] ?? null;
+        $prevTextRssMaxItems = $GLOBALS['pcf_rss_widget_max_items'] ?? null;
+
+        $GLOBALS['pcf_rss_widget_used_keys'] = [];
+        if ($textRssSiteCount !== null) {
+            $GLOBALS['pcf_rss_widget_max_items'] = min(50, max(0, $textRssSiteCount * 5));
+        } else {
+            unset($GLOBALS['pcf_rss_widget_max_items']);
+        }
+
+        include __DIR__ . '/rss_text_widget.php';
+
+        if ($prevTextRssUsedKeys === null) {
+            unset($GLOBALS['pcf_rss_widget_used_keys']);
+        } else {
+            $GLOBALS['pcf_rss_widget_used_keys'] = $prevTextRssUsedKeys;
+        }
+
+        if ($prevTextRssMaxItems === null) {
+            unset($GLOBALS['pcf_rss_widget_max_items']);
+        } else {
+            $GLOBALS['pcf_rss_widget_max_items'] = $prevTextRssMaxItems;
+        }
+        ?>
     </section>
 
     <?php if ($canRenderAd): ?>
