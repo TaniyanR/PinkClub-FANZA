@@ -127,6 +127,8 @@ function db_can_connect(): bool
  */
 function db_table_exists($pdoOrTable, ?string $table = null): bool
 {
+    static $cache = [];
+
     try {
         $pdo = $pdoOrTable instanceof PDO ? $pdoOrTable : db();
         $tableName = $pdoOrTable instanceof PDO ? (string)$table : (string)$pdoOrTable;
@@ -135,13 +137,19 @@ function db_table_exists($pdoOrTable, ?string $table = null): bool
         }
 
         $cfg = app_config()['db'];
+        $cacheKey = (string)$cfg['dbname'] . '.' . $tableName;
+        if (array_key_exists($cacheKey, $cache)) {
+            return $cache[$cacheKey];
+        }
+
         $sql = 'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = :schema AND table_name = :table LIMIT 1';
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             'schema' => (string)$cfg['dbname'],
             'table' => $tableName,
         ]);
-        return (int)$stmt->fetchColumn() > 0;
+        $cache[$cacheKey] = (int)$stmt->fetchColumn() > 0;
+        return $cache[$cacheKey];
     } catch (Throwable) {
         return false;
     }

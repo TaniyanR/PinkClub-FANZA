@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/repository.php';
 
 function seeded_shuffle(array $rows, int $seed): array
 {
@@ -206,59 +207,11 @@ function query_all_safe(PDO $pdo, string $sql, array $params = []): array
     }
 }
 
-function index_table_exists(PDO $pdo, string $table): bool
-{
-    if (!in_array($table, ['rss_items', 'rss_sources'], true)) {
-        return false;
-    }
-
-    try {
-        $stmt = $pdo->prepare('SHOW TABLES LIKE :table_name');
-        $stmt->execute([':table_name' => $table]);
-        return (bool)$stmt->fetch(PDO::FETCH_NUM);
-    } catch (Throwable) {
-        return false;
-    }
-}
-
-function index_column_exists(PDO $pdo, string $table, string $column): bool
-{
-    if (!in_array($table, ['items', 'rss_sources'], true)) {
-        return false;
-    }
-
-    try {
-        $stmt = $pdo->prepare('SHOW COLUMNS FROM ' . $table . ' LIKE :column');
-        $stmt->execute([':column' => $column]);
-        return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
-    } catch (Throwable) {
-        return false;
-    }
-}
-
-function index_items_product_source_where(PDO $pdo): string
-{
-    static $where = null;
-    if ($where !== null) {
-        return $where;
-    }
-
-    $parts = [];
-    if (index_column_exists($pdo, 'items', 'item_source')) {
-        $parts[] = 'items.item_source = "fanza_product"';
-    }
-    if (index_table_exists($pdo, 'rss_items') && index_table_exists($pdo, 'rss_sources') && index_column_exists($pdo, 'rss_sources', 'source_type')) {
-        $parts[] = 'NOT EXISTS (SELECT 1 FROM rss_items ri INNER JOIN rss_sources rs ON rs.id = ri.source_id WHERE rs.source_type = "partner_link" AND (ri.title = items.title OR ri.url = items.url OR ri.url = items.affiliate_url))';
-    }
-
-    $where = $parts !== [] ? ' WHERE ' . implode(' AND ', $parts) : '';
-    return $where;
-}
-
 function fetch_items_with_order_fallback(PDO $pdo, array $orderByCandidates, int $limit): array
 {
     $limit = max(1, min(300, $limit));
-    $sourceWhereSql = index_items_product_source_where($pdo);
+    $sourceWhere = items_product_source_where();
+    $sourceWhereSql = $sourceWhere !== '' ? ' WHERE ' . $sourceWhere : '';
 
     foreach ($orderByCandidates as $orderBy) {
         $rows = query_all_safe($pdo, 'SELECT * FROM items' . $sourceWhereSql . ' ORDER BY ' . $orderBy . ' LIMIT ' . $limit);
@@ -409,7 +362,9 @@ $authorSection = ['name' => '', 'url' => '', 'items' => []];
 
 try {
     $pdo = db();
-    $itemCount = (int)$pdo->query('SELECT COUNT(*) FROM items' . index_items_product_source_where($pdo))->fetchColumn();
+    $sourceWhere = items_product_source_where();
+    $sourceWhereSql = $sourceWhere !== '' ? ' WHERE ' . $sourceWhere : '';
+    $itemCount = (int)$pdo->query('SELECT COUNT(*) FROM items' . $sourceWhereSql)->fetchColumn();
 
     if ($itemCount > 0) {
         $seedBase = intdiv(time(), 1800);
@@ -431,25 +386,14 @@ try {
             'view_count DESC, date_published DESC, id DESC',
             'view_count DESC, id DESC',
             'id DESC',
-        ], 80);
+        ], 40);
         $popularRows = take_unique_items_for_home($popularRows, $usedHomeItemKeys, 20);
         $pickupTop = array_slice($popularRows, 0, 5);
         $pickupBottom = array_slice($popularRows, 5, 15);
 
         if (db_table_exists($pdo, 'actresses')) {
-            $actressCandidates = $pdo->query('SELECT id,name,image_small,image_large,image_url FROM actresses ORDER BY (CASE WHEN image_small IS NULL OR image_small = "" THEN 1 ELSE 0 END), id DESC LIMIT 200')->fetchAll();
-            $actressWithImage = [];
-            $actressWithoutImage = [];
-            foreach ($actressCandidates as $candidate) {
-                if (actress_index_image(is_array($candidate) ? $candidate : []) !== '') {
-                    $actressWithImage[] = $candidate;
-                } else {
-                    $actressWithoutImage[] = $candidate;
-                }
-            }
-            $actressWithImage = seeded_shuffle($actressWithImage, $seedBase + 10);
-            $actressWithoutImage = seeded_shuffle($actressWithoutImage, $seedBase + 11);
-            $actresses = array_slice(array_merge($actressWithImage, $actressWithoutImage), 0, 15);
+            $actressCandidates = $pdo->query('SELECT id,name,image_small,image_large,image_url FROM actresses ORDER BY (CASE WHEN COALESCE(NULLIF(image_small, ""), NULLIF(image_large, ""), NULLIF(image_url, ""), "") = "" THEN 1 ELSE 0 END), RAND() LIMIT 30')->fetchAll();
+            $actresses = array_slice($actressCandidates ?: [], 0, 15);
         }
 
         if (db_table_exists($pdo, 'genres') && db_table_exists($pdo, 'item_genres')) {
@@ -457,7 +401,7 @@ try {
             if ($genreCandidates === []) {
                 $genreCandidates = query_all_safe($pdo, 'SELECT g.id,g.name,COUNT(*) AS item_count FROM genres g INNER JOIN item_genres ig ON ig.dmm_id = g.dmm_id GROUP BY g.id,g.name HAVING COUNT(*) > 0 ORDER BY item_count DESC,g.id DESC LIMIT 120');
             }
-            $genreCandidates = seeded_shuffle($genreCandidates, random_int(1, PHP_INT_MAX));
+            $genreCandidates = seeded_shuffle($genreCandidates, $seedBase + 20);
             foreach (array_slice($genreCandidates, 0, 3) as $index => $genre) {
                 $genreItems = [];
                 foreach ([

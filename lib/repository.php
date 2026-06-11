@@ -44,9 +44,16 @@ function normalize_content_id(string $contentId): string
 
 function backfill_master_from_relation(string $masterTable, string $relationTable, string $nameColumn): void
 {
+    static $backfilled = [];
+
     $masterTable  = normalize_table($masterTable,  ['actresses', 'genres', 'makers', 'series_master', 'authors']);
     $relationTable = normalize_table($relationTable, ['item_actresses', 'item_genres', 'item_makers', 'item_series', 'item_authors']);
     $nameColumn   = normalize_order($nameColumn, ['actress_name', 'genre_name', 'maker_name', 'series_name', 'author_name'], $nameColumn);
+    $cacheKey = $masterTable . ':' . $relationTable . ':' . $nameColumn;
+    if (isset($backfilled[$cacheKey])) {
+        return;
+    }
+    $backfilled[$cacheKey] = true;
 
     $sql = "INSERT INTO {$masterTable}(dmm_id,name,created_at,updated_at)
              SELECT
@@ -125,30 +132,45 @@ function fetch_item_by_cid(string $cid): ?array
 
 function items_table_exists(string $table): bool
 {
+    static $cache = [];
+
     if (!in_array($table, ['items', 'rss_items', 'rss_sources'], true)) {
         return false;
+    }
+    if (array_key_exists($table, $cache)) {
+        return $cache[$table];
     }
 
     try {
         $stmt = db()->prepare('SHOW TABLES LIKE :table_name');
         $stmt->execute([':table_name' => $table]);
-        return (bool)$stmt->fetch(PDO::FETCH_NUM);
+        $cache[$table] = (bool)$stmt->fetch(PDO::FETCH_NUM);
+        return $cache[$table];
     } catch (Throwable) {
+        $cache[$table] = false;
         return false;
     }
 }
 
 function items_column_exists(string $column, string $table = 'items'): bool
 {
+    static $cache = [];
+
     if (!in_array($table, ['items', 'rss_sources'], true)) {
         return false;
+    }
+    $cacheKey = $table . '.' . $column;
+    if (array_key_exists($cacheKey, $cache)) {
+        return $cache[$cacheKey];
     }
 
     try {
         $stmt = db()->prepare('SHOW COLUMNS FROM ' . $table . ' LIKE :column');
         $stmt->execute([':column' => $column]);
-        return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+        $cache[$cacheKey] = (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+        return $cache[$cacheKey];
     } catch (Throwable) {
+        $cache[$cacheKey] = false;
         return false;
     }
 }
@@ -162,6 +184,12 @@ function ensure_items_item_source_column(): void
 
 function items_product_source_where(string $alias = ''): string
 {
+    static $cache = [];
+
+    if (array_key_exists($alias, $cache)) {
+        return $cache[$alias];
+    }
+
     $outerPrefix = $alias !== '' ? $alias : 'items';
     $where = [];
 
@@ -173,7 +201,8 @@ function items_product_source_where(string $alias = ''): string
         $where[] = 'NOT EXISTS (SELECT 1 FROM rss_items ri INNER JOIN rss_sources rs ON rs.id = ri.source_id WHERE rs.source_type = "partner_link" AND (ri.title = ' . $outerPrefix . '.title OR ri.url = ' . $outerPrefix . '.url OR ri.url = ' . $outerPrefix . '.affiliate_url))';
     }
 
-    return implode(' AND ', $where);
+    $cache[$alias] = implode(' AND ', $where);
+    return $cache[$alias];
 }
 
 function fetch_actresses(int $limit = 50, int $offset = 0, string $order = 'name'): array
