@@ -587,6 +587,9 @@ try {
     error_log('public/index.php load failed: ' . $e->getMessage());
 }
 
+$title = 'トップ';
+$pageDescription = function_exists('setting_site_tagline') ? setting_site_tagline('') : '';
+$canonicalUrl = public_url('index.php');
 require __DIR__ . '/partials/header.php';
 $hasHomeContent = $latestTop !== []
     || $latestBottom !== []

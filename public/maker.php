@@ -97,6 +97,14 @@ try {
 }
 
 $title = $makerName;
+$pageDescription = mb_strimwidth($makerName . 'の作品一覧。FANZAで販売中の最新作・人気作品を紹介。', 0, 150, '…', 'UTF-8');
+$canonicalUrl = public_url('maker.php') . '?id=' . rawurlencode((string)$id);
+if ($makerPage > 1) {
+    $relPrev = public_url('maker.php') . '?' . http_build_query(['id' => $id, 'page' => $makerPage - 1]);
+}
+if ($hasNext) {
+    $relNext = public_url('maker.php') . '?' . http_build_query(['id' => $id, 'page' => $makerPage + 1]);
+}
 require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_breadcrumbs([

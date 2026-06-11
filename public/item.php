@@ -562,6 +562,36 @@ if (str_starts_with($packageImage, 'data:image/svg+xml')) {
     $packageImage = '';
 }
 
+$actressNames = array_values(array_filter(array_map(static fn($row) => trim((string)($row['name'] ?? '')), $actresses), static fn($name) => $name !== ''));
+$genreNames = array_values(array_filter(array_map(static fn($row) => trim((string)($row['name'] ?? '')), $genres), static fn($name) => $name !== ''));
+$pageDescriptionSource = $desc !== '' ? $desc : $title . 'のFANZA通販ページ。' . ($actressNames !== [] ? implode('、', array_slice($actressNames, 0, 3)) . '出演、' : '') . ($genreNames !== [] ? implode('、', array_slice($genreNames, 0, 3)) . '作品です。' : '作品です。');
+$pageDescription = mb_strimwidth($pageDescriptionSource, 0, 150, '…', 'UTF-8');
+$canonicalUrl = public_url('item.php') . '?id=' . rawurlencode((string)(int)$item['id']);
+$ogImage = $packageImage;
+if ($ogImage !== '' && str_starts_with($ogImage, '//')) {
+    $ogImage = 'https:' . $ogImage;
+}
+$ogType = 'product';
+$productJsonLd = [
+    '@context' => 'https://schema.org',
+    '@type' => 'Product',
+    'name' => $title,
+    'description' => $pageDescription,
+    'offers' => [
+        '@type' => 'Offer',
+        'url' => $affiliateUrl !== '' ? $affiliateUrl : $canonicalUrl,
+        'priceCurrency' => 'JPY',
+        'availability' => 'https://schema.org/InStock',
+    ],
+];
+if ($ogImage !== '') {
+    $productJsonLd['image'] = $ogImage;
+}
+if ($actressNames !== []) {
+    $productJsonLd['actor'] = array_map(static fn($name) => ['@type' => 'Person', 'name' => $name], $actressNames);
+}
+$jsonLd = (string)json_encode($productJsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
+
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
 $accessRankingTabs = [
     'daily' => ['label' => '24時間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 1 DAY)'],
