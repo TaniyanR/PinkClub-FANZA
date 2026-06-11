@@ -11,6 +11,7 @@ $menuGroups = [
     ['label' => '設定', 'children' => [
         ['label' => 'サイト設定', 'file' => 'site_settings.php'],
         ['label' => '広告コード', 'file' => 'ads_code.php'],
+        ['label' => 'コード設定', 'file' => 'code_settings.php'],
     ]],
     ['label' => 'リンク設定', 'children' => [
         ['label' => '相互リンク管理', 'file' => 'links.php'],
