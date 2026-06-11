@@ -24,21 +24,53 @@ if (isset($GLOBALS['pcf_rss_widget_used_keys']) && is_array($GLOBALS['pcf_rss_wi
 }
 if ($items !== []) {
     $filteredItems = [];
+    $deferredItems = [];
+    $sourceCounts = [];
     $maxItems = 5;
+    $maxItemsSourceLimit = 2;
     foreach ($items as $item) {
-        $key = rss_normalize_display_key(is_array($item) ? $item : []);
+        if (!is_array($item)) {
+            continue;
+        }
+        $key = rss_normalize_display_key($item);
         if ($key === '') {
             $key = mb_strtolower(trim((string)($item['title'] ?? '')));
         }
         if ($key !== '' && isset($rssUsedKeys[$key])) {
             continue;
         }
+        $sourceKey = mb_strtolower(trim((string)($item['source_name'] ?? '')));
+        if ($maxItemsSourceLimit > 0 && $sourceKey !== '' && ($sourceCounts[$sourceKey] ?? 0) >= $maxItemsSourceLimit) {
+            $deferredItems[] = $item;
+            continue;
+        }
         if ($key !== '') {
             $rssUsedKeys[$key] = true;
+        }
+        if ($sourceKey !== '') {
+            $sourceCounts[$sourceKey] = ($sourceCounts[$sourceKey] ?? 0) + 1;
         }
         $filteredItems[] = $item;
         if (count($filteredItems) >= $maxItems) {
             break;
+        }
+    }
+    if (count($filteredItems) < $maxItems && $deferredItems !== []) {
+        foreach ($deferredItems as $item) {
+            $key = rss_normalize_display_key($item);
+            if ($key === '') {
+                $key = mb_strtolower(trim((string)($item['title'] ?? '')));
+            }
+            if ($key !== '' && isset($rssUsedKeys[$key])) {
+                continue;
+            }
+            if ($key !== '') {
+                $rssUsedKeys[$key] = true;
+            }
+            $filteredItems[] = $item;
+            if (count($filteredItems) >= $maxItems) {
+                break;
+            }
         }
     }
     $items = $filteredItems;
