@@ -247,6 +247,15 @@ try {
 unset($title, $pageTitle);
 $title = $actressDisplayName;
 $pageTitle = $actressDisplayName;
+$pageDescription = mb_strimwidth($actressDisplayName . 'の出演作品一覧。FANZAで人気の' . $actressDisplayName . '作品をチェック。', 0, 150, '…', 'UTF-8');
+$canonicalUrl = public_url('actress.php') . '?id=' . rawurlencode((string)$id);
+$ogImage = $profileImage;
+if ($actressPage > 1) {
+    $relPrev = public_url('actress.php') . '?' . http_build_query(['id' => $id, 'page' => $actressPage - 1]);
+}
+if ($hasNext) {
+    $relNext = public_url('actress.php') . '?' . http_build_query(['id' => $id, 'page' => $actressPage + 1]);
+}
 require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_breadcrumbs([

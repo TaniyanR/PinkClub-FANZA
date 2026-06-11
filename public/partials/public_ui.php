@@ -489,6 +489,7 @@ if (!function_exists('pcf_render_breadcrumbs')) {
             return;
         }
 
+        $jsonItems = [];
         echo '<nav class="pcf-breadcrumb" aria-label="パンくず">';
         foreach ($items as $index => $item) {
             $label = (string)($item['label'] ?? '');
@@ -501,8 +502,15 @@ if (!function_exists('pcf_render_breadcrumbs')) {
                 echo '<span>' . e($label) . '</span>';
             }
             echo '</span>';
+            $jsonItems[] = [
+                '@type' => 'ListItem',
+                'position' => $index + 1,
+                'name' => $label,
+                'item' => $url !== '' ? $url : public_url(basename((string)($_SERVER['SCRIPT_NAME'] ?? 'index.php'))),
+            ];
         }
         echo '</nav>';
+        echo '<script type="application/ld+json">' . json_encode(['@context' => 'https://schema.org', '@type' => 'BreadcrumbList', 'itemListElement' => $jsonItems], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) . '</script>';
     }
 }
 

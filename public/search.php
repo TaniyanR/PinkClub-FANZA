@@ -271,6 +271,14 @@ $searchRows = search_fetch_items($searchQuery, $limit, $offset);
 [$searchItems, $searchHasNext] = paginate_items($searchRows, $limit);
 
 $title = '検索結果';
+$pageDescription = $searchQuery !== '' ? mb_strimwidth('「' . $searchQuery . '」の商品検索結果です。', 0, 150, '…', 'UTF-8') : 'キーワードを入力して商品を検索できます。';
+$canonicalUrl = public_url('search.php') . ($searchQuery !== '' ? '?' . http_build_query(['q' => $searchQuery]) : '');
+if ($page > 1) {
+    $relPrev = public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $page - 1]);
+}
+if ($searchHasNext) {
+    $relNext = public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $page + 1]);
+}
 require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_hero('検索結果', $searchQuery !== '' ? '「' . $searchQuery . '」の商品検索結果です。' : 'キーワードを入力して商品を検索できます。'); ?>

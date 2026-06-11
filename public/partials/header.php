@@ -42,6 +42,9 @@ $faviconPath = trim($safeTextSetting('site.favicon_path', ''));
 
 $headerAdHtml = trim($safeTextSetting('header_ad_html', ''));
 $titleText = (string)($title ?? $pageTitle ?? $siteName);
+$titleBaseText = trim($titleText);
+$isHomeTitle = $titleBaseText === '' || $titleBaseText === 'トップ' || $titleBaseText === $siteName;
+$titleText = $isHomeTitle ? ($tagline !== '' ? $siteName . ' - ' . $tagline : $siteName) : $titleBaseText . ' | ' . $siteName;
 $faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
 $canRenderAd = function_exists('render_ad');
 $descriptionText = (string)($pageDescription ?? '');
@@ -49,6 +52,18 @@ if ($descriptionText === '') {
     $descriptionText = $tagline;
 }
 $canonicalHref = isset($canonicalUrl) && is_string($canonicalUrl) && $canonicalUrl !== '' ? $canonicalUrl : '';
+$ogUrl = isset($ogUrl) && is_string($ogUrl) && $ogUrl !== '' ? $ogUrl : ($canonicalHref !== '' ? $canonicalHref : public_url(basename((string)($_SERVER['SCRIPT_NAME'] ?? 'index.php'))));
+$ogType = isset($ogType) && is_string($ogType) && $ogType !== '' ? $ogType : 'website';
+$ogImage = isset($ogImage) && is_string($ogImage) ? trim($ogImage) : '';
+if ($ogImage === '' && $logoPath !== '') {
+    $ogImage = asset_url($logoPath);
+}
+if ($ogImage !== '' && !str_starts_with($ogImage, 'http://') && !str_starts_with($ogImage, 'https://')) {
+    $ogImage = asset_url($ogImage);
+}
+$jsonLdText = isset($jsonLd) && is_string($jsonLd) && $jsonLd !== '' ? $jsonLd : '';
+$relPrevHref = isset($relPrev) && is_string($relPrev) && $relPrev !== '' ? $relPrev : '';
+$relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relNext : '';
 ?>
 <!doctype html>
 <html lang="ja">
@@ -58,7 +73,21 @@ $canonicalHref = isset($canonicalUrl) && is_string($canonicalUrl) && $canonicalU
   <title><?= e($titleText) ?></title>
   <?php if ($descriptionText !== ''): ?><meta name="description" content="<?= e($descriptionText) ?>"><?php endif; ?>
   <?php if ($canonicalHref !== ''): ?><link rel="canonical" href="<?= e($canonicalHref) ?>"><?php endif; ?>
+  <?php if ($relPrevHref !== ''): ?><link rel="prev" href="<?= e($relPrevHref) ?>"><?php endif; ?>
+  <?php if ($relNextHref !== ''): ?><link rel="next" href="<?= e($relNextHref) ?>"><?php endif; ?>
   <?php if ($keywords !== ''): ?><meta name="keywords" content="<?= e($keywords) ?>"><?php endif; ?>
+  <meta property="og:type" content="<?= e($ogType) ?>">
+  <meta property="og:title" content="<?= e($titleText) ?>">
+  <?php if ($descriptionText !== ''): ?><meta property="og:description" content="<?= e($descriptionText) ?>"><?php endif; ?>
+  <meta property="og:url" content="<?= e($ogUrl) ?>">
+  <?php if ($ogImage !== ''): ?><meta property="og:image" content="<?= e($ogImage) ?>"><?php endif; ?>
+  <meta property="og:site_name" content="<?= e($siteName) ?>">
+  <meta property="og:locale" content="ja_JP">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="<?= e($titleText) ?>">
+  <?php if ($descriptionText !== ''): ?><meta name="twitter:description" content="<?= e($descriptionText) ?>"><?php endif; ?>
+  <?php if ($ogImage !== ''): ?><meta name="twitter:image" content="<?= e($ogImage) ?>"><?php endif; ?>
+  <?php if ($jsonLdText !== ''): ?><script type="application/ld+json"><?= $jsonLdText ?></script><?php endif; ?>
   <?php if ($faviconUrl !== ''): ?>
     <link rel="icon" href="<?= e($faviconUrl) ?>" sizes="any" type="image/x-icon">
     <link rel="icon" href="<?= e($faviconUrl) ?>" type="image/png" sizes="48x48">

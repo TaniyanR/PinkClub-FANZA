@@ -352,6 +352,14 @@ try {
     error_log('public/items.php failed: ' . $e->getMessage());
 }
 
+$pageDescription = 'FANZA商品一覧。最新作・人気作品を掲載。';
+$canonicalUrl = public_url('items.php');
+if ((int)($pg['page'] ?? 1) > 1) {
+    $relPrev = public_url('items.php') . '?' . http_build_query(['page' => (int)$pg['page'] - 1]);
+}
+if ((int)($pg['page'] ?? 1) < (int)($pg['pages'] ?? 1)) {
+    $relNext = public_url('items.php') . '?' . http_build_query(['page' => (int)$pg['page'] + 1]);
+}
 require __DIR__ . '/partials/header.php';
 ?>
 <script>
