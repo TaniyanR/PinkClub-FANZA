@@ -9,7 +9,7 @@ rss_widget_bootstrap();
 
 $items = [];
 try {
-    $items = array_merge(rss_widget_direct_items(100, false), rss_pick_display_items(50, false, 14));
+    $items = array_merge(rss_widget_direct_items(250, false), rss_pick_display_items(250, false, 14));
 } catch (Throwable $e) {
     $items = [];
 }
@@ -22,9 +22,9 @@ $rssUsedKeys = [];
 if (isset($GLOBALS['pcf_rss_widget_used_keys']) && is_array($GLOBALS['pcf_rss_widget_used_keys'])) {
     $rssUsedKeys = $GLOBALS['pcf_rss_widget_used_keys'];
 }
-$maxItems = 0;
+$maxItems = 50;
 if (isset($GLOBALS['pcf_rss_widget_max_items'])) {
-    $maxItems = (int)$GLOBALS['pcf_rss_widget_max_items'];
+    $maxItems = min(50, max(0, (int)$GLOBALS['pcf_rss_widget_max_items']));
 }
 
 $filteredItems = [];
