@@ -220,7 +220,7 @@ if (!function_exists('render_shared_content_ad_row')) {
 
         // Reset widget tracking so this row can render independently from sidebar/top widgets.
         $GLOBALS['pcf_rss_widget_used_keys'] = [];
-        $GLOBALS['pcf_rss_widget_max_items'] = 30;
+        $GLOBALS['pcf_rss_widget_max_items'] = 50;
 
         ob_start();
         include __DIR__ . '/rss_text_widget.php';
