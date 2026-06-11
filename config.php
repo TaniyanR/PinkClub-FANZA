@@ -21,8 +21,8 @@ set_exception_handler(static function (Throwable $e): void {
 return [
 
     'app' => [
-        'env' => 'dev',
-        'debug' => true,
+        'env' => 'production',
+        'debug' => false,
     ],
     'site' => [
         'title' => 'PinkClub-FANZA',
@@ -59,7 +59,7 @@ return [
 
     'admin' => [
         'username' => 'admin',
-        // password
-        'password_hash' => '$2y$12$lrWdfz4sxTR6N3fvb/F5qeH/N1W0exdLVqgUbS7ZHEqo6DbZQqlSC',
+        // config.local.php で bcrypt ハッシュを設定してください
+        'password_hash' => '',
     ],
 ];

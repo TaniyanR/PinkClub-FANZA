@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/app_features.php';
+require_once __DIR__ . '/../lib/rate_limit.php';
 require_once __DIR__ . '/../lib/csrf.php';
 require_once __DIR__ . '/partials/_helpers.php';
 
@@ -14,6 +15,7 @@ function e2(string $v): string
 
 $err = '';
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    rate_limit_check('user_login');
     if (!csrf_verify((string)($_POST['_token'] ?? ''))) {
         $err = 'CSRFエラー';
     } elseif (!user_login(trim((string)$_POST['email']), (string)$_POST['password'])) {
