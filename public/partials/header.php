@@ -41,6 +41,8 @@ $logoPath = trim($safeTextSetting('site.logo_path', ''));
 $faviconPath = trim($safeTextSetting('site.favicon_path', ''));
 
 $headerAdHtml = trim($safeTextSetting('header_ad_html', ''));
+$customHeadCode = trim($safeTextSetting('site.custom_head_code', ''));
+$customBodyOpenCode = trim($safeTextSetting('site.custom_body_open_code', ''));
 $titleText = (string)($title ?? $pageTitle ?? $siteName);
 $titleBaseText = trim($titleText);
 $isHomeTitle = $titleBaseText === '' || $titleBaseText === 'トップ' || $titleBaseText === $siteName;
@@ -88,6 +90,9 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
   <?php if ($descriptionText !== ''): ?><meta name="twitter:description" content="<?= e($descriptionText) ?>"><?php endif; ?>
   <?php if ($ogImage !== ''): ?><meta name="twitter:image" content="<?= e($ogImage) ?>"><?php endif; ?>
   <?php if ($jsonLdText !== ''): ?><script type="application/ld+json"><?= $jsonLdText ?></script><?php endif; ?>
+  <?php if ($customHeadCode !== ''): ?>
+<?= $customHeadCode ?>
+  <?php endif; ?>
   <?php if ($faviconUrl !== ''): ?>
     <link rel="icon" href="<?= e($faviconUrl) ?>" sizes="any" type="image/x-icon">
     <link rel="icon" href="<?= e($faviconUrl) ?>" type="image/png" sizes="48x48">
@@ -97,6 +102,9 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
   <link rel="stylesheet" href="<?= e(asset_url('css/public-ui.css')) ?>">
 </head>
 <body>
+<?php if ($customBodyOpenCode !== ''): ?>
+<?= $customBodyOpenCode ?>
+<?php endif; ?>
 <header class="site-header">
   <div class="site-header__top">
     <div class="header-left site-header__left">
