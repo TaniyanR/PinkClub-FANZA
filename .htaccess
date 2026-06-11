@@ -1,4 +1,5 @@
 RewriteEngine On
+RewriteRule ^(config(?:\.local)?\.php|cache|logs|config|lib|sql)(/|$) - [F,L]
 RewriteRule ^public/ - [L]
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d

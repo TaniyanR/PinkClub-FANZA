@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/rate_limit.php';
 
 $autoSetup = installer_auto_run_if_needed();
 if (($autoSetup['blocked'] ?? false) === false && ($autoSetup['success'] ?? false) !== true) {
@@ -17,6 +18,7 @@ $error = null;
 $setupMessage = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    rate_limit_check('admin_login');
     csrf_validate_or_fail(post('_csrf'));
 
     $username = trim((string) post('username', ''));

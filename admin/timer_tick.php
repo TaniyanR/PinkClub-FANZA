@@ -199,7 +199,8 @@ foreach (array_keys($jobs) as $jobKey) {
         ]);
     } catch (Throwable $e) {
         timer_unlock_job($pdo, $jobKey, false, $e->getMessage(), $offset, $now);
-        timer_json(['ran' => false, 'job' => $jobKey, 'saved_items' => 0, 'message' => '同期失敗: ' . $e->getMessage(), 'at' => $now], 500);
+        error_log('[timer_tick] job=' . $jobKey . ' error=' . $e->getMessage());
+        timer_json(['ran' => false, 'job' => $jobKey, 'saved_items' => 0, 'message' => '同期に失敗しました。ログを確認してください。', 'at' => $now], 500);
     }
 }
 

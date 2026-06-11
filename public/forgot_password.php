@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/config.php';
 require_once __DIR__ . '/../lib/db.php';
+require_once __DIR__ . '/../lib/rate_limit.php';
 require_once __DIR__ . '/../lib/csrf.php';
 require_once __DIR__ . '/../lib/admin_auth.php';
 require_once __DIR__ . '/partials/_helpers.php';
@@ -11,6 +12,7 @@ require_once __DIR__ . '/partials/_helpers.php';
 admin_session_start();
 $message = '';
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    rate_limit_check('password_reset');
     if (!csrf_verify((string)($_POST['_token'] ?? ''))) {
         $message = 'リクエストが無効です。';
     } else {
@@ -23,24 +25,23 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $u = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (is_array($u)) {
-                $newPassword = substr(str_replace(['+', '/', '='], '', base64_encode(random_bytes(12))), 0, 12);
-                $hash = password_hash($newPassword, PASSWORD_DEFAULT);
-                db()->prepare('UPDATE admin_users SET password_hash=:hash, password=NULL, updated_at=NOW() WHERE id=:id')
-                    ->execute([':hash' => $hash, ':id' => (int)$u['id']]);
+                $token = bin2hex(random_bytes(32));
+                db()->prepare('INSERT INTO admin_password_resets(admin_user_id,token_hash,expires_at) VALUES (:admin_user_id,:token_hash,DATE_ADD(NOW(), INTERVAL 1 HOUR))')
+                    ->execute([':admin_user_id' => (int)$u['id'], ':token_hash' => hash('sha256', $token)]);
 
-                $body = "管理者パスワードを再発行しました。\n"
+                $resetUrl = url('/public/reset_password.php?token=' . rawurlencode($token));
+                $body = "管理者パスワード再設定の申請を受け付けました。\n"
                     . "ユーザー名: " . (string)$u['username'] . "\n"
                     . "メールアドレス: " . (string)$u['email'] . "\n"
-                    . "仮パスワード: " . $newPassword . "\n\n"
-                    . "ログイン後、必ずパスワードを変更してください。";
+                    . "再設定URL: " . $resetUrl . "\n\n"
+                    . "このURLは1時間で期限切れになります。";
                 $ok = @mail($email, '[PinkClub-FANZA] Password Reset', $body);
             } else {
                 $ok = true;
-                $body = 'not-found';
             }
 
             db()->prepare('INSERT INTO mail_logs(direction,from_name,from_email,to_email,subject,body,status,last_error,created_at,updated_at) VALUES ("out",NULL,:from,:to,:subj,:body,:status,:err,NOW(),NOW())')
-                ->execute([':from' => 'noreply@pinkclub.local', ':to' => $email, ':subj' => 'Password Reset', ':body' => $body, ':status' => $ok ? 'sent' : 'failed', ':err' => $ok ? null : 'mail() unavailable']);
+                ->execute([':from' => 'noreply@pinkclub.local', ':to' => $email, ':subj' => 'Password Reset', ':body' => 'パスワード再発行メールを送信しました。', ':status' => $ok ? 'sent' : 'failed', ':err' => $ok ? null : 'mail() unavailable']);
             if (!$ok) {
                 $message = '現在メールを送信できません。しばらくしてから再度お試しください。';
             }

@@ -6,7 +6,7 @@ require_once __DIR__ . '/url.php';
 require_once __DIR__ . '/db.php';
 
 const ADMIN_V2_DEFAULT_USERNAME = 'admin';
-const ADMIN_V2_DEFAULT_PASSWORD = 'password';
+const ADMIN_V2_DEFAULT_PASSWORD = '';
 const ADMIN_V2_SESSION_KEY = 'admin_user';
 const ADMIN_V2_CSRF_KEY = 'admin_login_csrf';
 
@@ -83,6 +83,10 @@ function admin_v2_ensure_default_admin(): void
         $columns = $columnsStmt ? $columnsStmt->fetchAll(PDO::FETCH_COLUMN) : [];
         if (!is_array($columns)) {
             $columns = [];
+        }
+
+        if (ADMIN_V2_DEFAULT_PASSWORD === '') {
+            return;
         }
 
         $values = [
@@ -183,16 +187,7 @@ function admin_v2_config_authenticate(string $identifier, string $password): ?ar
         return ['id' => 1, 'username' => $configUsername, 'email' => ''];
     }
 
-    $configPlain = (string)config_get('admin.password', ADMIN_V2_DEFAULT_PASSWORD);
-    if ($configPlain === '') {
-        $configPlain = ADMIN_V2_DEFAULT_PASSWORD;
-    }
-
-    if (!hash_equals($configPlain, $password)) {
-        return null;
-    }
-
-    return ['id' => 1, 'username' => $configUsername, 'email' => ''];
+    return null;
 }
 
 function admin_v2_store_login(array $user): void
