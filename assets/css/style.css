@@ -366,7 +366,7 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 }
 .sidebar-block--text-rss .rss-widget--text .rss-box{max-height:500px}
 @media (max-width: 900px){
-  .site-main__rss.only-sp .rss-widget--text .rss-box{max-height:500px}
+  .site-main__rss.only-sp .rss-widget--text .rss-box{height:300px;max-height:300px}
 }
 .rss-list{list-style:none;margin:0;padding:0;min-width:0;max-width:100%}
 .rss-list__item{padding:10px 12px;border-bottom:1px solid #dcdcde;min-width:0;max-width:100%;box-sizing:border-box}
