@@ -688,6 +688,12 @@
   .site-main--legacy .rail-row--home-taxonomy .rail-card .rail-card__noimage {
     height: 210px !important;
   }
+  .site-main--legacy .only-sp .rail-row--no-scroll .rail-card .thumb {
+    height: 210px !important;
+    object-fit: contain;
+    object-position: center top;
+    background: #fff;
+  }
 }
 
 .pcf-dm-card {
