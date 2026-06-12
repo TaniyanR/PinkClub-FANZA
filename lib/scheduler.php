@@ -9,6 +9,7 @@ function scheduler_tick(): array
     $pdo = db();
     scheduler_ensure_schedule_table($pdo);
     scheduler_seed_default_schedules($pdo);
+    scheduler_apply_auto_settings($pdo);
 
     $stmt = $pdo->query("SELECT * FROM api_schedules WHERE is_enabled = 1 ORDER BY id ASC");
     $schedules = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
@@ -55,6 +56,24 @@ function scheduler_run_schedule(array $schedule): array
 
 function scheduler_run_items_schedule(DmmSyncService $service, array $settings): array
 {
+    $compoundRaw = scheduler_split_lines(site_setting_get('item_sync_compound_keywords', ''), 5);
+    $excludeKeywords = scheduler_split_lines(site_setting_get('item_sync_exclude_keywords', ''), 5);
+    $compoundKeyword = '';
+    foreach ($compoundRaw as $raw) {
+        $generated = scheduler_build_compound_keyword($raw);
+        if ($generated !== '') {
+            $compoundKeyword = $generated;
+            break;
+        }
+    }
+
+    $sortModes = ['rank', 'date', 'review'];
+    $sortIndex = max(0, settings_int('item_sync_sort_index', 0));
+    $extraParams = ['sort' => $sortModes[$sortIndex % count($sortModes)]];
+    if ($compoundKeyword !== '') {
+        $extraParams['keyword'] = $compoundKeyword;
+    }
+
     $pdo = db();
     $pdo->exec("CREATE TABLE IF NOT EXISTS sync_job_state (job_key VARCHAR(64) PRIMARY KEY,next_offset INT NOT NULL DEFAULT 1,next_initial VARCHAR(10) NULL,last_run_at DATETIME NULL,last_success TINYINT(1) NOT NULL DEFAULT 0,last_message TEXT NULL,lock_until DATETIME NULL,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     $pdo->prepare("INSERT INTO sync_job_state (job_key, next_offset, updated_at) VALUES ('items', 1, NOW()) ON DUPLICATE KEY UPDATE updated_at = updated_at")->execute();
@@ -67,13 +86,56 @@ function scheduler_run_items_schedule(DmmSyncService $service, array $settings):
         (string)($settings['service'] ?? 'digital'),
         (string)($settings['floor'] ?? 'videoa'),
         (int)($settings['item_sync_batch'] ?? 100),
-        $offset
+        $offset,
+        $extraParams,
+        $excludeKeywords
     );
     $nextOffset = max(1, (int)($result['next_offset'] ?? 1));
     $pdo->prepare("UPDATE sync_job_state SET next_offset = :next_offset, last_run_at = NOW(), last_success = 1, last_message = :message, updated_at = NOW() WHERE job_key = 'items'")
         ->execute([':next_offset' => $nextOffset, ':message' => '商品を同期しました']);
+    site_setting_set_many(['last_item_sync_at' => date('Y-m-d H:i:s'), 'item_sync_offset' => (string)$nextOffset, 'item_sync_sort_index' => (string)($sortIndex + 1)]);
 
     return ['synced_count' => (int)($result['synced_count'] ?? 0), 'message' => '商品を同期しました'];
+}
+
+function scheduler_split_lines(string $value, int $max = 5): array
+{
+    $lines = preg_split('/\R/u', $value) ?: [];
+    $result = [];
+    foreach ($lines as $line) {
+        $line = trim((string)$line);
+        if ($line === '') {
+            continue;
+        }
+        $result[] = $line;
+        if (count($result) >= $max) {
+            break;
+        }
+    }
+    return $result;
+}
+
+function scheduler_build_compound_keyword(string $value): string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return '';
+    }
+
+    $parts = array_map('trim', explode(',', $value, 2));
+    if (count($parts) === 2 && $parts[0] !== '' && $parts[1] !== '') {
+        return $parts[1] . 'は' . $parts[0] . 'が大好き';
+    }
+
+    return $value;
+}
+
+function scheduler_apply_auto_settings(PDO $pdo): void
+{
+    $enabled = settings_bool('item_sync_enabled', false) ? 1 : 0;
+    $interval = max(1, settings_int('item_sync_interval_minutes', 60));
+    $pdo->prepare("UPDATE api_schedules SET interval_minutes = :interval, is_enabled = :enabled, updated_at = NOW() WHERE schedule_type IN ('items','genres','makers','series','authors')")
+        ->execute([':interval' => $interval, ':enabled' => $enabled]);
 }
 
 function scheduler_is_due(array $schedule): bool
