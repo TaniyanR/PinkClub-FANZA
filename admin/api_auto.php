@@ -159,9 +159,9 @@ require __DIR__ . '/includes/header.php';
           }).then(function (data) {
             var message = data && data.message ? data.message : '自動更新を確認しました';
             updateStatus(message + '（' + new Date().toLocaleString() + '）');
+            running = false;
           }).catch(function () {
             updateStatus('自動更新の確認に失敗しました（' + new Date().toLocaleString() + '）');
-          }).finally(function () {
             running = false;
           });
         };
