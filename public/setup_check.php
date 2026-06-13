@@ -79,11 +79,11 @@ $dbConfig = app_config()['db'] ?? [];
       <form method="post">
         <?= csrf_input() ?>
         <table><tbody>
-          <tr><th>DBホスト</th><td><input name="db_host" value="<?= e((string)($dbConfig['host'] ?? '')) ?>" required></td></tr>
-          <tr><th>DBポート</th><td><input name="db_port" type="number" value="<?= e((string)($dbConfig['port'] ?? 3306)) ?>" required></td></tr>
-          <tr><th>DB名</th><td><input name="db_name" value="<?= e((string)($dbConfig['dbname'] ?? '')) ?>" required></td></tr>
-          <tr><th>DBユーザー</th><td><input name="db_user" value="<?= e((string)($dbConfig['user'] ?? '')) ?>" required></td></tr>
-          <tr><th>DBパスワード</th><td><input name="db_pass" type="password" value=""></td></tr>
+          <tr><th>サーバーID</th><td><input name="db_host" value="<?= e((string)($dbConfig['host'] ?? '')) ?>" required></td></tr>
+          <tr><th>DBポート（通常 3306）</th><td><input name="db_port" type="number" value="<?= e((string)($dbConfig['port'] ?? 3306)) ?>" required></td></tr>
+          <tr><th>データベース</th><td><input name="db_name" value="<?= e((string)($dbConfig['dbname'] ?? '')) ?>" required></td></tr>
+          <tr><th>ユーザー名</th><td><input name="db_user" value="<?= e((string)($dbConfig['user'] ?? '')) ?>" required></td></tr>
+          <tr><th>設定時のパスワード</th><td><input name="db_pass" type="password" value=""></td></tr>
         </tbody></table>
         <button type="submit">DB設定を保存してセットアップ実行</button>
       </form>
