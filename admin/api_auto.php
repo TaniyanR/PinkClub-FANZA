@@ -126,49 +126,8 @@ require __DIR__ . '/includes/header.php';
 
   <?php if ($enabled): ?>
     <div class="admin-notice admin-notice--success" id="auto-timer-status" data-endpoint="<?= e(admin_url('timer_tick.php')) ?>" data-csrf="<?= e(csrf_token()) ?>">
-      <p>自動更新はONです。この画面を開いている間、60秒ごとに自動更新を確認します。</p>
+      <p>自動更新はONです。管理画面を開いている間、60秒ごとに自動更新を確認します。</p>
     </div>
-    <script>
-      (function () {
-        var status = document.getElementById('auto-timer-status');
-        if (!status) {
-          return;
-        }
-        var endpoint = status.getAttribute('data-endpoint');
-        var csrf = status.getAttribute('data-csrf');
-        var running = false;
-        var updateStatus = function (message) {
-          var paragraph = status.querySelector('p');
-          if (paragraph) {
-            paragraph.textContent = message;
-          }
-        };
-        var tick = function () {
-          if (running || !endpoint || !csrf) {
-            return;
-          }
-          running = true;
-          var body = new FormData();
-          body.append('_csrf', csrf);
-          fetch(endpoint, {
-            method: 'POST',
-            credentials: 'same-origin',
-            body: body
-          }).then(function (response) {
-            return response.json();
-          }).then(function (data) {
-            var message = data && data.message ? data.message : '自動更新を確認しました';
-            updateStatus(message + '（' + new Date().toLocaleString() + '）');
-          }).catch(function () {
-            updateStatus('自動更新の確認に失敗しました（' + new Date().toLocaleString() + '）');
-          }).finally(function () {
-            running = false;
-          });
-        };
-        tick();
-        setInterval(tick, 60000);
-      }());
-    </script>
   <?php endif; ?>
 </section>
 <?php require __DIR__ . '/includes/footer.php'; ?>
