@@ -137,14 +137,22 @@ require __DIR__ . '/includes/header.php';
         var endpoint = status.getAttribute('data-endpoint');
         var csrf = status.getAttribute('data-csrf');
         var running = false;
+        var timerId = null;
         var updateStatus = function (message) {
           var paragraph = status.querySelector('p');
           if (paragraph) {
             paragraph.textContent = message;
           }
         };
+        var scheduleNext = function () {
+          if (timerId !== null) {
+            clearTimeout(timerId);
+          }
+          timerId = setTimeout(tick, 60000);
+        };
         var tick = function () {
           if (running || !endpoint || !csrf) {
+            scheduleNext();
             return;
           }
           running = true;
@@ -163,10 +171,12 @@ require __DIR__ . '/includes/header.php';
             updateStatus('自動更新の確認に失敗しました（' + new Date().toLocaleString() + '）');
           }).finally(function () {
             running = false;
+            scheduleNext();
           });
         };
+        window.addEventListener('focus', tick);
+        window.addEventListener('pageshow', tick);
         tick();
-        setInterval(tick, 60000);
       }());
     </script>
   <?php endif; ?>
