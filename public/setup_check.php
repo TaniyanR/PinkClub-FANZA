@@ -3,6 +3,43 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/local_config_writer.php';
+
+$message = null;
+$error = null;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_validate_or_fail((string)post('_csrf', ''));
+
+    $dbConfig = [
+        'host' => trim((string)post('db_host', '')),
+        'port' => (int)post('db_port', 3306),
+        'dbname' => trim((string)post('db_name', '')),
+        'user' => trim((string)post('db_user', '')),
+        'pass' => (string)post('db_pass', ''),
+        'charset' => 'utf8mb4',
+    ];
+    $configErrors = db_validate_config($dbConfig, true);
+
+    if ($configErrors !== []) {
+        $error = 'DB設定を確認してください: ' . implode('、', $configErrors);
+    } else {
+        try {
+            $local = local_config_load();
+            $local['db'] = $dbConfig;
+            local_config_write($local);
+            $GLOBALS['app_config'] = array_replace_recursive(app_config(), ['db' => $dbConfig]);
+            db_reset_connections();
+            $result = installer_run();
+            if (($result['success'] ?? false) === true) {
+                app_redirect(LOGIN_PATH);
+            }
+            $error = (string)($result['error'] ?? 'セットアップに失敗しました。');
+        } catch (Throwable $exception) {
+            $error = $exception->getMessage();
+        }
+    }
+}
 
 $status = installer_status();
 if (($status['completed'] ?? false) === true) {
@@ -20,6 +57,7 @@ $checks = [
 
 $errorSummary = installer_last_error_summary();
 $logTail = installer_log_tail(30);
+$dbConfig = app_config()['db'] ?? [];
 ?>
 <!doctype html>
 <html lang="ja">
@@ -33,7 +71,22 @@ $logTail = installer_log_tail(30);
   <main class="setup-page">
     <section class="setup-card">
       <h1><?= e(APP_NAME) ?> セットアップ確認</h1>
-      <div class="alert alert-warning">セットアップ失敗時の診断ページです。再実行は <code>login0718.php</code> へアクセスしてください。</div>
+      <div class="alert alert-warning">サーバー設置時はDB設定を入力してセットアップを実行してください。</div>
+      <?php if ($message !== null): ?><div class="alert alert-success"><?= e($message) ?></div><?php endif; ?>
+      <?php if ($error !== null): ?><div class="alert alert-error"><?= e($error) ?></div><?php endif; ?>
+
+      <h2>DB設定</h2>
+      <form method="post">
+        <?= csrf_input() ?>
+        <table><tbody>
+          <tr><th>DBホスト</th><td><input name="db_host" value="<?= e((string)($dbConfig['host'] ?? '')) ?>" required></td></tr>
+          <tr><th>DBポート</th><td><input name="db_port" type="number" value="<?= e((string)($dbConfig['port'] ?? 3306)) ?>" required></td></tr>
+          <tr><th>DB名</th><td><input name="db_name" value="<?= e((string)($dbConfig['dbname'] ?? '')) ?>" required></td></tr>
+          <tr><th>DBユーザー</th><td><input name="db_user" value="<?= e((string)($dbConfig['user'] ?? '')) ?>" required></td></tr>
+          <tr><th>DBパスワード</th><td><input name="db_pass" type="password" value=""></td></tr>
+        </tbody></table>
+        <button type="submit">DB設定を保存してセットアップ実行</button>
+      </form>
 
       <table>
         <thead><tr><th>項目</th><th>状態</th></tr></thead>

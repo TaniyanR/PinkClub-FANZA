@@ -162,12 +162,12 @@ if (!defined('ADMIN_HOME_PATH')) {
     define('ADMIN_HOME_PATH', '/admin/index.php');
 }
 
-return [
+$config = [
     'db' => [
-        'host' => '127.0.0.1',
+        'host' => '',
         'port' => 3306,
-        'dbname' => 'pinkclub_fanza',
-        'user' => 'root',
+        'dbname' => '',
+        'user' => '',
         'pass' => '',
         'charset' => 'utf8mb4',
     ],
@@ -182,3 +182,13 @@ return [
         'per_page' => 32,
     ],
 ];
+
+$localConfigPath = __DIR__ . '/../config.local.php';
+if (is_file($localConfigPath)) {
+    $localConfig = require $localConfigPath;
+    if (is_array($localConfig)) {
+        $config = array_replace_recursive($config, $localConfig);
+    }
+}
+
+return $config;
