@@ -9,18 +9,28 @@ if (is_file($path)) {
     exit(0);
 }
 
-$dsn = 'mysql:host=127.0.0.1;dbname=pinkclub_fanza;charset=utf8mb4';
+$host = getenv('DB_HOST') ?: '';
+$port = (int)(getenv('DB_PORT') ?: 3306);
+$dbname = getenv('DB_NAME') ?: '';
+$user = getenv('DB_USER') ?: '';
+$password = getenv('DB_PASSWORD') ?: '';
+$dsn = getenv('DB_DSN') ?: ($host !== '' && $dbname !== '' ? sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4', $host, $dbname) : '');
 
-$contents = <<<PHP
-<?php
-return [
+$local = [
     'db' => [
-        'dsn' => '{$dsn}',
-        'user' => 'root',
-        'password' => '',
+        'host' => $host,
+        'port' => $port,
+        'dbname' => $dbname,
+        'name' => $dbname,
+        'dsn' => $dsn,
+        'user' => $user,
+        'pass' => $password,
+        'password' => $password,
+        'charset' => 'utf8mb4',
     ],
 ];
-PHP;
+
+$contents = "<?php\nreturn " . var_export($local, true) . ";\n";
 
 if (file_put_contents($path, $contents . "\n") === false) {
     fwrite(STDERR, "Failed to create config.local.php.\n");

@@ -48,15 +48,15 @@ function installer_log_tail(int $maxLines = 20): array
 function installer_user_error_message(Throwable $exception): string
 {
     $message = $exception->getMessage();
-    if (str_contains($message, 'SQLSTATE[HY000] [2002]')) return 'MySQLサーバーへ接続できません。XAMPPのMySQL起動と接続設定を確認してください。';
-    if (str_contains($message, 'Access denied')) return 'DBユーザー認証に失敗しました。config/config.php の設定を確認してください。';
+    if (str_contains($message, 'SQLSTATE[HY000] [2002]')) return 'MySQLサーバーへ接続できません。サーバーのDB接続設定を確認してください。';
+    if (str_contains($message, 'Access denied')) return 'DBユーザー認証に失敗しました。セットアップ画面のDB設定を確認してください。';
     return 'セットアップ中にエラーが発生しました。logs/install.log を確認してください。';
 }
 
 function installer_request_host(): string { $h=strtolower(trim((string)($_SERVER['HTTP_HOST']??''))); return $h===''?'':explode(':',$h,2)[0]; }
 function installer_request_remote_addr(): string { return strtolower(trim((string)($_SERVER['REMOTE_ADDR'] ?? ''))); }
-function installer_is_local_request(): bool { return in_array(installer_request_remote_addr(), ['127.0.0.1','::1','localhost'], true) || in_array(installer_request_host(), ['localhost','127.0.0.1'], true); }
-function installer_can_auto_run(): bool { return installer_is_local_request(); }
+function installer_has_db_config(): bool { return db_validate_config(app_config()['db'] ?? [], true) === []; }
+function installer_can_auto_run(): bool { return installer_has_db_config(); }
 
 function installer_auto_run_if_needed(): array
 {
@@ -65,7 +65,7 @@ function installer_auto_run_if_needed(): array
     if (($status['completed'] ?? false) === true) { installer_log('step=auto_check already_completed=true'); return ['attempted' => false, 'success' => true, 'blocked' => false, 'result' => null]; }
     if (!installer_can_auto_run()) {
         installer_log('step=server_connection blocked host=' . installer_request_host() . ' remote=' . installer_request_remote_addr());
-        return ['attempted' => false, 'success' => false, 'blocked' => true, 'message' => '自動セットアップは localhost / 127.0.0.1 / ::1 でのみ実行できます。', 'result' => null];
+        return ['attempted' => false, 'success' => false, 'blocked' => true, 'message' => 'セットアップ画面でDB設定を入力してください。', 'result' => null];
     }
     $result = installer_run();
     return ['attempted' => true, 'success' => (bool)($result['success'] ?? false), 'blocked' => false, 'result' => $result];
