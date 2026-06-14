@@ -162,15 +162,24 @@ if (!defined('ADMIN_HOME_PATH')) {
     define('ADMIN_HOME_PATH', '/admin/index.php');
 }
 
+$dbConfig = [
+    'host' => 'localhost',
+    'port' => 3306,
+    'dbname' => '',
+    'user' => '',
+    'pass' => '',
+    'charset' => 'utf8mb4',
+];
+$localConfigPath = __DIR__ . '/../config.local.php';
+if (is_file($localConfigPath)) {
+    $localConfig = require $localConfigPath;
+    if (is_array($localConfig) && isset($localConfig['db']) && is_array($localConfig['db'])) {
+        $dbConfig = array_replace($dbConfig, array_intersect_key($localConfig['db'], $dbConfig));
+    }
+}
+
 return [
-    'db' => [
-        'host' => '127.0.0.1',
-        'port' => 3306,
-        'dbname' => 'pinkclub_fanza',
-        'user' => 'root',
-        'pass' => '',
-        'charset' => 'utf8mb4',
-    ],
+    'db' => $dbConfig,
     'security' => [
         'session_name' => 'pinkclub_fanza_session',
     ],

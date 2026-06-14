@@ -1,17 +1,17 @@
 # PinkClub F
 
-## セットアップ（XAMPP）
-1. `C:\xampp\htdocs\pinkclub-f` に配置
-2. XAMPPで Apache / MySQL を起動
-3. `http://localhost/pinkclub-f/public/login0718.php` を開く
+## セットアップ
+1. サーバーの公開ディレクトリに配置
+2. `public/setup_check.php` を開き、サーバーパネルに表示されるDB接続情報を保存
+3. `public/login0718.php` を開く
 
-初回は `login0718.php` へのアクセスだけで、DB自動セットアップ（DB作成→schema適用→seed適用→admin/settings保証）が実行されます。  
-失敗時のみ `http://localhost/pinkclub-f/public/setup_check.php` を開いて原因を確認してください。
+初回はDB接続設定を保存したうえで、セットアップ（DB作成→schema適用→seed適用→admin/settings保証）を実行します。
+失敗時のみ `public/setup_check.php` を開いて原因を確認してください。
 
 ## 固定URL / 認証
-- 管理ログイン入口（固定）: `http://localhost/pinkclub-f/public/login0718.php`
-- 管理トップ: `http://localhost/pinkclub-f/admin/index.php`
-- 公開トップ: `http://localhost/pinkclub-f/public/`
+- 管理ログイン入口（固定）: `/public/login0718.php`
+- 管理トップ: `/admin/index.php`
+- 公開トップ: `/public/`
 - 初期管理者: `admin` / `password`
 
 ## 失敗時の確認
@@ -19,7 +19,7 @@
 - `setup_check.php` には失敗ステップ、例外、発生箇所、失敗SQL、ログ末尾を表示します。
 
 ## 補足
-- 自動セットアップ実行は localhost / 127.0.0.1 / ::1 のみ。
+- シンサーバーのDBホスト名は通常 `localhost` です。DB名・ユーザー名・パスワードはサーバーパネルのMySQL設定で確認し、`public/setup_check.php` から保存できます。
 - `login0718.php` / `setup_check.php` のCSSは `/assets/css/style.css` を共通利用します。
 
 ## マイグレーション適用
@@ -28,21 +28,21 @@
 - インストール完了後、`api_logs` と `api_schedules` が作成されていれば正常です。
 
 ## 管理画面の追加URL
-- `http://localhost/pinkclub-f/admin/api_items.php`（商品情報API設定）
-- `http://localhost/pinkclub-f/admin/api_genres.php`（ジャンルAPI設定）
-- `http://localhost/pinkclub-f/admin/api_actresses.php`（女優API設定）
-- `http://localhost/pinkclub-f/admin/api_series.php`（シリーズAPI設定）
-- `http://localhost/pinkclub-f/admin/api_timer.php`（タイマー実行API）
-- `http://localhost/pinkclub-f/admin/auto_timer.php`（タイマー稼働ページ）
-- `http://localhost/pinkclub-f/admin/site_settings.php`
-- `http://localhost/pinkclub-f/admin/account_settings.php`
-- `http://localhost/pinkclub-f/admin/design_settings.php`
-- `http://localhost/pinkclub-f/admin/links_partner.php`
-- `http://localhost/pinkclub-f/admin/links_rss.php`
-- `http://localhost/pinkclub-f/admin/analytics.php`
-- `http://localhost/pinkclub-f/admin/affiliate_ads.php`
-- `http://localhost/pinkclub-f/admin/pages.php`
-- `http://localhost/pinkclub-f/admin/pages_new.php`
+- `/admin/api_items.php`（商品情報API設定）
+- `/admin/api_genres.php`（ジャンルAPI設定）
+- `/admin/api_actresses.php`（女優API設定）
+- `/admin/api_series.php`（シリーズAPI設定）
+- `/admin/api_timer.php`（タイマー実行API）
+- `/admin/auto_timer.php`（タイマー稼働ページ）
+- `/admin/site_settings.php`
+- `/admin/account_settings.php`
+- `/admin/design_settings.php`
+- `/admin/links_partner.php`
+- `/admin/links_rss.php`
+- `/admin/analytics.php`
+- `/admin/affiliate_ads.php`
+- `/admin/pages.php`
+- `/admin/pages_new.php`
 
 ## API設定→テスト取得→自動タイマー取得 手順
 1. 管理画面で以下4ページを開き、それぞれ `APIID` / `アフィリエイトID` を保存します。
@@ -52,7 +52,7 @@
    - `admin/api_series.php`（シリーズ）
 2. 各ページの「10件テスト取得」で接続確認します。
 3. 自動取得を使う場合は `item_sync_enabled` をONにします。
-4. `http://localhost/pinkclub-f/admin/auto_timer.php` を開いたままにすると、60秒ごとに `admin/timer_tick.php` を実行します（cron不要）。
+4. `/admin/auto_timer.php` を開いたままにすると、60秒ごとに `admin/timer_tick.php` を実行します（cron不要）。
 5. tickごとに最大1種類のみ同期します（items → genres → actresses → series の順、各60分間隔）。
 
 ## リリース運用方針（速度優先・一括リリース）
@@ -74,11 +74,11 @@
 - リリースは一括で実施する
 
 ## 新規/更新された管理画面URL
-- `http://localhost/pinkclub-f/admin/site_settings.php`（サイト名/URL/キャッチフレーズ/キーワード）
-- `http://localhost/pinkclub-f/admin/links.php`（相互リンク管理）
-- `http://localhost/pinkclub-f/admin/rss.php`（RSS管理）
-- `http://localhost/pinkclub-f/admin/analytics.php`（アクセス解析）
-- `http://localhost/pinkclub-f/admin/affiliate_api.php`（API設定/手動10件取得/タイマー状態）
+- `/admin/site_settings.php`（サイト名/URL/キャッチフレーズ/キーワード）
+- `/admin/links.php`（相互リンク管理）
+- `/admin/rss.php`（RSS管理）
+- `/admin/analytics.php`（アクセス解析）
+- `/admin/affiliate_api.php`（API設定/手動10件取得/タイマー状態）
 
 
 ## セットアップ確認で `settings(installer.ready=1)` が NG の場合

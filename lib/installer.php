@@ -48,7 +48,7 @@ function installer_log_tail(int $maxLines = 20): array
 function installer_user_error_message(Throwable $exception): string
 {
     $message = $exception->getMessage();
-    if (str_contains($message, 'SQLSTATE[HY000] [2002]')) return 'MySQLサーバーへ接続できません。XAMPPのMySQL起動と接続設定を確認してください。';
+    if (str_contains($message, 'SQLSTATE[HY000] [2002]')) return 'MySQLサーバーへ接続できません。DBホスト名・DBポート・ユーザー名・パスワードを確認してください。';
     if (str_contains($message, 'Access denied')) return 'DBユーザー認証に失敗しました。config/config.php の設定を確認してください。';
     return 'セットアップ中にエラーが発生しました。logs/install.log を確認してください。';
 }
