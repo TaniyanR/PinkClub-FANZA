@@ -9,6 +9,13 @@ require_once __DIR__ . '/../lib/csrf.php';
 require_once __DIR__ . '/../lib/admin_auth.php';
 require_once __DIR__ . '/partials/_helpers.php';
 
+if (!function_exists('e')) {
+    function e(mixed $value): string
+    {
+        return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+}
+
 admin_session_start();
 $message = '';
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
@@ -52,20 +59,38 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 }
 
-$pageTitle = 'パスワード再発行';
-include __DIR__ . '/partials/login_header.php';
+if (headers_sent() === false) {
+    header('X-Robots-Tag: noindex, nofollow');
+}
+
 ?>
-<div class="login-page">
-    <div class="login-headline"><span class="login-headline__item">PinkClub-FANZA</span><span class="login-headline__item">パスワード再発行</span></div>
-    <section class="admin-card login-card">
-        <?php if ($message !== '') : ?><p><?php echo e($message); ?></p><?php endif; ?>
-        <form method="post">
-            <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
-            <label>登録メールアドレス</label>
-            <input name="email" type="email" required>
-            <button type="submit">再発行メールを送る</button>
-        </form>
-        <div class="login-help"><a href="<?php echo e(login_url()); ?>">ログインへ戻る</a></div>
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>パスワード再発行 | PinkClub-FANZA</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body class="login-page">
+  <main class="login-wrap">
+    <section class="login-card">
+      <h1 class="login-title">PinkClub-FANZA</h1>
+      <p class="login-subtitle">パスワード再発行</p>
+
+      <?php if ($message !== '') : ?><p><?php echo e($message); ?></p><?php endif; ?>
+      <form method="post" class="login-form">
+        <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+        <label class="login-label">
+          登録メールアドレス
+          <input class="login-input" name="email" type="email" required>
+        </label>
+        <button class="login-button" type="submit">再発行メールを送る</button>
+      </form>
+
+      <p class="login-note"><a href="login0718.php">ログインへ戻る</a></p>
     </section>
-</div>
-<?php include __DIR__ . '/partials/login_footer.php';
+  </main>
+</body>
+</html>
