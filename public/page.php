@@ -9,6 +9,10 @@ require_once __DIR__ . '/partials/_helpers.php';
 
 function contact_destination_email(?int $currentUserId): array
 {
+    if (!admin_users_table_available()) {
+        return ['', 'admin_users table not found'];
+    }
+
     if ($currentUserId !== null) {
         $stmt = db()->prepare('SELECT email FROM admin_users WHERE id=:id AND email_verified_at IS NOT NULL AND email IS NOT NULL AND email <> "" LIMIT 1');
         $stmt->execute([':id' => $currentUserId]);
@@ -33,9 +37,22 @@ if ($slug === '') {
     exit;
 }
 
-$st = db()->prepare('SELECT * FROM fixed_pages WHERE slug=:slug AND is_published=1 LIMIT 1');
-$st->execute([':slug' => $slug]);
-$p = $st->fetch(PDO::FETCH_ASSOC);
+$p = null;
+if (db_table_exists('fixed_pages')) {
+    $st = db()->prepare('SELECT * FROM fixed_pages WHERE slug=:slug AND is_published=1 LIMIT 1');
+    $st->execute([':slug' => $slug]);
+    $p = $st->fetch(PDO::FETCH_ASSOC);
+}
+
+if (!is_array($p)) {
+    $defaultPages = [
+        'about' => ['title' => 'サイトについて', 'body' => "このサイトについての説明ページです。\n内容は管理画面から編集できます。", 'seo_title' => '', 'seo_description' => ''],
+        'privacy-policy' => ['title' => 'Privacy Policy', 'body' => "プライバシーポリシーの初期ページです。\n内容は管理画面から編集できます。", 'seo_title' => '', 'seo_description' => ''],
+        'contact' => ['title' => 'お問い合わせ', 'body' => 'お問い合わせは下記フォームよりご連絡ください。', 'seo_title' => '', 'seo_description' => ''],
+    ];
+    $p = $defaultPages[$slug] ?? null;
+}
+
 if (!is_array($p)) {
     include __DIR__ . '/404.php';
     exit;
@@ -70,18 +87,23 @@ if ($slug === 'contact' && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST')) {
     }
 
     if ($formErrors === []) {
-        [$toEmail, $toEmailError] = contact_destination_email(admin_current_user_id());
+        $currentUser = admin_current_user();
+        $currentUserId = is_array($currentUser) ? (int)($currentUser['id'] ?? 0) : 0;
+        [$toEmail, $toEmailError] = contact_destination_email($currentUserId > 0 ? $currentUserId : null);
 
-        $insert = db()->prepare('INSERT INTO mail_logs(direction,from_name,from_email,to_email,subject,body,status,last_error,created_at,updated_at) VALUES ("in",:from_name,:from_email,:to_email,:subject,:body,"received",NULL,NOW(),NOW())');
-        $insert->execute([
-            ':from_name' => $contactForm['name'] !== '' ? $contactForm['name'] : null,
-            ':from_email' => $contactForm['email'] !== '' ? $contactForm['email'] : null,
-            ':to_email' => $toEmail !== '' ? $toEmail : null,
-            ':subject' => mb_substr($contactForm['subject'], 0, 255),
-            ':body' => $contactForm['message'],
-        ]);
+        $logId = null;
+        if (db_table_exists('mail_logs')) {
+            $insert = db()->prepare('INSERT INTO mail_logs(direction,from_name,from_email,to_email,subject,body,status,last_error,created_at,updated_at) VALUES ("in",:from_name,:from_email,:to_email,:subject,:body,"received",NULL,NOW(),NOW())');
+            $insert->execute([
+                ':from_name' => $contactForm['name'] !== '' ? $contactForm['name'] : null,
+                ':from_email' => $contactForm['email'] !== '' ? $contactForm['email'] : null,
+                ':to_email' => $toEmail !== '' ? $toEmail : null,
+                ':subject' => mb_substr($contactForm['subject'], 0, 255),
+                ':body' => $contactForm['message'],
+            ]);
+            $logId = (int)db()->lastInsertId();
+        }
 
-        $logId = (int)db()->lastInsertId();
         $status = 'failed';
         $lastError = $toEmailError;
 
@@ -96,12 +118,14 @@ if ($slug === 'contact' && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST')) {
             $lastError = $ok ? null : 'mail() failed';
         }
 
-        db()->prepare('UPDATE mail_logs SET status=:status,last_error=:last_error,updated_at=NOW() WHERE id=:id')
-            ->execute([
-                ':status' => $status,
-                ':last_error' => $lastError,
-                ':id' => $logId,
-            ]);
+        if ($logId !== null) {
+            db()->prepare('UPDATE mail_logs SET status=:status,last_error=:last_error,updated_at=NOW() WHERE id=:id')
+                ->execute([
+                    ':status' => $status,
+                    ':last_error' => $lastError,
+                    ':id' => $logId,
+                ]);
+        }
 
         $contactSuccess = true;
         $contactForm = ['subject' => '', 'message' => '', 'name' => '', 'email' => ''];
