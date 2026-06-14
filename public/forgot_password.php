@@ -54,20 +54,36 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 }
 
-$pageTitle = 'パスワード再発行';
-include __DIR__ . '/partials/login_header.php';
 ?>
-<div class="login-page">
-    <div class="login-headline"><span class="login-headline__item">PinkClub-FANZA</span><span class="login-headline__item">パスワード再発行</span></div>
-    <section class="admin-card login-card">
-        <?php if ($message !== '') : ?><p><?php echo e($message); ?></p><?php endif; ?>
-        <form method="post">
-            <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
-            <label>登録メールアドレス</label>
-            <input name="email" type="email" required>
-            <button type="submit">再発行メールを送る</button>
-        </form>
-        <div class="login-help"><a href="<?php echo e(login_url()); ?>">ログインへ戻る</a></div>
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><?= e(APP_NAME) ?> パスワード再発行</title>
+  <link rel="stylesheet" href="<?= e(asset_url('css/style.css')) ?>">
+</head>
+<body class="login-page">
+  <main class="login-wrap">
+    <section class="login-card">
+      <h1 class="login-title"><?= e(APP_NAME) ?></h1>
+      <p class="login-subtitle">パスワード再発行</p>
+
+      <?php if ($message !== ''): ?>
+        <div class="alert alert-warning" role="alert"><?= e($message) ?></div>
+      <?php endif; ?>
+
+      <form method="post" class="login-form">
+        <input type="hidden" name="_token" value="<?= e(csrf_token()) ?>">
+        <label class="login-label">
+          登録メールアドレス
+          <input class="login-input" name="email" type="email" autocomplete="email" required>
+        </label>
+        <button class="login-button" type="submit">再発行メールを送る</button>
+      </form>
+
+      <p class="login-note"><a href="<?= e(login_url()) ?>">ログインへ戻る</a></p>
     </section>
-</div>
-<?php include __DIR__ . '/partials/login_footer.php';
+  </main>
+</body>
+</html>

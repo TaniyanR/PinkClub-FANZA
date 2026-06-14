@@ -38,14 +38,6 @@ if (!function_exists('request_scheme')) {
     }
 }
 
-if (!function_exists('detect_base_url')) {
-    function detect_base_url(): string
-    {
-        $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
-        return request_scheme() . '://' . $host . base_path();
-    }
-}
-
 if (!function_exists('base_url')) {
     function base_url(): string
     {
