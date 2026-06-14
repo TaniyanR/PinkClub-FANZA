@@ -15,10 +15,6 @@ function installer_log(string $message): void
 function installer_log_exception(string $step, Throwable $exception, ?string $sql = null): void
 {
     installer_log(sprintf('step=%s exception=%s message=%s location=%s:%d', $step, get_class($exception), $exception->getMessage(), $exception->getFile(), $exception->getLine()));
-    $previous = $exception->getPrevious();
-    if ($previous instanceof Throwable) {
-        installer_log(sprintf('step=%s previous_exception=%s previous_message=%s previous_location=%s:%d', $step, get_class($previous), $previous->getMessage(), $previous->getFile(), $previous->getLine()));
-    }
     if ($sql !== null && $sql !== '') { installer_log('failed_sql=' . $sql); }
 }
 
@@ -30,13 +26,6 @@ function installer_record_error_summary(string $step, Throwable $exception, ?str
         'time' => date('c'), 'step' => $step, 'class' => get_class($exception), 'message' => $exception->getMessage(),
         'file' => $exception->getFile(), 'line' => $exception->getLine(), 'failed_sql' => $failedSql,
     ];
-    $previous = $exception->getPrevious();
-    if ($previous instanceof Throwable) {
-        $payload['previous_class'] = get_class($previous);
-        $payload['previous_message'] = $previous->getMessage();
-        $payload['previous_file'] = $previous->getFile();
-        $payload['previous_line'] = $previous->getLine();
-    }
     if (!is_dir(installer_logs_dir())) { @mkdir(installer_logs_dir(), 0755, true); }
     @file_put_contents(installer_last_error_file_path(), json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
 }
@@ -59,10 +48,8 @@ function installer_log_tail(int $maxLines = 20): array
 function installer_user_error_message(Throwable $exception): string
 {
     $message = $exception->getMessage();
-    $previous = $exception->getPrevious();
-    $previousMessage = $previous instanceof Throwable ? $previous->getMessage() : '';
-    if (str_contains($message . ' ' . $previousMessage, 'SQLSTATE[HY000] [2002]')) return 'MySQLサーバーへ接続できません。DBホスト名・DBポート・ユーザー名・パスワードを確認してください。';
-    if (str_contains($message . ' ' . $previousMessage, 'Access denied')) return 'DBユーザー認証に失敗しました。config/config.php の設定を確認してください。';
+    if (str_contains($message, 'SQLSTATE[HY000] [2002]')) return 'MySQLサーバーへ接続できません。XAMPPのMySQL起動と接続設定を確認してください。';
+    if (str_contains($message, 'Access denied')) return 'DBユーザー認証に失敗しました。config/config.php の設定を確認してください。';
     return 'セットアップ中にエラーが発生しました。logs/install.log を確認してください。';
 }
 

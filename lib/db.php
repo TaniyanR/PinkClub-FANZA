@@ -61,14 +61,14 @@ function db_server_pdo(): PDO
     if ($configErrors !== []) {
         $e = new RuntimeException('DB 設定不足: ' . implode(', ', $configErrors));
         db_log_connection_error($cfg, $dsn, $e, $configErrors);
-        throw new RuntimeException('DB接続に失敗しました（設定を確認してください）。', 0, $e);
+        throw new RuntimeException('DB接続に失敗しました（設定を確認してください）。');
     }
 
     try {
         $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], db_options());
     } catch (Throwable $e) {
         db_log_connection_error($cfg, $dsn, $e);
-        throw new RuntimeException('DB接続に失敗しました（設定を確認してください）。', 0, $e);
+        throw new RuntimeException('DB接続に失敗しました（設定を確認してください）。');
     }
 
     $GLOBALS['__db_server_pdo'] = $pdo;
@@ -88,14 +88,14 @@ function db_pdo(): PDO
     if ($configErrors !== []) {
         $e = new RuntimeException('DB 設定不足: ' . implode(', ', $configErrors));
         db_log_connection_error($cfg, $dsn, $e, $configErrors);
-        throw new RuntimeException('DB接続に失敗しました（設定を確認してください）。', 0, $e);
+        throw new RuntimeException('DB接続に失敗しました（設定を確認してください）。');
     }
 
     try {
         $pdo = new PDO($dsn, $cfg['user'], $cfg['pass'], db_options());
     } catch (Throwable $e) {
         db_log_connection_error($cfg, $dsn, $e);
-        throw new RuntimeException('DB接続に失敗しました（設定を確認してください）。', 0, $e);
+        throw new RuntimeException('DB接続に失敗しました（設定を確認してください）。');
     }
 
     $GLOBALS['__db_pdo'] = $pdo;

@@ -26,7 +26,7 @@ function auth_attempt(string $username, string $password): bool
         $stmt = db()->prepare('SELECT id, username, password_hash FROM admins WHERE username = :u LIMIT 1');
         $stmt->execute(['u' => $username]);
         $user = $stmt->fetch();
-    } catch (PDOException $exception) {
+    } catch (Throwable $exception) {
         auth_set_last_error('db_error');
         if (function_exists('installer_log')) {
             installer_log('auth db error: ' . $exception->getMessage());
