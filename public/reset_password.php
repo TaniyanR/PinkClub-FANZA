@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../lib/helpers.php';
+app_config();
 require_once __DIR__ . '/../lib/config.php';
 require_once __DIR__ . '/../lib/admin_auth.php';
 require_once __DIR__ . '/../lib/csrf.php';
@@ -18,7 +20,7 @@ if (!is_array($reset)) {
     http_response_code(403);
     $pageTitle = '403 Forbidden';
     include __DIR__ . '/partials/login_header.php';
-    echo '<div class="login-page"><section class="admin-card login-card"><h1>403 Forbidden</h1><p>リセットトークンが無効または期限切れです。</p><p><a href="' . e(base_url() . '/forgot_password.php') . '">再発行へ戻る</a></p></section></div>';
+    echo '<div class="login-page"><section class="admin-card login-card"><h1>403 Forbidden</h1><p>リセットトークンが無効または期限切れです。</p><p><a href="' . e(public_url('forgot_password.php')) . '">再発行へ戻る</a></p></section></div>';
     include __DIR__ . '/partials/login_footer.php';
     exit;
 }
@@ -49,7 +51,7 @@ include __DIR__ . '/partials/login_header.php';
 <div class="login-page">
     <div class="login-headline"><span class="login-headline__item">PinkClub-FANZA</span><span class="login-headline__item">パスワード再設定</span></div>
     <?php if ($error !== '') : ?><div class="admin-card login-alert"><p><?php echo e($error); ?></p></div><?php endif; ?>
-    <form class="admin-card login-card" method="post" action="<?php echo e(base_url() . '/reset_password.php?token=' . rawurlencode($token)); ?>">
+    <form class="admin-card login-card" method="post" action="<?php echo e(public_url('reset_password.php?token=' . rawurlencode($token))); ?>">
         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
         <label>新しいパスワード</label><input type="password" name="password" minlength="8" required>
         <label>新しいパスワード（確認）</label><input type="password" name="password_confirm" minlength="8" required>

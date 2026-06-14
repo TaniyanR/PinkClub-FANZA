@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../lib/helpers.php';
+app_config();
 require_once __DIR__ . '/../lib/config.php';
 require_once __DIR__ . '/../lib/db.php';
 require_once __DIR__ . '/../lib/rate_limit.php';
@@ -29,7 +31,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 db()->prepare('INSERT INTO admin_password_resets(admin_user_id,token_hash,expires_at) VALUES (:admin_user_id,:token_hash,DATE_ADD(NOW(), INTERVAL 1 HOUR))')
                     ->execute([':admin_user_id' => (int)$u['id'], ':token_hash' => hash('sha256', $token)]);
 
-                $resetUrl = url('/public/reset_password.php?token=' . rawurlencode($token));
+                $resetUrl = public_url('reset_password.php?token=' . rawurlencode($token));
                 $body = "管理者パスワード再設定の申請を受け付けました。\n"
                     . "ユーザー名: " . (string)$u['username'] . "\n"
                     . "メールアドレス: " . (string)$u['email'] . "\n"
