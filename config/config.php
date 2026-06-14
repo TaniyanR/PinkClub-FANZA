@@ -163,10 +163,10 @@ if (!defined('ADMIN_HOME_PATH')) {
 }
 
 $dbConfig = [
-    'host' => '127.0.0.1',
+    'host' => '',
     'port' => 3306,
-    'dbname' => 'pinkclub_fanza',
-    'user' => 'root',
+    'dbname' => '',
+    'user' => '',
     'pass' => '',
     'charset' => 'utf8mb4',
 ];
