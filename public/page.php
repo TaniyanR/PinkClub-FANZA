@@ -91,7 +91,9 @@ $contactForm = [
     'email' => '',
 ];
 
-if ($slug === 'contact' && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST')) {
+$isContactPage = $slug === 'contact';
+
+if ($isContactPage && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST')) {
     $contactForm['subject'] = trim((string)($_POST['subject'] ?? ''));
     $contactForm['message'] = trim((string)($_POST['message'] ?? ''));
     $contactForm['name'] = trim((string)($_POST['name'] ?? ''));
@@ -185,7 +187,7 @@ include __DIR__ . '/partials/header.php';
             <?php echo nl2br(e((string)$p['body'])); ?>
         </section>
 
-        <?php if ($slug === 'contact') : ?>
+        <?php if ($isContactPage) : ?>
             <section class="block">
                 <h2 class="section-title">お問い合わせフォーム</h2>
                 <?php if ($contactSuccess) : ?>
