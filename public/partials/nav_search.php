@@ -19,7 +19,6 @@ $mobileMainItems = $navItems;
 $mobileInfoItems = [
     ['href' => public_url('page.php?slug=about'), 'label' => 'サイトについて'],
     ['href' => public_url('page.php?slug=privacy-policy'), 'label' => 'Privacy Policy'],
-    ['href' => public_url('page.php?slug=contact'), 'label' => 'お問い合わせ'],
 ];
 
 try {

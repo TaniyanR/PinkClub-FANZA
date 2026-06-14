@@ -14,7 +14,6 @@ $partnerLinks = [];
 $textRssSiteCount = null;
 $fixedPages = [];
 $defaultFixedPages = [
-    ['slug' => 'contact', 'title' => 'お問い合わせ', 'href' => public_url('contact.php')],
     ['slug' => 'links', 'title' => '相互リンク', 'href' => public_url('links.php')],
     ['slug' => 'link_apply', 'title' => '相互リンク申請', 'href' => public_url('link_apply.php')],
 ];
@@ -48,7 +47,7 @@ try {
 }
 
 try {
-    $stmt = db()->query('SELECT slug,title FROM fixed_pages WHERE is_published=1 ORDER BY id ASC');
+    $stmt = db()->query('SELECT slug,title FROM fixed_pages WHERE is_published=1 AND slug <> "contact" ORDER BY id ASC');
     $fixedPages = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 } catch (Throwable $e) {
     $fixedPages = [];
@@ -56,7 +55,7 @@ try {
 
 if ($fixedPages === []) {
     try {
-        $stmt = db()->query('SELECT slug,title FROM pages WHERE is_published=1 ORDER BY id ASC');
+        $stmt = db()->query('SELECT slug,title FROM pages WHERE is_published=1 AND slug <> "contact" ORDER BY id ASC');
         $fixedPages = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
     } catch (Throwable $e) {
         $fixedPages = [];
