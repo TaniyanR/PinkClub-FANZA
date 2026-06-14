@@ -6,6 +6,7 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/local_config_writer.php';
 
 $dbConfigError = null;
+$dbConfigNotice = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'save_db_config') {
     csrf_validate_or_fail(post('_csrf'));
     $host = trim((string)post('db_host', ''));
@@ -32,7 +33,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'sav
                 'charset' => 'utf8mb4',
             ];
             local_config_write($local);
-            app_redirect('/public/setup_check.php');
+            $GLOBALS['app_config']['db'] = $local['db'];
+            db_reset_connections();
+            $setupResult = installer_run();
+            if (($setupResult['success'] ?? false) === true) {
+                app_redirect(LOGIN_PATH);
+            }
+            $dbConfigError = (string)($setupResult['error'] ?? 'DB接続設定は保存しましたが、セットアップに失敗しました。install.log を確認してください。');
         } catch (Throwable $exception) {
             $dbConfigError = 'DB接続テストに失敗しました。シンサーバーのMySQLホスト名、データベース名、ユーザー名、パスワードを確認してください。あわせて、サーバーパネルのMySQL設定で対象データベースにこのMySQLユーザーを追加済みか確認してください。';
         }
@@ -40,9 +47,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'sav
 }
 
 $currentDbConfig = app_config()['db'] ?? [];
-$status = installer_status();
-if (($status['completed'] ?? false) === true) {
-    app_redirect(LOGIN_PATH);
+if ($dbConfigError !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $currentDbConfig = array_replace($currentDbConfig, [
+        'host' => trim((string)post('db_host', '')),
+        'port' => (int)post('db_port', 3306),
+        'dbname' => trim((string)post('db_name', '')),
+        'user' => trim((string)post('db_user', '')),
+    ]);
+}
+$configErrors = db_validate_config($currentDbConfig, true);
+if ($configErrors === []) {
+    $status = installer_status();
+    if (($status['completed'] ?? false) === true) {
+        app_redirect(LOGIN_PATH);
+    }
+} else {
+    $status = ['server_connection'=>false,'db_connection'=>false,'admins_table'=>false,'settings_table'=>false,'admin_user'=>false,'settings_row'=>false,'completed'=>false];
+    $dbConfigNotice = 'DB設定が未入力です。シンサーバーのMySQL情報を入力して保存してください。';
 }
 
 $checks = [
@@ -74,6 +95,9 @@ $logTail = installer_log_tail(30);
 
       <h2>DB接続設定</h2>
       <div class="alert alert-warning">シンサーバーのサーバーパネルに表示されるMySQL情報を入力してください。接続テストに成功した場合のみ保存します。</div>
+      <?php if ($dbConfigNotice !== null): ?>
+        <div class="alert alert-warning"><?= e($dbConfigNotice) ?></div>
+      <?php endif; ?>
       <?php if ($dbConfigError !== null): ?>
         <div class="alert alert-error"><?= e($dbConfigError) ?></div>
       <?php endif; ?>

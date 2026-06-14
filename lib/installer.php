@@ -76,7 +76,14 @@ function installer_can_connect_server(): bool { try { db_server_pdo(); return tr
 function installer_ensure_database_exists(): void
 {
     $cfg = app_config()['db'];
-    db_server_pdo()->exec(sprintf('CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci', str_replace('`','``',(string)$cfg['dbname'])));
+    $dbname = (string)$cfg['dbname'];
+    $stmt = db_server_pdo()->prepare('SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :dbname LIMIT 1');
+    $stmt->execute([':dbname' => $dbname]);
+    if ($stmt->fetchColumn() !== false) {
+        db_reset_connections();
+        return;
+    }
+    db_server_pdo()->exec(sprintf('CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci', str_replace('`','``',$dbname)));
     db_reset_connections();
 }
 
