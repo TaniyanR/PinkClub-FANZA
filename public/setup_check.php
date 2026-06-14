@@ -3,7 +3,41 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/local_config_writer.php';
 
+$dbConfigError = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'save_db_config') {
+    csrf_validate_or_fail(post('_csrf'));
+    $host = trim((string)post('db_host', ''));
+    $port = (int)post('db_port', 3306);
+    $dbname = trim((string)post('db_name', ''));
+    $user = trim((string)post('db_user', ''));
+    $pass = (string)post('db_pass', '');
+    if ($host === '' || $port <= 0 || $dbname === '' || $user === '') {
+        $dbConfigError = 'DBホスト名、DBポート、データベース、ユーザー名を入力してください。';
+    } else {
+        try {
+            $local = local_config_load();
+            if ($pass === '' && isset($local['db']['pass'])) {
+                $pass = (string)$local['db']['pass'];
+            }
+            $local['db'] = [
+                'host' => $host,
+                'port' => $port,
+                'dbname' => $dbname,
+                'user' => $user,
+                'pass' => $pass,
+                'charset' => 'utf8mb4',
+            ];
+            local_config_write($local);
+            app_redirect('/public/setup_check.php');
+        } catch (Throwable $exception) {
+            $dbConfigError = $exception->getMessage();
+        }
+    }
+}
+
+$currentDbConfig = app_config()['db'] ?? [];
 $status = installer_status();
 if (($status['completed'] ?? false) === true) {
     app_redirect(LOGIN_PATH);
@@ -34,6 +68,25 @@ $logTail = installer_log_tail(30);
     <section class="setup-card">
       <h1><?= e(APP_NAME) ?> セットアップ確認</h1>
       <div class="alert alert-warning">セットアップ失敗時の診断ページです。再実行は <code>login0718.php</code> へアクセスしてください。</div>
+
+
+      <h2>DB接続設定</h2>
+      <div class="alert alert-warning">シンサーバーのサーバーパネルに表示されるMySQL情報を入力してください。保存後、このページを再読み込みして接続状態を確認します。</div>
+      <?php if ($dbConfigError !== null): ?>
+        <div class="alert alert-error"><?= e($dbConfigError) ?></div>
+      <?php endif; ?>
+      <form method="post">
+        <?= csrf_input() ?>
+        <input type="hidden" name="action" value="save_db_config">
+        <table><tbody>
+          <tr><th>DBホスト名</th><td><input name="db_host" value="<?= e((string)($currentDbConfig['host'] ?? '')) ?>" required></td></tr>
+          <tr><th>DBポート</th><td><input name="db_port" type="number" value="<?= e((string)($currentDbConfig['port'] ?? 3306)) ?>" required></td></tr>
+          <tr><th>データベース</th><td><input name="db_name" value="<?= e((string)($currentDbConfig['dbname'] ?? '')) ?>" required></td></tr>
+          <tr><th>ユーザー名</th><td><input name="db_user" value="<?= e((string)($currentDbConfig['user'] ?? '')) ?>" required></td></tr>
+          <tr><th>パスワード</th><td><input name="db_pass" type="password" value="" autocomplete="new-password"><br><small>保存済みの場合、空欄のまま保存すると既存値を維持します。</small></td></tr>
+        </tbody></table>
+        <p><button type="submit">DB設定を保存する</button></p>
+      </form>
 
       <table>
         <thead><tr><th>項目</th><th>状態</th></tr></thead>
