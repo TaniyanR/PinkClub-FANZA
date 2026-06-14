@@ -96,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $updated = max(0, $processed - $inserted);
 
             $message = '商品情報を10件テスト取得して保存しました。処理件数: ' . (string)$processed
+                . ' / 保存済み合計: ' . (string)$afterCount
                 . ' / 新規追加: ' . (string)$inserted
                 . ' / 更新: ' . (string)$updated
                 . ' / sort: ' . $sort
@@ -182,12 +183,12 @@ require __DIR__ . '/includes/header.php';
   <?php endif; ?>
 
   <?php if (is_array($target)): ?>
-    <h2>保存済み<?= e($target['label']) ?>（最新50件）</h2>
+    <h2>保存済み<?= e($target['label']) ?>（全<?= e((string)$totalRows) ?>件 / 最新50件）</h2>
     <table class="admin-table">
-      <tr><th>ID</th><th>名称</th><th>更新日時</th><th>操作</th></tr>
-      <?php foreach ($savedRows as $row): ?>
+      <tr><th>No.</th><th>名称</th><th>更新日時</th><th>操作</th></tr>
+      <?php foreach ($savedRows as $index => $row): ?>
         <tr>
-          <td><?= e((string)($row['row_id'] ?? '')) ?></td>
+          <td><?= e((string)max(1, $totalRows - $offset - (int)$index)) ?></td>
           <td><a href="<?= e(public_url('item.php?cid=' . rawurlencode((string)($row['content_id'] ?? '')))) ?>" target="_blank" rel="noopener noreferrer"><?= e((string)($row['row_name'] ?? '')) ?></a></td>
           <td><?= e((string)($row['updated_at'] ?? '')) ?></td>
           <td>
