@@ -9,14 +9,14 @@ if (is_file($path)) {
     exit(0);
 }
 
-$dsn = 'mysql:host=127.0.0.1;dbname=pinkclub_fanza;charset=utf8mb4';
-
 $contents = <<<PHP
 <?php
 return [
     'db' => [
-        'dsn' => '{$dsn}',
-        'user' => 'root',
+        'host' => 'localhost',
+        'name' => '',
+        'dsn' => '',
+        'user' => '',
         'password' => '',
     ],
 ];

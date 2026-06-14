@@ -3,10 +3,75 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/local_config_writer.php';
 
-$status = installer_status();
-if (($status['completed'] ?? false) === true) {
-    app_redirect(LOGIN_PATH);
+$dbConfigError = null;
+$dbConfigNotice = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'save_db_config') {
+    csrf_validate_or_fail(post('_csrf'));
+    $host = trim((string)post('db_host', ''));
+    $port = (int)post('db_port', 3306);
+    $dbname = trim((string)post('db_name', ''));
+    $user = trim((string)post('db_user', ''));
+    $pass = (string)post('db_pass', '');
+    if ($host === '' || $port <= 0 || $dbname === '' || $user === '') {
+        $dbConfigError = 'DBホスト名、DBポート、データベース、ユーザー名を入力してください。';
+    } elseif ($host !== 'localhost' && str_contains($dbname, '_') && $host === strtok($dbname, '_')) {
+        $dbConfigError = 'DBホスト名にサーバーIDが入力されています。シンサーバーのDBホスト名は通常 localhost です。';
+    } else {
+        try {
+            $local = local_config_load();
+            if ($pass === '' && isset($local['db']['pass'])) {
+                $pass = (string)$local['db']['pass'];
+            }
+            if ($pass === '') {
+                $dbConfigError = '初回保存時はMySQLユーザーのパスワードを入力してください。';
+                throw new RuntimeException('db password required');
+            }
+            $testDsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $dbname);
+            new PDO($testDsn, $user, $pass, db_options());
+            $local['db'] = [
+                'host' => $host,
+                'port' => $port,
+                'dbname' => $dbname,
+                'user' => $user,
+                'pass' => $pass,
+                'charset' => 'utf8mb4',
+            ];
+            local_config_write($local);
+            $GLOBALS['app_config']['db'] = $local['db'];
+            db_reset_connections();
+            $setupResult = installer_run();
+            if (($setupResult['success'] ?? false) === true) {
+                app_redirect(LOGIN_PATH);
+            }
+            $dbConfigError = (string)($setupResult['error'] ?? 'DB接続設定は保存しましたが、セットアップに失敗しました。install.log を確認してください。');
+        } catch (Throwable $exception) {
+            if ($dbConfigError === null) {
+                $dbConfigError = 'DB接続テストに失敗しました。シンサーバーのMySQLホスト名、データベース名、ユーザー名、パスワードを確認してください。あわせて、サーバーパネルのMySQL設定で対象データベースにこのMySQLユーザーを追加済みか確認してください。';
+            }
+        }
+    }
+}
+
+$currentDbConfig = app_config()['db'] ?? [];
+if ($dbConfigError !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $currentDbConfig = array_replace($currentDbConfig, [
+        'host' => trim((string)post('db_host', '')),
+        'port' => (int)post('db_port', 3306),
+        'dbname' => trim((string)post('db_name', '')),
+        'user' => trim((string)post('db_user', '')),
+    ]);
+}
+$configErrors = db_validate_config($currentDbConfig, true);
+if ($configErrors === []) {
+    $status = installer_status();
+    if (($status['completed'] ?? false) === true) {
+        app_redirect(LOGIN_PATH);
+    }
+} else {
+    $status = ['server_connection'=>false,'db_connection'=>false,'admins_table'=>false,'settings_table'=>false,'admin_user'=>false,'settings_row'=>false,'completed'=>false];
+    $dbConfigNotice = 'DB設定が未入力です。シンサーバーのMySQL情報を入力して保存してください。';
 }
 
 $checks = [
@@ -34,6 +99,28 @@ $logTail = installer_log_tail(30);
     <section class="setup-card">
       <h1><?= e(APP_NAME) ?> セットアップ確認</h1>
       <div class="alert alert-warning">セットアップ失敗時の診断ページです。再実行は <code>login0718.php</code> へアクセスしてください。</div>
+
+
+      <h2>DB接続設定</h2>
+      <div class="alert alert-warning">シンサーバーのサーバーパネルに表示されるMySQL情報を入力してください。接続テストに成功した場合のみ保存します。</div>
+      <?php if ($dbConfigNotice !== null): ?>
+        <div class="alert alert-warning"><?= e($dbConfigNotice) ?></div>
+      <?php endif; ?>
+      <?php if ($dbConfigError !== null): ?>
+        <div class="alert alert-error"><?= e($dbConfigError) ?></div>
+      <?php endif; ?>
+      <form method="post">
+        <?= csrf_input() ?>
+        <input type="hidden" name="action" value="save_db_config">
+        <table><tbody>
+          <tr><th>DBホスト名</th><td><input name="db_host" value="<?= e((string)($currentDbConfig['host'] ?? '')) ?>" required><br><small>シンサーバーでは通常 <code>localhost</code> です。サーバーIDではありません。</small></td></tr>
+          <tr><th>DBポート</th><td><input name="db_port" type="number" value="<?= e((string)($currentDbConfig['port'] ?? 3306)) ?>" required></td></tr>
+          <tr><th>データベース</th><td><input name="db_name" value="<?= e((string)($currentDbConfig['dbname'] ?? '')) ?>" required></td></tr>
+          <tr><th>ユーザー名</th><td><input name="db_user" value="<?= e((string)($currentDbConfig['user'] ?? '')) ?>" required><br><small>サーバーパネルのMySQL設定で、このユーザーを対象データベースに追加してください。</small></td></tr>
+          <tr><th>パスワード</th><td><input name="db_pass" type="password" value="" autocomplete="new-password"><br><small>保存済みの場合、空欄のまま保存すると既存値を維持します。</small></td></tr>
+        </tbody></table>
+        <p><button type="submit">DB設定を保存する</button></p>
+      </form>
 
       <table>
         <thead><tr><th>項目</th><th>状態</th></tr></thead>

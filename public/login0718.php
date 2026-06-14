@@ -5,8 +5,12 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/rate_limit.php';
 
+if (db_validate_config(app_config()['db'] ?? [], true) !== []) {
+    app_redirect('/public/setup_check.php');
+}
+
 $autoSetup = installer_auto_run_if_needed();
-if (($autoSetup['blocked'] ?? false) === false && ($autoSetup['success'] ?? false) !== true) {
+if (($autoSetup['success'] ?? false) !== true) {
     app_redirect('/public/setup_check.php');
 }
 

@@ -245,8 +245,8 @@ The system is ready for production deployment.
   - 既存の `schema_migrations` 記録方式は維持し、未適用 migration のみ実行。
 
 - `config.php`
-  - XAMPP前提のデフォルトDSNを明示 (`mysql:host=localhost;dbname=pinkclub_fanza;charset=utf8mb4`)。
-  - 既存デフォルト (`host=localhost`, `name=pinkclub_fanza`, `user=root`, `password=''`, `charset=utf8mb4`) と合わせて、未設定状態で起動可能に固定。
+  - DB接続情報は環境ごとに設定する前提に変更。
+  - 未設定状態では固定のローカルDB認証情報を使わない。
 
 ### Duplicate key name エラーの原因と防止策
 

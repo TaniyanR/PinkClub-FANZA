@@ -31,11 +31,10 @@ return [
     ],
 
     'db' => [
-        // XAMPPローカル向けデフォルト（必要なら config.local.php で上書き）
-        'host' => '127.0.0.1',
-        'name' => 'pinkclub_fanza',
-        'dsn' => 'mysql:host=127.0.0.1;dbname=pinkclub_fanza;charset=utf8mb4',
-        'user' => 'root',
+        'host' => 'localhost',
+        'name' => '',
+        'dsn' => '',
+        'user' => '',
         'password' => '',
         'charset' => 'utf8mb4',
         'options' => [

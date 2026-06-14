@@ -48,7 +48,7 @@ function installer_log_tail(int $maxLines = 20): array
 function installer_user_error_message(Throwable $exception): string
 {
     $message = $exception->getMessage();
-    if (str_contains($message, 'SQLSTATE[HY000] [2002]')) return 'MySQLサーバーへ接続できません。XAMPPのMySQL起動と接続設定を確認してください。';
+    if (str_contains($message, 'SQLSTATE[HY000] [2002]')) return 'MySQLサーバーへ接続できません。DBホスト名・DBポート・ユーザー名・パスワードを確認してください。';
     if (str_contains($message, 'Access denied')) return 'DBユーザー認証に失敗しました。config/config.php の設定を確認してください。';
     return 'セットアップ中にエラーが発生しました。logs/install.log を確認してください。';
 }
@@ -76,7 +76,14 @@ function installer_can_connect_server(): bool { try { db_server_pdo(); return tr
 function installer_ensure_database_exists(): void
 {
     $cfg = app_config()['db'];
-    db_server_pdo()->exec(sprintf('CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci', str_replace('`','``',(string)$cfg['dbname'])));
+    $dbname = (string)$cfg['dbname'];
+    $stmt = db_server_pdo()->prepare('SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :dbname LIMIT 1');
+    $stmt->execute([':dbname' => $dbname]);
+    if ($stmt->fetchColumn() !== false) {
+        db_reset_connections();
+        return;
+    }
+    db_server_pdo()->exec(sprintf('CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci', str_replace('`','``',$dbname)));
     db_reset_connections();
 }
 
