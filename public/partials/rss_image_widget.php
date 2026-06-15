@@ -92,7 +92,6 @@ $GLOBALS['pcf_rss_widget_used_keys'] = $rssUsedKeys;
                     <img src="<?php echo e((string)$item['image_url']); ?>" alt="" loading="lazy" onerror="this.closest('li').remove();">
                 <?php endif; ?>
                 <a href="<?php echo e((string)($item['link'] ?? '')); ?>" target="_blank" rel="noopener noreferrer"><?php echo e((string)($item['title'] ?? '')); ?></a>
-                <small><?php echo e((string)($item['source_name'] ?? '')); ?></small>
             </li>
         <?php endforeach; ?>
     </ul>
