@@ -593,9 +593,9 @@ $hasHomeContent = $latestTop !== []
     </section>
   <?php endif; ?>
 <?php else: ?>
-  <section class="rail-section only-pc">
+  <section class="rail-section only-pc home-feature-section">
     <h2>新着作品</h2>
-    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($latestTop as $item) { render_item_card($item, 210); } ?></div>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift rail-row--between-gap"><?php foreach ($latestTop as $item) { render_item_card($item, 210); } ?></div>
     <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal rail-row--home-taxonomy"><?php foreach ($latestBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
   <section class="rail-section only-sp">
@@ -603,9 +603,9 @@ $hasHomeContent = $latestTop !== []
     <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($latestTop as $item) { render_item_card($item, 210, null, true); } ?></div>
   </section>
 
-  <section class="rail-section only-pc">
+  <section class="rail-section only-pc home-feature-section">
     <h2>ピックアップ（人気順）</h2>
-    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($pickupTop as $item) { render_item_card($item, 210); } ?></div>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift rail-row--between-gap"><?php foreach ($pickupTop as $item) { render_item_card($item, 210); } ?></div>
     <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal rail-row--home-taxonomy"><?php foreach ($pickupBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
   <section class="rail-section only-sp">
