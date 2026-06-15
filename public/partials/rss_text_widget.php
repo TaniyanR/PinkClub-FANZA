@@ -90,7 +90,6 @@ $GLOBALS['pcf_rss_widget_used_keys'] = $rssUsedKeys;
                 <?php foreach ($items as $item) : ?>
                     <li class="rss-list__item">
                         <a href="<?php echo e((string)($item['link'] ?? '')); ?>" target="_blank" rel="noopener noreferrer"><?php echo e((string)($item['title'] ?? '')); ?></a>
-                        <small><?php echo e((string)($item['source_name'] ?? '')); ?> / <?php echo e((string)($item['published_at'] ?? '')); ?></small>
                     </li>
                 <?php endforeach; ?>
             </ul>
