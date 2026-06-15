@@ -626,7 +626,7 @@ $hasHomeContent = $latestTop !== []
     </div>
   </section>
 
-  <section class="rail-section">
+  <section class="rail-section home-genre-section">
     <h2>ジャンル</h2>
     <?php foreach ($genreRows as $genre): ?>
       <h3><a href="<?= e(app_url('public/genre.php?id=' . (int)$genre['id'])) ?>"><?= e((string)$genre['name']) ?></a></h3>
