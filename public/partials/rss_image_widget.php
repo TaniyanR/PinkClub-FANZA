@@ -32,6 +32,9 @@ if ($items !== []) {
         if (!is_array($item)) {
             continue;
         }
+        if (trim((string)($item['image_url'] ?? '')) === '') {
+            continue;
+        }
         $key = rss_normalize_display_key($item);
         if ($key === '') {
             $key = mb_strtolower(trim((string)($item['title'] ?? '')));
@@ -57,6 +60,9 @@ if ($items !== []) {
     }
     if (count($filteredItems) < $maxItems && $deferredItems !== []) {
         foreach ($deferredItems as $item) {
+            if (trim((string)($item['image_url'] ?? '')) === '') {
+                continue;
+            }
             $key = rss_normalize_display_key($item);
             if ($key === '') {
                 $key = mb_strtolower(trim((string)($item['title'] ?? '')));
@@ -82,8 +88,8 @@ $GLOBALS['pcf_rss_widget_used_keys'] = $rssUsedKeys;
     <ul class="rss-image-list">
         <?php foreach ($items as $item) : ?>
             <li class="rss-image-list__item">
-                <?php if ((string)($item['image_url'] ?? '') !== '') : ?>
-                    <img src="<?php echo e((string)$item['image_url']); ?>" alt="" loading="lazy">
+                <?php if (trim((string)($item['image_url'] ?? '')) !== '') : ?>
+                    <img src="<?php echo e((string)$item['image_url']); ?>" alt="" loading="lazy" onerror="this.closest('li').remove();">
                 <?php endif; ?>
                 <a href="<?php echo e((string)($item['link'] ?? '')); ?>" target="_blank" rel="noopener noreferrer"><?php echo e((string)($item['title'] ?? '')); ?></a>
                 <small><?php echo e((string)($item['source_name'] ?? '')); ?></small>
