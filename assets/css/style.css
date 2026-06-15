@@ -462,6 +462,8 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .rail-section{margin-bottom:28px}
 @media (min-width: 769px){
   .home-feature-section{margin-bottom:44px}
+  .home-genre-section .rail-row--home-taxonomy{margin-bottom:32px}
+  .home-genre-section .rail-row--home-taxonomy:last-child{margin-bottom:0}
 }
 .rail-section h3{margin:0 0 10px;font-size:20px}
 .rail-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:10px}
