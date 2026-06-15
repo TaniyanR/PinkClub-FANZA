@@ -593,6 +593,7 @@ $hasHomeContent = $latestTop !== []
     </section>
   <?php endif; ?>
 <?php else: ?>
+  <div class="home-rail-sections">
   <section class="rail-section only-pc">
     <h2>新着作品</h2>
     <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($latestTop as $item) { render_item_card($item, 210); } ?></div>
@@ -661,6 +662,7 @@ $hasHomeContent = $latestTop !== []
     </div>
   </section>
   <?php endif; ?>
+  </div>
 <?php endif; ?>
 
 
