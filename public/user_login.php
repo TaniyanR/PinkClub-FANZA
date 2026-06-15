@@ -21,7 +21,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     } elseif (!user_login(trim((string)$_POST['email']), (string)$_POST['password'])) {
         $err = 'ログイン失敗';
     } else {
-        header('Location: /index.php');
+        header('Location: ' . public_url('index.php'));
         exit;
     }
 }
