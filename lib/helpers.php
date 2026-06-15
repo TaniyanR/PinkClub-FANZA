@@ -66,7 +66,7 @@ if (!function_exists('admin_url')) {
 
 function public_url(string $path = ''): string
 {
-    return url_path('/public/' . ltrim($path, '/'));
+    return url_path('/' . ltrim($path, '/'));
 }
 
 function app_redirect(string $path): never
