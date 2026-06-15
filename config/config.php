@@ -48,6 +48,7 @@ function detect_base_path(string $scriptName): string
     $patterns = [
         '#/(?:public|admin)(?:/.*)?$#i',
         '#/index\.php(?:/.*)?$#i',
+        '#/[^/]+\.php(?:/.*)?$#i',
     ];
 
     foreach ($patterns as $pattern) {
@@ -82,6 +83,7 @@ function detect_base_path_from_request_uri(string $requestUri): string
     $patterns = [
         '#/(?:public|admin)(?:/.*)?$#i',
         '#/index\.php(?:/.*)?$#i',
+        '#/[^/]+\.php(?:/.*)?$#i',
     ];
 
     foreach ($patterns as $pattern) {
