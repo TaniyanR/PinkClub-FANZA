@@ -66,7 +66,12 @@ if (!function_exists('admin_url')) {
 
 function public_url(string $path = ''): string
 {
-    return url_path('/' . ltrim($path, '/'));
+    $normalized = ltrim($path, '/');
+    if ($normalized === '' || strcasecmp($normalized, 'index.php') === 0) {
+        return url_path('/');
+    }
+
+    return url_path('/' . $normalized);
 }
 
 function app_redirect(string $path): never

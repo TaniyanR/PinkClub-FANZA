@@ -4,6 +4,38 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
 
+function redirect_canonical_home_url(): void
+{
+    $basePath = (string)(parse_url(BASE_URL, PHP_URL_PATH) ?: '');
+    $basePath = $basePath === '/' ? '' : rtrim($basePath, '/');
+    $homePath = $basePath . '/';
+    $requestPath = (string)parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
+    if ($requestPath === '') {
+        $requestPath = '/';
+    }
+
+    $homePaths = [
+        $homePath,
+        $basePath . '/index.php',
+        $basePath . '/index.com',
+        $basePath . '/public/',
+        $basePath . '/public/index.php',
+    ];
+
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+    if (in_array($requestPath, $homePaths, true) && (!$isHttps || $requestPath !== $homePath)) {
+        $canonicalUrl = rtrim(BASE_URL, '/') . '/';
+        if (str_starts_with($canonicalUrl, 'http://')) {
+            $canonicalUrl = 'https://' . substr($canonicalUrl, 7);
+        }
+        header('Location: ' . $canonicalUrl, true, 301);
+        exit;
+    }
+}
+
+redirect_canonical_home_url();
+
 function seeded_shuffle(array $rows, int $seed): array
 {
     $count = count($rows);

@@ -28,7 +28,7 @@ $fullTitle = $rawPageTitle . ' | ' . $siteTitle;
 <div class="login-shell">
     <?php if (!(isset($hideLoginHeaderBrand) && $hideLoginHeaderBrand === true)) : ?>
         <header class="login-header">
-            <a href="<?php echo e(base_url() . '/index.php'); ?>"><?php echo e($siteTitle); ?></a>
+            <a href="<?php echo e(public_url('index.php')); ?>"><?php echo e($siteTitle); ?></a>
         </header>
     <?php endif; ?>
     <main class="login-main">
