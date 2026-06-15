@@ -32,6 +32,9 @@ if ($items !== []) {
         if (!is_array($item)) {
             continue;
         }
+        if (trim((string)($item['image_url'] ?? '')) === '') {
+            continue;
+        }
         $key = rss_normalize_display_key($item);
         if ($key === '') {
             $key = mb_strtolower(trim((string)($item['title'] ?? '')));
@@ -57,6 +60,9 @@ if ($items !== []) {
     }
     if (count($filteredItems) < $maxItems && $deferredItems !== []) {
         foreach ($deferredItems as $item) {
+            if (trim((string)($item['image_url'] ?? '')) === '') {
+                continue;
+            }
             $key = rss_normalize_display_key($item);
             if ($key === '') {
                 $key = mb_strtolower(trim((string)($item['title'] ?? '')));
