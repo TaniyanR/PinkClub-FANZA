@@ -92,6 +92,15 @@ function timer_build_compound_keyword(string $value): string
 
 function timer_seed_jobs(PDO $pdo): void
 {
+    $pdo->exec('CREATE TABLE IF NOT EXISTS sync_job_state (job_key VARCHAR(64) PRIMARY KEY,next_offset INT NOT NULL DEFAULT 1,next_initial VARCHAR(10) NULL,last_run_at DATETIME NULL,last_success TINYINT(1) NOT NULL DEFAULT 0,last_message TEXT NULL,lock_until DATETIME NULL,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    $columns = [];
+    $stmt = $pdo->query('SHOW COLUMNS FROM sync_job_state');
+    foreach (($stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : []) as $column) {
+        $columns[(string)($column['Field'] ?? '')] = true;
+    }
+    if (!isset($columns['lock_until'])) {
+        $pdo->exec('ALTER TABLE sync_job_state ADD COLUMN lock_until DATETIME NULL AFTER last_message');
+    }
     foreach (['items', 'genres', 'actresses', 'series'] as $jobKey) {
         $pdo->prepare('INSERT INTO sync_job_state (job_key, next_offset, updated_at) VALUES (:job_key, 1, NOW()) ON DUPLICATE KEY UPDATE updated_at = updated_at')
             ->execute([':job_key' => $jobKey]);
