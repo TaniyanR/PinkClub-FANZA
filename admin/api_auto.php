@@ -126,7 +126,7 @@ require __DIR__ . '/includes/header.php';
 
   <?php if ($enabled): ?>
     <div class="admin-notice admin-notice--success" id="auto-timer-status" data-endpoint="<?= e(admin_url('timer_tick.php')) ?>" data-csrf="<?= e(csrf_token()) ?>">
-      <p>自動更新はONです。この画面を開いている間、60秒ごとに自動更新を確認します。</p>
+      <p>自動更新はONです。公開ページへのアクセス時と、この画面を開いている間の60秒ごとに自動更新を確認します。</p>
     </div>
     <script>
       (function () {
