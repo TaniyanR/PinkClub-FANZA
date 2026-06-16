@@ -47,14 +47,15 @@ $pvStats = [
     'total' => 0,
 ];
 try {
+    analytics_ensure_tables();
     $pvStmt = db()->query("SELECT
-        COALESCE(SUM(CASE WHEN stat_date = CURDATE() THEN pv ELSE 0 END),0) AS today,
-        COALESCE(SUM(CASE WHEN stat_date = DATE_SUB(CURDATE(), INTERVAL 1 DAY) THEN pv ELSE 0 END),0) AS yesterday,
-        COALESCE(SUM(CASE WHEN stat_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN pv ELSE 0 END),0) AS last7,
-        COALESCE(SUM(CASE WHEN stat_date >= DATE_FORMAT(CURDATE(), '%Y-%m-01') THEN pv ELSE 0 END),0) AS thisMonth,
-        COALESCE(SUM(CASE WHEN stat_date >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH) THEN pv ELSE 0 END),0) AS last3Months,
-        COALESCE(SUM(pv),0) AS total
-        FROM daily_stats");
+        COALESCE(SUM(CASE WHEN DATE(created_at) = CURDATE() THEN 1 ELSE 0 END),0) AS today,
+        COALESCE(SUM(CASE WHEN DATE(created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY) THEN 1 ELSE 0 END),0) AS yesterday,
+        COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN 1 ELSE 0 END),0) AS last7,
+        COALESCE(SUM(CASE WHEN created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') THEN 1 ELSE 0 END),0) AS thisMonth,
+        COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH) THEN 1 ELSE 0 END),0) AS last3Months,
+        COALESCE(COUNT(*),0) AS total
+        FROM site_events WHERE event_type = 'pv'");
     $pvRow = $pvStmt->fetch(PDO::FETCH_ASSOC) ?: [];
     foreach ($pvStats as $key => $value) {
         $pvStats[$key] = (int)($pvRow[$key] ?? 0);
