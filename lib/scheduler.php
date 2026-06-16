@@ -149,6 +149,14 @@ function scheduler_is_due(array $schedule): bool
 function scheduler_ensure_schedule_table(PDO $pdo): void
 {
     $pdo->exec('CREATE TABLE IF NOT EXISTS api_schedules (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,schedule_type VARCHAR(32) NOT NULL UNIQUE,interval_minutes INT NOT NULL DEFAULT 60,is_enabled TINYINT(1) NOT NULL DEFAULT 1,last_run_at DATETIME NULL,lock_until DATETIME NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    $columns = [];
+    $stmt = $pdo->query('SHOW COLUMNS FROM api_schedules');
+    foreach (($stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : []) as $column) {
+        $columns[(string)($column['Field'] ?? '')] = true;
+    }
+    if (!isset($columns['lock_until'])) {
+        $pdo->exec('ALTER TABLE api_schedules ADD COLUMN lock_until DATETIME NULL AFTER last_run_at');
+    }
 }
 
 function scheduler_seed_default_schedules(PDO $pdo): void
