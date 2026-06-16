@@ -12,10 +12,16 @@ function analytics_track_request(): void
     $done = true;
 
     $path = (string)parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
+    $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
+    $uaLower = strtolower($ua);
     $isAdminRequest = preg_match('#/(?:admin)(?:/|$)#', $path) === 1;
     $isLoginRequest = str_ends_with($path, '/public/login0718.php') || str_ends_with($path, '/public/login.php');
+    $requestFile = basename($path);
+    $isUtilityRequest = in_array($requestFile, ['rss.php', 'feed.php', 'out.php', 'sample_images.php', 'setup_check.php'], true);
+    $isBotRequest = $uaLower !== '' && preg_match('/bot|crawler|spider|slurp|fetch|preview|monitor|scanner|crawl|indexer|facebookexternalhit|twitterbot|linebot|bingpreview|headlesschrome/i', $uaLower) === 1;
 
-    if ($isAdminRequest || $isLoginRequest || (function_exists('auth_user') && auth_user())) {
+    if ($method !== 'GET' || $isAdminRequest || $isLoginRequest || $isUtilityRequest || $isBotRequest || (function_exists('auth_user') && auth_user())) {
         return;
     }
 
@@ -24,7 +30,6 @@ function analytics_track_request(): void
     }
 
     $today = date('Y-m-d');
-    $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
     $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
     $hash = hash('sha256', $ip . '|' . $ua . '|pinkclub');
     $refererHost = parse_url((string)($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_HOST) ?: '';
