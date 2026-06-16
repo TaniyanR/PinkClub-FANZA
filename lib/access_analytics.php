@@ -12,10 +12,25 @@ function analytics_track_request(): void
     $done = true;
 
     $path = (string)parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
+    $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
+    $uaLower = strtolower($ua);
+    $accept = strtolower((string)($_SERVER['HTTP_ACCEPT'] ?? ''));
+    $purpose = strtolower((string)(($_SERVER['HTTP_PURPOSE'] ?? '') ?: ($_SERVER['HTTP_SEC_PURPOSE'] ?? '')));
+    $fetchDest = strtolower((string)($_SERVER['HTTP_SEC_FETCH_DEST'] ?? ''));
+    $basePath = rtrim((string)(parse_url((string)BASE_URL, PHP_URL_PATH) ?: ''), '/');
+    $homePath = ($basePath !== '' ? $basePath : '') . '/';
+    $homeAliases = [$basePath . '/index.php', $basePath . '/index.com', $basePath . '/public/', $basePath . '/public/index.php'];
     $isAdminRequest = preg_match('#/(?:admin)(?:/|$)#', $path) === 1;
-    $isLoginRequest = str_ends_with($path, '/public/login0718.php') || str_ends_with($path, '/public/login.php');
+    $requestFile = basename($path);
+    $isLoginRequest = in_array($requestFile, ['login0718.php', 'login.php', 'user_login.php', 'user_register.php', 'user_logout.php', 'forgot_password.php', 'reset_password.php'], true);
+    $isUtilityRequest = in_array($requestFile, ['rss.php', 'feed.php', 'out.php', 'sample_images.php', 'setup_check.php', 'robots.php', '404.php'], true);
+    $isRedirectAliasRequest = $path !== $homePath && in_array($path, $homeAliases, true);
+    $isBotRequest = $uaLower === '' || preg_match('/bot|crawler|spider|slurp|fetch|preview|monitor|scanner|crawl|indexer|facebookexternalhit|twitterbot|linebot|bingpreview|headlesschrome|curl|wget|python|scrapy|httpclient|http client|go-http-client|okhttp|ahrefs|semrush|mj12bot|dotbot|petalbot|bytespider/i', $uaLower) === 1;
+    $isHtmlRequest = $accept === '' || str_contains($accept, 'text/html') || str_contains($accept, '*/*');
+    $isSpeculativeRequest = str_contains($purpose, 'prefetch') || str_contains($purpose, 'prerender') || ($fetchDest !== '' && $fetchDest !== 'document');
 
-    if ($isAdminRequest || $isLoginRequest || (function_exists('auth_user') && auth_user())) {
+    if ($method !== 'GET' || !$isHtmlRequest || $isAdminRequest || $isLoginRequest || $isUtilityRequest || $isRedirectAliasRequest || $isBotRequest || $isSpeculativeRequest || (function_exists('auth_user') && auth_user())) {
         return;
     }
 
@@ -24,21 +39,43 @@ function analytics_track_request(): void
     }
 
     $today = date('Y-m-d');
-    $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
     $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
     $hash = hash('sha256', $ip . '|' . $ua . '|pinkclub');
     $refererHost = parse_url((string)($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_HOST) ?: '';
     $refCode = trim((string)($_GET['ref'] ?? ''));
 
     $pdo = db();
+    $requestUri = (string)($_SERVER['REQUEST_URI'] ?? '/');
+    $requestQuery = (string)(parse_url($requestUri, PHP_URL_QUERY) ?? '');
+    $pageKey = ($path !== '' ? $path : '/') . ($requestQuery !== '' ? '?' . $requestQuery : '');
+    $pathForStats = mb_substr($pageKey, 0, 255);
+    $refererPath = (string)(parse_url((string)($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_PATH) ?? '');
+    $refererQuery = (string)(parse_url((string)($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_QUERY) ?? '');
+    $refererKey = ($refererPath !== '' ? $refererPath : '') . ($refererQuery !== '' ? '?' . $refererQuery : '');
+
+    $duplicateStmt = $pdo->prepare("SELECT id FROM site_events WHERE event_type = 'pv' AND path = :path AND ip_hash = :ip_hash AND created_at >= DATE_SUB(NOW(), INTERVAL 10 SECOND) LIMIT 1");
+    $duplicateStmt->execute([':path' => $pathForStats, ':ip_hash' => $hash]);
+    if ($duplicateStmt->fetchColumn() && ($refererKey === '' || $refererKey === $pageKey)) {
+        return;
+    }
+
     $pdo->prepare('INSERT INTO daily_stats(stat_date,pv,uu,in_count,out_count,updated_at) VALUES(:d,0,0,0,0,NOW()) ON DUPLICATE KEY UPDATE updated_at=NOW()')->execute([':d' => $today]);
-    $pdo->prepare('UPDATE daily_stats SET pv = pv + 1, updated_at = NOW() WHERE stat_date = :d')->execute([':d' => $today]);
+
+    $seenPageStmt = $pdo->prepare("SELECT id FROM site_events WHERE event_type = 'pv' AND path = :path AND ip_hash = :ip_hash AND created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY) LIMIT 1");
+    $seenPageStmt->execute([':path' => $pathForStats, ':ip_hash' => $hash]);
+    $isUniquePageVisitor = !$seenPageStmt->fetchColumn();
+
+    $pdo->prepare("INSERT INTO site_events(event_type,path,ua_hash,ip_hash,created_at) VALUES('pv',:path,:ua,:ip,NOW())")->execute([
+        ':path' => $pathForStats,
+        ':ua' => $ua !== '' ? hash('sha256', $ua) : null,
+        ':ip' => $hash,
+    ]);
+    $pdo->prepare('UPDATE daily_stats SET pv = pv + 1, uu = uu + :uu, updated_at = NOW() WHERE stat_date = :d')->execute([':d' => $today, ':uu' => $isUniquePageVisitor ? 1 : 0]);
 
     $seenStmt = $pdo->prepare('SELECT id FROM visit_sessions WHERE stat_date=:d AND visitor_hash=:h LIMIT 1');
     $seenStmt->execute([':d' => $today, ':h' => $hash]);
     if (!$seenStmt->fetchColumn()) {
         $pdo->prepare('INSERT INTO visit_sessions(stat_date,visitor_hash,first_seen_at) VALUES(:d,:h,NOW())')->execute([':d' => $today, ':h' => $hash]);
-        $pdo->prepare('UPDATE daily_stats SET uu = uu + 1, updated_at = NOW() WHERE stat_date=:d')->execute([':d' => $today]);
     }
 
     $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
