@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../public/_bootstrap.php';
 auth_require_admin();
 $title = 'アクセス解析';
+analytics_ensure_tables();
 
 $tab = (string)get('tab', 'graph');
 $allowedTabs = ['graph','referrer','destination','engine','keyword','duration','settings'];
@@ -22,13 +23,39 @@ $from = $to->sub(new DateInterval('P' . ($days - 1) . 'D'));
 $prevFrom = $from->sub(new DateInterval('P' . $days . 'D'));
 $prevTo = $from->sub(new DateInterval('P1D'));
 
-$stmt = db()->prepare('SELECT stat_date,pv,uu,in_count,out_count FROM daily_stats WHERE stat_date BETWEEN :from AND :to ORDER BY stat_date ASC');
-$stmt->execute([':from' => $from->format('Y-m-d'), ':to' => $to->format('Y-m-d')]);
-$rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+$rowsByDate = [];
+for ($day = $from; $day <= $to; $day = $day->add(new DateInterval('P1D'))) {
+    $rowsByDate[$day->format('Y-m-d')] = ['stat_date' => $day->format('Y-m-d'), 'pv' => 0, 'uu' => 0, 'in_count' => 0, 'out_count' => 0];
+}
 
-$prevStmt = db()->prepare('SELECT COALESCE(SUM(pv),0) pv,COALESCE(SUM(uu),0) uu,COALESCE(SUM(in_count),0) in_count,COALESCE(SUM(out_count),0) out_count FROM daily_stats WHERE stat_date BETWEEN :from AND :to');
-$prevStmt->execute([':from' => $prevFrom->format('Y-m-d'), ':to' => $prevTo->format('Y-m-d')]);
-$prev = $prevStmt->fetch(PDO::FETCH_ASSOC) ?: ['pv'=>0,'uu'=>0,'in_count'=>0,'out_count'=>0];
+$pvStmt = db()->prepare("SELECT DATE(created_at) stat_date, COUNT(*) pv, COUNT(DISTINCT CONCAT(COALESCE(path,''),'|',COALESCE(ip_hash,''))) uu FROM site_events WHERE event_type = 'pv' AND created_at BETWEEN :from AND :to GROUP BY DATE(created_at)");
+$pvStmt->execute([':from' => $from->format('Y-m-d 00:00:00'), ':to' => $to->format('Y-m-d 23:59:59')]);
+foreach ($pvStmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+    $d = (string)($r['stat_date'] ?? '');
+    if (isset($rowsByDate[$d])) { $rowsByDate[$d]['pv'] = (int)$r['pv']; $rowsByDate[$d]['uu'] = (int)$r['uu']; }
+}
+$inStmt = db()->prepare('SELECT DATE(created_at) stat_date, COUNT(*) in_count FROM in_logs WHERE created_at BETWEEN :from AND :to GROUP BY DATE(created_at)');
+$inStmt->execute([':from' => $from->format('Y-m-d 00:00:00'), ':to' => $to->format('Y-m-d 23:59:59')]);
+foreach ($inStmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+    $d = (string)($r['stat_date'] ?? '');
+    if (isset($rowsByDate[$d])) { $rowsByDate[$d]['in_count'] = (int)$r['in_count']; }
+}
+$outCountStmt = db()->prepare('SELECT DATE(created_at) stat_date, COUNT(*) out_count FROM out_logs WHERE created_at BETWEEN :from AND :to GROUP BY DATE(created_at)');
+$outCountStmt->execute([':from' => $from->format('Y-m-d 00:00:00'), ':to' => $to->format('Y-m-d 23:59:59')]);
+foreach ($outCountStmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+    $d = (string)($r['stat_date'] ?? '');
+    if (isset($rowsByDate[$d])) { $rowsByDate[$d]['out_count'] = (int)$r['out_count']; }
+}
+$rows = array_values($rowsByDate);
+
+$prevPvStmt = db()->prepare("SELECT COUNT(*) pv, COUNT(DISTINCT CONCAT(COALESCE(path,''),'|',COALESCE(ip_hash,''))) uu FROM site_events WHERE event_type = 'pv' AND created_at BETWEEN :from AND :to");
+$prevPvStmt->execute([':from' => $prevFrom->format('Y-m-d 00:00:00'), ':to' => $prevTo->format('Y-m-d 23:59:59')]);
+$prevPv = $prevPvStmt->fetch(PDO::FETCH_ASSOC) ?: ['pv'=>0,'uu'=>0];
+$prevInStmt = db()->prepare('SELECT COUNT(*) FROM in_logs WHERE created_at BETWEEN :from AND :to');
+$prevInStmt->execute([':from' => $prevFrom->format('Y-m-d 00:00:00'), ':to' => $prevTo->format('Y-m-d 23:59:59')]);
+$prevOutStmt = db()->prepare('SELECT COUNT(*) FROM out_logs WHERE created_at BETWEEN :from AND :to');
+$prevOutStmt->execute([':from' => $prevFrom->format('Y-m-d 00:00:00'), ':to' => $prevTo->format('Y-m-d 23:59:59')]);
+$prev = ['pv'=>(int)($prevPv['pv'] ?? 0),'uu'=>(int)($prevPv['uu'] ?? 0),'in_count'=>(int)$prevInStmt->fetchColumn(),'out_count'=>(int)$prevOutStmt->fetchColumn()];
 
 $sum = ['pv'=>0,'uu'=>0,'in_count'=>0,'out_count'=>0];
 foreach ($rows as $r) { $sum['pv']+=(int)$r['pv']; $sum['uu']+=(int)$r['uu']; $sum['in_count']+=(int)$r['in_count']; $sum['out_count']+=(int)$r['out_count']; }
