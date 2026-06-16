@@ -22,6 +22,19 @@ $from = $to->sub(new DateInterval('P' . ($days - 1) . 'D'));
 $prevFrom = $from->sub(new DateInterval('P' . $days . 'D'));
 $prevTo = $from->sub(new DateInterval('P1D'));
 
+$notice = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'reset_analytics_period') {
+    csrf_validate_or_fail((string)post('_csrf', ''));
+    $resetFrom = $from->format('Y-m-d');
+    $resetTo = $to->format('Y-m-d');
+    db()->prepare("DELETE FROM site_events WHERE event_type = 'pv' AND DATE(created_at) BETWEEN :from AND :to")->execute([':from' => $resetFrom, ':to' => $resetTo]);
+    db()->prepare('DELETE FROM visit_sessions WHERE stat_date BETWEEN :from AND :to')->execute([':from' => $resetFrom, ':to' => $resetTo]);
+    db()->prepare('DELETE FROM in_logs WHERE DATE(created_at) BETWEEN :from AND :to')->execute([':from' => $resetFrom, ':to' => $resetTo]);
+    db()->prepare('DELETE FROM out_logs WHERE DATE(created_at) BETWEEN :from AND :to')->execute([':from' => $resetFrom, ':to' => $resetTo]);
+    db()->prepare('DELETE FROM daily_stats WHERE stat_date BETWEEN :from AND :to')->execute([':from' => $resetFrom, ':to' => $resetTo]);
+    $notice = '表示中期間のアクセス解析データをリセットしました。';
+}
+
 $stmt = db()->prepare('SELECT stat_date,pv,uu,in_count,out_count FROM daily_stats WHERE stat_date BETWEEN :from AND :to ORDER BY stat_date ASC');
 $stmt->execute([':from' => $from->format('Y-m-d'), ':to' => $to->format('Y-m-d')]);
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -84,6 +97,7 @@ require __DIR__ . '/includes/header.php';
     <a href="?tab=duration">滞在時間</a> |
     <a href="?tab=settings">アクセス設定</a>
   </p>
+  <?php if ($notice !== ''): ?><p class="admin-notice admin-notice--success"><?= e($notice) ?></p><?php endif; ?>
   <?php if ($tab === 'graph'): ?>
   <div class="admin-status-grid">
     <article class="admin-card admin-status-card"><strong>ページビュー</strong><p><?= e((string)$sum['pv']) ?></p></article>
@@ -105,6 +119,11 @@ require __DIR__ . '/includes/header.php';
   <p>要確認: 既存ログテーブルに滞在時間を計算する開始/終了時刻の対応データが無いため、現状では算出できません。</p>
   <?php elseif ($tab === 'settings'): ?>
   <p>要確認: 既存設定テーブルにアクセス除外URLを保存する項目が未確認のため、保存機能は未実装です。</p>
+  <form method="post" onsubmit="return confirm('表示中期間のアクセス解析データをリセットします。よろしいですか？');">
+    <?= csrf_input() ?>
+    <input type="hidden" name="action" value="reset_analytics_period">
+    <button type="submit" class="button">表示中期間のアクセス解析データをリセット</button>
+  </form>
   <?php endif; ?>
 
   <?php if ($tab === 'graph'): ?>
