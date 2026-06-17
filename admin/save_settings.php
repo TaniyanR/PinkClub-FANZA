@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-require_once __DIR__ . '/../public/_bootstrap.php';
+require_once __DIR__ . '/../lib/bootstrap.php';
 auth_require_admin();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     app_redirect('admin/settings.php');

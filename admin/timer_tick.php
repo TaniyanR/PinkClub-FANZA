@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 set_time_limit(50);
 
-require_once __DIR__ . '/../public/_bootstrap.php';
+require_once __DIR__ . '/../lib/bootstrap.php';
 
 function timer_json(array $payload, int $status = 200): void
 {
