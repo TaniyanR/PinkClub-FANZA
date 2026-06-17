@@ -155,11 +155,22 @@ require __DIR__ . '/includes/header.php';
             credentials: 'same-origin',
             body: body
           }).then(function (response) {
+            if (response.status === 401 || response.status === 419) {
+              window.location.reload();
+              return Promise.reject(new Error('auth'));
+            }
             return response.json();
           }).then(function (data) {
+            if (data && data.message === 'session_expired') {
+              window.location.reload();
+              return;
+            }
             var message = data && data.message ? data.message : '自動更新を確認しました';
             updateStatus(message + '（' + new Date().toLocaleString() + '）');
-          }).catch(function () {
+          }).catch(function (err) {
+            if (err && err.message === 'auth') {
+              return;
+            }
             updateStatus('自動更新の確認に失敗しました（' + new Date().toLocaleString() + '）');
           }).finally(function () {
             running = false;

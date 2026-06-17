@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+set_time_limit(50);
+
 require_once __DIR__ . '/../public/_bootstrap.php';
 
 function timer_json(array $payload, int $status = 200): void
@@ -107,6 +109,9 @@ function timer_seed_jobs(PDO $pdo): void
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !auth_user()) {
+    timer_json(['ran' => false, 'saved_items' => 0, 'message' => 'session_expired', 'at' => date('Y-m-d H:i:s')], 401);
+}
 auth_require_admin();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     timer_json(['ran' => false, 'saved_items' => 0, 'message' => 'POST only'], 405);
