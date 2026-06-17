@@ -336,6 +336,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     if ($thumbUrl === '') {
         $thumbUrl = trim((string)($item['image_large'] ?? ''));
     }
+    $releaseDateDisplay = (string)format_date((string)($item['release_date'] ?? ''));
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
       <?php if ($thumbUrl !== ''): ?>
@@ -348,6 +349,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
         <button type="button" class="<?= e($movieClass) ?> sample-movie-trigger" <?= $sample['movie_url'] === '' ? 'disabled' : '' ?> data-movie-url="<?= e((string)$sample['movie_url']) ?>" data-movie-title="<?= e($title) ?>">サンプル動画</button>
         <button type="button" class="<?= e($imageClass) ?>" <?= !$sample['has_images'] ? 'disabled' : '' ?> onclick="<?= $sample['has_images'] ? "window.open('" . e($sampleImagesUrl) . "','_blank','noopener,noreferrer,width=760,height=540');" : 'return false;' ?>">サンプル画像</button>
         <button type="button" class="sample-button sample-button--enabled" onclick="window.location.href='<?= e($itemUrl) ?>';">詳細ページ</button>
+        <small>商品発売日: <?= e($releaseDateDisplay !== '' ? $releaseDateDisplay : '未設定') ?></small>
       </div>
     </article>
     <?php

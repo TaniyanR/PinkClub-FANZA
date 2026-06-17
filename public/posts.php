@@ -102,6 +102,7 @@ include __DIR__ . '/partials/header.php';
             <?php else : ?>
                 <div class="product-grid product-grid--4">
                     <?php foreach ($items as $item) : ?>
+                        <?php $releaseDateDisplay = (string)format_date((string)($item['release_date'] ?? $item['date_published'] ?? '')); ?>
                         <article class="product-card">
                             <a class="product-card__media" href="/item.php?cid=<?php echo urlencode((string)$item['content_id']); ?>">
                                 <img src="<?php echo e((string)($item['image_small'] ?: $item['image_large'])); ?>" alt="<?php echo e((string)$item['title']); ?>">
@@ -115,6 +116,7 @@ include __DIR__ . '/partials/header.php';
                                         <a class="button button--primary" href="<?php echo e((string)$item['affiliate_url']); ?>" target="_blank" rel="noopener noreferrer">購入</a>
                                     <?php endif; ?>
                                 </div>
+                                <small>商品発売日: <?php echo e($releaseDateDisplay !== '' ? $releaseDateDisplay : '未設定'); ?></small>
                             </div>
                         </article>
                     <?php endforeach; ?>
