@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 if (!function_exists('e') || !function_exists('asset_url')) {
-    require_once __DIR__ . '/../../public/_bootstrap.php';
+    require_once __DIR__ . '/../_bootstrap.php';
 }
 
 $currentScript = basename((string)($_SERVER['SCRIPT_NAME'] ?? 'index.php'));

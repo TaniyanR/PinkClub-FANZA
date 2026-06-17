@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-require_once __DIR__ . '/../public/_bootstrap.php';
+require_once __DIR__ . '/_bootstrap.php';
 auth_require_admin();
 
 $types = ['actress' => '女優', 'genre' => 'ジャンル', 'maker' => 'メーカー', 'series' => 'シリーズ', 'author' => '作者'];
