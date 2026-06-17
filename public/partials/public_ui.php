@@ -563,6 +563,11 @@ if (!function_exists('pcf_render_item_card')) {
             $sampleMovieUrl = (string)($movieUrls[0] ?? '');
         }
 
+        $releaseDateDisplay = (string)format_date((string)($item['release_date'] ?? ''));
+        if ($releaseDateDisplay === '') {
+            $releaseDateDisplay = (string)format_date((string)($raw['date'] ?? ''));
+        }
+
         $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode($contentId));
         $hasSampleImages = pcf_pick_sample_image_urls_from_raw($raw) !== [];
         if (!$hasSampleImages) {
@@ -595,6 +600,7 @@ if (!function_exists('pcf_render_item_card')) {
             echo '<span class="pcf-dm-card__button is-disabled">サンプル画像</span>';
         }
         echo '<a class="pcf-dm-card__button" href="' . e($itemUrl) . '">詳細ページ</a>';
+        echo '<small>商品発売日: ' . e($releaseDateDisplay !== '' ? $releaseDateDisplay : '未設定') . '</small>';
         echo '</div>';
         echo '</article>';
     }
