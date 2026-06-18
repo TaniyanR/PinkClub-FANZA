@@ -92,9 +92,23 @@ if ($tab === 'engine') {
     arsort($engineRows);
 }
 if ($tab === 'keyword') {
-    $kwStmt = db()->prepare('SELECT target_url,COUNT(*) cnt FROM out_logs WHERE path = :path AND created_at BETWEEN :from AND :to GROUP BY target_url ORDER BY cnt DESC, target_url ASC LIMIT 200');
-    $kwStmt->execute([':path' => '/search', ':from' => $from->format('Y-m-d 00:00:00'), ':to' => $to->format('Y-m-d 23:59:59')]);
-    $keywordRows = $kwStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $kwStmt = db()->prepare("SELECT path, COUNT(*) cnt FROM site_events WHERE event_type = 'pv' AND session_id_hash = :marker AND path LIKE '/search.php?%' AND created_at BETWEEN :from AND :to GROUP BY path ORDER BY cnt DESC, path ASC LIMIT 500");
+    $kwStmt->execute([':marker' => $analyticsBeaconMarker, ':from' => $from->format('Y-m-d 00:00:00'), ':to' => $to->format('Y-m-d 23:59:59')]);
+    $kwRaw = $kwStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $kwCounts = [];
+    foreach ($kwRaw as $kwRow) {
+        $kwQs = [];
+        parse_str(ltrim((string)strstr((string)($kwRow['path'] ?? ''), '?'), '?'), $kwQs);
+        $kwWord = trim((string)($kwQs['q'] ?? ''));
+        if ($kwWord !== '') {
+            $kwCounts[$kwWord] = ($kwCounts[$kwWord] ?? 0) + (int)$kwRow['cnt'];
+        }
+    }
+    arsort($kwCounts);
+    $keywordRows = [];
+    foreach (array_slice($kwCounts, 0, 200, true) as $kwWord => $kwCnt) {
+        $keywordRows[] = ['keyword' => $kwWord, 'cnt' => $kwCnt];
+    }
 }
 
 require __DIR__ . '/includes/header.php';
@@ -128,8 +142,7 @@ require __DIR__ . '/includes/header.php';
   <?php elseif ($tab === 'engine'): ?>
   <table class="admin-table"><tr><th>検索エンジン</th><th>アクセス数</th></tr><?php foreach ($engineRows as $name => $cnt): ?><tr><td><?= e((string)$name) ?></td><td><?= e((string)$cnt) ?></td></tr><?php endforeach; ?></table>
   <?php elseif ($tab === 'keyword'): ?>
-  <p>要確認: 既存ログテーブルに検索キーワードを保持するカラムが無いため、現在の実データ集計はできません。</p>
-  <table class="admin-table"><tr><th>現状データ</th><th>件数</th></tr><?php foreach ($keywordRows as $r): ?><tr><td><?= e((string)$r['target_url']) ?></td><td><?= e((string)$r['cnt']) ?></td></tr><?php endforeach; ?></table>
+  <table class="admin-table"><tr><th>検索キーワード</th><th>件数</th></tr><?php foreach ($keywordRows as $r): ?><tr><td><?= e((string)($r['keyword'] ?? '')) ?></td><td><?= e((string)$r['cnt']) ?></td></tr><?php endforeach; ?><?php if ($keywordRows === []): ?><tr><td colspan="2">データなし</td></tr><?php endif; ?></table>
   <?php elseif ($tab === 'duration'): ?>
   <p>要確認: 既存ログテーブルに滞在時間を計算する開始/終了時刻の対応データが無いため、現状では算出できません。</p>
   <?php elseif ($tab === 'settings'): ?>
