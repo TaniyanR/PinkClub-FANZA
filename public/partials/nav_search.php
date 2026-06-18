@@ -21,6 +21,26 @@ $mobileInfoItems = [
     ['href' => public_url('page.php?slug=privacy-policy'), 'label' => 'Privacy Policy'],
     ['href' => public_url('page.php?slug=contact'), 'label' => 'お問い合わせ'],
 ];
+$sitePostCount = null;
+$siteActressCount = null;
+
+try {
+    if (db_table_exists('items')) {
+        $stmt = db()->query('SELECT COUNT(*) FROM items');
+        $sitePostCount = $stmt ? (int)$stmt->fetchColumn() : null;
+    }
+} catch (Throwable $e) {
+    $sitePostCount = null;
+}
+
+try {
+    if (db_table_exists('actresses')) {
+        $stmt = db()->query('SELECT COUNT(*) FROM actresses');
+        $siteActressCount = $stmt ? (int)$stmt->fetchColumn() : null;
+    }
+} catch (Throwable $e) {
+    $siteActressCount = null;
+}
 
 try {
     $stmt = db()->query('SELECT slug,title FROM fixed_pages WHERE is_published = 1 ORDER BY id ASC');
@@ -50,6 +70,8 @@ try {
             <?php endforeach; ?>
         </div>
         <div class="site-mobile-menu__group">
+            <?php if ($sitePostCount !== null): ?><a>投稿数：<?= e(number_format($sitePostCount)) ?></a><?php endif; ?>
+            <?php if ($siteActressCount !== null): ?><a>女優数：<?= e(number_format($siteActressCount)) ?></a><?php endif; ?>
             <?php foreach ($mobileInfoItems as $item) : ?>
                 <a href="<?= e($item['href']) ?>"><?= e($item['label']) ?></a>
             <?php endforeach; ?>
