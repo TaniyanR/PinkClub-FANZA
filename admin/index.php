@@ -48,14 +48,15 @@ $pvStats = [
 ];
 try {
     analytics_ensure_tables();
-    $pvStmt = db()->query("SELECT
+    $pvStmt = db()->prepare("SELECT
         COALESCE(SUM(CASE WHEN DATE(created_at) = CURDATE() THEN 1 ELSE 0 END),0) AS today,
         COALESCE(SUM(CASE WHEN DATE(created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY) THEN 1 ELSE 0 END),0) AS yesterday,
         COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN 1 ELSE 0 END),0) AS last7,
         COALESCE(SUM(CASE WHEN created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') THEN 1 ELSE 0 END),0) AS thisMonth,
         COALESCE(SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH) THEN 1 ELSE 0 END),0) AS last3Months,
         COALESCE(COUNT(*),0) AS total
-        FROM site_events WHERE event_type = 'pv'");
+        FROM site_events WHERE event_type = 'pv' AND session_id_hash = :marker");
+    $pvStmt->execute([':marker' => analytics_beacon_marker_hash()]);
     $pvRow = $pvStmt->fetch(PDO::FETCH_ASSOC) ?: [];
     foreach ($pvStats as $key => $value) {
         $pvStats[$key] = (int)($pvRow[$key] ?? 0);
