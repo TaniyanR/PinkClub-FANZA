@@ -71,7 +71,6 @@ if ($fixedPages === []) {
     <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
 
     <section class="sidebar-block">
-        <h2 class="sidebar-block__title">固定ページ</h2>
         <?php if ($fixedPages === []): ?>
             <p class="sidebar-empty">固定ページ（未設定）</p>
         <?php else: ?>
@@ -87,18 +86,15 @@ if ($fixedPages === []) {
 
     <?php if ($canRenderAd): ?>
     <section class="sidebar-block sidebar-block--ad1 only-pc">
-        <h2 class="sidebar-block__title">サイド広告１</h2>
         <div class="site-ad site-ad--rectangle"><?php render_ad('sidebar_bottom', $pageType, 'pc'); ?></div>
     </section>
     <?php endif; ?>
 
     <section class="sidebar-block">
-        <h2 class="sidebar-block__title">画像RSS</h2>
         <?php include __DIR__ . '/rss_image_widget.php'; ?>
     </section>
 
     <section class="sidebar-block sidebar-block--text-rss">
-        <h2 class="sidebar-block__title">テキストRSS</h2>
         <?php
         $prevTextRssUsedKeys = $GLOBALS['pcf_rss_widget_used_keys'] ?? null;
         $prevTextRssMaxItems = $GLOBALS['pcf_rss_widget_max_items'] ?? null;
@@ -128,13 +124,11 @@ if ($fixedPages === []) {
 
     <?php if ($canRenderAd): ?>
     <section class="sidebar-block sidebar-block--ad2 only-pc">
-        <h2 class="sidebar-block__title">サイド広告２</h2>
         <div class="site-ad site-ad--rectangle"><?php render_ad('content_bottom', $pageType, 'pc'); ?></div>
     </section>
     <?php endif; ?>
 
     <section class="sidebar-block">
-        <h2 class="sidebar-block__title">相互リンク</h2>
         <?php if ($partnerLinks === []) : ?>
             <p class="sidebar-empty">相互リンク（未設定）</p>
         <?php else : ?>
