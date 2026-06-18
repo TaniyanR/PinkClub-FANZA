@@ -114,5 +114,32 @@ $copyrightYears = $copyrightStartYear >= $currentYear
   updateButton();
 }());
 </script>
+<script>
+(function () {
+  var endpoint = '<?= e(public_url('visit.php')) ?>';
+  var path = window.location.pathname + window.location.search;
+  var referrer = document.referrer || '';
+  var ref = '';
+  try {
+    var params = new URLSearchParams(window.location.search);
+    ref = params.get('ref') || '';
+  } catch (e) {
+    ref = '';
+  }
+  var data = new FormData();
+  data.append('path', path);
+  data.append('referrer', referrer);
+  data.append('ref', ref);
+  if (navigator.sendBeacon && navigator.sendBeacon(endpoint, data)) {
+    return;
+  }
+  if (window.fetch) {
+    fetch(endpoint, { method: 'POST', body: data, keepalive: true, credentials: 'same-origin' }).catch(function () {});
+    return;
+  }
+  var img = new Image();
+  img.src = endpoint + '?path=' + encodeURIComponent(path) + '&referrer=' + encodeURIComponent(referrer) + '&ref=' + encodeURIComponent(ref);
+}());
+</script>
 </body>
 </html>
