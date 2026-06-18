@@ -70,6 +70,49 @@ function item_pick_movie_urls_from_raw(array $raw): array
     return array_values(array_unique(array_filter(array_map(static fn($u) => trim((string)$u), $urls))));
 }
 
+function item_parse_image_urls(?string $value): array
+{
+    if ($value === null || trim($value) === '') {
+        return [];
+    }
+
+    $trimmed = trim($value);
+    if ($trimmed !== '' && $trimmed[0] === '[') {
+        $decoded = json_decode($trimmed, true);
+        if (is_array($decoded)) {
+            return array_values(array_filter(array_map('strval', $decoded)));
+        }
+    }
+
+    $parts = preg_split('/[\r\n,|\s]+/', $value);
+    if (!is_array($parts)) {
+        return [];
+    }
+
+    return array_values(array_filter(array_map('trim', $parts), static fn(string $v): bool => $v !== ''));
+}
+
+function item_collect_sample_image_urls(mixed $value, array &$images): void
+{
+    if (is_string($value)) {
+        foreach (item_parse_image_urls($value) as $candidate) {
+            $url = trim((string)$candidate);
+            if ($url !== '') {
+                $images[] = $url;
+            }
+        }
+        return;
+    }
+
+    if (!is_array($value)) {
+        return;
+    }
+
+    foreach ($value as $child) {
+        item_collect_sample_image_urls($child, $images);
+    }
+}
+
 function item_pick_raw_text(array $raw, array $keys): string
 {
     foreach ($keys as $key) {
@@ -334,24 +377,10 @@ $sampleImages = [];
 $sampleImagesSmall = [];
 $sampleImageUrl = $raw['sampleImageURL'] ?? null;
 if (is_array($sampleImageUrl)) {
-    $imagesLarge = $sampleImageUrl['sample_l']['image'] ?? null;
-    if (is_array($imagesLarge)) {
-        foreach ($imagesLarge as $image) {
-            $url = trim((string)($image ?? ''));
-            if ($url !== '') {
-                $sampleImages[] = $url;
-            }
-        }
-    }
-    $imagesSmall = $sampleImageUrl['sample_s']['image'] ?? null;
-    if (is_array($imagesSmall)) {
-        foreach ($imagesSmall as $image) {
-            $url = trim((string)($image ?? ''));
-            if ($url !== '') {
-                $sampleImagesSmall[] = $url;
-            }
-        }
-    }
+    item_collect_sample_image_urls($sampleImageUrl['sample_l']['image'] ?? null, $sampleImages);
+    item_collect_sample_image_urls($sampleImageUrl['sample_s']['image'] ?? null, $sampleImagesSmall);
+} elseif (is_string($sampleImageUrl)) {
+    item_collect_sample_image_urls($sampleImageUrl, $sampleImages);
 }
 $sampleImages = array_values(array_unique($sampleImages));
 $sampleImagesSmall = array_values(array_unique($sampleImagesSmall));
