@@ -46,7 +46,10 @@ function analytics_track_request(): void
 
     $pdo = db();
     $requestUri = (string)($_SERVER['REQUEST_URI'] ?? '/');
-    $requestQuery = (string)(parse_url($requestUri, PHP_URL_QUERY) ?? '');
+    $queryParams = [];
+    parse_str((string)(parse_url($requestUri, PHP_URL_QUERY) ?? ''), $queryParams);
+    unset($queryParams['rank_period']);
+    $requestQuery = http_build_query($queryParams);
     $pageKey = ($path !== '' ? $path : '/') . ($requestQuery !== '' ? '?' . $requestQuery : '');
     $pathForStats = mb_substr($pageKey, 0, 255);
     $refererPath = (string)(parse_url((string)($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_PATH) ?? '');
