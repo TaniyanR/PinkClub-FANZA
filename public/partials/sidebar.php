@@ -12,12 +12,32 @@ $canRenderAd = function_exists('render_ad');
 
 $partnerLinks = [];
 $textRssSiteCount = null;
+$sitePostCount = null;
+$siteActressCount = null;
 $fixedPages = [];
 $defaultFixedPages = [
     ['slug' => 'contact', 'title' => 'お問い合わせ', 'href' => public_url('contact.php')],
     ['slug' => 'links', 'title' => '相互リンク', 'href' => public_url('links.php')],
     ['slug' => 'link_apply', 'title' => '相互リンク申請', 'href' => public_url('link_apply.php')],
 ];
+
+try {
+    if (db_table_exists('items')) {
+        $stmt = db()->query('SELECT COUNT(*) FROM items');
+        $sitePostCount = $stmt ? (int)$stmt->fetchColumn() : null;
+    }
+} catch (Throwable $e) {
+    $sitePostCount = null;
+}
+
+try {
+    if (db_table_exists('actresses')) {
+        $stmt = db()->query('SELECT COUNT(*) FROM actresses');
+        $siteActressCount = $stmt ? (int)$stmt->fetchColumn() : null;
+    }
+} catch (Throwable $e) {
+    $siteActressCount = null;
+}
 
 try {
     $stmt = db()->query("SELECT ps.id, ps.name, ps.url, COALESCE(ps.show_link, ps.is_enabled, 1) AS show_link FROM partner_sites ps WHERE COALESCE(ps.show_link, ps.is_enabled, 1) = 1 ORDER BY {$orderBy}");
@@ -75,6 +95,8 @@ if ($fixedPages === []) {
             <p class="sidebar-empty">固定ページ（未設定）</p>
         <?php else: ?>
             <ul class="sidebar-links sidebar-links--pages">
+                <?php if ($sitePostCount !== null): ?><li><a style="color:#000;">投稿数：<strong><?= e(number_format($sitePostCount)) ?></strong></a></li><?php endif; ?>
+                <?php if ($siteActressCount !== null): ?><li><a style="color:#000;">女優数：<strong><?= e(number_format($siteActressCount)) ?></strong></a></li><?php endif; ?>
                 <?php foreach ($fixedPages as $page): ?>
                     <?php $pageHref = trim((string)($page['href'] ?? '')); ?>
                     <?php if ($pageHref === '') { $pageHref = public_url('page.php?slug=' . (string)$page['slug']); } ?>
