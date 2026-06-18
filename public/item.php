@@ -655,7 +655,9 @@ try {
     $accessRankingRows = [];
 }
 
+$favoriteItemId = $id > 0 ? $id : (int)($item['id'] ?? 0);
 require __DIR__ . '/partials/header.php';
+require_once __DIR__ . '/partials/favorite_button.php';
 ?>
 <?php pcf_render_breadcrumbs([
     ['label' => 'トップ', 'url' => public_url('index.php')],
@@ -665,6 +667,7 @@ require __DIR__ . '/partials/header.php';
 
 <article>
   <h1 class="pcf-hero__title pcf-item-title"><?= e($breadcrumbTitle) ?></h1>
+  <?php pcf_render_favorite_button('item', $favoriteItemId, $breadcrumbTitle, public_url('item.php') . '?id=' . rawurlencode((string)$favoriteItemId)); ?>
 
   <?php if ($sampleMovieUrl !== '' || $sampleImagesSmallLargeMap !== []): ?>
     <div class="pcf-item-samples" style="display:flex; gap:8px; align-items:flex-start; flex-wrap:nowrap;">

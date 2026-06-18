@@ -95,6 +95,7 @@ if ((int)($pg['page'] ?? 1) < (int)($pg['pages'] ?? 1)) {
     $relNext = public_url('series_detail.php') . '?' . http_build_query(['id' => $id, 'page' => (int)$pg['page'] + 1]);
 }
 require __DIR__ . '/partials/header.php';
+require_once __DIR__ . '/partials/favorite_button.php';
 ?>
 <script>
 (() => {
@@ -116,6 +117,7 @@ require __DIR__ . '/partials/header.php';
     ['label' => $seriesName],
 ]); ?>
 <?php pcf_render_hero($seriesName); ?>
+<?php pcf_render_favorite_button('series', (int)$series['id'], $seriesName, public_url('series_detail.php') . '?id=' . rawurlencode((string)(int)$series['id'])); ?>
 
 <h2 class="pcf-section-title"><?= e($seriesName) ?>一覧</h2>
 <?php if ($seriesItems !== []): ?>

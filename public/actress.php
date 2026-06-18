@@ -257,6 +257,7 @@ if ($hasNext) {
     $relNext = public_url('actress.php') . '?' . http_build_query(['id' => $id, 'page' => $actressPage + 1]);
 }
 require __DIR__ . '/partials/header.php';
+require_once __DIR__ . '/partials/favorite_button.php';
 ?>
 <?php pcf_render_breadcrumbs([
     ['label' => 'トップ', 'url' => public_url('index.php')],
@@ -268,6 +269,7 @@ require __DIR__ . '/partials/header.php';
   <img class="pcf-actress-profile__image" src="<?= e($profileImage) ?>" alt="<?= e($actressDisplayName) ?>" style="width:100%;max-width:320px;aspect-ratio:1/1;object-fit:cover;border-radius:6px;">
   <div class="pcf-profile__body pcf-actress-profile__body">
     <h1 class="pcf-hero__title" style="margin:0 0 16px;padding:0 0 6px 8px;border-left:8px solid #002bff;border-bottom:2px solid #002bff;"><?= e($actressDisplayName) ?></h1>
+    <?php pcf_render_favorite_button('actress', (int)$row['id'], $actressDisplayName, public_url('actress.php') . '?id=' . rawurlencode((string)(int)$row['id'])); ?>
     <div class="pcf-actress-profile__details" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
       <dl class="pcf-detail-list" style="margin:0;">
         <div><dt>よみ</dt><dd><?= e(actress_profile_value($profile, 'ruby')) ?></dd></div>
