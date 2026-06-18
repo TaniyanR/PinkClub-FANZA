@@ -3,6 +3,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
 
+function analytics_beacon_marker_hash(): string
+{
+    return hash('sha256', 'pinkclub-browser-beacon');
+}
+
 function analytics_visitor_hash(string $ua): string
 {
     $cookieName = 'pcf_visitor_id';
@@ -29,80 +34,50 @@ function analytics_visitor_hash(string $ua): string
     return hash('sha256', $visitorId . '|pinkclub');
 }
 
-function analytics_track_request(): void
+function analytics_track_beacon(): void
 {
-    static $done = false;
-    if ($done) {
-        return;
-    }
-    $done = true;
-
-    $path = (string)parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
-    $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
-    $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
-    $uaLower = strtolower($ua);
-    $accept = strtolower((string)($_SERVER['HTTP_ACCEPT'] ?? ''));
-    $purpose = strtolower((string)(($_SERVER['HTTP_PURPOSE'] ?? '') ?: ($_SERVER['HTTP_SEC_PURPOSE'] ?? '')));
-    $fetchDest = strtolower((string)($_SERVER['HTTP_SEC_FETCH_DEST'] ?? ''));
-    $basePath = rtrim((string)(parse_url((string)BASE_URL, PHP_URL_PATH) ?: ''), '/');
-    $homePath = ($basePath !== '' ? $basePath : '') . '/';
-    $homeAliases = [$basePath . '/index.php', $basePath . '/index.com', $basePath . '/public/', $basePath . '/public/index.php'];
-    $isAdminRequest = preg_match('#/(?:admin)(?:/|$)#', $path) === 1;
-    $requestFile = basename($path);
-    $isLoginRequest = in_array($requestFile, ['login0718.php', 'login.php', 'user_login.php', 'user_register.php', 'user_logout.php', 'forgot_password.php', 'reset_password.php'], true);
-    $isUtilityRequest = in_array($requestFile, ['rss.php', 'feed.php', 'out.php', 'sample_images.php', 'setup_check.php', 'robots.php', '404.php'], true);
-    $isRedirectAliasRequest = $path !== $homePath && in_array($path, $homeAliases, true);
-    $isBotRequest = $uaLower === '' || preg_match('/bot|crawler|spider|slurp|fetch|preview|monitor|scanner|crawl|indexer|facebookexternalhit|twitterbot|linebot|bingpreview|headlesschrome|curl|wget|python|scrapy|httpclient|http client|go-http-client|okhttp|ahrefs|semrush|mj12bot|dotbot|petalbot|bytespider/i', $uaLower) === 1;
-    $isHtmlRequest = $accept === '' || str_contains($accept, 'text/html') || str_contains($accept, '*/*');
-    $isSpeculativeRequest = str_contains($purpose, 'prefetch') || str_contains($purpose, 'prerender') || ($fetchDest !== '' && $fetchDest !== 'document');
-
-    if ($method !== 'GET' || !$isHtmlRequest || $isAdminRequest || $isLoginRequest || $isUtilityRequest || $isRedirectAliasRequest || $isBotRequest || $isSpeculativeRequest || (function_exists('auth_user') && auth_user())) {
-        return;
-    }
-
     if (!analytics_ensure_tables()) {
         return;
     }
 
-    $today = date('Y-m-d');
+    $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
     $hash = analytics_visitor_hash($ua);
-    $refererHost = parse_url((string)($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_HOST) ?: '';
-    $refCode = trim((string)($_GET['ref'] ?? ''));
-
-    $pdo = db();
-    $requestUri = (string)($_SERVER['REQUEST_URI'] ?? '/');
-    $queryParams = [];
-    parse_str((string)(parse_url($requestUri, PHP_URL_QUERY) ?? ''), $queryParams);
-    unset($queryParams['rank_period']);
-    $requestQuery = http_build_query($queryParams);
-    $pageKey = ($path !== '' ? $path : '/') . ($requestQuery !== '' ? '?' . $requestQuery : '');
-    $pathForStats = mb_substr($pageKey, 0, 255);
-    $refererPath = (string)(parse_url((string)($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_PATH) ?? '');
-    $refererQuery = (string)(parse_url((string)($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_QUERY) ?? '');
-    $refererKey = ($refererPath !== '' ? $refererPath : '') . ($refererQuery !== '' ? '?' . $refererQuery : '');
-
-    $duplicateStmt = $pdo->prepare("SELECT id FROM site_events WHERE event_type = 'pv' AND path = :path AND ip_hash = :ip_hash AND created_at >= DATE_SUB(NOW(), INTERVAL 10 SECOND) LIMIT 1");
-    $duplicateStmt->execute([':path' => $pathForStats, ':ip_hash' => $hash]);
-    if ($duplicateStmt->fetchColumn() && ($refererKey === '' || $refererKey === $pageKey)) {
-        return;
+    $rawPath = (string)($_POST['path'] ?? '/');
+    $path = (string)parse_url($rawPath, PHP_URL_PATH);
+    if ($path === '' || $path[0] !== '/') {
+        $path = '/';
     }
 
+    $queryParams = [];
+    parse_str((string)(parse_url($rawPath, PHP_URL_QUERY) ?? ''), $queryParams);
+    unset($queryParams['rank_period']);
+    $requestQuery = http_build_query($queryParams);
+    $pageKey = $path . ($requestQuery !== '' ? '?' . $requestQuery : '');
+    $pathForStats = mb_substr($pageKey, 0, 255);
+    $today = date('Y-m-d');
+    $referrer = (string)($_POST['referrer'] ?? '');
+    $refererHost = parse_url($referrer, PHP_URL_HOST) ?: '';
+    $refCode = trim((string)($_POST['ref'] ?? ''));
+
+    $pdo = db();
     $pdo->prepare('INSERT INTO daily_stats(stat_date,pv,uu,in_count,out_count,updated_at) VALUES(:d,0,0,0,0,NOW()) ON DUPLICATE KEY UPDATE updated_at=NOW()')->execute([':d' => $today]);
 
-    $seenPageStmt = $pdo->prepare("SELECT id FROM site_events WHERE event_type = 'pv' AND ip_hash = :ip_hash AND DATE(created_at) = CURDATE() LIMIT 1");
-    $seenPageStmt->execute([':ip_hash' => $hash]);
-    $isUniquePageVisitor = !$seenPageStmt->fetchColumn();
+    $seenStmt = $pdo->prepare("SELECT id FROM site_events WHERE event_type = 'pv' AND session_id_hash = :marker AND ip_hash = :ip_hash AND DATE(created_at) = CURDATE() LIMIT 1");
+    $seenStmt->execute([':marker' => analytics_beacon_marker_hash(), ':ip_hash' => $hash]);
+    $isUniqueVisitor = !$seenStmt->fetchColumn();
 
-    $pdo->prepare("INSERT INTO site_events(event_type,path,ua_hash,ip_hash,created_at) VALUES('pv',:path,:ua,:ip,NOW())")->execute([
+    $pdo->prepare("INSERT INTO site_events(event_type,path,referrer,ua_hash,ip_hash,session_id_hash,created_at) VALUES('pv',:path,:referrer,:ua,:ip,:marker,NOW())")->execute([
         ':path' => $pathForStats,
+        ':referrer' => $referrer !== '' ? mb_substr($referrer, 0, 500) : null,
         ':ua' => $ua !== '' ? hash('sha256', $ua) : null,
         ':ip' => $hash,
+        ':marker' => analytics_beacon_marker_hash(),
     ]);
-    $pdo->prepare('UPDATE daily_stats SET pv = pv + 1, uu = uu + :uu, updated_at = NOW() WHERE stat_date = :d')->execute([':d' => $today, ':uu' => $isUniquePageVisitor ? 1 : 0]);
+    $pdo->prepare('UPDATE daily_stats SET pv = pv + 1, uu = uu + :uu, updated_at = NOW() WHERE stat_date = :d')->execute([':d' => $today, ':uu' => $isUniqueVisitor ? 1 : 0]);
 
-    $seenStmt = $pdo->prepare('SELECT id FROM visit_sessions WHERE stat_date=:d AND visitor_hash=:h LIMIT 1');
-    $seenStmt->execute([':d' => $today, ':h' => $hash]);
-    if (!$seenStmt->fetchColumn()) {
+    $visitStmt = $pdo->prepare('SELECT id FROM visit_sessions WHERE stat_date=:d AND visitor_hash=:h LIMIT 1');
+    $visitStmt->execute([':d' => $today, ':h' => $hash]);
+    if (!$visitStmt->fetchColumn()) {
         $pdo->prepare('INSERT INTO visit_sessions(stat_date,visitor_hash,first_seen_at) VALUES(:d,:h,NOW())')->execute([':d' => $today, ':h' => $hash]);
     }
 
@@ -135,31 +110,7 @@ function analytics_log_out(string $targetUrl, string $refCode, string $path): vo
 
 function analytics_log_taxonomy_page_view(string $path): void
 {
-    $path = trim($path);
-    if ($path === '' || (function_exists('auth_user') && auth_user())) {
-        return;
-    }
-
-    if (!analytics_ensure_tables()) {
-        return;
-    }
-
-    $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
-    $ipHash = analytics_visitor_hash($ua);
-    $uaHash = $ua !== '' ? hash('sha256', $ua) : null;
-
-    $pdo = db();
-    $seenStmt = $pdo->prepare("SELECT id FROM site_events WHERE event_type = 'pv' AND path = :path AND ip_hash = :ip_hash AND DATE(created_at) = CURDATE() LIMIT 1");
-    $seenStmt->execute([':path' => $path, ':ip_hash' => $ipHash]);
-    if ($seenStmt->fetchColumn()) {
-        return;
-    }
-
-    $pdo->prepare("INSERT INTO site_events(event_type,path,ua_hash,ip_hash,created_at) VALUES('pv',:path,:ua,:ip,NOW())")->execute([
-        ':path' => $path,
-        ':ua' => $uaHash,
-        ':ip' => $ipHash,
-    ]);
+    return;
 }
 
 function analytics_log_actress_page_view(int $actressId): void

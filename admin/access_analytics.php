@@ -23,13 +23,15 @@ $from = $to->sub(new DateInterval('P' . ($days - 1) . 'D'));
 $prevFrom = $from->sub(new DateInterval('P' . $days . 'D'));
 $prevTo = $from->sub(new DateInterval('P1D'));
 
+$analyticsBeaconMarker = analytics_beacon_marker_hash();
+
 $rowsByDate = [];
 for ($day = $from; $day <= $to; $day = $day->add(new DateInterval('P1D'))) {
     $rowsByDate[$day->format('Y-m-d')] = ['stat_date' => $day->format('Y-m-d'), 'pv' => 0, 'uu' => 0, 'in_count' => 0, 'out_count' => 0];
 }
 
-$pvStmt = db()->prepare("SELECT DATE(created_at) stat_date, COUNT(*) pv, COUNT(DISTINCT ip_hash) uu FROM site_events WHERE event_type = 'pv' AND created_at BETWEEN :from AND :to GROUP BY DATE(created_at)");
-$pvStmt->execute([':from' => $from->format('Y-m-d 00:00:00'), ':to' => $to->format('Y-m-d 23:59:59')]);
+$pvStmt = db()->prepare("SELECT DATE(created_at) stat_date, COUNT(*) pv, COUNT(DISTINCT ip_hash) uu FROM site_events WHERE event_type = 'pv' AND session_id_hash = :marker AND created_at BETWEEN :from AND :to GROUP BY DATE(created_at)");
+$pvStmt->execute([':marker' => $analyticsBeaconMarker, ':from' => $from->format('Y-m-d 00:00:00'), ':to' => $to->format('Y-m-d 23:59:59')]);
 foreach ($pvStmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
     $d = (string)($r['stat_date'] ?? '');
     if (isset($rowsByDate[$d])) { $rowsByDate[$d]['pv'] = (int)$r['pv']; $rowsByDate[$d]['uu'] = (int)$r['uu']; }
@@ -48,8 +50,8 @@ foreach ($outCountStmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
 }
 $rows = array_values($rowsByDate);
 
-$prevPvStmt = db()->prepare("SELECT COALESCE(SUM(pv),0) pv, COALESCE(SUM(uu),0) uu FROM (SELECT DATE(created_at) stat_date, COUNT(*) pv, COUNT(DISTINCT ip_hash) uu FROM site_events WHERE event_type = 'pv' AND created_at BETWEEN :from AND :to GROUP BY DATE(created_at)) t");
-$prevPvStmt->execute([':from' => $prevFrom->format('Y-m-d 00:00:00'), ':to' => $prevTo->format('Y-m-d 23:59:59')]);
+$prevPvStmt = db()->prepare("SELECT COALESCE(SUM(pv),0) pv, COALESCE(SUM(uu),0) uu FROM (SELECT DATE(created_at) stat_date, COUNT(*) pv, COUNT(DISTINCT ip_hash) uu FROM site_events WHERE event_type = 'pv' AND session_id_hash = :marker AND created_at BETWEEN :from AND :to GROUP BY DATE(created_at)) t");
+$prevPvStmt->execute([':marker' => $analyticsBeaconMarker, ':from' => $prevFrom->format('Y-m-d 00:00:00'), ':to' => $prevTo->format('Y-m-d 23:59:59')]);
 $prevPv = $prevPvStmt->fetch(PDO::FETCH_ASSOC) ?: ['pv'=>0,'uu'=>0];
 $prevInStmt = db()->prepare('SELECT COUNT(*) FROM in_logs WHERE created_at BETWEEN :from AND :to');
 $prevInStmt->execute([':from' => $prevFrom->format('Y-m-d 00:00:00'), ':to' => $prevTo->format('Y-m-d 23:59:59')]);

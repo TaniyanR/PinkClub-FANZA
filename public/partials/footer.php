@@ -114,5 +114,22 @@ $copyrightYears = $copyrightStartYear >= $currentYear
   updateButton();
 }());
 </script>
+<script>
+(function () {
+  if (!navigator.sendBeacon) {
+    return;
+  }
+  var data = new FormData();
+  data.append('path', window.location.pathname + window.location.search);
+  data.append('referrer', document.referrer || '');
+  try {
+    var params = new URLSearchParams(window.location.search);
+    data.append('ref', params.get('ref') || '');
+  } catch (e) {
+    data.append('ref', '');
+  }
+  navigator.sendBeacon('<?= e(public_url('analytics.php')) ?>', data);
+}());
+</script>
 </body>
 </html>
