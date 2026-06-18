@@ -46,7 +46,10 @@ function analytics_track_request(): void
 
     $pdo = db();
     $requestUri = (string)($_SERVER['REQUEST_URI'] ?? '/');
-    $requestQuery = (string)(parse_url($requestUri, PHP_URL_QUERY) ?? '');
+    $queryParams = [];
+    parse_str((string)(parse_url($requestUri, PHP_URL_QUERY) ?? ''), $queryParams);
+    unset($queryParams['rank_period']);
+    $requestQuery = http_build_query($queryParams);
     $pageKey = ($path !== '' ? $path : '/') . ($requestQuery !== '' ? '?' . $requestQuery : '');
     $pathForStats = mb_substr($pageKey, 0, 255);
     $refererPath = (string)(parse_url((string)($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_PATH) ?? '');
@@ -61,8 +64,8 @@ function analytics_track_request(): void
 
     $pdo->prepare('INSERT INTO daily_stats(stat_date,pv,uu,in_count,out_count,updated_at) VALUES(:d,0,0,0,0,NOW()) ON DUPLICATE KEY UPDATE updated_at=NOW()')->execute([':d' => $today]);
 
-    $seenPageStmt = $pdo->prepare("SELECT id FROM site_events WHERE event_type = 'pv' AND path = :path AND ip_hash = :ip_hash AND created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY) LIMIT 1");
-    $seenPageStmt->execute([':path' => $pathForStats, ':ip_hash' => $hash]);
+    $seenPageStmt = $pdo->prepare("SELECT id FROM site_events WHERE event_type = 'pv' AND ip_hash = :ip_hash AND DATE(created_at) = CURDATE() LIMIT 1");
+    $seenPageStmt->execute([':ip_hash' => $hash]);
     $isUniquePageVisitor = !$seenPageStmt->fetchColumn();
 
     $pdo->prepare("INSERT INTO site_events(event_type,path,ua_hash,ip_hash,created_at) VALUES('pv',:path,:ua,:ip,NOW())")->execute([
