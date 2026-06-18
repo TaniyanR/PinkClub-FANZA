@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'sav
     if ($host === '' || $port <= 0 || $dbname === '' || $user === '') {
         $dbConfigError = 'DBホスト名、DBポート、データベース、ユーザー名を入力してください。';
     } elseif ($host !== 'localhost' && str_contains($dbname, '_') && $host === strtok($dbname, '_')) {
-        $dbConfigError = 'DBホスト名にサーバーIDが入力されています。シンサーバーのDBホスト名は通常 localhost です。';
+        $dbConfigError = 'DBホスト名にサーバーIDが入力されています。DBホスト名は通常 localhost です。';
     } else {
         try {
             $local = local_config_load();
@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'sav
             $dbConfigError = (string)($setupResult['error'] ?? 'DB接続設定は保存しましたが、セットアップに失敗しました。install.log を確認してください。');
         } catch (Throwable $exception) {
             if ($dbConfigError === null) {
-                $dbConfigError = 'DB接続テストに失敗しました。シンサーバーのMySQLホスト名、データベース名、ユーザー名、パスワードを確認してください。あわせて、サーバーパネルのMySQL設定で対象データベースにこのMySQLユーザーを追加済みか確認してください。';
+                $dbConfigError = 'DB接続テストに失敗しました。MySQLホスト名、データベース名、ユーザー名、パスワードを確認してください。あわせて、サーバーパネルのMySQL設定で対象データベースにこのMySQLユーザーを追加済みか確認してください。';
             }
         }
     }
@@ -71,7 +71,7 @@ if ($configErrors === []) {
     }
 } else {
     $status = ['server_connection'=>false,'db_connection'=>false,'admins_table'=>false,'settings_table'=>false,'admin_user'=>false,'settings_row'=>false,'completed'=>false];
-    $dbConfigNotice = 'DB設定が未入力です。シンサーバーのMySQL情報を入力して保存してください。';
+    $dbConfigNotice = 'DB設定が未入力です。MySQL情報を入力して保存してください。';
 }
 
 $checks = [
@@ -102,7 +102,7 @@ $logTail = installer_log_tail(30);
 
 
       <h2>DB接続設定</h2>
-      <div class="alert alert-warning">シンサーバーのサーバーパネルに表示されるMySQL情報を入力してください。接続テストに成功した場合のみ保存します。</div>
+      <div class="alert alert-warning">サーバーパネルに表示されるMySQL情報を入力してください。接続テストに成功した場合のみ保存します。</div>
       <?php if ($dbConfigNotice !== null): ?>
         <div class="alert alert-warning"><?= e($dbConfigNotice) ?></div>
       <?php endif; ?>
@@ -113,7 +113,7 @@ $logTail = installer_log_tail(30);
         <?= csrf_input() ?>
         <input type="hidden" name="action" value="save_db_config">
         <table><tbody>
-          <tr><th>DBホスト名</th><td><input name="db_host" value="<?= e((string)($currentDbConfig['host'] ?? '')) ?>" required><br><small>シンサーバーでは通常 <code>localhost</code> です。サーバーIDではありません。</small></td></tr>
+          <tr><th>DBホスト名</th><td><input name="db_host" value="<?= e((string)($currentDbConfig['host'] ?? '')) ?>" required><br><small>通常 <code>localhost</code> です。サーバーIDではありません。</small></td></tr>
           <tr><th>DBポート</th><td><input name="db_port" type="number" value="<?= e((string)($currentDbConfig['port'] ?? 3306)) ?>" required></td></tr>
           <tr><th>データベース</th><td><input name="db_name" value="<?= e((string)($currentDbConfig['dbname'] ?? '')) ?>" required></td></tr>
           <tr><th>ユーザー名</th><td><input name="db_user" value="<?= e((string)($currentDbConfig['user'] ?? '')) ?>" required><br><small>サーバーパネルのMySQL設定で、このユーザーを対象データベースに追加してください。</small></td></tr>

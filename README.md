@@ -19,7 +19,7 @@
 - `setup_check.php` には失敗ステップ、例外、発生箇所、失敗SQL、ログ末尾を表示します。
 
 ## 補足
-- シンサーバーのDBホスト名は通常 `localhost` です。DB名・ユーザー名・パスワードはサーバーパネルのMySQL設定で確認し、対象データベースにMySQLユーザーを追加してから `public/setup_check.php` で保存してください。
+- DBホスト名は通常 `localhost` です。DB名・ユーザー名・パスワードはサーバーパネルのMySQL設定で確認し、対象データベースにMySQLユーザーを追加してから `public/setup_check.php` で保存してください。
 - `login0718.php` / `setup_check.php` のCSSは `/assets/css/style.css` を共通利用します。
 
 ## マイグレーション適用
