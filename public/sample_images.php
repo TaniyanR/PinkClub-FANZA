@@ -62,14 +62,18 @@ if (!$item) {
 
 $decoded = json_decode((string)($item['raw_json'] ?? ''), true);
 $images = [];
-if (is_array($decoded) && isset($decoded['sampleImageURL']) && is_array($decoded['sampleImageURL'])) {
-    foreach (['sample_l', 'sample_s'] as $sizeKey) {
-        $sampleImages = [];
-        sample_images_collect_from_value($decoded['sampleImageURL'][$sizeKey]['image'] ?? null, $sampleImages);
-        if ($sampleImages !== []) {
-            $images = array_merge($images, $sampleImages);
-            break;
+if (is_array($decoded) && isset($decoded['sampleImageURL'])) {
+    if (is_array($decoded['sampleImageURL'])) {
+        foreach (['sample_l', 'sample_s'] as $sizeKey) {
+            $sampleImages = [];
+            sample_images_collect_from_value($decoded['sampleImageURL'][$sizeKey]['image'] ?? null, $sampleImages);
+            if ($sampleImages !== []) {
+                $images = array_merge($images, $sampleImages);
+                break;
+            }
         }
+    } else {
+        sample_images_collect_from_value($decoded['sampleImageURL'], $images);
     }
 }
 $images = array_values(array_unique($images));

@@ -14,6 +14,52 @@ class DmmNormalizer
         return null;
     }
 
+    private static function normalizeMovieUrl(string $url): ?string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return null;
+        }
+        if (str_starts_with($url, '//')) {
+            return 'https:' . $url;
+        }
+        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+            return $url;
+        }
+        return null;
+    }
+
+    private static function collectMovieUrlsFromValue(mixed $value, array &$urls): void
+    {
+        if (is_string($value)) {
+            $candidate = self::normalizeMovieUrl($value);
+            if ($candidate !== null) {
+                $urls[] = $candidate;
+            }
+            return;
+        }
+
+        if (!is_array($value)) {
+            return;
+        }
+
+        foreach ($value as $child) {
+            self::collectMovieUrlsFromValue($child, $urls);
+        }
+    }
+
+    private static function sampleMovieUrl(array $sampleMovie, string $key): ?string
+    {
+        $candidate = self::normalizeMovieUrl((string)($sampleMovie[$key] ?? ''));
+        if ($candidate !== null) {
+            return $candidate;
+        }
+
+        $urls = [];
+        self::collectMovieUrlsFromValue($sampleMovie[$key] ?? null, $urls);
+        return $urls[0] ?? null;
+    }
+
     private static function extractTitle(array $row): string
     {
         $infoTitle = $row['iteminfo']['title'][0] ?? [];
@@ -81,10 +127,10 @@ class DmmNormalizer
                 'image_list' => self::firstNonEmptyString($row['imageURL']['list'] ?? null, $row['packageImage']['list'] ?? null),
                 'image_small' => self::firstNonEmptyString($row['imageURL']['small'] ?? null, $row['packageImage']['small'] ?? null),
                 'image_large' => self::firstNonEmptyString($row['imageURL']['large'] ?? null, $row['packageImage']['large'] ?? null),
-                'sample_movie_url_476' => $sampleMovie['size_476_306'] ?? null,
-                'sample_movie_url_560' => $sampleMovie['size_560_360'] ?? null,
-                'sample_movie_url_644' => $sampleMovie['size_644_414'] ?? null,
-                'sample_movie_url_720' => $sampleMovie['size_720_480'] ?? null,
+                'sample_movie_url_476' => is_array($sampleMovie) ? self::sampleMovieUrl($sampleMovie, 'size_476_306') : self::normalizeMovieUrl((string)$sampleMovie),
+                'sample_movie_url_560' => is_array($sampleMovie) ? self::sampleMovieUrl($sampleMovie, 'size_560_360') : null,
+                'sample_movie_url_644' => is_array($sampleMovie) ? self::sampleMovieUrl($sampleMovie, 'size_644_414') : null,
+                'sample_movie_url_720' => is_array($sampleMovie) ? self::sampleMovieUrl($sampleMovie, 'size_720_480') : null,
                 'sample_movie_pc_flag' => isset($sampleMovie['pc_flag']) ? (int) $sampleMovie['pc_flag'] : 0,
                 'sample_movie_sp_flag' => isset($sampleMovie['sp_flag']) ? (int) $sampleMovie['sp_flag'] : 0,
                 'price_min_text' => $priceMin,
