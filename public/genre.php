@@ -152,6 +152,7 @@ if ((int)($pg['page'] ?? 1) < (int)($pg['pages'] ?? 1)) {
     $relNext = public_url('genre.php') . '?' . http_build_query(['id' => $id, 'page' => (int)$pg['page'] + 1]);
 }
 require __DIR__ . '/partials/header.php';
+require_once __DIR__ . '/partials/favorite_button.php';
 ?>
 <?php pcf_render_breadcrumbs([
     ['label' => 'トップ', 'url' => public_url('index.php')],
@@ -160,6 +161,7 @@ require __DIR__ . '/partials/header.php';
 ]); ?>
 
 <?php pcf_render_hero($genreName); ?>
+<?php pcf_render_favorite_button('genre', (int)$row['id'], $genreName, public_url('genre.php') . '?id=' . rawurlencode((string)(int)$row['id'])); ?>
 
 <h2 class="pcf-section-title"><?= e($genreName) ?>一覧</h2>
 <?php if ($list !== []): ?>

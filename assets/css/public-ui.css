@@ -814,3 +814,26 @@
   aspect-ratio: auto;
   height: 170px !important;
 }
+
+.pcf-favorite-button {
+  display: inline-block;
+  margin: 0 0 16px;
+  padding: 8px 14px;
+  border: 1px solid #d6a400;
+  border-radius: 4px;
+  background: #fffbe6;
+  color: #6b5200;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pcf-favorite-button.is-active {
+  background: #ffd84d;
+  color: #3f3000;
+}
+.pcf-mypage__list {
+  margin: 0 0 20px;
+  padding-left: 1.4em;
+}
+.pcf-mypage__list li {
+  margin: 0 0 8px;
+}

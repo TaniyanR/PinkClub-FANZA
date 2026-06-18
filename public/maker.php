@@ -106,6 +106,7 @@ if ($hasNext) {
     $relNext = public_url('maker.php') . '?' . http_build_query(['id' => $id, 'page' => $makerPage + 1]);
 }
 require __DIR__ . '/partials/header.php';
+require_once __DIR__ . '/partials/favorite_button.php';
 ?>
 <?php pcf_render_breadcrumbs([
     ['label' => 'トップ', 'url' => public_url('index.php')],
@@ -116,6 +117,7 @@ require __DIR__ . '/partials/header.php';
 <section class="pcf-hero">
   <h1 class="pcf-hero__title"><?= e($makerName) ?></h1>
   <?php if (!empty($row['ruby'])): ?><p class="pcf-hero__subtitle">読み: <?= e((string)$row['ruby']) ?></p><?php endif; ?>
+  <?php pcf_render_favorite_button('maker', (int)$row['id'], $makerName, public_url('maker.php') . '?id=' . rawurlencode((string)(int)$row['id'])); ?>
 </section>
 
 <h2 class="pcf-section-title"><?= e($makerName) ?>一覧</h2>

@@ -656,6 +656,7 @@ try {
 }
 
 require __DIR__ . '/partials/header.php';
+require_once __DIR__ . '/partials/favorite_button.php';
 ?>
 <?php pcf_render_breadcrumbs([
     ['label' => 'トップ', 'url' => public_url('index.php')],
@@ -665,6 +666,7 @@ require __DIR__ . '/partials/header.php';
 
 <article>
   <h1 class="pcf-hero__title pcf-item-title"><?= e($breadcrumbTitle) ?></h1>
+  <?php pcf_render_favorite_button('item', (int)$item['id'], $breadcrumbTitle, public_url('item.php') . '?id=' . rawurlencode((string)(int)$item['id'])); ?>
 
   <?php if ($sampleMovieUrl !== '' || $sampleImagesSmallLargeMap !== []): ?>
     <div class="pcf-item-samples" style="display:flex; gap:8px; align-items:flex-start; flex-wrap:nowrap;">

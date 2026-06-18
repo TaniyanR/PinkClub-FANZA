@@ -14,6 +14,7 @@ $navItems = [
     ['href' => public_url('genres.php'), 'label' => 'ジャンル一覧'],
     ['href' => public_url('makers.php'), 'label' => 'メーカー一覧'],
     ['href' => public_url('series_list.php'), 'label' => 'シリーズ一覧'],
+    ['href' => public_url('mypage.php'), 'label' => 'My Page'],
 ];
 $mobileMainItems = $navItems;
 $mobileInfoItems = [
