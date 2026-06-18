@@ -3,6 +3,32 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
 
+function analytics_visitor_hash(string $ua): string
+{
+    $cookieName = 'pcf_visitor_id';
+    $visitorId = (string)($_COOKIE[$cookieName] ?? '');
+    if (!preg_match('/\A[a-f0-9]{32}\z/', $visitorId)) {
+        try {
+            $visitorId = bin2hex(random_bytes(16));
+        } catch (Throwable) {
+            $visitorId = hash('sha256', ((string)($_SERVER['REMOTE_ADDR'] ?? '')) . '|' . $ua . '|' . microtime(true));
+            $visitorId = substr($visitorId, 0, 32);
+        }
+        if (!headers_sent()) {
+            setcookie($cookieName, $visitorId, [
+                'expires' => time() + 60 * 60 * 24 * 400,
+                'path' => '/',
+                'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+                'httponly' => true,
+                'samesite' => 'Lax',
+            ]);
+        }
+        $_COOKIE[$cookieName] = $visitorId;
+    }
+
+    return hash('sha256', $visitorId . '|pinkclub');
+}
+
 function analytics_track_request(): void
 {
     static $done = false;
@@ -39,8 +65,7 @@ function analytics_track_request(): void
     }
 
     $today = date('Y-m-d');
-    $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
-    $hash = hash('sha256', $ip . '|' . $ua . '|pinkclub');
+    $hash = analytics_visitor_hash($ua);
     $refererHost = parse_url((string)($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_HOST) ?: '';
     $refCode = trim((string)($_GET['ref'] ?? ''));
 
@@ -64,8 +89,8 @@ function analytics_track_request(): void
 
     $pdo->prepare('INSERT INTO daily_stats(stat_date,pv,uu,in_count,out_count,updated_at) VALUES(:d,0,0,0,0,NOW()) ON DUPLICATE KEY UPDATE updated_at=NOW()')->execute([':d' => $today]);
 
-    $seenPageStmt = $pdo->prepare("SELECT id FROM site_events WHERE event_type = 'pv' AND path = :path AND ip_hash = :ip_hash AND DATE(created_at) = CURDATE() LIMIT 1");
-    $seenPageStmt->execute([':path' => $pathForStats, ':ip_hash' => $hash]);
+    $seenPageStmt = $pdo->prepare("SELECT id FROM site_events WHERE event_type = 'pv' AND ip_hash = :ip_hash AND DATE(created_at) = CURDATE() LIMIT 1");
+    $seenPageStmt->execute([':ip_hash' => $hash]);
     $isUniquePageVisitor = !$seenPageStmt->fetchColumn();
 
     $pdo->prepare("INSERT INTO site_events(event_type,path,ua_hash,ip_hash,created_at) VALUES('pv',:path,:ua,:ip,NOW())")->execute([
@@ -120,8 +145,7 @@ function analytics_log_taxonomy_page_view(string $path): void
     }
 
     $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
-    $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
-    $ipHash = $ip !== '' ? hash('sha256', $ip . '|' . $ua . '|pinkclub') : null;
+    $ipHash = analytics_visitor_hash($ua);
     $uaHash = $ua !== '' ? hash('sha256', $ua) : null;
 
     $pdo = db();
