@@ -64,7 +64,7 @@ function analytics_track_request(): void
 
     $pdo->prepare('INSERT INTO daily_stats(stat_date,pv,uu,in_count,out_count,updated_at) VALUES(:d,0,0,0,0,NOW()) ON DUPLICATE KEY UPDATE updated_at=NOW()')->execute([':d' => $today]);
 
-    $seenPageStmt = $pdo->prepare("SELECT id FROM site_events WHERE event_type = 'pv' AND path = :path AND ip_hash = :ip_hash AND created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY) LIMIT 1");
+    $seenPageStmt = $pdo->prepare("SELECT id FROM site_events WHERE event_type = 'pv' AND path = :path AND ip_hash = :ip_hash AND DATE(created_at) = CURDATE() LIMIT 1");
     $seenPageStmt->execute([':path' => $pathForStats, ':ip_hash' => $hash]);
     $isUniquePageVisitor = !$seenPageStmt->fetchColumn();
 

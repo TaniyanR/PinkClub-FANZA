@@ -48,7 +48,7 @@ foreach ($outCountStmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
 }
 $rows = array_values($rowsByDate);
 
-$prevPvStmt = db()->prepare("SELECT COUNT(*) pv, COUNT(DISTINCT CONCAT(COALESCE(path,''),'|',COALESCE(ip_hash,''))) uu FROM site_events WHERE event_type = 'pv' AND created_at BETWEEN :from AND :to");
+$prevPvStmt = db()->prepare("SELECT COALESCE(SUM(pv),0) pv, COALESCE(SUM(uu),0) uu FROM (SELECT DATE(created_at) stat_date, COUNT(*) pv, COUNT(DISTINCT CONCAT(COALESCE(path,''),'|',COALESCE(ip_hash,''))) uu FROM site_events WHERE event_type = 'pv' AND created_at BETWEEN :from AND :to GROUP BY DATE(created_at)) t");
 $prevPvStmt->execute([':from' => $prevFrom->format('Y-m-d 00:00:00'), ':to' => $prevTo->format('Y-m-d 23:59:59')]);
 $prevPv = $prevPvStmt->fetch(PDO::FETCH_ASSOC) ?: ['pv'=>0,'uu'=>0];
 $prevInStmt = db()->prepare('SELECT COUNT(*) FROM in_logs WHERE created_at BETWEEN :from AND :to');
