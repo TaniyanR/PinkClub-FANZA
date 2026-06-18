@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/partials/public_ui.php';
+require_once __DIR__ . '/../lib/favorites.php';
 
 function pcf_genre_count_items(int $genreId): int
 {
@@ -160,6 +161,7 @@ require __DIR__ . '/partials/header.php';
 ]); ?>
 
 <?php pcf_render_hero($genreName); ?>
+<?php favorite_render_button('genre', (int)$row['id'], $genreName, public_url('genre.php') . '?id=' . rawurlencode((string)$row['id'])); ?>
 
 <h2 class="pcf-section-title"><?= e($genreName) ?>一覧</h2>
 <?php if ($list !== []): ?>

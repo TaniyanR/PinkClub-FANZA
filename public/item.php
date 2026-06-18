@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/partials/public_ui.php';
+require_once __DIR__ . '/../lib/favorites.php';
 
 function item_normalize_movie_url(string $url): string
 {
@@ -665,6 +666,7 @@ require __DIR__ . '/partials/header.php';
 
 <article>
   <h1 class="pcf-hero__title pcf-item-title"><?= e($breadcrumbTitle) ?></h1>
+  <?php favorite_render_button('item', (int)$item['id'], $breadcrumbTitle, public_url('item.php') . '?cid=' . rawurlencode((string)$item['content_id'])); ?>
 
   <?php if ($sampleMovieUrl !== '' || $sampleImagesSmallLargeMap !== []): ?>
     <div class="pcf-item-samples" style="display:flex; gap:8px; align-items:flex-start; flex-wrap:nowrap;">

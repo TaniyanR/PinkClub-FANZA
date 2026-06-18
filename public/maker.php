@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/partials/public_ui.php';
+require_once __DIR__ . '/../lib/favorites.php';
 
 $id = (int)get('id', 0);
 $row = null;
@@ -115,6 +116,7 @@ require __DIR__ . '/partials/header.php';
 
 <section class="pcf-hero">
   <h1 class="pcf-hero__title"><?= e($makerName) ?></h1>
+  <?php favorite_render_button('maker', (int)$row['id'], $makerName, public_url('maker.php') . '?id=' . rawurlencode((string)$row['id'])); ?>
   <?php if (!empty($row['ruby'])): ?><p class="pcf-hero__subtitle">読み: <?= e((string)$row['ruby']) ?></p><?php endif; ?>
 </section>
 

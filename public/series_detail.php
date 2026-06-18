@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/partials/public_ui.php';
+require_once __DIR__ . '/../lib/favorites.php';
 
 function pcf_series_access_period_from(string $period): string
 {
@@ -116,6 +117,7 @@ require __DIR__ . '/partials/header.php';
     ['label' => $seriesName],
 ]); ?>
 <?php pcf_render_hero($seriesName); ?>
+<?php favorite_render_button('series', (int)$series['id'], $seriesName, public_url('series_detail.php') . '?id=' . rawurlencode((string)$series['id'])); ?>
 
 <h2 class="pcf-section-title"><?= e($seriesName) ?>一覧</h2>
 <?php if ($seriesItems !== []): ?>
