@@ -584,6 +584,9 @@ if (!function_exists('pcf_render_item_card')) {
         echo '</a>';
         echo '<h3 class="pcf-dm-card__title"><a href="' . e($itemUrl) . '">' . e($title) . '</a></h3>';
         echo '<div class="pcf-dm-card__actions">';
+        $releaseDateRaw = trim((string)($item['release_date'] ?? ''));
+        $releaseDateLabel = $releaseDateRaw !== '' ? '商品発売日：' . e(format_date($releaseDateRaw)) : '商品発売日';
+        echo '<span style="display:block;width:100%;padding:12px 10px;text-align:center;color:#000;background:transparent;border:1px solid #000;border-radius:4px;font-size:14px;font-weight:700;box-sizing:border-box;">' . $releaseDateLabel . '</span>';
         if ($sampleMovieUrl !== '') {
             echo '<button type="button" class="pcf-dm-card__button sample-movie-trigger" data-movie-url="' . e($sampleMovieUrl) . '" data-movie-title="' . e($title) . '">サンプル動画</button>';
         } else {
@@ -594,7 +597,6 @@ if (!function_exists('pcf_render_item_card')) {
         } else {
             echo '<span class="pcf-dm-card__button is-disabled">サンプル画像</span>';
         }
-        echo '<a class="pcf-dm-card__button" href="' . e($itemUrl) . '">詳細ページ</a>';
         echo '</div>';
         echo '</article>';
     }
