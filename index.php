@@ -345,9 +345,10 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
       <?php endif; ?>
       <a class="rail-card__title" href="<?= e($itemUrl) ?>"><?= e($title) ?></a>
       <div class="sample-buttons">
+        <?php $releaseDateRaw = trim((string)($item['release_date'] ?? '')); ?>
+        <span style="display:block;width:100%;padding:12px 10px;text-align:center;color:#000;background:transparent;border:1px solid #000;border-radius:4px;font-size:14px;font-weight:700;box-sizing:border-box;"><?= $releaseDateRaw !== '' ? '商品発売日：' . e(format_date($releaseDateRaw)) : '商品発売日' ?></span>
         <button type="button" class="<?= e($movieClass) ?> sample-movie-trigger" <?= $sample['movie_url'] === '' ? 'disabled' : '' ?> data-movie-url="<?= e((string)$sample['movie_url']) ?>" data-movie-title="<?= e($title) ?>">サンプル動画</button>
         <button type="button" class="<?= e($imageClass) ?>" <?= !$sample['has_images'] ? 'disabled' : '' ?> onclick="<?= $sample['has_images'] ? "window.open('" . e($sampleImagesUrl) . "','_blank','noopener,noreferrer,width=760,height=540');" : 'return false;' ?>">サンプル画像</button>
-        <button type="button" class="sample-button sample-button--enabled" onclick="window.location.href='<?= e($itemUrl) ?>';">詳細ページ</button>
       </div>
     </article>
     <?php
