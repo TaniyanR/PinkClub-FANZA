@@ -338,11 +338,13 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     }
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
-      <?php if ($thumbUrl !== ''): ?>
-        <img class="thumb" src="<?= e($thumbUrl) ?>" alt="<?= e($title) ?>" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
-      <?php else: ?>
-        <div class="rail-card__noimage" style="width:<?= (int)$width ?>px;height:<?= (int)$width ?>px;">画像なし</div>
-      <?php endif; ?>
+      <a href="<?= e($itemUrl) ?>">
+        <?php if ($thumbUrl !== ''): ?>
+          <img class="thumb" src="<?= e($thumbUrl) ?>" alt="<?= e($title) ?>" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
+        <?php else: ?>
+          <div class="rail-card__noimage" style="width:<?= (int)$width ?>px;height:<?= (int)$width ?>px;">画像なし</div>
+        <?php endif; ?>
+      </a>
       <a class="rail-card__title" href="<?= e($itemUrl) ?>"><?= e($title) ?></a>
       <div class="sample-buttons">
         <?php $releaseDateRaw = trim((string)($item['release_date'] ?? '')); ?>
