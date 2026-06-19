@@ -732,10 +732,18 @@
     gap: 24px !important;
   }
 
+  .pcf-dm-card {
+    width: 98%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
   .rail-section .rail-row--no-scroll .rail-card {
-    width: 100% !important;
+    width: 98% !important;
     min-width: 0 !important;
-    max-width: none !important;
+    max-width: 98% !important;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .rail-section .rail-row--no-scroll .rail-card .thumb,
