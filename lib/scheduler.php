@@ -77,6 +77,12 @@ function scheduler_run_items_schedule(DmmSyncService $service, array $settings):
     $pdo = db();
     $pdo->exec("CREATE TABLE IF NOT EXISTS sync_job_state (job_key VARCHAR(64) PRIMARY KEY,next_offset INT NOT NULL DEFAULT 1,next_initial VARCHAR(10) NULL,last_run_at DATETIME NULL,last_success TINYINT(1) NOT NULL DEFAULT 0,last_message TEXT NULL,lock_until DATETIME NULL,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     $pdo->prepare("INSERT INTO sync_job_state (job_key, next_offset, updated_at) VALUES ('items', 1, NOW()) ON DUPLICATE KEY UPDATE updated_at = updated_at")->execute();
+    $lockUntil = date('Y-m-d H:i:s', time() + 55);
+    $lockStmt = $pdo->prepare("UPDATE sync_job_state SET lock_until = :lock_until WHERE job_key = 'items' AND (lock_until IS NULL OR lock_until < NOW())");
+    $lockStmt->execute([':lock_until' => $lockUntil]);
+    if ($lockStmt->rowCount() === 0) {
+        return ['synced_count' => 0, 'message' => 'ロック取得失敗のためスキップ'];
+    }
     $stateStmt = $pdo->prepare("SELECT next_offset FROM sync_job_state WHERE job_key = 'items' LIMIT 1");
     $stateStmt->execute();
     $offset = max(1, (int)$stateStmt->fetchColumn());
@@ -91,7 +97,7 @@ function scheduler_run_items_schedule(DmmSyncService $service, array $settings):
         $excludeKeywords
     );
     $nextOffset = max(1, (int)($result['next_offset'] ?? 1));
-    $pdo->prepare("UPDATE sync_job_state SET next_offset = :next_offset, last_run_at = NOW(), last_success = 1, last_message = :message, updated_at = NOW() WHERE job_key = 'items'")
+    $pdo->prepare("UPDATE sync_job_state SET next_offset = :next_offset, last_run_at = NOW(), last_success = 1, last_message = :message, lock_until = NULL, updated_at = NOW() WHERE job_key = 'items'")
         ->execute([':next_offset' => $nextOffset, ':message' => '商品を同期しました']);
     site_setting_set_many(['last_item_sync_at' => date('Y-m-d H:i:s'), 'item_sync_offset' => (string)$nextOffset, 'item_sync_sort_index' => (string)($sortIndex + 1)]);
 

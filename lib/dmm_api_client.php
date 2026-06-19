@@ -107,7 +107,7 @@ class DmmApiClient
             return null;
         }
 
-        $stmt = db()->prepare('SELECT response_body FROM api_logs WHERE request_hash = :request_hash AND response_status = 200 AND cache_hit = 0 AND created_at >= DATE_SUB(NOW(), INTERVAL 72 HOUR) ORDER BY id DESC LIMIT 1');
+        $stmt = db()->prepare('SELECT response_body FROM api_logs WHERE request_hash = :request_hash AND response_status = 200 AND cache_hit = 0 AND created_at >= DATE_SUB(NOW(), INTERVAL 10 MINUTE) ORDER BY id DESC LIMIT 1');
         $stmt->execute([':request_hash' => $requestHash]);
         $body = $stmt->fetchColumn();
         if (!is_string($body) || $body === '') {
