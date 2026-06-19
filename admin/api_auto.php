@@ -12,7 +12,7 @@ $message = '';
 $messageType = 'success';
 
 $intervalOptions = [10, 20, 30, 60, 120, 180, 360, 720];
-$batchOptions = [1, 10, 20, 30, 50, 100, 200, 300, 500];
+$batchOptions = [1, 10, 20, 30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate_or_fail((string)post('_csrf', ''));
