@@ -115,18 +115,6 @@ require __DIR__ . '/includes/header.php';
 ?>
 <section class="admin-card">
   <h1>アクセス解析</h1>
-  <p>
-    <a href="?tab=graph&period=day">1日</a> / <a href="?tab=graph&period=week">1週</a> / <a href="?tab=graph&period=month">1ヶ月</a>
-  </p>
-  <p>
-    <a href="?tab=graph">グラフ</a> |
-    <a href="?tab=referrer">リンク元</a> |
-    <a href="?tab=destination">クリック先</a> |
-    <a href="?tab=engine">検索エンジン</a> |
-    <a href="?tab=keyword">検索ワード</a> |
-    <a href="?tab=duration">滞在時間</a> |
-    <a href="?tab=settings">アクセス設定</a>
-  </p>
   <?php if ($tab === 'graph'): ?>
   <div class="admin-status-grid">
     <article class="admin-card admin-status-card"><strong>ページビュー</strong><p><?= e((string)$sum['pv']) ?></p></article>
@@ -150,7 +138,7 @@ require __DIR__ . '/includes/header.php';
   <?php endif; ?>
 
   <?php if ($tab === 'graph'): ?>
-  <h2>日別PV（棒グラフ）</h2><div class="analytics-bars analytics-bars--vertical"><?php $maxPv = 0; foreach ($rows as $barRow) { $maxPv = max($maxPv, (int)$barRow['pv']); } $maxPv = max($maxPv, 1); ?><?php foreach ($rows as $barRow): $pv = (int)$barRow['pv']; $ratio = (int)round(($pv / $maxPv) * 100); ?><div class="analytics-bars__col"><span class="analytics-bars__value"><?= e((string)$pv) ?></span><div class="analytics-bars__track"><span class="analytics-bars__fill" style="height: <?= e((string)$ratio) ?>%;"></span></div><span class="analytics-bars__date"><?= e((string)date('m/d', strtotime((string)$barRow['stat_date']))) ?></span></div><?php endforeach; ?></div>
+  <h2>日別PV / UU（棒グラフ）</h2><p class="analytics-bars__legend"><span class="analytics-bars__legend-pv">PV</span><span class="analytics-bars__legend-uu">UU</span></p><div class="analytics-bars analytics-bars--vertical"><?php $maxCount = 0; foreach ($rows as $barRow) { $maxCount = max($maxCount, (int)$barRow['pv'], (int)$barRow['uu']); } $maxCount = max($maxCount, 1); ?><?php foreach ($rows as $barRow): $pv = (int)$barRow['pv']; $uu = (int)$barRow['uu']; $pvRatio = (int)round(($pv / $maxCount) * 100); $uuRatio = (int)round(($uu / $maxCount) * 100); ?><div class="analytics-bars__col"><div class="analytics-bars__values"><span class="analytics-bars__value">PV <?= e((string)$pv) ?></span><span class="analytics-bars__value">UU <?= e((string)$uu) ?></span></div><div class="analytics-bars__pair"><div class="analytics-bars__track"><span class="analytics-bars__fill" style="height: <?= e((string)$pvRatio) ?>%;"></span></div><div class="analytics-bars__track"><span class="analytics-bars__fill analytics-bars__fill--uu" style="height: <?= e((string)$uuRatio) ?>%;"></span></div></div><span class="analytics-bars__date"><?= e((string)date('m/d', strtotime((string)$barRow['stat_date']))) ?></span></div><?php endforeach; ?></div>
   <table class="admin-table"><tr><th>日付</th><th>PV</th><th>UU</th><th>流入</th><th>流出</th></tr><?php foreach ($rows as $r): ?><tr><td><?= e((string)$r['stat_date']) ?></td><td><?= e((string)$r['pv']) ?></td><td><?= e((string)$r['uu']) ?></td><td><?= e((string)$r['in_count']) ?></td><td><?= e((string)$r['out_count']) ?></td></tr><?php endforeach; ?></table>
   <?php endif; ?>
 </section>
