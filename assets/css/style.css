@@ -456,6 +456,10 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
   .site-main--legacy{padding:12px}
   .site-main--legacy .thumb{max-width:100%}
 }
+@media (max-width: 768px){
+  .layout{padding-left:1%;padding-right:1%}
+  .site-main--legacy{padding-left:0;padding-right:0}
+}
 
 .site-main--legacy .rail-card{padding:0;box-sizing:border-box}
 .site-main--legacy .rail-card .rail-card__title,
