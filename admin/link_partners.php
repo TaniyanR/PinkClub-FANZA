@@ -78,7 +78,6 @@ require __DIR__ . '/includes/header.php';
     <input type="hidden" name="action" value="create">
     <label>サイト名<input name="name" required></label>
     <label>URL<input name="url" type="url" required></label>
-    <label>RSS URL<input name="rss_url" type="url" placeholder="https://example.com/feed.xml"></label>
     <label><input type="checkbox" name="show_link" value="1" checked> 相互リンクを表示する</label>
     <label><input type="checkbox" name="show_rss" value="1" checked> RSSを表示する</label>
     <fieldset>
@@ -92,17 +91,16 @@ require __DIR__ . '/includes/header.php';
   </form>
 
   <table class="admin-table">
-    <tr><th>ID</th><th>サイト名</th><th>URL</th><th>RSS</th><th>相互リンク表示</th><th>RSS表示</th><th>編集</th><th>削除</th></tr>
+    <tr><th>ID</th><th style="white-space:nowrap;">サイト名</th><th>URL</th><th style="width:1%;white-space:nowrap;text-align:center;">相互リンク表示</th><th style="width:1%;white-space:nowrap;text-align:center;">RSS表示</th><th>編集</th><th>削除</th></tr>
     <?php foreach ($rows as $r): ?>
       <tr>
-        <td><?= e((string)$r['id']) ?></td><td><?= e((string)$r['name']) ?></td><td><?= e((string)$r['url']) ?></td>
-        <td><?= e((string)($r['feed_url'] ?? '')) ?></td>
-        <td>
+        <td><?= e((string)$r['id']) ?></td><td style="white-space:nowrap;"><?= e((string)$r['name']) ?></td><td><?= e((string)$r['url']) ?></td>
+        <td style="width:1%;white-space:nowrap;text-align:center;">
           <form method="post"><?= csrf_input() ?><input type="hidden" name="action" value="toggle_link"><input type="hidden" name="id" value="<?= e((string)$r['id']) ?>">
             <label><input type="checkbox" name="show_link" value="1" <?= ((int)($r['show_link'] ?? 1) === 1) ? 'checked' : '' ?> onchange="this.form.submit()"></label>
           </form>
         </td>
-        <td>
+        <td style="width:1%;white-space:nowrap;text-align:center;">
           <?php if ((int)($r['rss_id'] ?? 0) > 0): ?>
           <form method="post"><?= csrf_input() ?><input type="hidden" name="action" value="toggle_rss"><input type="hidden" name="rss_id" value="<?= e((string)$r['rss_id']) ?>">
             <label><input type="checkbox" name="show_rss" value="1" <?= ((int)($r['show_rss'] ?? 0) === 1) ? 'checked' : '' ?> onchange="this.form.submit()"></label>
