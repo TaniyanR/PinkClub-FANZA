@@ -24,6 +24,36 @@ function pcf_site_feed_item_url(array $item): string
     return public_url('');
 }
 
+function pcf_site_feed_image_url(array $item): string
+{
+    foreach (['image_large', 'image_small'] as $key) {
+        $url = trim((string)($item[$key] ?? ''));
+        if ($url !== '') {
+            return $url;
+        }
+    }
+
+    return '';
+}
+
+function pcf_site_feed_description(array $item, string $itemLink): string
+{
+    $parts = [];
+    $imageUrl = pcf_site_feed_image_url($item);
+    if ($imageUrl !== '') {
+        $parts[] = '<p><a href="' . htmlspecialchars($itemLink, ENT_QUOTES, 'UTF-8') . '"><img src="' . htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8') . '" alt=""></a></p>';
+    }
+
+    $categoryName = trim((string)($item['category_name'] ?? ''));
+    if ($categoryName !== '') {
+        $parts[] = '<p>' . htmlspecialchars($categoryName, ENT_QUOTES, 'UTF-8') . '</p>';
+    }
+
+    $parts[] = '<p><a href="' . htmlspecialchars($itemLink, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($itemLink, ENT_QUOTES, 'UTF-8') . '</a></p>';
+
+    return implode("\n", $parts);
+}
+
 function pcf_site_feed_date(?string $value): string
 {
     $timestamp = $value !== null && trim($value) !== '' ? strtotime($value) : false;
@@ -106,15 +136,17 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
         $itemDate = trim((string)($item['updated_at'] ?? ''));
     }
 
-    $itemDescription = trim((string)($item['category_name'] ?? ''));
+    $itemDescription = pcf_site_feed_description($item, $itemLink);
+    $itemImageUrl = pcf_site_feed_image_url($item);
 ?>
     <item>
       <title><?= pcf_site_feed_xml($itemTitle) ?></title>
       <link><?= pcf_site_feed_xml($itemLink) ?></link>
       <guid isPermaLink="false"><?= pcf_site_feed_xml($itemGuid) ?></guid>
       <pubDate><?= pcf_site_feed_xml(pcf_site_feed_date($itemDate)) ?></pubDate>
-<?php if ($itemDescription !== ''): ?>
       <description><?= pcf_site_feed_xml($itemDescription) ?></description>
+<?php if ($itemImageUrl !== ''): ?>
+      <enclosure url="<?= pcf_site_feed_xml($itemImageUrl) ?>" type="image/jpeg" />
 <?php endif; ?>
     </item>
 <?php endforeach; ?>
