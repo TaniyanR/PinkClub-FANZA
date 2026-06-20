@@ -34,6 +34,45 @@ function pcf_site_feed_date(?string $value): string
     return date(DATE_RSS, $timestamp);
 }
 
+function pcf_site_feed_item_image_url(array $item): string
+{
+    foreach (['image_large', 'image_small'] as $key) {
+        $value = trim((string)($item[$key] ?? ''));
+        if ($value !== '') {
+            return $value;
+        }
+    }
+
+    $imageList = trim((string)($item['image_list'] ?? ''));
+    if ($imageList !== '') {
+        $decoded = json_decode($imageList, true);
+        if (is_array($decoded)) {
+            foreach ($decoded as $value) {
+                if (is_string($value) && trim($value) !== '') {
+                    return trim($value);
+                }
+            }
+        }
+    }
+
+    return '';
+}
+
+function pcf_site_feed_item_description(array $item, string $imageUrl): string
+{
+    $parts = [];
+    if ($imageUrl !== '') {
+        $parts[] = '<p><img src="' . htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8') . '" alt=""></p>';
+    }
+
+    $categoryName = trim((string)($item['category_name'] ?? ''));
+    if ($categoryName !== '') {
+        $parts[] = $categoryName;
+    }
+
+    return implode("\n", $parts);
+}
+
 $siteTitle = trim(site_setting_get('site.title', site_setting_get('site.name', APP_NAME)));
 if ($siteTitle === '') {
     $siteTitle = APP_NAME;
@@ -77,7 +116,7 @@ foreach ($items as $item) {
 header('Content-Type: application/rss+xml; charset=UTF-8');
 echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
 ?>
-<rss version="2.0">
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
   <channel>
     <title><?= pcf_site_feed_xml($siteTitle) ?></title>
     <link><?= pcf_site_feed_xml($siteUrl) ?></link>
@@ -106,13 +145,18 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
         $itemDate = trim((string)($item['updated_at'] ?? ''));
     }
 
-    $itemDescription = trim((string)($item['category_name'] ?? ''));
+    $itemImageUrl = pcf_site_feed_item_image_url($item);
+    $itemDescription = pcf_site_feed_item_description($item, $itemImageUrl);
 ?>
     <item>
       <title><?= pcf_site_feed_xml($itemTitle) ?></title>
       <link><?= pcf_site_feed_xml($itemLink) ?></link>
       <guid isPermaLink="false"><?= pcf_site_feed_xml($itemGuid) ?></guid>
       <pubDate><?= pcf_site_feed_xml(pcf_site_feed_date($itemDate)) ?></pubDate>
+<?php if ($itemImageUrl !== ''): ?>
+      <media:content url="<?= pcf_site_feed_xml($itemImageUrl) ?>" medium="image" />
+      <media:thumbnail url="<?= pcf_site_feed_xml($itemImageUrl) ?>" />
+<?php endif; ?>
 <?php if ($itemDescription !== ''): ?>
       <description><?= pcf_site_feed_xml($itemDescription) ?></description>
 <?php endif; ?>
