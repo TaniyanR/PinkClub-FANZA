@@ -314,6 +314,7 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
   .site-mobile-menu__search{grid-column:1 / -1;display:flex;gap:6px}
   .site-mobile-menu__search .site-search__input{width:100%;max-width:none}
   .site-sidebar{display:none}
+  .site-ad--sp-footer-above{width:98%;margin-left:auto;margin-right:auto}
 }
 
 @media (min-width: 769px) and (max-width: 1024px){
