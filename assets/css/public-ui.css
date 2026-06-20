@@ -423,6 +423,10 @@
     line-height: 1.35;
   }
 
+  .pcf-related-grid {
+    gap: 40px;
+  }
+
   .pcf-item-related-grid {
     grid-template-columns: 1fr;
   }
@@ -696,6 +700,12 @@
   }
 }
 
+@media (max-width: 768px) {
+  .site-main--legacy .rail-row--home-taxonomy {
+    gap: 40px !important;
+  }
+}
+
 .pcf-dm-card {
   width: 100%;
   max-width: 100%;
@@ -729,7 +739,7 @@
   .rail-section .rail-row--no-scroll {
     display: flex !important;
     flex-direction: column;
-    gap: 24px !important;
+    gap: 48px !important;
   }
 
   .rail-section .rail-row--no-scroll .rail-card {
