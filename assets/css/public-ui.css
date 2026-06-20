@@ -423,6 +423,10 @@
     line-height: 1.35;
   }
 
+  .pcf-related-grid {
+    gap: 24px;
+  }
+
   .pcf-item-related-grid {
     grid-template-columns: 1fr;
   }
@@ -729,7 +733,7 @@
   .rail-section .rail-row--no-scroll {
     display: flex !important;
     flex-direction: column;
-    gap: 24px !important;
+    gap: 32px !important;
   }
 
   .rail-section .rail-row--no-scroll .rail-card {
