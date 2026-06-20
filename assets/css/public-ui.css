@@ -700,6 +700,12 @@
   }
 }
 
+@media (max-width: 768px) {
+  .site-main--legacy .rail-row--home-taxonomy {
+    gap: 24px !important;
+  }
+}
+
 .pcf-dm-card {
   width: 100%;
   max-width: 100%;
