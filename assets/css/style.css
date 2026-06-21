@@ -60,6 +60,15 @@ body.admin-page .admin-table th,body.admin-page .admin-table td{border-bottom:1p
 body.admin-page .admin-status-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
 body.admin-page .admin-status-card strong{display:block;font-size:13px;color:#50575e}
 body.admin-page .admin-status-card p{margin:8px 0 0;font-size:20px;font-weight:700}
+body.admin-page .admin-dashboard-hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#fff 0%,#fff5fb 52%,#eef7ff 100%);border:1px solid #f1cfe0;border-radius:12px;padding:22px 24px;box-shadow:0 8px 22px rgba(29,35,39,.08)}
+body.admin-page .admin-dashboard-hero::after{content:"";position:absolute;right:-44px;top:-58px;width:180px;height:180px;border-radius:999px;background:rgba(255,77,166,.14)}
+body.admin-page .admin-dashboard-hero__eyebrow{margin:0 0 6px;color:#d63384;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+body.admin-page .admin-dashboard-hero h1{position:relative;margin-bottom:8px;font-size:28px}
+body.admin-page .admin-dashboard-hero .admin-form-note{position:relative;margin-bottom:0}
+body.admin-page .admin-dashboard-section{background:#fff;border:1px solid var(--admin-border);border-radius:10px;padding:16px;box-shadow:0 4px 14px rgba(29,35,39,.05)}
+body.admin-page .admin-dashboard-section h2{padding-left:10px;border-left:4px solid #ff4da6}
+body.admin-page .admin-dashboard-section .admin-status-card{background:linear-gradient(180deg,#fff 0%,#fafbfc 100%);border:1px solid #e5e7eb;border-radius:10px;padding:14px;box-shadow:0 3px 10px rgba(29,35,39,.05)}
+body.admin-page .admin-dashboard-section .admin-status-card p{color:#2271b1;font-size:24px}
 body.admin-page form{margin:0}
 body.admin-page label{display:block;margin-top:10px;margin-bottom:4px;font-weight:600}
 body.admin-page input,body.admin-page select{max-width:520px;width:100%;padding:8px;margin-top:4px;margin-bottom:8px;border:1px solid #8c8f94;border-radius:4px}
