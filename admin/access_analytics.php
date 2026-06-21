@@ -6,7 +6,7 @@ $title = 'アクセス解析';
 analytics_ensure_tables();
 
 $tab = (string)get('tab', 'graph');
-$allowedTabs = ['graph','referrer','destination','engine','keyword','duration','settings'];
+$allowedTabs = ['graph','referrer','destination','engine','keyword','duration'];
 if (!in_array($tab, $allowedTabs, true)) {
     $tab = 'graph';
 }
@@ -133,8 +133,6 @@ require __DIR__ . '/includes/header.php';
   <table class="admin-table"><tr><th>検索キーワード</th><th>件数</th></tr><?php foreach ($keywordRows as $r): ?><tr><td><?= e((string)($r['keyword'] ?? '')) ?></td><td><?= e((string)$r['cnt']) ?></td></tr><?php endforeach; ?><?php if ($keywordRows === []): ?><tr><td colspan="2">データなし</td></tr><?php endif; ?></table>
   <?php elseif ($tab === 'duration'): ?>
   <p>要確認: 既存ログテーブルに滞在時間を計算する開始/終了時刻の対応データが無いため、現状では算出できません。</p>
-  <?php elseif ($tab === 'settings'): ?>
-  <p>要確認: 既存設定テーブルにアクセス除外URLを保存する項目が未確認のため、保存機能は未実装です。</p>
   <?php endif; ?>
 
   <?php if ($tab === 'graph'): ?>

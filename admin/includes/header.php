@@ -27,7 +27,6 @@ $menuGroups = [
         ['label' => '検索エンジン', 'file' => 'analytics.php?tab=engine'],
         ['label' => '検索ワード', 'file' => 'analytics.php?tab=keyword'],
         ['label' => '滞在時間', 'file' => 'analytics.php?tab=duration'],
-        ['label' => 'アクセス設定', 'file' => 'analytics.php?tab=settings'],
     ]],
     ['label' => '固定ページ', 'children' => [
         ['label' => '新規', 'file' => 'pages_new.php'],
