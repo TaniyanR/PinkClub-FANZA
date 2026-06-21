@@ -10,9 +10,12 @@ require_once __DIR__ . '/partials/_helpers.php';
 
 admin_session_start();
 $token = trim((string)($_GET['token'] ?? ''));
-$stmt = db()->prepare('SELECT * FROM admin_password_resets WHERE token_hash=:h AND used_at IS NULL AND expires_at >= NOW() ORDER BY id DESC LIMIT 1');
-$stmt->execute([':h' => hash('sha256', $token)]);
-$reset = $stmt->fetch(PDO::FETCH_ASSOC);
+$reset = false;
+if (db_table_exists('admin_password_resets')) {
+    $stmt = db()->prepare('SELECT * FROM admin_password_resets WHERE token_hash=:h AND used_at IS NULL AND expires_at >= NOW() ORDER BY id DESC LIMIT 1');
+    $stmt->execute([':h' => hash('sha256', $token)]);
+    $reset = $stmt->fetch(PDO::FETCH_ASSOC);
+}
 
 if (!is_array($reset)) {
     http_response_code(403);
@@ -34,8 +37,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         } elseif ($password !== $passwordConfirm) {
             $error = '確認用パスワードが一致しません。';
         } else {
-            db()->prepare('UPDATE admin_users SET password_hash=:h, updated_at=NOW() WHERE id=:id')
-                ->execute([':h' => password_hash($password, PASSWORD_DEFAULT), ':id' => (int)$reset['admin_user_id']]);
+            $adminUserId = (int)$reset['admin_user_id'];
+            if (admin_users_table_available()) {
+                db()->prepare('UPDATE admin_users SET password_hash=:h, updated_at=NOW() WHERE id=:id')
+                    ->execute([':h' => password_hash($password, PASSWORD_DEFAULT), ':id' => $adminUserId]);
+            } else {
+                db()->prepare('UPDATE admins SET password_hash=:h, updated_at=NOW() WHERE id=:id')
+                    ->execute([':h' => password_hash($password, PASSWORD_DEFAULT), ':id' => $adminUserId]);
+            }
             db()->prepare('UPDATE admin_password_resets SET used_at=NOW() WHERE id=:id')->execute([':id' => (int)$reset['id']]);
             $_SESSION['forgot_password_success'] = 'パスワードを再設定しました。新しいパスワードでログインしてください。';
             app_redirect(login_url());

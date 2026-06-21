@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/config.php';
 require_once __DIR__ . '/../lib/db.php';
+require_once __DIR__ . '/../lib/site_settings.php';
 require_once __DIR__ . '/../lib/rate_limit.php';
 require_once __DIR__ . '/../lib/csrf.php';
 require_once __DIR__ . '/../lib/admin_auth.php';
@@ -27,11 +28,25 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $message = 'メールアドレスの形式が正しくありません。';
         } else {
-            $stmt = db()->prepare('SELECT id, username, email FROM admin_users WHERE email=:email AND is_active=1 LIMIT 1');
-            $stmt->execute([':email' => $email]);
-            $u = $stmt->fetch(PDO::FETCH_ASSOC);
+            $u = null;
+            if (admin_users_table_available()) {
+                $stmt = db()->prepare('SELECT id, username, email FROM admin_users WHERE email=:email AND is_active=1 LIMIT 1');
+                $stmt->execute([':email' => $email]);
+                $u = $stmt->fetch(PDO::FETCH_ASSOC);
+            }
+            if (!is_array($u) && $email === setting_admin_email('')) {
+                $stmt = db()->query('SELECT id, username FROM admins ORDER BY id ASC LIMIT 1');
+                $admin = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+                if (is_array($admin)) {
+                    $u = [
+                        'id' => (int)$admin['id'],
+                        'username' => (string)$admin['username'],
+                        'email' => $email,
+                    ];
+                }
+            }
 
-            if (is_array($u)) {
+            if (is_array($u) && db_table_exists('admin_password_resets')) {
                 $token = bin2hex(random_bytes(32));
                 db()->prepare('INSERT INTO admin_password_resets(admin_user_id,token_hash,expires_at) VALUES (:admin_user_id,:token_hash,DATE_ADD(NOW(), INTERVAL 1 HOUR))')
                     ->execute([':admin_user_id' => (int)$u['id'], ':token_hash' => hash('sha256', $token)]);
