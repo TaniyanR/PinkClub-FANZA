@@ -106,12 +106,13 @@ try {
 
 require __DIR__ . '/includes/header.php';
 ?>
-<section class="admin-card">
+<section class="admin-card admin-dashboard-hero">
+  <p class="admin-dashboard-hero__eyebrow">Overview</p>
   <h1>ダッシュボード</h1>
   <p class="admin-form-note">アクセス数と直近のエラー状況を中心に確認できます。</p>
 </section>
 
-<section class="admin-card">
+<section class="admin-card admin-dashboard-section">
   <h2>アクセス概要</h2>
   <div class="admin-status-grid">
     <article class="admin-card admin-status-card"><strong>本日のPV</strong><p><?= e((string)$pvStats['today']) ?></p></article>
@@ -123,7 +124,7 @@ require __DIR__ . '/includes/header.php';
   </div>
 </section>
 
-<section class="admin-card">
+<section class="admin-card admin-dashboard-section">
   <h2>エラー概要</h2>
   <div class="admin-status-grid">
     <article class="admin-card admin-status-card"><strong>本日のエラー数</strong><p><?= e((string)$errorStats['today']) ?></p></article>
@@ -138,7 +139,7 @@ require __DIR__ . '/includes/header.php';
   <?php endif; ?>
 </section>
 
-<section class="admin-card">
+<section class="admin-card admin-dashboard-section">
   <h2>直近エラーログ</h2>
   <?php if ($failedLogs): ?>
   <table class="admin-table">
@@ -157,7 +158,7 @@ require __DIR__ . '/includes/header.php';
   <?php endif; ?>
 </section>
 
-<section class="admin-card">
+<section class="admin-card admin-dashboard-section">
   <h2>人気ページ TOP5</h2>
   <?php if ($popularPages): ?>
   <table class="admin-table">
@@ -171,7 +172,7 @@ require __DIR__ . '/includes/header.php';
   <?php endif; ?>
 </section>
 
-<section class="admin-card">
+<section class="admin-card admin-dashboard-section">
   <h2>同期対象データ件数</h2>
   <table class="admin-table">
     <tr><th>項目</th><th>件数</th></tr>
