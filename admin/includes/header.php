@@ -10,6 +10,7 @@ $menuGroups = [
     ['label' => 'ダッシュボード', 'file' => 'index.php'],
     ['label' => '設定', 'children' => [
         ['label' => 'サイト設定', 'file' => 'site_settings.php'],
+        ['label' => '個人設定', 'file' => 'personal_settings.php'],
         ['label' => '広告コード', 'file' => 'ads_code.php'],
         ['label' => 'コード設定', 'file' => 'code_settings.php'],
     ]],
