@@ -16,7 +16,7 @@ $sitePostCount = null;
 $siteActressCount = null;
 $fixedPages = [];
 $defaultFixedPages = [
-    ['slug' => 'contact', 'title' => 'お問い合わせ', 'href' => public_url('contact.php')],
+    ['slug' => 'contact', 'title' => 'お問い合わせ', 'href' => public_url('page.php?slug=contact')],
     ['slug' => 'links', 'title' => '相互リンク', 'href' => public_url('links.php')],
     ['slug' => 'link_apply', 'title' => '相互リンク申請', 'href' => public_url('link_apply.php')],
 ];

@@ -229,7 +229,7 @@ include __DIR__ . '/partials/header.php';
                     <?php foreach ($formErrors as $error) : ?>
                         <p><?php echo e((string)$error); ?></p>
                     <?php endforeach; ?>
-                    <form class="contact-form" method="post" action="<?php echo e((string)($_SERVER['REQUEST_URI'] ?? '/p/contact')); ?>">
+                    <form class="contact-form" method="post" action="<?php echo e((string)($_SERVER['REQUEST_URI'] ?? public_url('page.php?slug=contact'))); ?>">
                         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
 
                         <label for="contact-name">氏名</label>
