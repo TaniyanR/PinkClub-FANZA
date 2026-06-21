@@ -129,7 +129,7 @@ $site = (string)($settings['site'] ?? 'FANZA');
 $service = (string)($settings['service'] ?? 'digital');
 $floor = (string)($settings['floor'] ?? 'videoa');
 $itemBatch = (int)($settings['item_sync_batch'] ?? 100);
-if (!in_array($itemBatch, [1, 10, 20, 30, 50, 100, 200, 300, 500], true)) {
+if (!in_array($itemBatch, [1, 10, 20, 30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000], true)) {
     $itemBatch = 100;
 }
 
@@ -196,6 +196,9 @@ foreach (array_keys($jobs) as $jobKey) {
         $syncService = dmm_sync_service($jobKey);
         $result = $jobs[$jobKey]($syncService, $offset);
         $nextOffset = max(1, (int)($result['next_offset'] ?? ($offset + 100)));
+        if ($jobKey !== 'items' && (int)($result['count'] ?? 0) < 100) {
+            $nextOffset = 1;
+        }
         if ($nextOffset > 50000) {
             $nextOffset = 1;
         }
