@@ -590,6 +590,7 @@ if (!function_exists('pcf_render_item_card')) {
             $movieUrls = pcf_pick_sample_movie_urls_from_raw($raw);
             $sampleMovieUrl = (string)($movieUrls[0] ?? '');
         }
+        $sampleMovieUrl = '';
 
         $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode($contentId));
         $hasSampleImages = pcf_pick_sample_image_urls_from_raw($raw) !== [];
@@ -602,6 +603,7 @@ if (!function_exists('pcf_render_item_card')) {
                 }
             }
         }
+        $hasSampleImages = false;
 
         echo '<article class="pcf-dm-card">';
         echo '<a class="pcf-dm-card__image-link" href="' . e($itemUrl) . '">';
