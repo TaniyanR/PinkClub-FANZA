@@ -87,6 +87,32 @@ function parse_index_image_urls(?string $value): array
     return array_values(array_filter(array_map('trim', $parts), static fn(string $v): bool => $v !== ''));
 }
 
+
+function index_is_self_hosted_fanza_image_url(string $url): bool
+{
+    $value = trim($url);
+    if ($value === '') {
+        return false;
+    }
+
+    $path = parse_url($value, PHP_URL_PATH);
+    if (!is_string($path) || $path === '') {
+        return false;
+    }
+
+    if (!preg_match('#^/(?:uploads|images|img|cache|thumbnails|thumbs|wp-content/uploads)(?:/|$)#i', $path)) {
+        return false;
+    }
+
+    $host = parse_url($value, PHP_URL_HOST);
+    if ($host === null || $host === false || $host === '') {
+        return str_starts_with($value, '/');
+    }
+
+    $siteHost = parse_url(public_url(''), PHP_URL_HOST);
+    return is_string($siteHost) && strcasecmp($host, $siteHost) === 0;
+}
+
 function collect_movie_urls_from_value(mixed $value, array &$urls): void
 {
     if (is_string($value)) {
@@ -230,33 +256,10 @@ function item_sample_state(array $item): array
         }
     }
 
-    $movieUrls = array_values(array_unique(array_merge($movieUrls, pick_sample_movie_urls_from_raw($raw))));
-    $firstMovieUrl = $movieUrls[0] ?? '';
+    $movieUrls = [];
+    $firstMovieUrl = '';
 
     $hasImageSample = false;
-    $sampleImageUrl = $raw['sampleImageURL'] ?? null;
-    if (is_array($sampleImageUrl)) {
-        foreach (['sample_l', 'sample_s'] as $sampleKey) {
-            $images = $sampleImageUrl[$sampleKey]['image'] ?? null;
-            if (is_array($images)) {
-                foreach ($images as $image) {
-                    if (trim((string)$image) !== '') {
-                        $hasImageSample = true;
-                        break 2;
-                    }
-                }
-            }
-        }
-    }
-
-    if (!$hasImageSample) {
-        foreach (parse_index_image_urls((string)($item['image_list'] ?? '')) as $image) {
-            if (trim((string)$image) !== '') {
-                $hasImageSample = true;
-                break;
-            }
-        }
-    }
 
     return ['movie_url' => $firstMovieUrl, 'movie_urls' => $movieUrls, 'has_images' => $hasImageSample];
 }
@@ -267,14 +270,14 @@ function pick_full_package_image(array $item): string
         if ($key === 'image_list') {
             foreach (parse_index_image_urls((string)($item['image_list'] ?? '')) as $image) {
                 $candidate = trim((string)$image);
-                if ($candidate !== '') {
+                if ($candidate !== '' && !index_is_self_hosted_fanza_image_url($candidate)) {
                     return $candidate;
                 }
             }
             continue;
         }
         $candidate = trim((string)($item[$key] ?? ''));
-        if ($candidate !== '') {
+        if ($candidate !== '' && !index_is_self_hosted_fanza_image_url($candidate)) {
             return $candidate;
         }
     }
@@ -293,12 +296,18 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     $thumbUrl = trim((string)($item['image_small'] ?? ''));
     if ($preferFullPackageImage) {
         $fullPackageImage = pick_full_package_image($item);
-        if ($fullPackageImage !== '') {
+        if ($fullPackageImage !== '' && !index_is_self_hosted_fanza_image_url($fullPackageImage)) {
             $thumbUrl = $fullPackageImage;
         }
     }
+    if ($thumbUrl !== '' && index_is_self_hosted_fanza_image_url($thumbUrl)) {
+        $thumbUrl = '';
+    }
     if ($thumbUrl === '') {
         $thumbUrl = trim((string)($item['image_large'] ?? ''));
+    }
+    if ($thumbUrl !== '' && index_is_self_hosted_fanza_image_url($thumbUrl)) {
+        $thumbUrl = '';
     }
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">

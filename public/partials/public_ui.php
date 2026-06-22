@@ -67,6 +67,34 @@ if (!function_exists('pcf_looks_like_image_url')) {
     }
 }
 
+
+if (!function_exists('pcf_is_self_hosted_fanza_image_url')) {
+    function pcf_is_self_hosted_fanza_image_url(string $url): bool
+    {
+        $value = trim($url);
+        if ($value === '') {
+            return false;
+        }
+
+        $path = parse_url($value, PHP_URL_PATH);
+        if (!is_string($path) || $path === '') {
+            return false;
+        }
+
+        if (!preg_match('#^/(?:uploads|images|img|cache|thumbnails|thumbs|wp-content/uploads)(?:/|$)#i', $path)) {
+            return false;
+        }
+
+        $host = parse_url($value, PHP_URL_HOST);
+        if ($host === null || $host === false || $host === '') {
+            return str_starts_with($value, '/');
+        }
+
+        $siteHost = parse_url(public_url(''), PHP_URL_HOST);
+        return is_string($siteHost) && strcasecmp($host, $siteHost) === 0;
+    }
+}
+
 if (!function_exists('pcf_first_image_from_mixed')) {
     function pcf_first_image_from_mixed(mixed $value): string
     {
@@ -190,14 +218,14 @@ if (!function_exists('pcf_item_image')) {
 
         foreach ($candidates as $candidate) {
             $value = trim($candidate);
-            if ($value !== '') {
+            if ($value !== '' && !pcf_is_self_hosted_fanza_image_url($value)) {
                 return $value;
             }
         }
 
         foreach (pcf_parse_image_urls((string)($item['image_list'] ?? '')) as $image) {
             $value = trim((string)$image);
-            if ($value !== '') {
+            if ($value !== '' && !pcf_is_self_hosted_fanza_image_url($value)) {
                 return $value;
             }
         }
@@ -536,7 +564,7 @@ if (!function_exists('pcf_render_item_card')) {
         if ($preferFullPackageImage) {
             foreach ([(string)($item['image_large'] ?? ''), pcf_first_image_from_mixed($item['image_list'] ?? ''), (string)($item['image_small'] ?? '')] as $imageCandidate) {
                 $fullPackageImage = trim($imageCandidate);
-                if ($fullPackageImage !== '') {
+                if ($fullPackageImage !== '' && !pcf_is_self_hosted_fanza_image_url($fullPackageImage)) {
                     $imageUrl = $fullPackageImage;
                     break;
                 }
@@ -563,16 +591,9 @@ if (!function_exists('pcf_render_item_card')) {
             $sampleMovieUrl = (string)($movieUrls[0] ?? '');
         }
 
+        $sampleMovieUrl = '';
         $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode($contentId));
-        $hasSampleImages = pcf_pick_sample_image_urls_from_raw($raw) !== [];
-        if (!$hasSampleImages) {
-            foreach (pcf_parse_image_urls((string)($item['image_list'] ?? '')) as $image) {
-                if (trim((string)$image) !== '') {
-                    $hasSampleImages = true;
-                    break;
-                }
-            }
-        }
+        $hasSampleImages = false;
 
         echo '<article class="pcf-dm-card">';
         echo '<a class="pcf-dm-card__image-link" href="' . e($itemUrl) . '">';

@@ -76,10 +76,7 @@ if (is_array($decoded) && isset($decoded['sampleImageURL'])) {
         sample_images_collect_from_value($decoded['sampleImageURL'], $images);
     }
 }
-$images = array_values(array_unique($images));
-if ($images === []) {
-    $images = array_values(array_unique(sample_images_parse_list((string)($item['image_list'] ?? ''))));
-}
+$images = [];
 ?>
 <!doctype html>
 <html lang="ja">
