@@ -35,6 +35,9 @@ $saveImage = static function (array $file, string $prefix, int $minW, int $maxW,
     }
 
     if ($w < $minW || $w > $maxW || $h < $minH || $h > $maxH) {
+        if ($squareOnly) {
+            return ['ok' => false, 'message' => sprintf('画像サイズは正方形で %d〜%dpx の範囲で指定してください。', $minW, $maxW)];
+        }
         return ['ok' => false, 'message' => sprintf('画像サイズは %d-%dpx x %d-%dpx の範囲で指定してください。', $minW, $maxW, $minH, $maxH)];
     }
 
