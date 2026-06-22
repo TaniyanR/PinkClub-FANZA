@@ -131,9 +131,11 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
 <?php if ($canRenderAd && (!function_exists('should_show_ad') || should_show_ad('sp_header_below', $pageType, 'sp'))): ?>
 <div class="only-sp site-ad"><?php render_ad('sp_header_below', $pageType, 'sp'); ?></div>
 <?php endif; ?>
+<?php if (site_setting_get('link.rss_display.sp_header_below', '1') === '1'): ?>
 <div class="site-main__rss only-sp">
   <?php render_shared_mobile_rss_widget(); ?>
 </div>
+<?php endif; ?>
 <div class="layout site-layout">
   <?php require __DIR__ . '/sidebar.php'; ?>
   <main class="content site-main site-main--legacy">
