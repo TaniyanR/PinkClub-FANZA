@@ -128,7 +128,7 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
 
   <?php require __DIR__ . '/nav_search.php'; ?>
 </header>
-<?php if ($canRenderAd): ?>
+<?php if ($canRenderAd && (!function_exists('should_show_ad') || should_show_ad('sp_header_below', $pageType, 'sp'))): ?>
 <div class="only-sp site-ad"><?php render_ad('sp_header_below', $pageType, 'sp'); ?></div>
 <?php endif; ?>
 <div class="site-main__rss only-sp">
