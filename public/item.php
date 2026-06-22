@@ -386,6 +386,9 @@ $sampleImages = array_values(array_unique($sampleImages));
 $sampleImagesSmall = array_values(array_unique($sampleImagesSmall));
 $sampleImages = array_values(array_filter(array_slice($sampleImages, 0, 24), static fn($url) => !pcf_is_self_hosted_fanza_image_url((string)$url)));
 $sampleImagesSmall = array_values(array_filter(array_slice($sampleImagesSmall, 0, 24), static fn($url) => !pcf_is_self_hosted_fanza_image_url((string)$url)));
+$sampleMovieUrl = '';
+$sampleImages = [];
+$sampleImagesSmall = [];
 $sampleImagesSmallLargeMap = [];
 $sampleImageCount = max(count($sampleImages), count($sampleImagesSmall));
 for ($i = 0; $i < $sampleImageCount; $i++) {

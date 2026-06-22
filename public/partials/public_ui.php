@@ -590,6 +590,7 @@ if (!function_exists('pcf_render_item_card')) {
             $movieUrls = pcf_pick_sample_movie_urls_from_raw($raw);
             $sampleMovieUrl = (string)($movieUrls[0] ?? '');
         }
+        $sampleMovieUrl = '';
 
         $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode($contentId));
         $hasSampleImages = pcf_pick_sample_image_urls_from_raw($raw) !== [];
@@ -602,6 +603,8 @@ if (!function_exists('pcf_render_item_card')) {
                 }
             }
         }
+        $hasSampleImages = false;
+        $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
 
         echo '<article class="pcf-dm-card">';
         echo '<a class="pcf-dm-card__image-link" href="' . e($itemUrl) . '">';
@@ -616,13 +619,13 @@ if (!function_exists('pcf_render_item_card')) {
         $releaseDateRaw = trim((string)($item['release_date'] ?? ''));
         $releaseDateLabel = $releaseDateRaw !== '' ? '商品発売日：' . e(format_date($releaseDateRaw)) : '商品発売日';
         echo '<span style="display:block;width:100%;padding:12px 10px;text-align:center;color:#000;background:transparent;border:1px solid #000;border-radius:4px;font-size:14px;font-weight:700;box-sizing:border-box;">' . $releaseDateLabel . '</span>';
-        if ($sampleMovieUrl !== '') {
-            echo '<button type="button" class="pcf-dm-card__button sample-movie-trigger" data-movie-url="' . e($sampleMovieUrl) . '" data-movie-title="' . e($title) . '">サンプル動画</button>';
+        if ($affiliateUrl !== '') {
+            echo '<a class="pcf-dm-card__button" href="' . e($affiliateUrl) . '" target="_blank" rel="noopener noreferrer">サンプル動画</a>';
         } else {
             echo '<span class="pcf-dm-card__button is-disabled">サンプル動画</span>';
         }
-        if ($hasSampleImages && $contentId !== '') {
-            echo '<button type="button" class="pcf-dm-card__button" onclick="window.open(\'' . e($sampleImagesUrl) . '\',\'_blank\',\'noopener,noreferrer,width=760,height=540\');">サンプル画像</button>';
+        if ($affiliateUrl !== '') {
+            echo '<a class="pcf-dm-card__button" href="' . e($affiliateUrl) . '" target="_blank" rel="noopener noreferrer">サンプル画像</a>';
         } else {
             echo '<span class="pcf-dm-card__button is-disabled">サンプル画像</span>';
         }

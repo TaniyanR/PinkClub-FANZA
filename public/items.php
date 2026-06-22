@@ -247,6 +247,8 @@ function fetch_items_with_order_fallback(PDO $pdo, array $orderByCandidates, int
 
 function item_sample_state(array $item): array
 {
+    return ['movie_url' => '', 'movie_urls' => [], 'has_images' => false];
+
     $raw = decode_item_raw($item);
     $movieUrls = [];
     foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $column) {
@@ -318,6 +320,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     $movieClass = $sample['movie_url'] !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $imageClass = $sample['has_images'] ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')));
+    $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
     $thumbUrl = trim((string)($item['image_small'] ?? ''));
     if ($preferFullPackageImage) {
         $fullPackageImage = pick_full_package_image($item);
@@ -345,8 +348,8 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
       <div class="sample-buttons">
         <?php $releaseDateRaw = trim((string)($item['release_date'] ?? '')); ?>
         <span style="display:block;width:100%;padding:12px 10px;text-align:center;color:#000;background:transparent;border:1px solid #000;border-radius:4px;font-size:14px;font-weight:700;box-sizing:border-box;"><?= $releaseDateRaw !== '' ? '商品発売日：' . e(format_date($releaseDateRaw)) : '商品発売日' ?></span>
-        <button type="button" class="<?= e($movieClass) ?> sample-movie-trigger" <?= $sample['movie_url'] === '' ? 'disabled' : '' ?> data-movie-url="<?= e((string)$sample['movie_url']) ?>" data-movie-title="<?= e($title) ?>">サンプル動画</button>
-        <button type="button" class="<?= e($imageClass) ?>" <?= !$sample['has_images'] ? 'disabled' : '' ?> onclick="<?= $sample['has_images'] ? "window.open('" . e($sampleImagesUrl) . "','_blank','noopener,noreferrer,width=760,height=540');" : 'return false;' ?>">サンプル画像</button>
+        <?php if ($affiliateUrl !== ''): ?><a class="sample-button sample-button--enabled" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">サンプル動画</a><?php else: ?><button type="button" class="<?= e($movieClass) ?>" disabled>サンプル動画</button><?php endif; ?>
+        <?php if ($affiliateUrl !== ''): ?><a class="sample-button sample-button--enabled" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">サンプル画像</a><?php else: ?><button type="button" class="<?= e($imageClass) ?>" disabled>サンプル画像</button><?php endif; ?>
       </div>
     </article>
     <?php
