@@ -69,7 +69,7 @@ $copyrightYears = $copyrightStartYear >= $currentYear
   </main>
 </div>
 <button type="button" class="page-top-button" aria-label="トップに戻る">↑ トップへ</button>
-<?php if (function_exists('render_ad')): ?>
+<?php if (function_exists('render_ad') && (!function_exists('should_show_ad') || should_show_ad('sp_footer_above', $pageType, 'sp'))): ?>
 <div class="only-sp site-ad site-ad--sp-footer-above"><?php render_ad('sp_footer_above', $pageType, 'sp'); ?></div>
 <?php endif; ?>
 <div class="site-main__rss only-sp">
