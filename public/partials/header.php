@@ -47,15 +47,11 @@ $titleText = (string)($title ?? $pageTitle ?? $siteName);
 $titleBaseText = trim($titleText);
 $isHomeTitle = $titleBaseText === '' || $titleBaseText === 'トップ' || $titleBaseText === $siteName;
 $titleText = $isHomeTitle ? ($tagline !== '' ? $siteName . ' - ' . $tagline : $siteName) : $titleBaseText . ' | ' . $siteName;
-$siteAssetUrl = static function (string $path): string {
-    $normalized = ltrim($path, '/');
-    if (str_starts_with($normalized, 'uploads/')) {
-        return public_url($normalized);
-    }
-
-    return asset_url($normalized);
-};
-$faviconUrl = $faviconPath !== '' ? $siteAssetUrl($faviconPath) : '';
+$faviconUrl = '';
+if ($faviconPath !== '') {
+    $faviconNormalizedPath = ltrim($faviconPath, '/');
+    $faviconUrl = str_starts_with($faviconNormalizedPath, 'uploads/') ? public_url($faviconNormalizedPath) : asset_url($faviconNormalizedPath);
+}
 $faviconExt = strtolower((string)pathinfo(parse_url($faviconPath, PHP_URL_PATH) ?: $faviconPath, PATHINFO_EXTENSION));
 $faviconType = $faviconExt === 'png' ? 'image/png' : 'image/x-icon';
 $canRenderAd = function_exists('render_ad');
@@ -68,7 +64,7 @@ $ogUrl = isset($ogUrl) && is_string($ogUrl) && $ogUrl !== '' ? $ogUrl : ($canoni
 $ogType = isset($ogType) && is_string($ogType) && $ogType !== '' ? $ogType : 'website';
 $ogImage = isset($ogImage) && is_string($ogImage) ? trim($ogImage) : '';
 if ($ogImage === '' && $logoPath !== '') {
-    $ogImage = $siteAssetUrl($logoPath);
+    $ogImage = asset_url($logoPath);
 }
 if ($ogImage !== '' && !str_starts_with($ogImage, 'http://') && !str_starts_with($ogImage, 'https://')) {
     $ogImage = asset_url($ogImage);
@@ -106,7 +102,11 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
   <?php if ($faviconUrl !== ''): ?>
     <link rel="icon" href="<?= e($faviconUrl) ?>" sizes="any" type="<?= e($faviconType) ?>">
     <link rel="shortcut icon" href="<?= e($faviconUrl) ?>" type="<?= e($faviconType) ?>">
-    <link rel="apple-touch-icon" href="<?= e($faviconUrl) ?>">
+    <link rel="apple-touch-icon" sizes="180x180" href="<?= e($faviconUrl) ?>">
+    <link rel="apple-touch-icon-precomposed" href="<?= e($faviconUrl) ?>">
+    <meta name="msapplication-TileImage" content="<?= e($faviconUrl) ?>">
+    <meta name="msapplication-TileColor" content="#000000">
+    <meta name="theme-color" content="#000000">
   <?php endif; ?>
   <link rel="stylesheet" href="<?= e(asset_url('css/style.css')) ?>">
   <link rel="stylesheet" href="<?= e(asset_url('css/public-ui.css')) ?>">
@@ -120,7 +120,7 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
     <div class="header-left site-header__left">
       <?php if ($logoPath !== ''): ?>
         <div class="site-logo-wrap">
-          <a href="<?= e(public_url('')) ?>" class="site-title-link"><img src="<?= e($siteAssetUrl($logoPath)) ?>" alt="<?= e($siteName) ?>" class="site-logo"></a>
+          <a href="<?= e(public_url('')) ?>" class="site-title-link"><img src="<?= e(asset_url($logoPath)) ?>" alt="<?= e($siteName) ?>" class="site-logo"></a>
         </div>
       <?php else: ?>
         <div class="site-title"><a href="<?= e(public_url('')) ?>" class="site-title-link"><?= e($siteName) ?></a></div>
