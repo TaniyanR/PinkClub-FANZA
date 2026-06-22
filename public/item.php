@@ -384,8 +384,8 @@ if (is_array($sampleImageUrl)) {
 }
 $sampleImages = array_values(array_unique($sampleImages));
 $sampleImagesSmall = array_values(array_unique($sampleImagesSmall));
-$sampleImages = array_slice($sampleImages, 0, 24);
-$sampleImagesSmall = array_slice($sampleImagesSmall, 0, 24);
+$sampleImages = array_values(array_filter(array_slice($sampleImages, 0, 24), static fn($url) => !pcf_is_self_hosted_fanza_image_url((string)$url)));
+$sampleImagesSmall = array_values(array_filter(array_slice($sampleImagesSmall, 0, 24), static fn($url) => !pcf_is_self_hosted_fanza_image_url((string)$url)));
 $sampleImagesSmallLargeMap = [];
 $sampleImageCount = max(count($sampleImages), count($sampleImagesSmall));
 for ($i = 0; $i < $sampleImageCount; $i++) {
@@ -587,7 +587,7 @@ if ($productIdDisplay === '') {
     $productIdDisplay = trim((string)($raw['product_id'] ?? ''));
 }
 $packageImage = pcf_item_image(is_array($item) ? $item : []);
-if (str_starts_with($packageImage, 'data:image/svg+xml')) {
+if (str_starts_with($packageImage, 'data:image/svg+xml') || pcf_is_self_hosted_fanza_image_url($packageImage)) {
     $packageImage = '';
 }
 
