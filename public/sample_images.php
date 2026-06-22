@@ -25,12 +25,38 @@ function sample_images_parse_list(?string $value): array
     return array_values(array_filter(array_map('trim', $parts), static fn(string $v): bool => $v !== ''));
 }
 
+
+function sample_images_is_self_hosted_fanza_image_url(string $url): bool
+{
+    $value = trim($url);
+    if ($value === '') {
+        return false;
+    }
+
+    $path = parse_url($value, PHP_URL_PATH);
+    if (!is_string($path) || $path === '') {
+        return false;
+    }
+
+    if (!preg_match('#^/(?:uploads|images|img|cache|thumbnails|thumbs|wp-content/uploads)(?:/|$)#i', $path)) {
+        return false;
+    }
+
+    $host = parse_url($value, PHP_URL_HOST);
+    if ($host === null || $host === false || $host === '') {
+        return str_starts_with($value, '/');
+    }
+
+    $siteHost = parse_url(public_url(''), PHP_URL_HOST);
+    return is_string($siteHost) && strcasecmp($host, $siteHost) === 0;
+}
+
 function sample_images_collect_from_value(mixed $value, array &$images): void
 {
     if (is_string($value)) {
         foreach (sample_images_parse_list($value) as $candidate) {
             $url = trim((string)$candidate);
-            if ($url !== '') {
+            if ($url !== '' && !sample_images_is_self_hosted_fanza_image_url($url)) {
                 $images[] = $url;
             }
         }
@@ -78,7 +104,7 @@ if (is_array($decoded) && isset($decoded['sampleImageURL'])) {
 }
 $images = array_values(array_unique($images));
 if ($images === []) {
-    $images = array_values(array_unique(sample_images_parse_list((string)($item['image_list'] ?? ''))));
+    $images = array_values(array_unique(array_filter(sample_images_parse_list((string)($item['image_list'] ?? '')), static fn($url) => !sample_images_is_self_hosted_fanza_image_url((string)$url))));
 }
 ?>
 <!doctype html>
