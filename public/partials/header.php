@@ -47,7 +47,13 @@ $titleText = (string)($title ?? $pageTitle ?? $siteName);
 $titleBaseText = trim($titleText);
 $isHomeTitle = $titleBaseText === '' || $titleBaseText === 'トップ' || $titleBaseText === $siteName;
 $titleText = $isHomeTitle ? ($tagline !== '' ? $siteName . ' - ' . $tagline : $siteName) : $titleBaseText . ' | ' . $siteName;
-$faviconUrl = $faviconPath !== '' ? asset_url($faviconPath) : '';
+$faviconUrl = '';
+if ($faviconPath !== '') {
+    $faviconNormalizedPath = ltrim($faviconPath, '/');
+    $faviconUrl = str_starts_with($faviconNormalizedPath, 'uploads/') ? app_url('public/' . $faviconNormalizedPath) : asset_url($faviconNormalizedPath);
+}
+$faviconExt = strtolower((string)pathinfo(parse_url($faviconPath, PHP_URL_PATH) ?: $faviconPath, PATHINFO_EXTENSION));
+$faviconType = $faviconExt === 'png' ? 'image/png' : 'image/x-icon';
 $canRenderAd = function_exists('render_ad');
 $descriptionText = (string)($pageDescription ?? '');
 if ($descriptionText === '') {
@@ -94,9 +100,13 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
 <?= $customHeadCode ?>
   <?php endif; ?>
   <?php if ($faviconUrl !== ''): ?>
-    <link rel="icon" href="<?= e($faviconUrl) ?>" sizes="any" type="image/x-icon">
-    <link rel="icon" href="<?= e($faviconUrl) ?>" type="image/png" sizes="48x48">
-    <link rel="apple-touch-icon" href="<?= e($faviconUrl) ?>">
+    <link rel="icon" href="<?= e($faviconUrl) ?>" sizes="any" type="<?= e($faviconType) ?>">
+    <link rel="shortcut icon" href="<?= e($faviconUrl) ?>" type="<?= e($faviconType) ?>">
+    <link rel="apple-touch-icon" sizes="180x180" href="<?= e($faviconUrl) ?>">
+    <link rel="apple-touch-icon-precomposed" href="<?= e($faviconUrl) ?>">
+    <meta name="msapplication-TileImage" content="<?= e($faviconUrl) ?>">
+    <meta name="msapplication-TileColor" content="#000000">
+    <meta name="theme-color" content="#000000">
   <?php endif; ?>
   <link rel="stylesheet" href="<?= e(asset_url('css/style.css')) ?>">
   <link rel="stylesheet" href="<?= e(asset_url('css/public-ui.css')) ?>">
