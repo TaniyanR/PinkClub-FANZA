@@ -112,9 +112,11 @@ if ($fixedPages === []) {
     </section>
     <?php endif; ?>
 
+    <?php if (site_setting_get('link.rss_display.pc_image', '1') === '1'): ?>
     <section class="sidebar-block">
         <?php include __DIR__ . '/rss_image_widget.php'; ?>
     </section>
+    <?php endif; ?>
 
     <section class="sidebar-block sidebar-block--text-rss">
         <?php

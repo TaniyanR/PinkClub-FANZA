@@ -16,6 +16,7 @@ $menuGroups = [
     ]],
     ['label' => 'リンク設定', 'children' => [
         ['label' => '相互リンク管理', 'file' => 'links.php'],
+        ['label' => '相互リンク表示設定', 'file' => 'link_rss_display.php'],
     ]],
     ['label' => 'API設定', 'children' => [
         ['label' => '商品情報API設定', 'file' => 'api_items.php'],
