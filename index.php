@@ -142,7 +142,7 @@ function actress_index_image(array $actress): string
 {
     foreach (['image_small', 'image_large', 'image_url'] as $key) {
         $candidate = normalize_index_image_url((string)($actress[$key] ?? ''));
-        if ($candidate !== '') {
+        if ($candidate !== '' && !index_is_self_hosted_fanza_image_url($candidate)) {
             return $candidate;
         }
     }
@@ -170,6 +170,31 @@ function parse_index_image_urls(?string $value): array
     }
 
     return array_values(array_filter(array_map('trim', $parts), static fn(string $v): bool => $v !== ''));
+}
+
+function index_is_self_hosted_fanza_image_url(string $url): bool
+{
+    $value = trim($url);
+    if ($value === '') {
+        return false;
+    }
+
+    $path = parse_url($value, PHP_URL_PATH);
+    if (!is_string($path) || $path === '') {
+        return false;
+    }
+
+    if (!preg_match('#^/(?:uploads|images|img|cache|thumbnails|thumbs|wp-content/uploads)(?:/|$)#i', $path)) {
+        return false;
+    }
+
+    $host = parse_url($value, PHP_URL_HOST);
+    if ($host === null || $host === false || $host === '') {
+        return str_starts_with($value, '/');
+    }
+
+    $siteHost = parse_url(public_url(''), PHP_URL_HOST);
+    return is_string($siteHost) && strcasecmp($host, $siteHost) === 0;
 }
 
 function collect_movie_urls_from_value(mixed $value, array &$urls): void
@@ -257,6 +282,8 @@ function fetch_items_with_order_fallback(PDO $pdo, array $orderByCandidates, int
 
 function item_sample_state(array $item): array
 {
+    return ['movie_url' => '', 'movie_urls' => [], 'has_images' => false];
+
     $raw = decode_item_raw($item);
     $movieUrls = [];
     foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476'] as $column) {
@@ -303,14 +330,14 @@ function pick_full_package_image(array $item): string
         if ($key === 'image_list') {
             foreach (parse_index_image_urls((string)($item['image_list'] ?? '')) as $image) {
                 $candidate = trim((string)$image);
-                if ($candidate !== '') {
+                if ($candidate !== '' && !index_is_self_hosted_fanza_image_url($candidate)) {
                     return $candidate;
                 }
             }
             continue;
         }
         $candidate = trim((string)($item[$key] ?? ''));
-        if ($candidate !== '') {
+        if ($candidate !== '' && !index_is_self_hosted_fanza_image_url($candidate)) {
             return $candidate;
         }
     }
@@ -326,15 +353,22 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     $movieClass = $sample['movie_url'] !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $imageClass = $sample['has_images'] ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')));
+    $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
     $thumbUrl = trim((string)($item['image_small'] ?? ''));
     if ($preferFullPackageImage) {
         $fullPackageImage = pick_full_package_image($item);
-        if ($fullPackageImage !== '') {
+        if ($fullPackageImage !== '' && !index_is_self_hosted_fanza_image_url($fullPackageImage)) {
             $thumbUrl = $fullPackageImage;
         }
     }
+    if ($thumbUrl !== '' && index_is_self_hosted_fanza_image_url($thumbUrl)) {
+        $thumbUrl = '';
+    }
     if ($thumbUrl === '') {
         $thumbUrl = trim((string)($item['image_large'] ?? ''));
+    }
+    if ($thumbUrl !== '' && index_is_self_hosted_fanza_image_url($thumbUrl)) {
+        $thumbUrl = '';
     }
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
@@ -347,7 +381,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
       <div class="sample-buttons">
         <?php $releaseDateRaw = trim((string)($item['release_date'] ?? '')); ?>
         <span style="display:block;width:100%;padding:12px 10px;text-align:center;color:#000;background:transparent;border:1px solid #000;border-radius:4px;font-size:14px;font-weight:700;box-sizing:border-box;"><?= $releaseDateRaw !== '' ? '商品発売日：' . e(format_date($releaseDateRaw)) : '商品発売日' ?></span>
-        <button type="button" class="<?= e($movieClass) ?> sample-movie-trigger" <?= $sample['movie_url'] === '' ? 'disabled' : '' ?> data-movie-url="<?= e((string)$sample['movie_url']) ?>" data-movie-title="<?= e($title) ?>">サンプル動画</button>
+        <?php if ($affiliateUrl !== ''): ?><a class="sample-button sample-button--enabled" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">FANZAで見る</a><?php else: ?><button type="button" class="<?= e($movieClass) ?>" disabled>FANZAで見る</button><?php endif; ?>
         <button type="button" class="<?= e($imageClass) ?>" <?= !$sample['has_images'] ? 'disabled' : '' ?> onclick="<?= $sample['has_images'] ? "window.open('" . e($sampleImagesUrl) . "','_blank','noopener,noreferrer,width=760,height=540');" : 'return false;' ?>">サンプル画像</button>
       </div>
     </article>
