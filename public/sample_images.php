@@ -102,9 +102,9 @@ if (is_array($decoded) && isset($decoded['sampleImageURL'])) {
         sample_images_collect_from_value($decoded['sampleImageURL'], $images);
     }
 }
-$images = array_values(array_unique($images));
+$images = [];
 if ($images === []) {
-    $images = array_values(array_unique(array_filter(sample_images_parse_list((string)($item['image_list'] ?? '')), static fn($url) => !sample_images_is_self_hosted_fanza_image_url((string)$url))));
+    $images = [];
 }
 ?>
 <!doctype html>
