@@ -112,10 +112,13 @@ if ($fixedPages === []) {
     </section>
     <?php endif; ?>
 
+    <?php if (site_setting_get('link.rss_display.pc_image', '1') === '1'): ?>
     <section class="sidebar-block">
         <?php include __DIR__ . '/rss_image_widget.php'; ?>
     </section>
+    <?php endif; ?>
 
+    <?php if (site_setting_get('link.rss_display.pc_text_sidebar', '1') === '1'): ?>
     <section class="sidebar-block sidebar-block--text-rss">
         <?php
         $prevTextRssUsedKeys = $GLOBALS['pcf_rss_widget_used_keys'] ?? null;
@@ -143,6 +146,7 @@ if ($fixedPages === []) {
         }
         ?>
     </section>
+    <?php endif; ?>
 
     <?php if ($canRenderAd && (!function_exists('should_show_ad') || should_show_ad('content_bottom', $pageType, 'pc'))): ?>
     <section class="sidebar-block sidebar-block--ad2 only-pc">
