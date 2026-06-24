@@ -13,7 +13,7 @@ if (!is_dir($uploadDir)) {
     @mkdir($uploadDir, 0755, true);
 }
 
-$saveImage = static function (array $file, string $prefix, int $minW, int $maxW, int $minH, int $maxH, bool $squareOnly, array $allowedMimes): array {
+$saveImage = static function (array $file, string $prefix, int $minW, int $maxW, int $minH, int $maxH, bool $squareOnly, array $allowedMimes) use ($uploadDir): array {
     if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
         return ['ok' => false, 'message' => 'アップロードに失敗しました。'];
     }
@@ -45,9 +45,23 @@ $saveImage = static function (array $file, string $prefix, int $minW, int $maxW,
         return ['ok' => false, 'message' => 'ファビコンは正方形のみ対応です。'];
     }
 
-    $ext = $mime === 'image/png' ? 'png' : 'ico';
-    $name = sprintf('%s_%s.%s', $prefix, date('YmdHis'), $ext);
-    $dest = __DIR__ . '/../public/uploads/site_settings/' . $name;
+    if (!is_dir($uploadDir) || !is_writable($uploadDir)) {
+        return ['ok' => false, 'message' => '保存先ディレクトリを作成できませんでした。'];
+    }
+
+    $originalName = str_replace('\\', '/', (string)($file['name'] ?? ''));
+    $name = basename($originalName);
+    if ($name === '' || $name === '.' || $name === '..' || str_contains($name, "\0")) {
+        return ['ok' => false, 'message' => 'ファイル名を確認してください。'];
+    }
+
+    $ext = strtolower((string)pathinfo($name, PATHINFO_EXTENSION));
+    $allowedExts = $squareOnly ? ['png', 'ico'] : ['png', 'jpg', 'jpeg', 'webp', 'gif'];
+    if (!in_array($ext, $allowedExts, true)) {
+        return ['ok' => false, 'message' => '対応していない拡張子です。'];
+    }
+
+    $dest = $uploadDir . '/' . $name;
 
     if (!move_uploaded_file($tmp, $dest)) {
         return ['ok' => false, 'message' => '画像の保存に失敗しました。'];
