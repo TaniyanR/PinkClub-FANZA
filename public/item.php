@@ -719,7 +719,7 @@ require __DIR__ . '/partials/header.php';
     <div class="pcf-item-main__media" style="width:min(100%, 620px);">
       <?php if ($packageImage !== ''): ?>
       <a href="<?= e($packageImage) ?>" target="_blank" rel="noopener noreferrer">
-        <img class="pcf-detail__package" src="<?= e($packageImage) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>" style="display:block; width:auto; max-width:100%; height:620px;">
+        <img class="pcf-detail__package" src="<?= e($packageImage) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>" style="display:block; width:auto; max-width:100%; height:400px;">
       </a>
       <?php endif; ?>
       <?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php endif; ?>
