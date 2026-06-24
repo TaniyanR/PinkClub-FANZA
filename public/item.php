@@ -139,6 +139,29 @@ function item_pick_raw_text(array $raw, array $keys): string
     return '';
 }
 
+function item_tag_links_from_text(string $tagText): array
+{
+    $parts = preg_split('/[\s,、]+/u', trim($tagText));
+    if (!is_array($parts)) {
+        return [];
+    }
+
+    $links = [];
+    foreach ($parts as $part) {
+        $tagName = trim((string)$part);
+        if ($tagName === '') {
+            continue;
+        }
+        $tagName = ltrim($tagName, '#＃');
+        if ($tagName === '') {
+            continue;
+        }
+        $links[] = '<a href="' . e(public_url('search.php') . '?' . http_build_query(['q' => $tagName])) . '">' . e($tagName) . '</a>';
+    }
+
+    return $links;
+}
+
 function item_collect_named_values(mixed $value, array &$values): void
 {
     if (is_string($value)) {
@@ -558,6 +581,7 @@ if ($deviceText === '') {
 if ($tagText === '') {
     $tagText = '';
 }
+$tagLinks = $tagText !== '' ? item_tag_links_from_text($tagText) : [];
 $releaseDateDisplay = (string)format_date((string)($item['release_date'] ?? ''));
 if ($releaseDateDisplay === '') {
     $releaseDateDisplay = (string)format_date((string)($raw['date'] ?? ''));
@@ -715,7 +739,7 @@ require __DIR__ . '/partials/header.php';
           <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">メーカー</th><td style="padding:4px 0; border:0;"><?= $makerLinks !== [] ? implode('、', $makerLinks) : e($rawMakerName !== '' ? $rawMakerName : '―') ?></td></tr>
           <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">レーベル</th><td style="padding:4px 0; border:0;"><?= e($labelName !== '' ? $labelName : '―') ?></td></tr>
           <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">ジャンル</th><td style="padding:4px 0; border:0;"><?= $genreLinks !== [] ? implode('、', $genreLinks) : e($genreText !== '' ? $genreText : '―') ?></td></tr>
-          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">関連タグ</th><td style="padding:4px 0; border:0;"><?= e($tagText !== '' ? $tagText : '―') ?></td></tr>
+          <tr><th style="text-align:left; font-weight:700; padding:4px 8px 4px 0; white-space:nowrap; border:0;">関連タグ</th><td style="padding:4px 0; border:0;"><?= $tagLinks !== [] ? implode(' ', $tagLinks) : e($tagText !== '' ? $tagText : '―') ?></td></tr>
         </tbody>
       </table>
     </div>
