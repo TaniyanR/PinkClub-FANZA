@@ -154,6 +154,7 @@ if ($fixedPages === []) {
     </section>
     <?php endif; ?>
 
+    <?php if (site_setting_get('link.rss_display.pc_partner_links', '1') === '1'): ?>
     <section class="sidebar-block">
         <?php if ($partnerLinks === []) : ?>
             <p class="sidebar-empty">相互リンク（未設定）</p>
@@ -165,4 +166,5 @@ if ($fixedPages === []) {
             </ul>
         <?php endif; ?>
     </section>
+    <?php endif; ?>
 </aside>

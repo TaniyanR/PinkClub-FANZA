@@ -11,6 +11,7 @@ $settings = [
     'link.rss_display.pc_image' => ['name' => 'link_rss_display_pc_image', 'label' => 'PC：画像RSS'],
     'link.rss_display.pc_text_sidebar' => ['name' => 'link_rss_display_pc_text_sidebar', 'label' => 'PC：テキストRSS'],
     'link.rss_display.pc_text_bottom' => ['name' => 'link_rss_display_pc_text_bottom', 'label' => 'PC：テキストRSS(本文下)'],
+    'link.rss_display.pc_partner_links' => ['name' => 'link_rss_display_pc_partner_links', 'label' => 'PC：相互リンク'],
     'link.rss_display.sp_header_below' => ['name' => 'link_rss_display_sp_header_below', 'label' => 'スマホ：ヘッダー下'],
     'link.rss_display.sp_footer_above' => ['name' => 'link_rss_display_sp_footer_above', 'label' => 'スマホ：フッター上'],
 ];
