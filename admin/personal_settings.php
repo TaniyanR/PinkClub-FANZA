@@ -26,17 +26,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($adminId <= 0) {
         $error = '管理者情報を確認できません。';
     } else {
-        site_setting_set('site.admin_email', $email);
-
-        if ($password !== '') {
-            db()->prepare('UPDATE admins SET password_hash=:password_hash, updated_at=NOW() WHERE id=:id LIMIT 1')
-                ->execute([
-                    ':password_hash' => password_hash($password, PASSWORD_DEFAULT),
-                    ':id' => $adminId,
-                ]);
+        if ($email !== '') {
+            $stmt = db()->prepare('SELECT id FROM admins WHERE username=:username AND id<>:id LIMIT 1');
+            $stmt->execute([
+                ':username' => $email,
+                ':id' => $adminId,
+            ]);
+            if ($stmt->fetchColumn() !== false) {
+                $error = 'このメールアドレスはログインユーザー名として使用できません。';
+            }
         }
 
-        $message = '個人設定を保存しました。';
+        if ($error === null) {
+            site_setting_set('site.admin_email', $email);
+
+            if ($email !== '') {
+                db()->prepare('UPDATE admins SET username=:username, updated_at=NOW() WHERE id=:id LIMIT 1')
+                    ->execute([
+                        ':username' => $email,
+                        ':id' => $adminId,
+                    ]);
+                $_SESSION['admin']['username'] = $email;
+            }
+
+            if ($password !== '') {
+                db()->prepare('UPDATE admins SET password_hash=:password_hash, updated_at=NOW() WHERE id=:id LIMIT 1')
+                    ->execute([
+                        ':password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                        ':id' => $adminId,
+                    ]);
+            }
+
+            $message = '個人設定を保存しました。';
+        }
     }
 }
 
