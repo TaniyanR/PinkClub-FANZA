@@ -78,6 +78,7 @@ require __DIR__ . '/includes/header.php';
     <input type="hidden" name="action" value="create">
     <label>サイト名<input name="name" required></label>
     <label>URL<input name="url" type="url" required></label>
+    <label>RSS URL<input name="rss_url" type="url"></label>
     <label><input type="checkbox" name="show_link" value="1" checked> 相互リンクを表示する</label>
     <label><input type="checkbox" name="show_rss" value="1" checked> RSSを表示する</label>
     <fieldset>
