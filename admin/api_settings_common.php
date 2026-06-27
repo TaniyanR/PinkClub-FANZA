@@ -203,11 +203,15 @@ require __DIR__ . '/includes/header.php';
       <?php endforeach; ?>
     </table>
     <?php if ($totalPages > 1): ?>
-      <nav style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+      <?php
+      $pageStart = $currentPage;
+      $pageEnd = min($totalPages, $pageStart + 9);
+      ?>
+      <nav style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <?php if ($currentPage > 1): ?>
-          <a href="<?= e(admin_url(basename((string)$_SERVER['PHP_SELF']) . '?page=' . (string)($currentPage - 1))) ?>">前</a>
+          <a href="<?= e(admin_url(basename((string)$_SERVER['PHP_SELF']) . '?page=' . (string)($currentPage - 1))) ?>">&lt;&lt;前へ</a>
         <?php endif; ?>
-        <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+        <?php for ($i = $pageStart; $i <= $pageEnd; $i++): ?>
           <?php if ($i === $currentPage): ?>
             <strong><?= e((string)$i) ?></strong>
           <?php else: ?>
@@ -215,8 +219,13 @@ require __DIR__ . '/includes/header.php';
           <?php endif; ?>
         <?php endfor; ?>
         <?php if ($currentPage < $totalPages): ?>
-          <a href="<?= e(admin_url(basename((string)$_SERVER['PHP_SELF']) . '?page=' . (string)($currentPage + 1))) ?>">次</a>
+          <a href="<?= e(admin_url(basename((string)$_SERVER['PHP_SELF']) . '?page=' . (string)($currentPage + 1))) ?>">次へ&gt;&gt;</a>
         <?php endif; ?>
+        <form method="get" style="display:flex;gap:4px;align-items:center;margin:0 0 0 auto;">
+          <input type="number" name="page" value="<?= e((string)$currentPage) ?>" min="1" max="<?= e((string)$totalPages) ?>" style="width:70px;">
+          <span>/ <?= e((string)$totalPages) ?></span>
+          <button type="submit" class="button-secondary">移動</button>
+        </form>
       </nav>
     <?php endif; ?>
   <?php endif; ?>
