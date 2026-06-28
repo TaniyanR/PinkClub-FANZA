@@ -9,7 +9,16 @@ require_once __DIR__ . '/partials/public_ui.php';
 $rows = [];
 $displayRows = [];
 try {
-    $rows = fetch_series(500, 0, 'name');
+    for ($seriesOffset = 0; ; $seriesOffset += 200) {
+        $seriesPageRows = fetch_series(200, $seriesOffset, 'name');
+        if ($seriesPageRows === []) {
+            break;
+        }
+        $rows = array_merge($rows, $seriesPageRows);
+        if (count($seriesPageRows) < 200) {
+            break;
+        }
+    }
 } catch (Throwable) {
     $rows = [];
 }
