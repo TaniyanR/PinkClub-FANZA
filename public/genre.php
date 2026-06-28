@@ -135,9 +135,15 @@ try {
         throw new RuntimeException('analytics tables are not available');
     }
 
-    $rankingStmt = db()->prepare("SELECT g.id, g.dmm_id, g.name, COUNT(se.id) AS access_count FROM site_events se INNER JOIN genres g ON se.path = CONCAT('/genre.php?id=', g.id) WHERE se.event_type = 'pv' AND se.created_at >= :period_from GROUP BY g.id, g.dmm_id, g.name ORDER BY access_count DESC, g.id DESC LIMIT 200");
-    $rankingStmt->execute([':period_from' => $periodFrom]);
-    $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+    try {
+        $rankingStmt = db()->prepare("SELECT g.id, g.dmm_id, g.name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_genres ig ON i.content_id = ig.content_id INNER JOIN genres g ON g.id = ig.genre_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY g.id, g.dmm_id, g.name ORDER BY access_count DESC, g.id DESC LIMIT 200");
+        $rankingStmt->execute([':period_from' => $periodFrom]);
+        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        $rankingStmt = db()->prepare("SELECT g.id, g.dmm_id, g.name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_genres ig ON i.id = ig.item_id INNER JOIN genres g ON g.dmm_id = ig.dmm_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY g.id, g.dmm_id, g.name ORDER BY access_count DESC, g.id DESC LIMIT 200");
+        $rankingStmt->execute([':period_from' => $periodFrom]);
+        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+    }
 } catch (Throwable) {
     $accessRankingRows = [];
 }
@@ -172,7 +178,7 @@ require __DIR__ . '/partials/header.php';
 <?php endif; ?>
 
 <section id="access-ranking" class="block" style="margin-top:24px;">
-  <h2 class="section-title">ジャンルアクセスランキング</h2>
+  <h2 class="section-title">ジャンルクリックランキング</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php
@@ -190,7 +196,7 @@ require __DIR__ . '/partials/header.php';
           <tr>
             <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
             <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">ジャンル名</th>
-            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">アクセス数</th>
+            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">クリック数</th>
           </tr>
         </thead>
         <tbody>
@@ -210,7 +216,7 @@ require __DIR__ . '/partials/header.php';
       </table>
     </div>
   <?php else: ?>
-    <?php pcf_render_empty('ジャンルアクセスランキングのデータがありません。'); ?>
+    <?php pcf_render_empty('ジャンルクリックランキングのデータがありません。'); ?>
   <?php endif; ?>
 </section>
 
