@@ -15,7 +15,7 @@ function pcf_genre_count_items(int $genreId): int
             'SELECT COUNT(DISTINCT items.id)
              FROM items
              INNER JOIN item_genres ON items.content_id = item_genres.content_id
-             WHERE item_genres.genre_id = :id'
+             WHERE item_genres.genre_id = :id AND ' . items_front_release_where('items') . ''
         );
         $stmt->execute([':id' => $genreId]);
         $count = (int)$stmt->fetchColumn();
@@ -31,7 +31,7 @@ function pcf_genre_count_items(int $genreId): int
              FROM items
              INNER JOIN genres      ON genres.id          = :id
              INNER JOIN item_genres ON item_genres.dmm_id = genres.dmm_id
-             WHERE items.id = item_genres.item_id'
+             WHERE items.id = item_genres.item_id AND ' . items_front_release_where('items') . ''
         );
         $stmt->execute([':id' => $genreId]);
         return (int)$stmt->fetchColumn();

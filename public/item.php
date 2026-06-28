@@ -257,7 +257,7 @@ if ($contentId === '' && $cid !== '') {
 $item = false;
 try {
     if ($id > 0) {
-        $stmt = db()->prepare('SELECT * FROM items WHERE id = ?');
+        $stmt = db()->prepare('SELECT * FROM items WHERE id = ? AND ' . items_front_release_where());
         $stmt->execute([$id]);
         $item = $stmt->fetch();
         if (is_array($item)) {
