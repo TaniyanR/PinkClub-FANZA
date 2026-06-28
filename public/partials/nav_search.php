@@ -13,8 +13,8 @@ $navItems = [
     ['href' => public_url('actresses.php'), 'label' => '女優一覧'],
     ['href' => public_url('genres.php'), 'label' => 'ジャンル一覧'],
     ['href' => public_url('makers.php'), 'label' => 'メーカー一覧'],
-    ['href' => public_url('series_list.php'), 'label' => 'シリーズ一覧'],
     ['href' => public_url('labels.php'), 'label' => 'レーベル一覧'],
+    ['href' => public_url('series_list.php'), 'label' => 'シリーズ一覧'],
 ];
 $mobileMainItems = $navItems;
 $mobileInfoItems = [
