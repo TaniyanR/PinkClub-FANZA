@@ -566,7 +566,10 @@ function fetch_items_by_label_name(string $labelName, int $limit, int $offset = 
             $stmt->bindValue(':limit',      $limit,     PDO::PARAM_INT);
             $stmt->bindValue(':offset',     $offset,    PDO::PARAM_INT);
             $stmt->execute();
-            return $stmt->fetchAll() ?: [];
+            $rows = $stmt->fetchAll() ?: [];
+            if ($rows !== []) {
+                return $rows;
+            }
         } catch (Throwable) {
         }
     }
