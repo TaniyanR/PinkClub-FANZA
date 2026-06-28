@@ -89,9 +89,15 @@ try {
         throw new RuntimeException('analytics tables are not available');
     }
 
-    $rankingStmt = db()->prepare("SELECT m.id, m.dmm_id, m.name, COUNT(se.id) AS access_count FROM site_events se INNER JOIN makers m ON se.path = CONCAT('/maker.php?id=', m.id) WHERE se.event_type = 'pv' AND se.created_at >= :period_from GROUP BY m.id, m.dmm_id, m.name ORDER BY access_count DESC, m.id DESC LIMIT 200");
-    $rankingStmt->execute([':period_from' => $periodFrom]);
-    $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+    try {
+        $rankingStmt = db()->prepare("SELECT m.id, m.dmm_id, m.name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_makers im ON i.content_id = im.content_id INNER JOIN makers m ON m.id = im.maker_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY m.id, m.dmm_id, m.name ORDER BY access_count DESC, m.id DESC LIMIT 200");
+        $rankingStmt->execute([':period_from' => $periodFrom]);
+        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        $rankingStmt = db()->prepare("SELECT m.id, m.dmm_id, m.name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_makers im ON i.id = im.item_id INNER JOIN makers m ON m.dmm_id = im.dmm_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY m.id, m.dmm_id, m.name ORDER BY access_count DESC, m.id DESC LIMIT 200");
+        $rankingStmt->execute([':period_from' => $periodFrom]);
+        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+    }
 } catch (Throwable) {
     $accessRankingRows = [];
 }
@@ -137,7 +143,7 @@ require __DIR__ . '/partials/header.php';
 <?php endif; ?>
 
 <section id="access-ranking" class="block" style="margin-top:24px;">
-  <h2 class="section-title">メーカーアクセスランキング</h2>
+  <h2 class="section-title">メーカークリックランキング</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php $tabUrl = public_url('maker.php') . '?id=' . rawurlencode((string)$id) . '&rank_period=' . rawurlencode((string)$tabKey) . '#access-ranking'; ?>
@@ -152,7 +158,7 @@ require __DIR__ . '/partials/header.php';
           <tr>
             <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
             <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">メーカー名</th>
-            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">アクセス数</th>
+            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">クリック数</th>
           </tr>
         </thead>
         <tbody>
@@ -172,7 +178,7 @@ require __DIR__ . '/partials/header.php';
       </table>
     </div>
   <?php else: ?>
-    <?php pcf_render_empty('メーカーアクセスランキングのデータがありません。'); ?>
+    <?php pcf_render_empty('メーカークリックランキングのデータがありません。'); ?>
   <?php endif; ?>
 </section>
 
