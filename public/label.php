@@ -34,7 +34,10 @@ function pcf_fetch_label_access_ranking(string $periodFrom): array
             try {
                 $stmt = db()->prepare($sql);
                 $stmt->execute([':period_from' => $periodFrom]);
-                return $stmt->fetchAll() ?: [];
+                $rows = $stmt->fetchAll() ?: [];
+                if ($rows !== []) {
+                    return $rows;
+                }
             } catch (Throwable) {
             }
         }
@@ -61,7 +64,7 @@ if ($labelName === '') {
     exit('not found');
 }
 
-$rows = dedupe_items_by_key(fetch_items_by_label_name($labelName, $limit + 1, $offset));
+$rows = dedupe_items_by_key(fetch_items_by_label_name($labelName, $limit + 1, $offset, (string)($label['id'] ?? $id)));
 [$list, $hasNext] = paginate_items($rows, $limit);
 
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
@@ -113,7 +116,7 @@ require __DIR__ . '/partials/header.php';
 <?php endif; ?>
 
 <section id="access-ranking" class="block" style="margin-top:24px;">
-  <h2 class="section-title">レーベルクリックランキング</h2>
+  <h2 class="section-title">レーベルアクセスランキング</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php $tabUrl = public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? $id), 'name' => $labelName, 'rank_period' => (string)$tabKey]) . '#access-ranking'; ?>
@@ -128,7 +131,7 @@ require __DIR__ . '/partials/header.php';
           <tr>
             <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
             <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">レーベル名</th>
-            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">クリック数</th>
+            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">アクセス数</th>
           </tr>
         </thead>
         <tbody>
@@ -144,7 +147,7 @@ require __DIR__ . '/partials/header.php';
       </table>
     </div>
   <?php else: ?>
-    <?php pcf_render_empty('レーベルクリックランキングのデータがありません。'); ?>
+    <?php pcf_render_empty('レーベルアクセスランキングのデータがありません。'); ?>
   <?php endif; ?>
 </section>
 

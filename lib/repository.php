@@ -534,10 +534,11 @@ function fetch_label(string $labelId, string $labelName = ''): ?array
     return null;
 }
 
-function fetch_items_by_label_name(string $labelName, int $limit, int $offset = 0): array
+function fetch_items_by_label_name(string $labelName, int $limit, int $offset = 0, string $labelId = ''): array
 {
     $labelName = trim($labelName);
-    if ($labelName === '') {
+    $labelId = trim($labelId);
+    if ($labelName === '' && $labelId === '') {
         return [];
     }
 
@@ -548,25 +549,29 @@ function fetch_items_by_label_name(string $labelName, int $limit, int $offset = 
         'SELECT DISTINCT items.*
          FROM items
          INNER JOIN item_labels ON items.content_id = item_labels.content_id
-         WHERE item_labels.label_name = :label_name
+         WHERE (item_labels.label_id = :label_id OR item_labels.label_name = :label_name)
            AND ' . items_front_release_where('items') . '
          ORDER BY items.date_published DESC
          LIMIT :limit OFFSET :offset',
         'SELECT DISTINCT items.*
          FROM items
          INNER JOIN item_labels ON items.id = item_labels.item_id
-         WHERE item_labels.label_name = :label_name
+         WHERE (item_labels.dmm_id = :label_id OR item_labels.label_name = :label_name)
            AND ' . items_front_release_where('items') . '
          ORDER BY items.release_date DESC, items.id DESC
          LIMIT :limit OFFSET :offset',
     ] as $sql) {
         try {
             $stmt = db()->prepare($sql);
+            $stmt->bindValue(':label_id',   $labelId,   PDO::PARAM_STR);
             $stmt->bindValue(':label_name', $labelName, PDO::PARAM_STR);
             $stmt->bindValue(':limit',      $limit,     PDO::PARAM_INT);
             $stmt->bindValue(':offset',     $offset,    PDO::PARAM_INT);
             $stmt->execute();
-            return $stmt->fetchAll() ?: [];
+            $rows = $stmt->fetchAll() ?: [];
+            if ($rows !== []) {
+                return $rows;
+            }
         } catch (Throwable) {
         }
     }
