@@ -75,7 +75,7 @@ function scheduler_run_items_schedule(DmmSyncService $service, array $settings):
     }
 
     $pdo = db();
-    $pdo->exec("CREATE TABLE IF NOT EXISTS sync_job_state (job_key VARCHAR(64) PRIMARY KEY,next_offset INT NOT NULL DEFAULT 1,next_initial VARCHAR(10) NULL,last_run_at DATETIME NULL,last_success TINYINT(1) NOT NULL DEFAULT 0,last_message TEXT NULL,lock_until DATETIME NULL,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    scheduler_ensure_job_state_table($pdo);
     $pdo->prepare("INSERT INTO sync_job_state (job_key, next_offset, updated_at) VALUES ('items', 1, NOW()) ON DUPLICATE KEY UPDATE updated_at = updated_at")->execute();
     $lockUntil = date('Y-m-d H:i:s', time() + 55);
     $lockStmt = $pdo->prepare("UPDATE sync_job_state SET lock_until = :lock_until WHERE job_key = 'items' AND (lock_until IS NULL OR lock_until < NOW())");
@@ -155,6 +155,27 @@ function scheduler_is_due(array $schedule): bool
 function scheduler_ensure_schedule_table(PDO $pdo): void
 {
     $pdo->exec('CREATE TABLE IF NOT EXISTS api_schedules (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,schedule_type VARCHAR(32) NOT NULL UNIQUE,interval_minutes INT NOT NULL DEFAULT 60,is_enabled TINYINT(1) NOT NULL DEFAULT 1,last_run_at DATETIME NULL,lock_until DATETIME NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    $columns = [];
+    $stmt = $pdo->query('SHOW COLUMNS FROM api_schedules');
+    foreach (($stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : []) as $column) {
+        $columns[(string)($column['Field'] ?? '')] = true;
+    }
+    if (!isset($columns['lock_until'])) {
+        $pdo->exec('ALTER TABLE api_schedules ADD COLUMN lock_until DATETIME NULL AFTER last_run_at');
+    }
+}
+
+function scheduler_ensure_job_state_table(PDO $pdo): void
+{
+    $pdo->exec("CREATE TABLE IF NOT EXISTS sync_job_state (job_key VARCHAR(64) PRIMARY KEY,next_offset INT NOT NULL DEFAULT 1,next_initial VARCHAR(10) NULL,last_run_at DATETIME NULL,last_success TINYINT(1) NOT NULL DEFAULT 0,last_message TEXT NULL,lock_until DATETIME NULL,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $columns = [];
+    $stmt = $pdo->query('SHOW COLUMNS FROM sync_job_state');
+    foreach (($stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : []) as $column) {
+        $columns[(string)($column['Field'] ?? '')] = true;
+    }
+    if (!isset($columns['lock_until'])) {
+        $pdo->exec('ALTER TABLE sync_job_state ADD COLUMN lock_until DATETIME NULL AFTER last_message');
+    }
 }
 
 function scheduler_seed_default_schedules(PDO $pdo): void
