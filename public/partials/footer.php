@@ -118,6 +118,7 @@ $copyrightYears = $copyrightStartYear >= $currentYear
   updateButton();
 }());
 </script>
+<?php if (empty($skipAnalyticsBeacon)): ?>
 <script>
 (function () {
   if (!navigator.sendBeacon) {
@@ -135,5 +136,6 @@ $copyrightYears = $copyrightStartYear >= $currentYear
   navigator.sendBeacon('<?= e(public_url('analytics.php')) ?>', data);
 }());
 </script>
+<?php endif; ?>
 </body>
 </html>
