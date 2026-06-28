@@ -112,6 +112,7 @@ function fetch_item_by_content_id(string $contentId): ?array
     $stmt = db()->prepare(
         'SELECT * FROM items
          WHERE content_id = :cid
+           AND ' . items_front_release_where() . '
          ORDER BY
            CASE
              WHEN title LIKE "%お問い合わせ%" OR title LIKE "%問合せ%" OR title = "Privacy Policy" OR title = "サイトについて" THEN 1
@@ -182,6 +183,13 @@ function ensure_items_item_source_column(): void
     }
 }
 
+
+function items_front_release_where(string $alias = ''): string
+{
+    $prefix = $alias !== '' ? $alias . '.' : 'items.';
+    return '(' . $prefix . 'release_date IS NULL OR ' . $prefix . 'release_date = "" OR DATE(' . $prefix . 'release_date) <= CURDATE())';
+}
+
 function items_product_source_where(string $alias = ''): string
 {
     static $cache = [];
@@ -196,6 +204,8 @@ function items_product_source_where(string $alias = ''): string
     if (items_column_exists('item_source')) {
         $where[] = $outerPrefix . '.item_source = "fanza_product"';
     }
+
+    $where[] = items_front_release_where($outerPrefix);
 
     if (items_table_exists('rss_items') && items_table_exists('rss_sources') && items_column_exists('source_type', 'rss_sources')) {
         $where[] = 'NOT EXISTS (SELECT 1 FROM rss_items ri INNER JOIN rss_sources rs ON rs.id = ri.source_id WHERE rs.source_type = "partner_link" AND (ri.title = ' . $outerPrefix . '.title OR ri.url = ' . $outerPrefix . '.url OR ri.url = ' . $outerPrefix . '.affiliate_url))';
@@ -282,6 +292,7 @@ function fetch_related_makers_by_actress(int $actressId, int $limit = 50): array
              INNER JOIN item_makers    ON makers.id = item_makers.maker_id
              INNER JOIN item_actresses ON item_makers.content_id = item_actresses.content_id
              WHERE item_actresses.actress_id = :id
+               AND ' . items_front_release_where('items') . '
              ORDER BY makers.name ASC
              LIMIT :limit'
         );
@@ -495,6 +506,7 @@ function fetch_items_by_label_name(string $labelName, int $limit, int $offset = 
          FROM items
          INNER JOIN item_labels ON items.content_id = item_labels.content_id
          WHERE item_labels.label_name = :label_name
+           AND ' . items_front_release_where('items') . '
          ORDER BY items.date_published DESC
          LIMIT :limit OFFSET :offset'
     );
@@ -518,6 +530,7 @@ function fetch_items_by_actress(int $actressId, int $limit, int $offset = 0): ar
              FROM items
              INNER JOIN item_actresses ON items.content_id = item_actresses.content_id
              WHERE item_actresses.actress_id = :id
+               AND ' . items_front_release_where('items') . '
              ORDER BY date_published DESC
              LIMIT :limit OFFSET :offset'
         );
@@ -539,6 +552,7 @@ function fetch_items_by_actress(int $actressId, int $limit, int $offset = 0): ar
              INNER JOIN actresses     ON actresses.id          = :id
              INNER JOIN item_actresses ON item_actresses.dmm_id = actresses.dmm_id
              WHERE items.id = item_actresses.item_id
+               AND ' . items_front_release_where('items') . '
              ORDER BY items.release_date DESC, items.id DESC
              LIMIT :limit OFFSET :offset'
         );
@@ -564,6 +578,7 @@ function fetch_items_by_genre(int $genreId, int $limit, int $offset = 0): array
              FROM items
              INNER JOIN item_genres ON items.content_id = item_genres.content_id
              WHERE item_genres.genre_id = :id
+               AND ' . items_front_release_where('items') . '
              ORDER BY date_published DESC
              LIMIT :limit OFFSET :offset'
         );
@@ -585,6 +600,7 @@ function fetch_items_by_genre(int $genreId, int $limit, int $offset = 0): array
              INNER JOIN genres      ON genres.id          = :id
              INNER JOIN item_genres ON item_genres.dmm_id = genres.dmm_id
              WHERE items.id = item_genres.item_id
+               AND ' . items_front_release_where('items') . '
              ORDER BY items.release_date DESC, items.id DESC
              LIMIT :limit OFFSET :offset'
         );
@@ -610,6 +626,7 @@ function fetch_items_by_maker(int $makerId, int $limit, int $offset = 0): array
              FROM items
              INNER JOIN item_makers ON items.content_id = item_makers.content_id
              WHERE item_makers.maker_id = :id
+               AND ' . items_front_release_where('items') . '
              ORDER BY date_published DESC
              LIMIT :limit OFFSET :offset'
         );
@@ -631,6 +648,7 @@ function fetch_items_by_maker(int $makerId, int $limit, int $offset = 0): array
              INNER JOIN makers      ON makers.id          = :id
              INNER JOIN item_makers ON item_makers.dmm_id = makers.dmm_id
              WHERE items.id = item_makers.item_id
+               AND ' . items_front_release_where('items') . '
              ORDER BY items.release_date DESC, items.id DESC
              LIMIT :limit OFFSET :offset'
         );
@@ -653,7 +671,7 @@ function count_items_by_series(int $seriesId): int
             'SELECT COUNT(DISTINCT items.id)
              FROM items
              INNER JOIN item_series ON items.content_id = item_series.content_id
-             WHERE item_series.series_id = :id'
+             WHERE item_series.series_id = :id AND ' . items_front_release_where('items') . ''
         );
         $stmt->execute([':id' => $seriesId]);
         $count = (int)$stmt->fetchColumn();
@@ -669,7 +687,7 @@ function count_items_by_series(int $seriesId): int
              FROM items
              INNER JOIN series_master ON series_master.id       = :id
              INNER JOIN item_series   ON item_series.dmm_id     = series_master.dmm_id
-             WHERE items.id = item_series.item_id'
+             WHERE items.id = item_series.item_id AND ' . items_front_release_where('items') . ''
         );
         $stmt->execute([':id' => $seriesId]);
         return (int)$stmt->fetchColumn();
@@ -690,6 +708,7 @@ function fetch_items_by_series(int $seriesId, int $limit, int $offset = 0): arra
              FROM items
              INNER JOIN item_series ON items.content_id = item_series.content_id
              WHERE item_series.series_id = :id
+               AND ' . items_front_release_where('items') . '
              ORDER BY date_published DESC
              LIMIT :limit OFFSET :offset'
         );
@@ -711,6 +730,7 @@ function fetch_items_by_series(int $seriesId, int $limit, int $offset = 0): arra
              INNER JOIN series_master ON series_master.id       = :id
              INNER JOIN item_series   ON item_series.dmm_id     = series_master.dmm_id
              WHERE items.id = item_series.item_id
+               AND ' . items_front_release_where('items') . '
              ORDER BY items.release_date DESC, items.id DESC
              LIMIT :limit OFFSET :offset'
         );
@@ -750,6 +770,7 @@ function fetch_related_items(string $contentId, int $limit = 12): array
              INNER JOIN item_genres ig2 ON ig2.genre_id = ig1.genre_id
              INNER JOIN items i2 ON i2.content_id = ig2.content_id
              WHERE i1.content_id = :cid AND i2.content_id <> :cid
+               AND ' . items_front_release_where('i2') . '
              GROUP BY i2.id
              ORDER BY i2.release_date DESC, i2.id DESC
              LIMIT :limit'
@@ -766,7 +787,7 @@ function fetch_related_items(string $contentId, int $limit = 12): array
 
     try {
         $stmt = db()->prepare(
-            'SELECT * FROM items WHERE content_id <> :cid ORDER BY release_date DESC, id DESC LIMIT :limit'
+            'SELECT * FROM items WHERE content_id <> :cid AND ' . items_front_release_where() . ' ORDER BY release_date DESC, id DESC LIMIT :limit'
         );
         $stmt->bindValue(':cid', $cid, PDO::PARAM_STR);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
