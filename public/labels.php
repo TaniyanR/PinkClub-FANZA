@@ -21,7 +21,7 @@ include __DIR__ . '/partials/header.php';
             <div class="section-head"><h1 class="section-title">レーベル一覧</h1></div>
             <div class="taxonomy-grid">
                 <?php foreach ($labels as $label) : ?>
-                    <a class="taxonomy-card" href="/posts.php">
+                    <a class="taxonomy-card" href="<?php echo e(public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? ''), 'name' => (string)$label['name']])); ?>">
                         <div class="taxonomy-card__media">Label</div>
                         <div class="taxonomy-card__name"><?php echo e((string)$label['name']); ?></div>
                     </a>
@@ -29,8 +29,8 @@ include __DIR__ . '/partials/header.php';
             </div>
         </section>
         <nav class="pagination">
-            <?php if ($page > 1) : ?><a class="page-btn" href="/labels.php?page=<?php echo e((string)($page - 1)); ?>">前へ</a><?php else : ?><span class="page-btn">前へ</span><?php endif; ?>
+            <?php if ($page > 1) : ?><a class="page-btn" href="<?php echo e(public_url('labels.php') . '?page=' . (int)($page - 1)); ?>">前へ</a><?php else : ?><span class="page-btn">前へ</span><?php endif; ?>
             <span class="page-btn is-current"><?php echo e((string)$page); ?></span>
-            <?php if ($hasNext) : ?><a class="page-btn" href="/labels.php?page=<?php echo e((string)($page + 1)); ?>">次へ</a><?php else : ?><span class="page-btn">次へ</span><?php endif; ?>
+            <?php if ($hasNext) : ?><a class="page-btn" href="<?php echo e(public_url('labels.php') . '?page=' . (int)($page + 1)); ?>">次へ</a><?php else : ?><span class="page-btn">次へ</span><?php endif; ?>
         </nav>
 <?php include __DIR__ . '/partials/footer.php'; ?>
