@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/db.php';
 require_once __DIR__ . '/../lib/csrf.php';
+require_once __DIR__ . '/../lib/rate_limit.php';
 require_once __DIR__ . '/../lib/admin_auth.php';
 require_once __DIR__ . '/partials/_helpers.php';
 
@@ -123,12 +124,17 @@ $contactForm = [
 $isContactPage = $slug === 'contact';
 
 if ($isContactPage && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST')) {
+    rate_limit_check('contact_form', 3, 300);
+
     $contactForm['subject'] = trim((string)($_POST['subject'] ?? ''));
     $contactForm['message'] = trim((string)($_POST['message'] ?? ''));
     $contactForm['name'] = trim((string)($_POST['name'] ?? ''));
     $contactForm['email'] = trim((string)($_POST['email'] ?? ''));
 
     if (!csrf_verify((string)($_POST['_token'] ?? ''))) {
+        $formErrors[] = 'リクエストが無効です。';
+    }
+    if (trim((string)($_POST['website'] ?? '')) !== '') {
         $formErrors[] = 'リクエストが無効です。';
     }
     if ($contactForm['name'] === '') {
@@ -231,6 +237,7 @@ include __DIR__ . '/partials/header.php';
                     <?php endforeach; ?>
                     <form class="contact-form" method="post" action="<?php echo e((string)($_SERVER['REQUEST_URI'] ?? '/p/contact')); ?>">
                         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+                        <input type="text" name="website" value="" autocomplete="off" tabindex="-1" style="display:none">
 
                         <label for="contact-name">氏名</label>
                         <input id="contact-name" name="name" value="<?php echo e($contactForm['name']); ?>" required>
