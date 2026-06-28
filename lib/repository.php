@@ -478,17 +478,60 @@ function fetch_labels(int $limit = 50, int $offset = 0): array
     $limit  = normalize_int($limit, 1, 200);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare(
+    foreach ([
         'SELECT label_id AS id, label_name AS name, MAX(label_ruby) AS ruby, COUNT(*) AS item_count
          FROM item_labels
          GROUP BY label_id, label_name
          ORDER BY label_name ASC
-         LIMIT :limit OFFSET :offset'
-    );
-    $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $stmt->execute();
-    return $stmt->fetchAll() ?: [];
+         LIMIT :limit OFFSET :offset',
+        'SELECT COALESCE(NULLIF(dmm_id, ""), label_name) AS id, label_name AS name, "" AS ruby, COUNT(*) AS item_count
+         FROM item_labels
+         GROUP BY COALESCE(NULLIF(dmm_id, ""), label_name), label_name
+         ORDER BY label_name ASC
+         LIMIT :limit OFFSET :offset',
+    ] as $sql) {
+        try {
+            $stmt = db()->prepare($sql);
+            $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll() ?: [];
+        } catch (Throwable) {
+        }
+    }
+
+    return [];
+}
+
+function fetch_label(string $labelId, string $labelName = ''): ?array
+{
+    $labelId = trim($labelId);
+    $labelName = trim($labelName);
+    if ($labelId === '' && $labelName === '') {
+        return null;
+    }
+
+    foreach ([
+        ['sql' => 'SELECT label_id AS id, label_name AS name, MAX(label_ruby) AS ruby, COUNT(*) AS item_count FROM item_labels WHERE label_id = :label_id GROUP BY label_id, label_name ORDER BY item_count DESC LIMIT 1', 'params' => [':label_id' => $labelId]],
+        ['sql' => 'SELECT COALESCE(NULLIF(dmm_id, ""), label_name) AS id, label_name AS name, "" AS ruby, COUNT(*) AS item_count FROM item_labels WHERE dmm_id = :label_id OR label_name = :label_id GROUP BY COALESCE(NULLIF(dmm_id, ""), label_name), label_name ORDER BY item_count DESC LIMIT 1', 'params' => [':label_id' => $labelId]],
+        ['sql' => 'SELECT label_id AS id, label_name AS name, MAX(label_ruby) AS ruby, COUNT(*) AS item_count FROM item_labels WHERE label_name = :label_name GROUP BY label_id, label_name ORDER BY item_count DESC LIMIT 1', 'params' => [':label_name' => $labelName]],
+        ['sql' => 'SELECT COALESCE(NULLIF(dmm_id, ""), label_name) AS id, label_name AS name, "" AS ruby, COUNT(*) AS item_count FROM item_labels WHERE label_name = :label_name GROUP BY COALESCE(NULLIF(dmm_id, ""), label_name), label_name ORDER BY item_count DESC LIMIT 1', 'params' => [':label_name' => $labelName]],
+    ] as $query) {
+        if (in_array('', $query['params'], true)) {
+            continue;
+        }
+        try {
+            $stmt = db()->prepare($query['sql']);
+            $stmt->execute($query['params']);
+            $row = $stmt->fetch();
+            if ($row) {
+                return $row;
+            }
+        } catch (Throwable) {
+        }
+    }
+
+    return null;
 }
 
 function fetch_items_by_label_name(string $labelName, int $limit, int $offset = 0): array
@@ -501,21 +544,34 @@ function fetch_items_by_label_name(string $labelName, int $limit, int $offset = 
     $limit  = normalize_int($limit, 1, 100);
     $offset = max(0, $offset);
 
-    $stmt = db()->prepare(
+    foreach ([
         'SELECT DISTINCT items.*
          FROM items
          INNER JOIN item_labels ON items.content_id = item_labels.content_id
          WHERE item_labels.label_name = :label_name
            AND ' . items_front_release_where('items') . '
          ORDER BY items.date_published DESC
-         LIMIT :limit OFFSET :offset'
-    );
-    $stmt->bindValue(':label_name', $labelName, PDO::PARAM_STR);
-    $stmt->bindValue(':limit',      $limit,     PDO::PARAM_INT);
-    $stmt->bindValue(':offset',     $offset,    PDO::PARAM_INT);
-    $stmt->execute();
+         LIMIT :limit OFFSET :offset',
+        'SELECT DISTINCT items.*
+         FROM items
+         INNER JOIN item_labels ON items.id = item_labels.item_id
+         WHERE item_labels.label_name = :label_name
+           AND ' . items_front_release_where('items') . '
+         ORDER BY items.release_date DESC, items.id DESC
+         LIMIT :limit OFFSET :offset',
+    ] as $sql) {
+        try {
+            $stmt = db()->prepare($sql);
+            $stmt->bindValue(':label_name', $labelName, PDO::PARAM_STR);
+            $stmt->bindValue(':limit',      $limit,     PDO::PARAM_INT);
+            $stmt->bindValue(':offset',     $offset,    PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll() ?: [];
+        } catch (Throwable) {
+        }
+    }
 
-    return $stmt->fetchAll() ?: [];
+    return [];
 }
 
 function fetch_items_by_actress(int $actressId, int $limit, int $offset = 0): array
