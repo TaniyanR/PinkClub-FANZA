@@ -27,23 +27,54 @@ function pcf_fetch_label_access_ranking(string $periodFrom): array
             throw new RuntimeException('analytics tables are not available');
         }
 
-        foreach ([
-            "SELECT il.label_id AS id, il.label_name AS name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_labels il ON i.content_id = il.content_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY il.label_id, il.label_name ORDER BY access_count DESC, il.label_name ASC LIMIT 200",
-            "SELECT COALESCE(NULLIF(il.dmm_id, ''), il.label_name) AS id, il.label_name AS name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_labels il ON i.id = il.item_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY COALESCE(NULLIF(il.dmm_id, ''), il.label_name), il.label_name ORDER BY access_count DESC, il.label_name ASC LIMIT 200",
-        ] as $sql) {
-            try {
-                $stmt = db()->prepare($sql);
-                $stmt->execute([':period_from' => $periodFrom]);
-                return $stmt->fetchAll() ?: [];
-            } catch (Throwable) {
-            }
-        }
+        $stmt = db()->prepare("SELECT path, COUNT(id) AS access_count FROM site_events WHERE event_type = 'pv' AND session_id_hash = :marker AND created_at >= :period_from AND path LIKE '%/label.php?%' GROUP BY path ORDER BY access_count DESC, path ASC LIMIT 400");
+        $stmt->execute([':period_from' => $periodFrom, ':marker' => analytics_beacon_marker_hash()]);
+        $pathRows = $stmt->fetchAll() ?: [];
     } catch (Throwable) {
+        return [];
     }
 
-    return [];
-}
+    $rankingRows = [];
+    foreach ($pathRows as $pathRow) {
+        if (!is_array($pathRow)) {
+            continue;
+        }
+        $path = (string)($pathRow['path'] ?? '');
+        $query = (string)(parse_url($path, PHP_URL_QUERY) ?? '');
+        if ($query === '') {
+            continue;
+        }
+        $params = [];
+        parse_str($query, $params);
+        $rankingLabel = fetch_label((string)($params['id'] ?? ''), (string)($params['name'] ?? ''));
+        if ($rankingLabel === null) {
+            continue;
+        }
+        $rankingName = trim((string)($rankingLabel['name'] ?? ''));
+        if ($rankingName === '') {
+            continue;
+        }
+        $rankingKey = (string)($rankingLabel['id'] ?? '') . '|' . $rankingName;
+        if (!isset($rankingRows[$rankingKey])) {
+            $rankingRows[$rankingKey] = [
+                'id' => (string)($rankingLabel['id'] ?? ''),
+                'name' => $rankingName,
+                'access_count' => 0,
+            ];
+        }
+        $rankingRows[$rankingKey]['access_count'] += (int)($pathRow['access_count'] ?? 0);
+    }
 
+    usort($rankingRows, static function (array $a, array $b): int {
+        $countCompare = ((int)($b['access_count'] ?? 0)) <=> ((int)($a['access_count'] ?? 0));
+        if ($countCompare !== 0) {
+            return $countCompare;
+        }
+        return strcmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
+    });
+
+    return array_slice($rankingRows, 0, 200);
+}
 $id = trim((string)get('id', ''));
 $name = trim((string)get('name', ''));
 $page = max(1, (int)get('page', 1));
