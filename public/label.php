@@ -27,17 +27,41 @@ function pcf_fetch_label_access_ranking(string $periodFrom): array
             throw new RuntimeException('analytics tables are not available');
         }
 
-        foreach ([
-            "SELECT il.label_id AS id, il.label_name AS name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_labels il ON i.content_id = il.content_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY il.label_id, il.label_name ORDER BY access_count DESC, il.label_name ASC LIMIT 200",
-            "SELECT COALESCE(NULLIF(il.dmm_id, ''), il.label_name) AS id, il.label_name AS name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_labels il ON i.id = il.item_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY COALESCE(NULLIF(il.dmm_id, ''), il.label_name), il.label_name ORDER BY access_count DESC, il.label_name ASC LIMIT 200",
-        ] as $sql) {
-            try {
-                $stmt = db()->prepare($sql);
-                $stmt->execute([':period_from' => $periodFrom]);
-                return $stmt->fetchAll() ?: [];
-            } catch (Throwable) {
+        $stmt = db()->prepare("SELECT path, COUNT(id) AS access_count FROM site_events WHERE event_type = 'pv' AND created_at >= :period_from AND path LIKE '%/label.php%' GROUP BY path ORDER BY access_count DESC LIMIT 2000");
+        $stmt->execute([':period_from' => $periodFrom]);
+        $paths = $stmt->fetchAll() ?: [];
+        $ranking = [];
+        foreach ($paths as $pathRow) {
+            $path = (string)($pathRow['path'] ?? '');
+            $query = (string)(parse_url($path, PHP_URL_QUERY) ?? '');
+            if ($query === '') {
+                continue;
             }
+            $params = [];
+            parse_str($query, $params);
+            $label = fetch_label((string)($params['id'] ?? ''), (string)($params['name'] ?? ''));
+            if ($label === null) {
+                continue;
+            }
+            $labelId = (string)($label['id'] ?? '');
+            $labelName = trim((string)($label['name'] ?? ''));
+            if ($labelName === '') {
+                continue;
+            }
+            $rankingKey = $labelId !== '' ? $labelId : $labelName;
+            if (!isset($ranking[$rankingKey])) {
+                $ranking[$rankingKey] = ['id' => $labelId, 'name' => $labelName, 'access_count' => 0];
+            }
+            $ranking[$rankingKey]['access_count'] += (int)($pathRow['access_count'] ?? 0);
         }
+        usort($ranking, static function (array $a, array $b): int {
+            $countCompare = ((int)($b['access_count'] ?? 0)) <=> ((int)($a['access_count'] ?? 0));
+            if ($countCompare !== 0) {
+                return $countCompare;
+            }
+            return strcmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
+        });
+        return array_slice($ranking, 0, 200);
     } catch (Throwable) {
     }
 
@@ -113,7 +137,7 @@ require __DIR__ . '/partials/header.php';
 <?php endif; ?>
 
 <section id="access-ranking" class="block" style="margin-top:24px;">
-  <h2 class="section-title">レーベルクリックランキング</h2>
+  <h2 class="section-title">レーベルアクセスランキング</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php $tabUrl = public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? $id), 'name' => $labelName, 'rank_period' => (string)$tabKey]) . '#access-ranking'; ?>
@@ -128,7 +152,7 @@ require __DIR__ . '/partials/header.php';
           <tr>
             <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
             <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">レーベル名</th>
-            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">クリック数</th>
+            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">アクセス数</th>
           </tr>
         </thead>
         <tbody>
@@ -144,7 +168,7 @@ require __DIR__ . '/partials/header.php';
       </table>
     </div>
   <?php else: ?>
-    <?php pcf_render_empty('レーベルクリックランキングのデータがありません。'); ?>
+    <?php pcf_render_empty('レーベルアクセスランキングのデータがありません。'); ?>
   <?php endif; ?>
 </section>
 
