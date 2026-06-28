@@ -52,6 +52,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'item_sync_exclude_keywords' => implode("\n", $excludeKeywords),
     ]);
 
+    $pdo = db();
+    scheduler_ensure_schedule_table($pdo);
+    scheduler_seed_default_schedules($pdo);
+    scheduler_apply_auto_settings($pdo);
+
     $message = '自動設定を保存しました。';
 }
 
@@ -61,6 +66,7 @@ $currentBatch = (int)($settings['item_sync_batch'] ?? 100);
 $enabled = settings_bool('item_sync_enabled', false);
 $compoundLines = preg_split('/\R/u', site_setting_get('item_sync_compound_keywords', '')) ?: [];
 $excludeLines = preg_split('/\R/u', site_setting_get('item_sync_exclude_keywords', '')) ?: [];
+$timerPollMs = max(1, $currentInterval) * 60 * 1000;
 
 require __DIR__ . '/includes/header.php';
 ?>
@@ -125,8 +131,8 @@ require __DIR__ . '/includes/header.php';
   </form>
 
   <?php if ($enabled): ?>
-    <div class="admin-notice admin-notice--success" id="auto-timer-status" data-endpoint="<?= e(admin_url('timer_tick.php')) ?>" data-csrf="<?= e(csrf_token()) ?>">
-      <p>自動更新はONです。この画面を開いている間、60秒ごとに自動更新を確認します。</p>
+    <div class="admin-notice admin-notice--success" id="auto-timer-status" data-endpoint="<?= e(admin_url('timer_tick.php')) ?>" data-csrf="<?= e(csrf_token()) ?>" data-poll-ms="<?= e((string)$timerPollMs) ?>">
+      <p>自動更新はONです。この画面を開いている間、<?= e((string)$currentInterval) ?>分ごとに自動更新を確認します。</p>
     </div>
     <script>
       (function () {
@@ -136,6 +142,10 @@ require __DIR__ . '/includes/header.php';
         }
         var endpoint = status.getAttribute('data-endpoint');
         var csrf = status.getAttribute('data-csrf');
+        var pollMs = parseInt(status.getAttribute('data-poll-ms') || '60000', 10);
+        if (!pollMs || pollMs < 60000) {
+          pollMs = 60000;
+        }
         var running = false;
         var updateStatus = function (message) {
           var paragraph = status.querySelector('p');
@@ -177,7 +187,7 @@ require __DIR__ . '/includes/header.php';
           });
         };
         tick();
-        setInterval(tick, 60000);
+        setInterval(tick, pollMs);
       }());
     </script>
   <?php endif; ?>
