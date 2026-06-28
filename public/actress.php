@@ -229,9 +229,16 @@ try {
         throw new RuntimeException('analytics tables are not available');
     }
 
-    $rankingStmt = db()->prepare("SELECT a.id, a.dmm_id, a.name, COUNT(se.id) AS access_count FROM site_events se INNER JOIN actresses a ON se.path = CONCAT('/actress.php?id=', a.id) WHERE se.event_type = 'pv' AND se.created_at >= :period_from GROUP BY a.id, a.dmm_id, a.name ORDER BY access_count DESC, a.id DESC LIMIT 200");
-    $rankingStmt->execute([':period_from' => $periodFrom]);
-    $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+    $accessRankingRows = [];
+    try {
+        $rankingStmt = db()->prepare("SELECT a.id, a.dmm_id, a.name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_actresses ia ON i.content_id = ia.content_id INNER JOIN actresses a ON a.id = ia.actress_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY a.id, a.dmm_id, a.name ORDER BY access_count DESC, a.id DESC LIMIT 200");
+        $rankingStmt->execute([':period_from' => $periodFrom]);
+        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        $rankingStmt = db()->prepare("SELECT a.id, a.dmm_id, a.name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_actresses ia ON i.id = ia.item_id INNER JOIN actresses a ON a.dmm_id = ia.dmm_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY a.id, a.dmm_id, a.name ORDER BY access_count DESC, a.id DESC LIMIT 200");
+        $rankingStmt->execute([':period_from' => $periodFrom]);
+        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+    }
     $accessRankingRows = array_values(array_filter($accessRankingRows, static function ($rankingRow): bool {
         if (!is_array($rankingRow)) {
             return false;
@@ -306,7 +313,7 @@ require __DIR__ . '/partials/header.php';
 <?php endif; ?>
 
 <section id="access-ranking" class="block" style="margin-top:24px;">
-  <h2 class="section-title">女優アクセスランキング</h2>
+  <h2 class="section-title">女優クリックランキング</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php $tabUrl = public_url('actress.php') . '?id=' . rawurlencode((string)$id) . '&rank_period=' . rawurlencode((string)$tabKey) . '#access-ranking'; ?>
@@ -321,7 +328,7 @@ require __DIR__ . '/partials/header.php';
           <tr>
             <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
             <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">女優名</th>
-            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">アクセス数</th>
+            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">クリック数</th>
           </tr>
         </thead>
         <tbody>
@@ -341,7 +348,7 @@ require __DIR__ . '/partials/header.php';
       </table>
     </div>
   <?php else: ?>
-    <?php pcf_render_empty('女優アクセスランキングのデータがありません。'); ?>
+    <?php pcf_render_empty('女優クリックランキングのデータがありません。'); ?>
   <?php endif; ?>
 </section>
 
