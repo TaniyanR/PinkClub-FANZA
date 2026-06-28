@@ -505,6 +505,7 @@ if (trim($breadcrumbTitle) === '') {
     $breadcrumbTitle = '商品詳細';
 }
 $affiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
+$affiliateOutUrl = $affiliateUrl !== '' ? public_url('out.php') . '?' . http_build_query(['to' => $affiliateUrl]) : '';
 $rawMakerName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['maker', 'label']);
 $rawSeriesName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['series']);
 $rawDirectorName = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['director']);
@@ -672,7 +673,7 @@ try {
         $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
     }
 
-    $rankingStmt = db()->prepare('SELECT i.id, i.content_id, i.title, COUNT(pv.id) AS access_count FROM page_views pv INNER JOIN items i ON i.id = pv.item_id WHERE pv.viewed_at >= :period_from GROUP BY i.id, i.title ORDER BY access_count DESC, i.id DESC LIMIT 200');
+    $rankingStmt = db()->prepare("SELECT i.id, i.content_id, i.title, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY i.id, i.content_id, i.title ORDER BY access_count DESC, i.id DESC LIMIT 200");
     $rankingStmt->execute([':period_from' => $periodFrom]);
     $accessRankingRows = $rankingStmt->fetchAll() ?: [];
 } catch (Throwable) {
@@ -712,7 +713,7 @@ require __DIR__ . '/partials/header.php';
   <?php endif; ?>
 
   <?php if ($affiliateUrl !== ''): ?>
-    <p><a class="pcf-btn" style="display:block; text-align:center; border:2px solid #9aa0ab; font-weight:700; font-size:18px; padding:12px 14px;" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
+    <p><a class="pcf-btn" style="display:block; text-align:center; border:2px solid #9aa0ab; font-weight:700; font-size:18px; padding:12px 14px;" href="<?= e($affiliateOutUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
   <?php endif; ?>
 
   <section class="pcf-detail pcf-item-main">
@@ -746,7 +747,7 @@ require __DIR__ . '/partials/header.php';
   </section>
 
   <?php if ($affiliateUrl !== ''): ?>
-    <p><a class="pcf-btn" style="display:block; text-align:center; border:2px solid #9aa0ab; font-weight:700; font-size:18px; padding:12px 14px;" href="<?= e($affiliateUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
+    <p><a class="pcf-btn" style="display:block; text-align:center; border:2px solid #9aa0ab; font-weight:700; font-size:18px; padding:12px 14px;" href="<?= e($affiliateOutUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
   <?php endif; ?>
 
   <h2 class="pcf-section-title">関連作品</h2>
@@ -760,7 +761,7 @@ require __DIR__ . '/partials/header.php';
 
 
   <section id="access-ranking" class="block" style="margin-top:24px;">
-    <h2 class="section-title">商品アクセスランキング</h2>
+    <h2 class="section-title">商品クリックランキング</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php
@@ -787,7 +788,7 @@ require __DIR__ . '/partials/header.php';
             <tr>
               <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
               <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">作品タイトル</th>
-              <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">アクセス数</th>
+              <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">クリック数</th>
             </tr>
           </thead>
           <tbody>
@@ -807,7 +808,7 @@ require __DIR__ . '/partials/header.php';
         </table>
       </div>
     <?php else: ?>
-      <?php pcf_render_empty('商品アクセスランキングのデータがありません。'); ?>
+      <?php pcf_render_empty('商品クリックランキングのデータがありません。'); ?>
     <?php endif; ?>
   </section>
 
