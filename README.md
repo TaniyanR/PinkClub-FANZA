@@ -52,7 +52,7 @@
    - `admin/api_series.php`（シリーズ）
 2. 各ページの「10件テスト取得」で接続確認します。
 3. 自動取得を使う場合は `item_sync_enabled` をONにします。
-4. 通常のサイトアクセス時に `public/_bootstrap.php` の終了処理からスケジューラを確認します（cron不要）。
+4. 通常の公開ページへの `GET` / `HEAD` アクセス時に `public/_bootstrap.php` の終了処理からスケジューラを確認します（cron不要）。
 5. `/admin/api_auto.php` を開いたままにした場合も、設定した間隔ごとに `admin/timer_tick.php` を実行できます。
 6. tickごとに最大1種類のみ同期します。
 
@@ -153,7 +153,7 @@ This PR implements 6 incomplete features identified in README.md and docs/issues
 **場所 / Location**: `public/_bootstrap.php` / `scripts/auto_import.php`
 
 **機能 / Features**:
-- cronなしの場合は、サイトアクセスをきっかけに `public/_bootstrap.php` の終了処理で自動更新を確認
+- cronなしの場合は、通常の公開ページへの `GET` / `HEAD` アクセスをきっかけに `public/_bootstrap.php` の終了処理で自動更新を確認
 - cronを使える環境では `scripts/auto_import.php` から同じスケジューラを実行可能
 - ロック機構で重複実行を防止
 - `api_schedules`テーブルで実行スケジュールを管理

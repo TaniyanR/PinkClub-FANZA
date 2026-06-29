@@ -15,7 +15,7 @@ require_once __DIR__ . '/../lib/scheduler.php';
  */
 function run_access_triggered_scheduler(): void
 {
-    if (PHP_SAPI === 'cli') {
+    if (PHP_SAPI === 'cli' || !access_triggered_scheduler_should_run()) {
         return;
     }
 
@@ -30,6 +30,24 @@ function run_access_triggered_scheduler(): void
             error_log('[scheduler] ' . $e->getMessage());
         }
     });
+}
+
+function access_triggered_scheduler_should_run(): bool
+{
+    $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    if (!in_array($method, ['GET', 'HEAD'], true)) {
+        return false;
+    }
+
+    $scriptName = (string)($_SERVER['SCRIPT_NAME'] ?? '');
+    $requestUri = (string)($_SERVER['REQUEST_URI'] ?? '');
+    foreach ([$scriptName, $requestUri] as $path) {
+        if (preg_match('#/(admin|scripts)(/|$)#', $path) === 1) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 run_access_triggered_scheduler();
