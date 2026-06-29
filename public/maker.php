@@ -143,7 +143,7 @@ require __DIR__ . '/partials/header.php';
 <?php endif; ?>
 
 <section id="access-ranking" class="block" style="margin-top:24px;">
-  <h2 class="section-title">メーカークリックランキング</h2>
+  <h2 class="section-title">人気のメーカーランキング！</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php $tabUrl = public_url('maker.php') . '?id=' . rawurlencode((string)$id) . '&rank_period=' . rawurlencode((string)$tabKey) . '#access-ranking'; ?>
@@ -178,7 +178,7 @@ require __DIR__ . '/partials/header.php';
       </table>
     </div>
   <?php else: ?>
-    <?php pcf_render_empty('メーカークリックランキングのデータがありません。'); ?>
+    <?php pcf_render_empty('人気のメーカーランキング！のデータがありません。'); ?>
   <?php endif; ?>
 </section>
 
