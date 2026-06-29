@@ -47,7 +47,7 @@ function pcf_fetch_label_access_ranking(string $periodFrom): array
 $id = trim((string)get('id', ''));
 $name = trim((string)get('name', ''));
 $page = max(1, (int)get('page', 1));
-$limit = 24;
+$limit = 12;
 $offset = ($page - 1) * $limit;
 $label = fetch_label($id, $name);
 if ($label === null) {
@@ -96,7 +96,7 @@ require __DIR__ . '/partials/header.php';
 
 <h2 class="pcf-section-title"><?= e($labelName) ?>一覧</h2>
 <?php if ($list !== []): ?>
-  <section class="pcf-related-grid pcf-label-related-grid">
+  <section class="pcf-related-grid pcf-item-related-grid pcf-label-related-grid">
     <?php foreach ($list as $item): pcf_render_item_card(is_array($item) ? $item : []); endforeach; ?>
   </section>
   <nav class="pcf-pagination" aria-label="ページネーション">
@@ -132,12 +132,16 @@ require __DIR__ . '/partials/header.php';
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($accessRankingRows as $accessIndex => $accessRow): ?>
-            <?php $labelUrl = public_url('label.php') . '?' . http_build_query(['id' => (string)($accessRow['id'] ?? ''), 'name' => (string)($accessRow['name'] ?? '')]); ?>
+          <?php foreach ($accessRankingRows as $index => $rankingRow): ?>
             <tr>
-              <td style="text-align:center; padding:8px; border-bottom:1px solid #eee; font-weight:700;"><?= e((string)($accessIndex + 1)) ?></td>
-              <td style="padding:8px; border-bottom:1px solid #eee; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><a href="<?= e($labelUrl) ?>"><?= e((string)($accessRow['name'] ?? '')) ?></a></td>
-              <td style="text-align:center; padding:8px; border-bottom:1px solid #eee;"><?= e((string)((int)($accessRow['access_count'] ?? 0))) ?></td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><?= e((string)($index + 1)) ?></td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:left;">
+                <?php
+                $rankingLabelUrl = public_url('label.php') . '?' . http_build_query(['id' => (string)($rankingRow['id'] ?? ''), 'name' => (string)($rankingRow['name'] ?? '')]);
+                ?>
+                <a href="<?= e($rankingLabelUrl) ?>"><?= e((string)($rankingRow['name'] ?? '')) ?></a>
+              </td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><?= e((string)((int)($rankingRow['access_count'] ?? 0))) ?></td>
             </tr>
           <?php endforeach; ?>
         </tbody>
