@@ -313,7 +313,7 @@ require __DIR__ . '/partials/header.php';
 <?php endif; ?>
 
 <section id="access-ranking" class="block" style="margin-top:24px;">
-  <h2 class="section-title">女優の人気ランキング！</h2>
+  <h2 class="section-title">人気の女優連キング！</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php $tabUrl = public_url('actress.php') . '?id=' . rawurlencode((string)$id) . '&rank_period=' . rawurlencode((string)$tabKey) . '#access-ranking'; ?>
@@ -348,7 +348,7 @@ require __DIR__ . '/partials/header.php';
       </table>
     </div>
   <?php else: ?>
-    <?php pcf_render_empty('女優の人気ランキング！のデータがありません。'); ?>
+    <?php pcf_render_empty('人気の女優連キング！のデータがありません。'); ?>
   <?php endif; ?>
 </section>
 
