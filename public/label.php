@@ -47,7 +47,7 @@ function pcf_fetch_label_access_ranking(string $periodFrom): array
 $id = trim((string)get('id', ''));
 $name = trim((string)get('name', ''));
 $page = max(1, (int)get('page', 1));
-$limit = 24;
+$limit = 12;
 $offset = ($page - 1) * $limit;
 $label = fetch_label($id, $name);
 if ($label === null) {
@@ -94,24 +94,6 @@ require __DIR__ . '/partials/header.php';
 ]); ?>
 <?php pcf_render_hero($labelName); ?>
 
-<h2 class="pcf-section-title"><?= e($labelName) ?>一覧</h2>
-<?php if ($list !== []): ?>
-  <section class="pcf-related-grid pcf-label-related-grid">
-    <?php foreach ($list as $item): pcf_render_item_card(is_array($item) ? $item : []); endforeach; ?>
-  </section>
-  <nav class="pcf-pagination" aria-label="ページネーション">
-    <?php if ($page > 1): ?>
-      <a class="pcf-pagination__link" href="<?= e(public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? $id), 'name' => $labelName, 'page' => $page - 1])) ?>">前へ</a>
-    <?php endif; ?>
-    <span class="pcf-pagination__link is-current"><?= e((string)$page) ?></span>
-    <?php if ($hasNext): ?>
-      <a class="pcf-pagination__link" href="<?= e(public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? $id), 'name' => $labelName, 'page' => $page + 1])) ?>">次へ</a>
-    <?php endif; ?>
-  </nav>
-<?php else: ?>
-  <?php pcf_render_empty('このレーベルの商品はありません。'); ?>
-<?php endif; ?>
-
 <section id="access-ranking" class="block" style="margin-top:24px;">
   <h2 class="section-title">レーベルクリックランキング</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
@@ -132,12 +114,16 @@ require __DIR__ . '/partials/header.php';
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($accessRankingRows as $accessIndex => $accessRow): ?>
-            <?php $labelUrl = public_url('label.php') . '?' . http_build_query(['id' => (string)($accessRow['id'] ?? ''), 'name' => (string)($accessRow['name'] ?? '')]); ?>
+          <?php foreach ($accessRankingRows as $index => $rankingRow): ?>
             <tr>
-              <td style="text-align:center; padding:8px; border-bottom:1px solid #eee; font-weight:700;"><?= e((string)($accessIndex + 1)) ?></td>
-              <td style="padding:8px; border-bottom:1px solid #eee; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><a href="<?= e($labelUrl) ?>"><?= e((string)($accessRow['name'] ?? '')) ?></a></td>
-              <td style="text-align:center; padding:8px; border-bottom:1px solid #eee;"><?= e((string)((int)($accessRow['access_count'] ?? 0))) ?></td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><?= e((string)($index + 1)) ?></td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:left;">
+                <?php
+                $rankingLabelUrl = public_url('label.php') . '?' . http_build_query(['id' => (string)($rankingRow['id'] ?? ''), 'name' => (string)($rankingRow['name'] ?? '')]);
+                ?>
+                <a href="<?= e($rankingLabelUrl) ?>"><?= e((string)($rankingRow['name'] ?? '')) ?></a>
+              </td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><?= e((string)((int)($rankingRow['access_count'] ?? 0))) ?></td>
             </tr>
           <?php endforeach; ?>
         </tbody>
@@ -147,6 +133,25 @@ require __DIR__ . '/partials/header.php';
     <?php pcf_render_empty('レーベルクリックランキングのデータがありません。'); ?>
   <?php endif; ?>
 </section>
+
+<h2 class="pcf-section-title"><?= e($labelName) ?>一覧</h2>
+<?php if ($list !== []): ?>
+  <section class="pcf-related-grid pcf-item-related-grid pcf-label-related-grid">
+    <?php foreach ($list as $item): pcf_render_item_card(is_array($item) ? $item : []); endforeach; ?>
+  </section>
+  <nav class="pcf-pagination" aria-label="ページネーション">
+    <?php if ($page > 1): ?>
+      <a class="pcf-pagination__link" href="<?= e(public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? $id), 'name' => $labelName, 'page' => $page - 1])) ?>">前へ</a>
+    <?php endif; ?>
+    <span class="pcf-pagination__link is-current"><?= e((string)$page) ?></span>
+    <?php if ($hasNext): ?>
+      <a class="pcf-pagination__link" href="<?= e(public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? $id), 'name' => $labelName, 'page' => $page + 1])) ?>">次へ</a>
+    <?php endif; ?>
+  </nav>
+<?php else: ?>
+  <?php pcf_render_empty('このレーベルの商品はありません。'); ?>
+<?php endif; ?>
+
 
 <?php pcf_render_sample_movie_modal(); ?>
 <?php require __DIR__ . '/partials/footer.php'; ?>
