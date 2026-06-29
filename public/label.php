@@ -47,7 +47,7 @@ function pcf_fetch_label_access_ranking(string $periodFrom): array
 $id = trim((string)get('id', ''));
 $name = trim((string)get('name', ''));
 $page = max(1, (int)get('page', 1));
-$limit = 24;
+$limit = 20;
 $offset = ($page - 1) * $limit;
 $label = fetch_label($id, $name);
 if ($label === null) {
@@ -132,19 +132,23 @@ require __DIR__ . '/partials/header.php';
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($accessRankingRows as $accessIndex => $accessRow): ?>
-            <?php $labelUrl = public_url('label.php') . '?' . http_build_query(['id' => (string)($accessRow['id'] ?? ''), 'name' => (string)($accessRow['name'] ?? '')]); ?>
+          <?php foreach ($accessRankingRows as $index => $rankingRow): ?>
             <tr>
-              <td style="text-align:center; padding:8px; border-bottom:1px solid #eee; font-weight:700;"><?= e((string)($accessIndex + 1)) ?></td>
-              <td style="padding:8px; border-bottom:1px solid #eee; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><a href="<?= e($labelUrl) ?>"><?= e((string)($accessRow['name'] ?? '')) ?></a></td>
-              <td style="text-align:center; padding:8px; border-bottom:1px solid #eee;"><?= e((string)((int)($accessRow['access_count'] ?? 0))) ?></td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><?= e((string)($index + 1)) ?></td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:left;">
+                <?php
+                $rankingLabelUrl = public_url('label.php') . '?' . http_build_query(['id' => (string)($rankingRow['id'] ?? ''), 'name' => (string)($rankingRow['name'] ?? '')]);
+                ?>
+                <a href="<?= e($rankingLabelUrl) ?>"><?= e((string)($rankingRow['name'] ?? '')) ?></a>
+              </td>
+              <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><?= e((string)((int)($rankingRow['access_count'] ?? 0))) ?></td>
             </tr>
           <?php endforeach; ?>
         </tbody>
       </table>
     </div>
   <?php else: ?>
-    <?php pcf_render_empty('レーベルクリックランキングのデータがありません。'); ?>
+    <div class="pcf-empty" style="border:1px solid #dcdcde; border-radius:8px; padding:16px; background:#fff; color:#1d2327;">レーベルクリックランキングのデータがありません。リンクのクリックが集計されるとここに表示されます。</div>
   <?php endif; ?>
 </section>
 
