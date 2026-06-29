@@ -761,7 +761,7 @@ require __DIR__ . '/partials/header.php';
 
 
   <section id="access-ranking" class="block" style="margin-top:24px;">
-    <h2 class="section-title">作品の人気ランキング！</h2>
+    <h2 class="section-title">人気の作品ランキング！</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php
@@ -808,7 +808,7 @@ require __DIR__ . '/partials/header.php';
         </table>
       </div>
     <?php else: ?>
-      <?php pcf_render_empty('作品の人気ランキング！のデータがありません。'); ?>
+      <?php pcf_render_empty('人気の作品ランキング！のデータがありません。'); ?>
     <?php endif; ?>
   </section>
 
