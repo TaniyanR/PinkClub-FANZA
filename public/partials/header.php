@@ -67,6 +67,7 @@ if ($ogImage !== '' && !str_starts_with($ogImage, 'http://') && !str_starts_with
     $ogImage = asset_url($ogImage);
 }
 $jsonLdText = isset($jsonLd) && is_string($jsonLd) && $jsonLd !== '' ? $jsonLd : '';
+$bodyClassText = isset($bodyClass) && is_string($bodyClass) ? trim($bodyClass) : '';
 $relPrevHref = isset($relPrev) && is_string($relPrev) && $relPrev !== '' ? $relPrev : '';
 $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relNext : '';
 ?>
@@ -104,7 +105,7 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
   <link rel="stylesheet" href="<?= e(asset_url('css/style.css')) ?>">
   <link rel="stylesheet" href="<?= e(asset_url('css/public-ui.css')) ?>">
 </head>
-<body>
+<body<?= $bodyClassText !== '' ? ' class="' . e($bodyClassText) . '"' : '' ?>>
 <?php if ($customBodyOpenCode !== ''): ?>
 <?= $customBodyOpenCode ?>
 <?php endif; ?>
@@ -143,7 +144,7 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
   <?php require __DIR__ . '/sidebar.php'; ?>
   <main class="content site-main site-main--legacy">
     <?php $scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? '')); ?>
-    <?php $autoBreadcrumbSkip = ['item.php', 'genre.php', 'series_detail.php', 'series_one.php', 'author.php', 'maker.php', 'actress.php']; ?>
+    <?php $autoBreadcrumbSkip = ['item.php', 'genre.php', 'series_detail.php', 'series_one.php', 'author.php', 'maker.php', 'actress.php', 'label.php']; ?>
     <?php if ($scriptName !== 'index.php' && !in_array($scriptName, $autoBreadcrumbSkip, true)): ?>
       <nav class="pcf-breadcrumb" aria-label="パンくず">
         <span class="pcf-breadcrumb__item"><a href="<?= e(public_url('')) ?>">ホーム</a></span>

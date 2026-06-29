@@ -366,6 +366,17 @@ body.admin-page .admin-menu__child .admin-menu__link{padding-left:28px;font-weig
 .sidebar-ad-html img,.sidebar-ad-html iframe,.sidebar-ad-html video{max-width:100%;height:auto}
 .sidebar-image-links img{max-width:100%;height:auto}
 .site-footer{width:100%;box-sizing:border-box}
+
+body.page-label-detail .site-sidebar{
+  max-height:calc(100vh - 32px);
+  overflow-y:auto;
+  position:sticky;
+  top:16px;
+  align-self:flex-start;
+}
+body.page-label-detail .site-footer{
+  clear:both;
+}
 @media (max-width: 900px){
   .layout{display:block}
   .sidebar{width:100%;min-width:0;max-width:none;margin-bottom:12px}
