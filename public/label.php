@@ -20,20 +20,46 @@ function pcf_label_access_period_from(string $period): string
     return date('Y-m-d H:i:s', strtotime('-24 hours'));
 }
 
-function pcf_fetch_label_access_ranking(string $periodFrom): array
+function pcf_fetch_label_item_click_ranking(string $labelName, string $periodFrom): array
 {
+    $labelName = trim($labelName);
+    if ($labelName === '') {
+        return [];
+    }
+
     try {
         if (!analytics_ensure_tables()) {
             throw new RuntimeException('analytics tables are not available');
         }
 
         foreach ([
-            "SELECT il.label_id AS id, il.label_name AS name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_labels il ON i.content_id = il.content_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY il.label_id, il.label_name ORDER BY access_count DESC, il.label_name ASC LIMIT 200",
-            "SELECT COALESCE(NULLIF(il.dmm_id, ''), il.label_name) AS id, il.label_name AS name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_labels il ON i.id = il.item_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY COALESCE(NULLIF(il.dmm_id, ''), il.label_name), il.label_name ORDER BY access_count DESC, il.label_name ASC LIMIT 200",
+            "SELECT i.id, i.content_id, i.title, COUNT(ol.id) AS access_count
+             FROM out_logs ol
+             INNER JOIN items i ON i.affiliate_url = ol.target_url
+             INNER JOIN item_labels il ON i.content_id = il.content_id
+             WHERE ol.created_at >= :period_from
+               AND il.label_name = :label_name
+               AND TRIM(COALESCE(i.affiliate_url, '')) <> ''
+             GROUP BY i.id, i.content_id, i.title
+             ORDER BY access_count DESC, i.id DESC
+             LIMIT 200",
+            "SELECT i.id, i.content_id, i.title, COUNT(ol.id) AS access_count
+             FROM out_logs ol
+             INNER JOIN items i ON i.affiliate_url = ol.target_url
+             INNER JOIN item_labels il ON i.id = il.item_id
+             WHERE ol.created_at >= :period_from
+               AND il.label_name = :label_name
+               AND TRIM(COALESCE(i.affiliate_url, '')) <> ''
+             GROUP BY i.id, i.content_id, i.title
+             ORDER BY access_count DESC, i.id DESC
+             LIMIT 200",
         ] as $sql) {
             try {
                 $stmt = db()->prepare($sql);
-                $stmt->execute([':period_from' => $periodFrom]);
+                $stmt->execute([
+                    ':period_from' => $periodFrom,
+                    ':label_name' => $labelName,
+                ]);
                 return $stmt->fetchAll() ?: [];
             } catch (Throwable) {
             }
@@ -74,7 +100,7 @@ $accessRankingTabs = [
 if (!isset($accessRankingTabs[$accessRankingPeriod])) {
     $accessRankingPeriod = 'daily';
 }
-$accessRankingRows = pcf_fetch_label_access_ranking(pcf_label_access_period_from($accessRankingPeriod));
+$accessRankingRows = pcf_fetch_label_item_click_ranking($labelName, pcf_label_access_period_from($accessRankingPeriod));
 
 $title = $labelName;
 $pageDescription = mb_strimwidth($labelName . 'レーベルの作品一覧。FANZAで販売中の最新作・人気作品を紹介。', 0, 150, '…', 'UTF-8');
@@ -113,7 +139,7 @@ require __DIR__ . '/partials/header.php';
 <?php endif; ?>
 
 <section id="access-ranking" class="block" style="margin-top:24px;">
-  <h2 class="section-title">レーベルクリックランキング</h2>
+  <h2 class="section-title">レーベル内商品クリックランキング</h2>
   <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php $tabUrl = public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? $id), 'name' => $labelName, 'rank_period' => (string)$tabKey]) . '#access-ranking'; ?>
@@ -127,16 +153,16 @@ require __DIR__ . '/partials/header.php';
         <thead>
           <tr>
             <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
-            <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">レーベル名</th>
+            <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">商品名</th>
             <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">クリック数</th>
           </tr>
         </thead>
         <tbody>
           <?php foreach ($accessRankingRows as $accessIndex => $accessRow): ?>
-            <?php $labelUrl = public_url('label.php') . '?' . http_build_query(['id' => (string)($accessRow['id'] ?? ''), 'name' => (string)($accessRow['name'] ?? '')]); ?>
+            <?php $itemUrl = public_url('item.php') . '?id=' . rawurlencode((string)($accessRow['id'] ?? '')); ?>
             <tr>
               <td style="text-align:center; padding:8px; border-bottom:1px solid #eee; font-weight:700;"><?= e((string)($accessIndex + 1)) ?></td>
-              <td style="padding:8px; border-bottom:1px solid #eee; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><a href="<?= e($labelUrl) ?>"><?= e((string)($accessRow['name'] ?? '')) ?></a></td>
+              <td style="padding:8px; border-bottom:1px solid #eee; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><a href="<?= e($itemUrl) ?>"><?= e((string)($accessRow['title'] ?? '')) ?></a></td>
               <td style="text-align:center; padding:8px; border-bottom:1px solid #eee;"><?= e((string)((int)($accessRow['access_count'] ?? 0))) ?></td>
             </tr>
           <?php endforeach; ?>
@@ -144,7 +170,7 @@ require __DIR__ . '/partials/header.php';
       </table>
     </div>
   <?php else: ?>
-    <?php pcf_render_empty('レーベルクリックランキングのデータがありません。'); ?>
+    <?php pcf_render_empty('レーベル内商品クリックランキングのデータがありません。'); ?>
   <?php endif; ?>
 </section>
 
