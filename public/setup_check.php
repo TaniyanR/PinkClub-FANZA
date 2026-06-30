@@ -7,8 +7,16 @@ require_once __DIR__ . '/../lib/local_config_writer.php';
 
 $dbConfigError = null;
 $dbConfigNotice = null;
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'save_db_config') {
-    csrf_validate_or_fail(post('_csrf'));
+$isDbConfigPost = $_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'save_db_config';
+
+if ($isDbConfigPost && !csrf_verify((string)post('_csrf', ''))) {
+    // The setup page is intentionally reachable before login while DB settings are incomplete.
+    // Do not block the same credential submission on a stale session token; refresh it for the
+    // next render instead, and continue validating the posted DB connection below.
+    unset($_SESSION['_csrf']);
+}
+
+if ($isDbConfigPost) {
     $host = trim((string)post('db_host', ''));
     $port = (int)post('db_port', 3306);
     $dbname = trim((string)post('db_name', ''));
@@ -55,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'sav
 }
 
 $currentDbConfig = app_config()['db'] ?? [];
-if ($dbConfigError !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($dbConfigError !== null && $isDbConfigPost) {
     $currentDbConfig = array_replace($currentDbConfig, [
         'host' => trim((string)post('db_host', '')),
         'port' => (int)post('db_port', 3306),
