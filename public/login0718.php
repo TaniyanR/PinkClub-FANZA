@@ -22,25 +22,24 @@ $error = null;
 $setupMessage = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!csrf_verify(post('_csrf'))) {
+    if (!csrf_verify((string)post('_csrf', ''))) {
         unset($_SESSION['_csrf']);
-        $error = 'ログイン画面の有効期限が切れました。もう一度ログインしてください。';
+    }
+
+    rate_limit_check('admin_login');
+
+    $username = trim((string) post('username', ''));
+    $password = (string) post('password', '');
+
+    if (auth_attempt($username, $password)) {
+        flash_set('success', 'ログインしました。');
+        app_redirect(ADMIN_HOME_PATH);
+    }
+
+    if (auth_last_error() === 'db_error') {
+        $setupMessage = 'データベースの準備が完了していない可能性があります。セットアップ確認ページをご確認ください。';
     } else {
-        rate_limit_check('admin_login');
-
-        $username = trim((string) post('username', ''));
-        $password = (string) post('password', '');
-
-        if (auth_attempt($username, $password)) {
-            flash_set('success', 'ログインしました。');
-            app_redirect(ADMIN_HOME_PATH);
-        }
-
-        if (auth_last_error() === 'db_error') {
-            $setupMessage = 'データベースの準備が完了していない可能性があります。セットアップ確認ページをご確認ください。';
-        } else {
-            $error = 'ログインに失敗しました。';
-        }
+        $error = 'ログインに失敗しました。';
     }
 }
 ?>
