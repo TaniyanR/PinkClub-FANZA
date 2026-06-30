@@ -22,12 +22,16 @@ function admin_v2_log(string $message, ?Throwable $exception = null): void
 
 function admin_v2_cookie_secure(): bool
 {
-    $https = (string)($_SERVER['HTTPS'] ?? '');
-    if ($https === 'on' || $https === '1') {
+    $https = strtolower((string)($_SERVER['HTTPS'] ?? ''));
+    if ($https !== '' && $https !== 'off' && $https !== '0') {
         return true;
     }
 
-    return strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+    if (strtolower((string)($_SERVER['REQUEST_SCHEME'] ?? '')) === 'https') {
+        return true;
+    }
+
+    return (string)($_SERVER['SERVER_PORT'] ?? '') === '443';
 }
 
 function admin_v2_session_start(): void
