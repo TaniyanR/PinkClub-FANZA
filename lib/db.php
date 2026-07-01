@@ -2,6 +2,47 @@
 
 declare(strict_types=1);
 
+function db_normalize_config(array $cfg): array
+{
+    $defaults = [
+        'host' => 'localhost',
+        'port' => 3306,
+        'dbname' => '',
+        'user' => '',
+        'pass' => '',
+        'charset' => 'utf8mb4',
+    ];
+
+    if (!isset($cfg['dbname']) && isset($cfg['name'])) {
+        $cfg['dbname'] = $cfg['name'];
+    }
+    if (!isset($cfg['pass']) && isset($cfg['password'])) {
+        $cfg['pass'] = $cfg['password'];
+    }
+
+    $normalized = array_replace($defaults, array_intersect_key($cfg, $defaults));
+    $host = trim((string)$normalized['host']);
+    if (preg_match('/^([^:\[\]]+):(\d+)$/', $host, $matches) === 1) {
+        $normalized['host'] = $matches[1];
+        $normalized['port'] = (int)$matches[2];
+    } else {
+        $normalized['host'] = $host;
+    }
+    $normalized['port'] = (int)$normalized['port'];
+    $normalized['dbname'] = trim((string)$normalized['dbname']);
+    $normalized['user'] = trim((string)$normalized['user']);
+    $normalized['pass'] = (string)$normalized['pass'];
+    $normalized['charset'] = trim((string)$normalized['charset']);
+
+    return $normalized;
+}
+
+function db_config(): array
+{
+    $cfg = function_exists('app_config') ? (app_config()['db'] ?? []) : [];
+    return is_array($cfg) ? db_normalize_config($cfg) : db_normalize_config([]);
+}
+
 function db_options(): array
 {
     return [
@@ -54,7 +95,7 @@ function db_server_pdo(): PDO
         return $GLOBALS['__db_server_pdo'];
     }
 
-    $cfg = app_config()['db'];
+    $cfg = db_config();
     $dsn = sprintf('mysql:host=%s;port=%d;charset=%s', $cfg['host'], (int)$cfg['port'], $cfg['charset']);
     $configErrors = db_validate_config($cfg, false);
 
@@ -81,7 +122,7 @@ function db_pdo(): PDO
         return $GLOBALS['__db_pdo'];
     }
 
-    $cfg = app_config()['db'];
+    $cfg = db_config();
     $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=%s', $cfg['host'], (int)$cfg['port'], $cfg['dbname'], $cfg['charset']);
     $configErrors = db_validate_config($cfg, true);
 
@@ -136,7 +177,7 @@ function db_table_exists($pdoOrTable, ?string $table = null): bool
             return false;
         }
 
-        $cfg = app_config()['db'];
+        $cfg = db_config();
         $cacheKey = (string)$cfg['dbname'] . '.' . $tableName;
         if (array_key_exists($cacheKey, $cache)) {
             return $cache[$cacheKey];
