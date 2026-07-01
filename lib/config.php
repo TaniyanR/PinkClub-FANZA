@@ -3,6 +3,18 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/polyfills.php';
 
+
+function config_normalize_db_config(array $db): array
+{
+    if (!isset($db['dbname']) && isset($db['name'])) {
+        $db['dbname'] = $db['name'];
+    }
+    if (!isset($db['pass']) && isset($db['password'])) {
+        $db['pass'] = $db['password'];
+    }
+    return $db;
+}
+
 function config_base(): array
 {
     static $base = null;
@@ -53,6 +65,10 @@ function config(): array
 
     // timezone（一度だけ）
     date_default_timezone_set('Asia/Tokyo');
+
+    if (isset($config['db']) && is_array($config['db'])) {
+        $config['db'] = config_normalize_db_config($config['db']);
+    }
 
     // 互換吸収：古い `api` が残っていたら `dmm_api` に寄せる
     if (isset($config['api']) && !isset($config['dmm_api']) && is_array($config['api'])) {
