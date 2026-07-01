@@ -2,6 +2,27 @@
 
 declare(strict_types=1);
 
+function db_config(): array
+{
+    $defaults = [
+        'host' => 'localhost',
+        'port' => 3306,
+        'dbname' => '',
+        'user' => '',
+        'pass' => '',
+        'charset' => 'utf8mb4',
+    ];
+
+    if (function_exists('app_config')) {
+        $cfg = app_config()['db'] ?? [];
+        return is_array($cfg) ? array_replace($defaults, array_intersect_key($cfg, $defaults)) : $defaults;
+    }
+
+    require_once __DIR__ . '/config.php';
+    $cfg = config_get('db', []);
+    return is_array($cfg) ? array_replace($defaults, array_intersect_key($cfg, $defaults)) : $defaults;
+}
+
 function db_options(): array
 {
     return [
@@ -54,7 +75,7 @@ function db_server_pdo(): PDO
         return $GLOBALS['__db_server_pdo'];
     }
 
-    $cfg = app_config()['db'];
+    $cfg = db_config();
     $dsn = sprintf('mysql:host=%s;port=%d;charset=%s', $cfg['host'], (int)$cfg['port'], $cfg['charset']);
     $configErrors = db_validate_config($cfg, false);
 
@@ -81,7 +102,7 @@ function db_pdo(): PDO
         return $GLOBALS['__db_pdo'];
     }
 
-    $cfg = app_config()['db'];
+    $cfg = db_config();
     $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=%s', $cfg['host'], (int)$cfg['port'], $cfg['dbname'], $cfg['charset']);
     $configErrors = db_validate_config($cfg, true);
 
@@ -136,7 +157,7 @@ function db_table_exists($pdoOrTable, ?string $table = null): bool
             return false;
         }
 
-        $cfg = app_config()['db'];
+        $cfg = db_config();
         $cacheKey = (string)$cfg['dbname'] . '.' . $tableName;
         if (array_key_exists($cacheKey, $cache)) {
             return $cache[$cacheKey];
