@@ -5,11 +5,17 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/rate_limit.php';
 
-if (db_validate_config(app_config()['db'] ?? [], true) !== []) {
+$loginDbConfig = db_config();
+if (db_validate_config($loginDbConfig, true) !== []) {
     app_redirect('/public/setup_check.php');
 }
 
-$autoSetup = installer_auto_run_if_needed();
+try {
+    $autoSetup = installer_auto_run_if_needed();
+} catch (Throwable $e) {
+    installer_log('login setup check error: ' . $e->getMessage());
+    app_redirect('/public/setup_check.php');
+}
 if (($autoSetup['success'] ?? false) !== true) {
     app_redirect('/public/setup_check.php');
 }

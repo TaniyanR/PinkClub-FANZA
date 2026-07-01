@@ -164,6 +164,18 @@ if (!defined('ADMIN_HOME_PATH')) {
     define('ADMIN_HOME_PATH', '/admin/index.php');
 }
 
+
+function normalize_db_config_keys(array $db): array
+{
+    if (!isset($db['dbname']) && isset($db['name'])) {
+        $db['dbname'] = $db['name'];
+    }
+    if (!isset($db['pass']) && isset($db['password'])) {
+        $db['pass'] = $db['password'];
+    }
+    return $db;
+}
+
 $dbConfig = [
     'host' => 'localhost',
     'port' => 3306,
@@ -172,11 +184,21 @@ $dbConfig = [
     'pass' => '',
     'charset' => 'utf8mb4',
 ];
+$baseConfigPath = __DIR__ . '/../config.php';
+if (is_file($baseConfigPath)) {
+    $baseConfig = require $baseConfigPath;
+    if (is_array($baseConfig) && isset($baseConfig['db']) && is_array($baseConfig['db'])) {
+        $baseDbConfig = normalize_db_config_keys($baseConfig['db']);
+        $dbConfig = array_replace($dbConfig, array_intersect_key($baseDbConfig, $dbConfig));
+    }
+}
+
 $localConfigPath = __DIR__ . '/../config.local.php';
 if (is_file($localConfigPath)) {
     $localConfig = require $localConfigPath;
     if (is_array($localConfig) && isset($localConfig['db']) && is_array($localConfig['db'])) {
-        $dbConfig = array_replace($dbConfig, array_intersect_key($localConfig['db'], $dbConfig));
+        $localDbConfig = normalize_db_config_keys($localConfig['db']);
+        $dbConfig = array_replace($dbConfig, array_intersect_key($localDbConfig, $dbConfig));
     }
 }
 

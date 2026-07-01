@@ -8,28 +8,52 @@ require_once __DIR__ . '/../lib/local_config_writer.php';
 $dbConfigError = null;
 $dbConfigNotice = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'save_db_config') {
-    csrf_validate_or_fail(post('_csrf'));
-    $host = trim((string)post('db_host', ''));
-    $port = (int)post('db_port', 3306);
-    $dbname = trim((string)post('db_name', ''));
-    $user = trim((string)post('db_user', ''));
-    $pass = (string)post('db_pass', '');
-    if ($host === '' || $port <= 0 || $dbname === '' || $user === '') {
+    $csrfValid = csrf_verify(post('_csrf'));
+    if (!$csrfValid) {
+        unset($_SESSION['_csrf']);
+        $dbConfigError = 'セットアップ画面の有効期限が切れました。もう一度DB設定を保存してください。';
+    }
+    $postedDbConfig = db_normalize_config([
+        'host' => post('db_host', ''),
+        'port' => post('db_port', 3306),
+        'dbname' => post('db_name', ''),
+        'user' => post('db_user', ''),
+        'pass' => post('db_pass', ''),
+        'charset' => 'utf8mb4',
+    ]);
+    $host = (string)$postedDbConfig['host'];
+    $port = (int)$postedDbConfig['port'];
+    $dbname = (string)$postedDbConfig['dbname'];
+    $user = (string)$postedDbConfig['user'];
+    $pass = (string)$postedDbConfig['pass'];
+    if ($csrfValid && ($host === '' || $port <= 0 || $dbname === '' || $user === '')) {
         $dbConfigError = 'DBホスト名、DBポート、データベース、ユーザー名を入力してください。';
-    } elseif ($host !== 'localhost' && str_contains($dbname, '_') && $host === strtok($dbname, '_')) {
+    } elseif ($csrfValid && $host !== 'localhost' && str_contains($dbname, '_') && $host === strtok($dbname, '_')) {
         $dbConfigError = 'DBホスト名にサーバーIDが入力されています。DBホスト名は通常 localhost です。';
-    } else {
+    } elseif ($csrfValid) {
         try {
             $local = local_config_load();
             if ($pass === '' && isset($local['db']['pass'])) {
                 $pass = (string)$local['db']['pass'];
+            }
+            if ($pass === '' && isset($local['db']['password'])) {
+                $pass = (string)$local['db']['password'];
             }
             if ($pass === '') {
                 $dbConfigError = '初回保存時はMySQLユーザーのパスワードを入力してください。';
                 throw new RuntimeException('db password required');
             }
             $testDsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $dbname);
-            new PDO($testDsn, $user, $pass, db_options());
+            try {
+                new PDO($testDsn, $user, $pass, db_options());
+            } catch (PDOException $exception) {
+                $message = $exception->getMessage();
+                if (!str_contains($message, '[1049]') && !str_contains($message, 'Unknown database')) {
+                    throw $exception;
+                }
+                $serverDsn = sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $host, $port);
+                new PDO($serverDsn, $user, $pass, db_options());
+            }
             $local['db'] = [
                 'host' => $host,
                 'port' => $port,

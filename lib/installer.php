@@ -71,10 +71,14 @@ function installer_auto_run_if_needed(): array
     return ['attempted' => true, 'success' => (bool)($result['success'] ?? false), 'blocked' => false, 'result' => $result];
 }
 
-function installer_can_connect_server(): bool { try { db_server_pdo(); return true; } catch (Throwable $e) { installer_log_exception('server_connection',$e); return false; } }
+function installer_can_connect_server(): bool { try { db_server_pdo(); return true; } catch (Throwable $e) { installer_log_exception('server_connection',$e); return db_can_connect(); } }
 
 function installer_ensure_database_exists(): void
 {
+    if (db_can_connect()) {
+        return;
+    }
+
     $cfg = app_config()['db'];
     $dbname = (string)$cfg['dbname'];
     $stmt = db_server_pdo()->prepare('SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = :dbname LIMIT 1');
@@ -267,11 +271,11 @@ function installer_status(): array
 {
     $status = ['server_connection'=>false,'db_connection'=>false,'admins_table'=>false,'settings_table'=>false,'admin_user'=>false,'settings_row'=>false,'completed'=>false];
     $status['server_connection'] = installer_can_connect_server();
-    if (!$status['server_connection']) {
+    $status['db_connection'] = db_can_connect();
+    if (!$status['server_connection'] && !$status['db_connection']) {
         $status['completed'] = false;
         return $status;
     }
-    $status['db_connection'] = db_can_connect();
     if (!$status['db_connection']) {
         $status['completed'] = false;
         return $status;
@@ -326,7 +330,7 @@ function installer_run(): array
     try {
         installer_clear_last_error();
         unset($GLOBALS['installer_last_failed_sql']);
-        if (!installer_can_connect_server()) throw new RuntimeException('MySQLサーバーに接続できません。');
+        if (!installer_can_connect_server() && !db_can_connect()) throw new RuntimeException('MySQLサーバーに接続できません。');
         $step('server_connection', true);
 
         $currentStep='create_database'; installer_ensure_database_exists(); $step('create_database', true);
