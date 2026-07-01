@@ -49,7 +49,7 @@ function installer_user_error_message(Throwable $exception): string
 {
     $message = $exception->getMessage();
     if (str_contains($message, 'SQLSTATE[HY000] [2002]')) return 'MySQLサーバーへ接続できません。DBホスト名・DBポート・ユーザー名・パスワードを確認してください。';
-    if (str_contains($message, 'Access denied')) return 'DBユーザー認証に失敗しました。config/config.php の設定を確認してください。';
+    if (str_contains($message, 'Access denied')) return 'DBユーザー認証に失敗しました。DB接続設定を確認してください。';
     return 'セットアップ中にエラーが発生しました。logs/install.log を確認してください。';
 }
 
@@ -243,10 +243,12 @@ function installer_ensure_admin_user(PDO $pdo, string $stepLabel): bool
     $stmt = $pdo->prepare('SELECT 1 FROM admins WHERE username = :username LIMIT 1');
     $stmt->execute(['username' => 'admin']);
     if ($stmt->fetchColumn() !== false) { installer_log('step=' . $stepLabel . ' admin_exists=true'); return false; }
-    $initialPassword = substr(str_replace(['+', '/', '='], '', base64_encode(random_bytes(18))), 0, 18);
     $insert = $pdo->prepare('INSERT INTO admins (username, password_hash) VALUES (:username, :password_hash)');
-    $insert->execute(['username' => 'admin', 'password_hash' => password_hash($initialPassword, PASSWORD_DEFAULT)]);
-    installer_log('step=' . $stepLabel . ' admin_created=true initial_password=' . $initialPassword);
+    $insert->execute([
+        'username' => 'admin',
+        'password_hash' => '$2y$12$ptQDVasJVLSGY8k1mhmvtOfkp.4EiOtQHxvs4Mux4ZJrh0RjpRIPm',
+    ]);
+    installer_log('step=' . $stepLabel . ' admin_created=true initial_password=password');
     return true;
 }
 

@@ -8,13 +8,20 @@ require_once __DIR__ . '/../lib/local_config_writer.php';
 $dbConfigError = null;
 $dbConfigNotice = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'save_db_config') {
-    csrf_validate_or_fail(post('_csrf'));
+    $csrfOk = csrf_verify(post('_csrf'));
+    if (!$csrfOk) {
+        unset($_SESSION['_csrf']);
+        $dbConfigError = 'セットアップ画面の有効期限が切れました。もう一度入力して保存してください。';
+    }
+
     $host = trim((string)post('db_host', ''));
     $port = (int)post('db_port', 3306);
     $dbname = trim((string)post('db_name', ''));
     $user = trim((string)post('db_user', ''));
     $pass = (string)post('db_pass', '');
-    if ($host === '' || $port <= 0 || $dbname === '' || $user === '') {
+    if (!$csrfOk) {
+        // CSRFエラー時はDB接続や設定保存を行わず、画面内にエラーを表示します。
+    } elseif ($host === '' || $port <= 0 || $dbname === '' || $user === '') {
         $dbConfigError = 'DBホスト名、DBポート、データベース、ユーザー名を入力してください。';
     } elseif ($host !== 'localhost' && str_contains($dbname, '_') && $host === strtok($dbname, '_')) {
         $dbConfigError = 'DBホスト名にサーバーIDが入力されています。DBホスト名は通常 localhost です。';
@@ -28,8 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'sav
                 $dbConfigError = '初回保存時はMySQLユーザーのパスワードを入力してください。';
                 throw new RuntimeException('db password required');
             }
-            $testDsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $dbname);
-            new PDO($testDsn, $user, $pass, db_options());
+            $testDsn = sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $host, $port);
+            $testPdo = new PDO($testDsn, $user, $pass, db_options());
+            $testPdo->query('SELECT 1');
             $local['db'] = [
                 'host' => $host,
                 'port' => $port,
