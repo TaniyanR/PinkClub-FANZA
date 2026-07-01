@@ -14,10 +14,11 @@ $contents = <<<PHP
 return [
     'db' => [
         'host' => 'localhost',
-        'name' => '',
-        'dsn' => '',
+        'port' => 3306,
+        'dbname' => '',
         'user' => '',
-        'password' => '',
+        'pass' => '',
+        'charset' => 'utf8mb4',
     ],
 ];
 PHP;
