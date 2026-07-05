@@ -34,6 +34,23 @@ function pcf_site_feed_date(?string $value): string
     return date(DATE_RSS, $timestamp);
 }
 
+function pcf_site_feed_balanced_date(?string $value, int $index): string
+{
+    $date = $value !== null ? trim($value) : '';
+    $timestamp = $date !== '' ? strtotime($date) : false;
+    if ($timestamp === false) {
+        return pcf_site_feed_date($value);
+    }
+
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        $currentHour = (int)date('G');
+        $baseHour = date('Y-m-d', $timestamp) === date('Y-m-d') ? $currentHour : 23;
+        $timestamp = strtotime(date('Y-m-d 00:00:00', $timestamp)) + ($baseHour * 3600) - (max(0, $index) * 3600);
+    }
+
+    return date(DATE_RSS, $timestamp);
+}
+
 $siteTitle = trim(site_setting_get('site.title', site_setting_get('site.name', APP_NAME)));
 if ($siteTitle === '') {
     $siteTitle = APP_NAME;
@@ -56,7 +73,7 @@ try {
 }
 
 $lastBuildDate = date(DATE_RSS);
-foreach ($items as $item) {
+foreach ($items as $itemIndex => $item) {
     if (!is_array($item)) {
         continue;
     }
@@ -69,7 +86,7 @@ foreach ($items as $item) {
 
     $releaseDate = trim((string)($item['release_date'] ?? ''));
     if ($releaseDate !== '') {
-        $lastBuildDate = pcf_site_feed_date($releaseDate);
+        $lastBuildDate = pcf_site_feed_balanced_date($releaseDate, (int)$itemIndex);
         break;
     }
 }
@@ -84,7 +101,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
     <description><?= pcf_site_feed_xml($description) ?></description>
     <language>ja</language>
     <lastBuildDate><?= pcf_site_feed_xml($lastBuildDate) ?></lastBuildDate>
-<?php foreach ($items as $item): ?>
+<?php foreach ($items as $itemIndex => $item): ?>
 <?php
     if (!is_array($item)) {
         continue;
@@ -112,7 +129,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
       <title><?= pcf_site_feed_xml($itemTitle) ?></title>
       <link><?= pcf_site_feed_xml($itemLink) ?></link>
       <guid isPermaLink="false"><?= pcf_site_feed_xml($itemGuid) ?></guid>
-      <pubDate><?= pcf_site_feed_xml(pcf_site_feed_date($itemDate)) ?></pubDate>
+      <pubDate><?= pcf_site_feed_xml(pcf_site_feed_balanced_date($itemDate, (int)$itemIndex)) ?></pubDate>
 <?php if ($itemDescription !== ''): ?>
       <description><?= pcf_site_feed_xml($itemDescription) ?></description>
 <?php endif; ?>
