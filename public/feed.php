@@ -34,6 +34,29 @@ function pcf_site_feed_date(?string $value): string
     return date(DATE_RSS, $timestamp);
 }
 
+function pcf_site_feed_balanced_date(?string $value, int $index): string
+{
+    $timestamp = $value !== null && trim($value) !== '' ? strtotime($value) : false;
+    if ($timestamp === false) {
+        return pcf_site_feed_date($value);
+    }
+
+    $timestamp -= max(0, $index) * 3600;
+
+    return date(DATE_RSS, $timestamp);
+}
+
+function pcf_site_feed_items(int $limit): array
+{
+    $limit = normalize_int($limit, 1, 100);
+    $sourceWhere = items_product_source_where();
+    $whereSql = $sourceWhere !== '' ? ' WHERE ' . $sourceWhere : '';
+    $stmt = db()->prepare('SELECT * FROM items' . $whereSql . ' ORDER BY updated_at DESC, id DESC LIMIT :limit');
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->fetchAll() ?: [];
+}
+
 $siteTitle = trim(site_setting_get('site.title', site_setting_get('site.name', APP_NAME)));
 if ($siteTitle === '') {
     $siteTitle = APP_NAME;
@@ -50,7 +73,7 @@ if ($description === '') {
 }
 
 try {
-    $items = fetch_items('date_published_desc', 20, 0);
+    $items = pcf_site_feed_items(20);
 } catch (Throwable $e) {
     $items = [];
 }
@@ -84,7 +107,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
     <description><?= pcf_site_feed_xml($description) ?></description>
     <language>ja</language>
     <lastBuildDate><?= pcf_site_feed_xml($lastBuildDate) ?></lastBuildDate>
-<?php foreach ($items as $item): ?>
+<?php foreach ($items as $index => $item): ?>
 <?php
     if (!is_array($item)) {
         continue;
@@ -101,9 +124,9 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
         $itemGuid = $itemLink;
     }
 
-    $itemDate = trim((string)($item['release_date'] ?? ''));
+    $itemDate = trim((string)($item['updated_at'] ?? ''));
     if ($itemDate === '') {
-        $itemDate = trim((string)($item['updated_at'] ?? ''));
+        $itemDate = trim((string)($item['release_date'] ?? ''));
     }
 
     $itemDescription = trim((string)($item['category_name'] ?? ''));
@@ -112,7 +135,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
       <title><?= pcf_site_feed_xml($itemTitle) ?></title>
       <link><?= pcf_site_feed_xml($itemLink) ?></link>
       <guid isPermaLink="false"><?= pcf_site_feed_xml($itemGuid) ?></guid>
-      <pubDate><?= pcf_site_feed_xml(pcf_site_feed_date($itemDate)) ?></pubDate>
+      <pubDate><?= pcf_site_feed_xml(pcf_site_feed_balanced_date($itemDate, (int)$index)) ?></pubDate>
 <?php if ($itemDescription !== ''): ?>
       <description><?= pcf_site_feed_xml($itemDescription) ?></description>
 <?php endif; ?>
