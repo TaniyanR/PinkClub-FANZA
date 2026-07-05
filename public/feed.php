@@ -34,6 +34,20 @@ function pcf_site_feed_date(?string $value): string
     return date(DATE_RSS, $timestamp);
 }
 
+function pcf_site_feed_balanced_date(?string $value, int $index): string
+{
+    $timestamp = $value !== null && trim($value) !== '' ? strtotime($value) : false;
+    if ($timestamp === false) {
+        return pcf_site_feed_date($value);
+    }
+
+    if (date('H:i:s', $timestamp) === '00:00:00') {
+        $timestamp += max(0, 23 - ($index % 24)) * 3600;
+    }
+
+    return date(DATE_RSS, $timestamp);
+}
+
 $siteTitle = trim(site_setting_get('site.title', site_setting_get('site.name', APP_NAME)));
 if ($siteTitle === '') {
     $siteTitle = APP_NAME;
@@ -84,7 +98,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
     <description><?= pcf_site_feed_xml($description) ?></description>
     <language>ja</language>
     <lastBuildDate><?= pcf_site_feed_xml($lastBuildDate) ?></lastBuildDate>
-<?php foreach ($items as $item): ?>
+<?php foreach ($items as $index => $item): ?>
 <?php
     if (!is_array($item)) {
         continue;
@@ -112,7 +126,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
       <title><?= pcf_site_feed_xml($itemTitle) ?></title>
       <link><?= pcf_site_feed_xml($itemLink) ?></link>
       <guid isPermaLink="false"><?= pcf_site_feed_xml($itemGuid) ?></guid>
-      <pubDate><?= pcf_site_feed_xml(pcf_site_feed_date($itemDate)) ?></pubDate>
+      <pubDate><?= pcf_site_feed_xml(pcf_site_feed_balanced_date($itemDate, (int)$index)) ?></pubDate>
 <?php if ($itemDescription !== ''): ?>
       <description><?= pcf_site_feed_xml($itemDescription) ?></description>
 <?php endif; ?>
