@@ -8,47 +8,51 @@ require_once __DIR__ . '/../lib/local_config_writer.php';
 $dbConfigError = null;
 $dbConfigNotice = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'save_db_config') {
-    csrf_validate_or_fail(post('_csrf'));
-    $host = trim((string)post('db_host', ''));
-    $port = (int)post('db_port', 3306);
-    $dbname = trim((string)post('db_name', ''));
-    $user = trim((string)post('db_user', ''));
-    $pass = (string)post('db_pass', '');
-    if ($host === '' || $port <= 0 || $dbname === '' || $user === '') {
-        $dbConfigError = 'DBホスト名、DBポート、データベース、ユーザー名を入力してください。';
-    } elseif ($host !== 'localhost' && str_contains($dbname, '_') && $host === strtok($dbname, '_')) {
-        $dbConfigError = 'DBホスト名にサーバーIDが入力されています。DBホスト名は通常 localhost です。';
+    if (!csrf_verify((string)post('_csrf', ''))) {
+        unset($_SESSION['_csrf']);
+        $dbConfigError = 'セットアップ画面の有効期限が切れました。もう一度入力して保存してください。';
     } else {
-        try {
-            $local = local_config_load();
-            if ($pass === '' && isset($local['db']['pass'])) {
-                $pass = (string)$local['db']['pass'];
-            }
-            if ($pass === '') {
-                $dbConfigError = '初回保存時はMySQLユーザーのパスワードを入力してください。';
-                throw new RuntimeException('db password required');
-            }
-            $testDsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $dbname);
-            new PDO($testDsn, $user, $pass, db_options());
-            $local['db'] = [
-                'host' => $host,
-                'port' => $port,
-                'dbname' => $dbname,
-                'user' => $user,
-                'pass' => $pass,
-                'charset' => 'utf8mb4',
-            ];
-            local_config_write($local);
-            $GLOBALS['app_config']['db'] = $local['db'];
-            db_reset_connections();
-            $setupResult = installer_run();
-            if (($setupResult['success'] ?? false) === true) {
-                app_redirect(LOGIN_PATH);
-            }
-            $dbConfigError = (string)($setupResult['error'] ?? 'DB接続設定は保存しましたが、セットアップに失敗しました。install.log を確認してください。');
-        } catch (Throwable $exception) {
-            if ($dbConfigError === null) {
-                $dbConfigError = 'DB接続テストに失敗しました。MySQLホスト名、データベース名、ユーザー名、パスワードを確認してください。あわせて、サーバーパネルのMySQL設定で対象データベースにこのMySQLユーザーを追加済みか確認してください。';
+        $host = trim((string)post('db_host', ''));
+        $port = (int)post('db_port', 3306);
+        $dbname = trim((string)post('db_name', ''));
+        $user = trim((string)post('db_user', ''));
+        $pass = (string)post('db_pass', '');
+        if ($host === '' || $port <= 0 || $dbname === '' || $user === '') {
+            $dbConfigError = 'DBホスト名、DBポート、データベース、ユーザー名を入力してください。';
+        } elseif ($host !== 'localhost' && str_contains($dbname, '_') && $host === strtok($dbname, '_')) {
+            $dbConfigError = 'DBホスト名にサーバーIDが入力されています。DBホスト名は通常 localhost です。';
+        } else {
+            try {
+                $local = local_config_load();
+                if ($pass === '' && isset($local['db']['pass'])) {
+                    $pass = (string)$local['db']['pass'];
+                }
+                if ($pass === '') {
+                    $dbConfigError = '初回保存時はMySQLユーザーのパスワードを入力してください。';
+                    throw new RuntimeException('db password required');
+                }
+                $testDsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $dbname);
+                new PDO($testDsn, $user, $pass, db_options());
+                $local['db'] = [
+                    'host' => $host,
+                    'port' => $port,
+                    'dbname' => $dbname,
+                    'user' => $user,
+                    'pass' => $pass,
+                    'charset' => 'utf8mb4',
+                ];
+                local_config_write($local);
+                $GLOBALS['app_config']['db'] = $local['db'];
+                db_reset_connections();
+                $setupResult = installer_run();
+                if (($setupResult['success'] ?? false) === true) {
+                    app_redirect(LOGIN_PATH);
+                }
+                $dbConfigError = (string)($setupResult['error'] ?? 'DB接続設定は保存しましたが、セットアップに失敗しました。install.log を確認してください。');
+            } catch (Throwable $exception) {
+                if ($dbConfigError === null) {
+                    $dbConfigError = 'DB接続テストに失敗しました。MySQLホスト名、データベース名、ユーザー名、パスワードを確認してください。あわせて、サーバーパネルのMySQL設定で対象データベースにこのMySQLユーザーを追加済みか確認してください。';
+                }
             }
         }
     }
