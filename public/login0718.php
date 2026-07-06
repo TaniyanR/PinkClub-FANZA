@@ -72,7 +72,7 @@ csrf_token();
         <div class="alert alert-error" role="alert"><?= e($error) ?></div>
       <?php endif; ?>
 
-      <form method="post" class="login-form">
+      <form method="post" action="<?= e(login_url()) ?>" class="login-form">
         <?= csrf_input() ?>
         <label class="login-label">
           ユーザー名
