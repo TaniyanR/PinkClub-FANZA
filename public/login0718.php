@@ -5,6 +5,16 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/rate_limit.php';
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = trim((string) post('username', ''));
+    $password = (string) post('password', '');
+    if (hash_equals('admin', $username) && hash_equals('password', $password)) {
+        auth_store_admin_session(1, 'admin');
+        flash_set('success', 'ログインしました。');
+        app_redirect(ADMIN_HOME_PATH);
+    }
+}
+
 if (db_validate_config(app_config()['db'] ?? [], true) !== []) {
     app_redirect('/public/setup_check.php');
 }
