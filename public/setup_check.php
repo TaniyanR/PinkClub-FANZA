@@ -85,6 +85,7 @@ $checks = [
 
 $errorSummary = installer_last_error_summary();
 $logTail = installer_log_tail(30);
+csrf_token();
 ?>
 <!doctype html>
 <html lang="ja">

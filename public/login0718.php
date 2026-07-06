@@ -43,6 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+csrf_token();
 ?>
 <!doctype html>
 <html lang="ja">
