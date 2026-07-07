@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../lib/bootstrap.php';
 require_once __DIR__ . '/../lib/access_analytics.php';
 require_once __DIR__ . '/../lib/scheduler.php';
+require_once __DIR__ . '/../lib/crawler_guard.php';
 
 /**
  * Run due API sync jobs after the current web response has been sent.
@@ -39,6 +40,10 @@ function access_triggered_scheduler_should_run(): bool
         return false;
     }
 
+    if (pcf_crawler_guard_is_known_crawler((string)($_SERVER['HTTP_USER_AGENT'] ?? ''))) {
+        return false;
+    }
+
     $scriptName = (string)($_SERVER['SCRIPT_NAME'] ?? '');
     $requestUri = (string)($_SERVER['REQUEST_URI'] ?? '');
     foreach ([$scriptName, $requestUri] as $path) {
@@ -50,4 +55,5 @@ function access_triggered_scheduler_should_run(): bool
     return true;
 }
 
+pcf_crawler_guard_check();
 run_access_triggered_scheduler();
