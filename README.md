@@ -145,6 +145,7 @@ This PR implements 6 incomplete features identified in README.md and docs/issues
 **使用方法 / Usage**:
 - トップページの「ピックアップ」セクションが自動的に人気順になります
 - 閲覧数の更新: `update_items_view_count()`関数を定期的に実行
+- `view_count`の全体再集計は、`public/item.php`へのアクセスごとには実行しません
 
 ---
 

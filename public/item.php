@@ -309,11 +309,6 @@ $userAgent = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
 $isMobileViewport = $viewport === 'sp' || $clientHintMobile === '?1' || ($userAgent !== '' && preg_match('/Android.*Mobile|iPhone|iPod|Windows Phone|BlackBerry|webOS/i', $userAgent));
 
 try {
-    update_items_view_count();
-} catch (Throwable) {
-}
-
-try {
     $relatedItems = fetch_related_items((string)$item['content_id'], 12);
 } catch (Throwable) {
     $relatedItems = [];
