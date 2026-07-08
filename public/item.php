@@ -281,11 +281,12 @@ if (!$item) {
     exit('not found');
 }
 
-if (!auth_user()) {
+$pageViewUserAgent = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
+if (!auth_user() && !pcf_crawler_guard_is_known_crawler($pageViewUserAgent)) {
     try {
         $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
         $ipHash = $ip !== '' ? hash('sha256', $ip . date('Y-m-d')) : null;
-        $ua = mb_substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255);
+        $ua = mb_substr($pageViewUserAgent, 0, 255);
         $viewStmt = db()->prepare('SELECT id FROM page_views WHERE item_id = :item_id AND ip_hash = :ip_hash AND DATE(viewed_at) = CURDATE() LIMIT 1');
         $viewStmt->execute([':item_id' => (int)$item['id'], ':ip_hash' => $ipHash]);
         if (!$viewStmt->fetch()) {
