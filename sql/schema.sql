@@ -98,7 +98,8 @@ CREATE TABLE IF NOT EXISTS items (
   release_date DATE NULL,
   raw_json LONGTEXT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_items_view_count (view_count, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS item_actresses (
@@ -107,6 +108,7 @@ CREATE TABLE IF NOT EXISTS item_actresses (
   dmm_id VARCHAR(64) NULL,
   actress_name VARCHAR(255) NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_item_actresses_dmm_item (dmm_id, item_id),
   CONSTRAINT fk_item_actress_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -116,6 +118,7 @@ CREATE TABLE IF NOT EXISTS item_genres (
   dmm_id VARCHAR(64) NULL,
   genre_name VARCHAR(255) NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_item_genres_dmm_item (dmm_id, item_id),
   CONSTRAINT fk_item_genre_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -154,6 +157,7 @@ CREATE TABLE IF NOT EXISTS item_makers (
   maker_name VARCHAR(255) NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uk_item_maker (item_id, dmm_id),
+  INDEX idx_item_makers_dmm_item (dmm_id, item_id),
   CONSTRAINT fk_item_maker_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -164,6 +168,7 @@ CREATE TABLE IF NOT EXISTS item_series (
   series_name VARCHAR(255) NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uk_item_series (item_id, dmm_id),
+  INDEX idx_item_series_dmm_item (dmm_id, item_id),
   CONSTRAINT fk_item_series_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -195,6 +200,7 @@ CREATE TABLE IF NOT EXISTS page_views (
   ip_hash VARCHAR(64) NULL,
   user_agent VARCHAR(255) NULL,
   INDEX idx_page_views_item_date (item_id, viewed_at),
+  INDEX idx_page_views_item_ip_date (item_id, ip_hash, viewed_at),
   CONSTRAINT fk_page_views_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

@@ -287,7 +287,7 @@ if (!auth_user() && !pcf_crawler_guard_is_known_crawler($pageViewUserAgent)) {
         $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
         $ipHash = $ip !== '' ? hash('sha256', $ip . date('Y-m-d')) : null;
         $ua = mb_substr($pageViewUserAgent, 0, 255);
-        $viewStmt = db()->prepare('SELECT id FROM page_views WHERE item_id = :item_id AND ip_hash = :ip_hash AND DATE(viewed_at) = CURDATE() LIMIT 1');
+        $viewStmt = db()->prepare('SELECT id FROM page_views WHERE item_id = :item_id AND ip_hash = :ip_hash AND viewed_at >= CURDATE() AND viewed_at < CURDATE() + INTERVAL 1 DAY LIMIT 1');
         $viewStmt->execute([':item_id' => (int)$item['id'], ':ip_hash' => $ipHash]);
         if (!$viewStmt->fetch()) {
             $insertView = db()->prepare('INSERT INTO page_views (item_id, viewed_at, ip_hash, user_agent) VALUES (:item_id, NOW(), :ip_hash, :user_agent)');

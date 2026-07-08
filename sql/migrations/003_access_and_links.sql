@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS out_logs (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   ref_code VARCHAR(64) NULL,
   target_url TEXT NOT NULL,
-  path VARCHAR(255) NULL
+  path VARCHAR(255) NULL,
+  INDEX idx_out_logs_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS partner_sites (

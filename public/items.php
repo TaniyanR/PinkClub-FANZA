@@ -212,7 +212,7 @@ function index_column_exists(PDO $pdo, string $table, string $column): bool
 
 function index_items_front_release_where(): string
 {
-    return '(items.release_date IS NULL OR items.release_date = "" OR DATE(items.release_date) <= CURDATE())';
+    return '(items.release_date IS NULL OR items.release_date = "" OR items.release_date <= CURDATE())';
 }
 
 function index_items_product_source_where(PDO $pdo): string

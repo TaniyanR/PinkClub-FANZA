@@ -187,7 +187,7 @@ function ensure_items_item_source_column(): void
 function items_front_release_where(string $alias = ''): string
 {
     $prefix = $alias !== '' ? $alias . '.' : 'items.';
-    return '(' . $prefix . 'release_date IS NULL OR ' . $prefix . 'release_date = "" OR DATE(' . $prefix . 'release_date) <= CURDATE())';
+    return '(' . $prefix . 'release_date IS NULL OR ' . $prefix . 'release_date = "" OR ' . $prefix . 'release_date <= CURDATE())';
 }
 
 function items_product_source_where(string $alias = ''): string
