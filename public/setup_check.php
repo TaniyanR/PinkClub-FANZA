@@ -7,6 +7,19 @@ require_once __DIR__ . '/../lib/local_config_writer.php';
 
 $dbConfigError = null;
 $dbConfigNotice = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'run_installer') {
+    csrf_validate_or_fail(post('_csrf'));
+    try {
+        $setupResult = installer_run();
+        if (($setupResult['success'] ?? false) === true) {
+            app_redirect(LOGIN_PATH);
+        }
+        $dbConfigError = (string)($setupResult['error'] ?? 'セットアップに失敗しました。install.log を確認してください。');
+    } catch (Throwable $exception) {
+        $dbConfigError = 'セットアップに失敗しました。MySQL情報と logs/install.log を確認してください。';
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'save_db_config') {
     csrf_validate_or_fail(post('_csrf'));
     $host = trim((string)post('db_host', ''));
@@ -28,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'sav
                 $dbConfigError = '初回保存時はMySQLユーザーのパスワードを入力してください。';
                 throw new RuntimeException('db password required');
             }
-            $testDsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $dbname);
+            $testDsn = sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $host, $port);
             new PDO($testDsn, $user, $pass, db_options());
             $local['db'] = [
                 'host' => $host,
@@ -99,7 +112,7 @@ csrf_token();
   <main class="setup-page">
     <section class="setup-card">
       <h1><?= e(APP_NAME) ?> セットアップ確認</h1>
-      <div class="alert alert-warning">セットアップ失敗時の診断ページです。再実行は <code>login0718.php</code> へアクセスしてください。</div>
+      <div class="alert alert-warning">セットアップ失敗時の診断ページです。DB設定保存後またはDBを空にした後は、この画面の「セットアップを実行する」から再実行できます。</div>
 
 
       <h2>DB接続設定</h2>
@@ -122,6 +135,16 @@ csrf_token();
         </tbody></table>
         <p><button type="submit">DB設定を保存する</button></p>
       </form>
+
+      <?php if ($configErrors === []): ?>
+        <h2>セットアップ実行</h2>
+        <div class="alert alert-warning">DBを削除・空にした後は、このボタンで <code>sql/schema.sql</code> と <code>sql/migrations/*.sql</code> をファイル名順に自動適用します。</div>
+        <form method="post">
+          <?= csrf_input() ?>
+          <input type="hidden" name="action" value="run_installer">
+          <p><button type="submit">セットアップを実行する</button></p>
+        </form>
+      <?php endif; ?>
 
       <table>
         <thead><tr><th>項目</th><th>状態</th></tr></thead>

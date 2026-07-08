@@ -3,10 +3,20 @@
 ## セットアップ
 1. サーバーの公開ディレクトリに配置
 2. `public/setup_check.php` を開き、サーバーパネルに表示されるDB接続情報を保存
-3. `public/login0718.php` を開く
+3. 保存後に自動でセットアップされない場合、同じ画面の「セットアップを実行する」を押す
+4. `public/login0718.php` を開く
 
-初回はDB接続設定を保存したうえで、セットアップ（DB作成→schema適用→seed適用→admin/settings保証）を実行します。
-失敗時のみ `public/setup_check.php` を開いて原因を確認してください。
+初回はDB接続設定を保存したうえで、セットアップ（DB作成→`sql/schema.sql` 適用→`sql/migrations/*.sql` をファイル名順に適用→seed適用→admin/settings保証）を実行します。
+失敗時やDBを削除・空にして作り直す場合は `public/setup_check.php` を開いて原因確認または再実行してください。
+
+### DBを削除・空にして作り直す場合の初心者向け手順
+1. サーバーパネルのMySQL管理画面で、対象DBを削除して同じDB名で作り直すか、対象DB内のテーブルをすべて削除します。
+2. サーバーパネルで、利用するMySQLユーザーを作り直した対象DBに追加し、必要な権限を付与します。
+3. 最新コード一式をサーバーの公開ディレクトリへアップロードします。
+4. ブラウザで `/public/setup_check.php` を開き、DBホスト名・ポート・DB名・ユーザー名・パスワードを入力して保存します。
+5. 保存後にログイン画面へ移動しない場合は、`/public/setup_check.php` の「セットアップを実行する」を押します。
+6. セットアップ成功後、`/public/login0718.php` から管理画面へログインします。
+7. 失敗した場合は、`/public/setup_check.php` のエラー表示と `logs/install.log` を確認します。
 
 ## 固定URL / 認証
 - 管理ログイン入口（固定）: `/public/login0718.php`
@@ -24,7 +34,8 @@
 
 ## マイグレーション適用
 - インストーラーは `sql/schema.sql` 適用後に `sql/migrations/*.sql` をファイル名順で実行します。
-- 実行済みは `migrations` テーブルで管理します。
+- `sql/migrations/009_public_query_indexes.sql` も自動適用対象です。
+- 実行済みは `migrations` テーブルで管理します。適用後は `009_public_query_indexes.sql` も `migrations.migration_name` に登録されます。
 - インストール完了後、`api_logs` と `api_schedules` が作成されていれば正常です。
 
 ## 管理画面の追加URL
