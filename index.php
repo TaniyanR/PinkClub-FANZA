@@ -404,10 +404,7 @@ try {
         $usedHomeItemKeys = [];
 
         $newReleaseRows = fetch_items_with_order_fallback($pdo, [
-            'release_date DESC, updated_at DESC, id DESC',
-            'date_published DESC, updated_at DESC, id DESC',
-            'updated_at DESC, id DESC',
-            'id DESC',
+            'release_date DESC, id DESC',
         ], 40);
         $usedNewReleaseItemKeys = [];
         $newReleaseRows = take_unique_items_for_home($newReleaseRows, $usedNewReleaseItemKeys, 20);
