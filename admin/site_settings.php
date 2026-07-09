@@ -131,6 +131,18 @@ require __DIR__ . '/includes/header.php';
     <label>RSS URL
       <input type="url" name="site_rss_url" value="<?= e(site_setting_get('site.rss_url', public_url('feed.php'))) ?>">
     </label>
+    <label>総合RSS（10分間隔）
+      <input type="url" value="<?= e(public_url('feed-10.php')) ?>" readonly>
+    </label>
+    <label>総合RSS（1時間間隔）
+      <input type="url" value="<?= e(public_url('feed-60.php')) ?>" readonly>
+    </label>
+    <label>ランダムRSS（10分間隔）
+      <input type="url" value="<?= e(public_url('feed-free-10.php')) ?>" readonly>
+    </label>
+    <label>ランダムRSS（1時間間隔）
+      <input type="url" value="<?= e(public_url('feed-free-60.php')) ?>" readonly>
+    </label>
     <label>サイトマップ URL
       <input type="url" value="<?= e(public_url('sitemap.php')) ?>" readonly>
     </label>
