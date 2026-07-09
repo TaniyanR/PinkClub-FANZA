@@ -164,17 +164,24 @@ function site_article_feed_candidate_rows(string $feedKey, string $type, int $da
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }
 
-function site_article_feed_select_item(string $feedKey, array $config): ?array
+function site_article_feed_select_items(string $feedKey, array $config, int $limit): array
 {
+    $limit = max(1, min(50, $limit));
     $ngWords = site_article_feed_ng_words();
     $keywordWords = site_article_feed_keyword_words();
     $dayCandidates = ($config['type'] ?? '') === 'free' ? [(int)($config['days'] ?? 0), max(1, (int)floor(((int)($config['days'] ?? 0)) / 2)), 1, 0] : [0];
+    $selected = [];
+    $seen = [];
 
     foreach ($dayCandidates as $days) {
         $rows = site_article_feed_candidate_rows($feedKey, (string)$config['type'], $days);
         $valid = [];
         $matched = [];
         foreach ($rows as $row) {
+            $itemId = (int)($row['id'] ?? 0);
+            if ($itemId <= 0 || isset($seen[$itemId])) {
+                continue;
+            }
             $text = site_article_feed_text($row);
             if (site_article_feed_image($row) === '' || !site_article_feed_has_movie($row) || site_article_feed_contains_word($text, $ngWords)) {
                 continue;
@@ -184,18 +191,70 @@ function site_article_feed_select_item(string $feedKey, array $config): ?array
                 $matched[] = $row;
             }
         }
-        if (($config['type'] ?? '') === 'general' && $matched !== []) {
-            return $matched[0];
-        }
-        if ($valid !== []) {
-            return $valid[0];
+
+        $ordered = ($config['type'] ?? '') === 'general' && $matched !== [] ? array_merge($matched, $valid) : $valid;
+        foreach ($ordered as $row) {
+            $itemId = (int)($row['id'] ?? 0);
+            if ($itemId <= 0 || isset($seen[$itemId])) {
+                continue;
+            }
+            $seen[$itemId] = true;
+            $selected[] = $row;
+            if (count($selected) >= $limit) {
+                return $selected;
+            }
         }
     }
-    return null;
+
+    return $selected;
+}
+
+function site_article_feed_select_item(string $feedKey, array $config): ?array
+{
+    $items = site_article_feed_select_items($feedKey, $config, 1);
+    return $items[0] ?? null;
+}
+
+function site_article_feed_count_items(string $feedKey): int
+{
+    $stmt = db()->prepare('SELECT COUNT(*) FROM site_article_feed_items WHERE feed_key = :feed_key');
+    $stmt->execute([':feed_key' => $feedKey]);
+    return (int)$stmt->fetchColumn();
+}
+
+function site_article_feed_insert_item(string $feedKey, array $config, array $item, int $offsetSeconds = 0): void
+{
+    try {
+        if (($config['type'] ?? '') === 'general') {
+            $exists = db()->prepare('SELECT 1 FROM site_article_feed_items WHERE feed_key = :feed_key AND item_id = :item_id LIMIT 1');
+            $exists->execute([':feed_key' => $feedKey, ':item_id' => (int)$item['id']]);
+            if ($exists->fetchColumn()) {
+                return;
+            }
+        }
+
+        $insert = db()->prepare('INSERT INTO site_article_feed_items(feed_key, item_id, content_id, published_at, created_at, updated_at) VALUES(:feed_key, :item_id, :content_id, DATE_SUB(NOW(), INTERVAL ' . max(0, $offsetSeconds) . ' SECOND), NOW(), NOW())');
+        $insert->execute([':feed_key' => $feedKey, ':item_id' => (int)$item['id'], ':content_id' => trim((string)($item['content_id'] ?? ''))]);
+    } catch (Throwable $e) {
+        error_log('[site_article_feed] insert failed: ' . $e->getMessage());
+    }
+}
+
+function site_article_feed_publish_initial(string $feedKey, array $config): void
+{
+    $items = site_article_feed_select_items($feedKey, $config, (int)$config['limit']);
+    foreach ($items as $index => $item) {
+        site_article_feed_insert_item($feedKey, $config, $item, (int)$index);
+    }
 }
 
 function site_article_feed_maybe_publish(string $feedKey, array $config): void
 {
+    if (site_article_feed_count_items($feedKey) === 0) {
+        site_article_feed_publish_initial($feedKey, $config);
+        return;
+    }
+
     $stmt = db()->prepare('SELECT published_at FROM site_article_feed_items WHERE feed_key = :feed_key ORDER BY published_at DESC LIMIT 1');
     $stmt->execute([':feed_key' => $feedKey]);
     $last = $stmt->fetchColumn();
@@ -206,20 +265,7 @@ function site_article_feed_maybe_publish(string $feedKey, array $config): void
     if ($item === null) {
         return;
     }
-    try {
-        if (($config['type'] ?? '') === 'general') {
-            $exists = db()->prepare('SELECT 1 FROM site_article_feed_items WHERE feed_key = :feed_key AND item_id = :item_id LIMIT 1');
-            $exists->execute([':feed_key' => $feedKey, ':item_id' => (int)$item['id']]);
-            if ($exists->fetchColumn()) {
-                return;
-            }
-        }
-
-        $insert = db()->prepare('INSERT INTO site_article_feed_items(feed_key, item_id, content_id, published_at, created_at, updated_at) VALUES(:feed_key, :item_id, :content_id, NOW(), NOW(), NOW())');
-        $insert->execute([':feed_key' => $feedKey, ':item_id' => (int)$item['id'], ':content_id' => trim((string)($item['content_id'] ?? ''))]);
-    } catch (Throwable $e) {
-        error_log('[site_article_feed] insert failed: ' . $e->getMessage());
-    }
+    site_article_feed_insert_item($feedKey, $config, $item);
 }
 
 function site_article_feed_items(string $feedKey, int $limit): array
