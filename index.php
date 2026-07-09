@@ -385,7 +385,7 @@ function safe_render_home_ad(string $positionKey): void
 $title = 'トップ';
 $itemCount = 0;
 
-$latestTop = $latestBottom = $pickupTop = $pickupBottom = [];
+$newReleaseTop = $newReleaseBottom = $latestTop = $latestBottom = $pickupTop = $pickupBottom = [];
 $fallbackItems = [];
 $actresses = [];
 $genreRows = [];
@@ -402,6 +402,17 @@ try {
     if ($itemCount > 0) {
         $seedBase = intdiv(time(), 1800);
         $usedHomeItemKeys = [];
+
+        $newReleaseRows = fetch_items_with_order_fallback($pdo, [
+            'release_date DESC, updated_at DESC, id DESC',
+            'date_published DESC, updated_at DESC, id DESC',
+            'updated_at DESC, id DESC',
+            'id DESC',
+        ], 40);
+        $usedNewReleaseItemKeys = [];
+        $newReleaseRows = take_unique_items_for_home($newReleaseRows, $usedNewReleaseItemKeys, 20);
+        $newReleaseTop = array_slice($newReleaseRows, 0, 5);
+        $newReleaseBottom = array_slice($newReleaseRows, 5, 15);
 
         $latestRows = fetch_items_with_order_fallback($pdo, [
             'release_date DESC, updated_at DESC, id DESC',
@@ -568,7 +579,9 @@ $title = 'トップ';
 $pageDescription = function_exists('setting_site_tagline') ? setting_site_tagline('') : '';
 $canonicalUrl = public_url('index.php');
 require __DIR__ . '/public/partials/header.php';
-$hasHomeContent = $latestTop !== []
+$hasHomeContent = $newReleaseTop !== []
+    || $newReleaseBottom !== []
+    || $latestTop !== []
     || $latestBottom !== []
     || $pickupTop !== []
     || $pickupBottom !== []
@@ -594,6 +607,16 @@ $hasHomeContent = $latestTop !== []
     </section>
   <?php endif; ?>
 <?php else: ?>
+  <section class="rail-section only-pc home-feature-section">
+    <h2>新作作品</h2>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift rail-row--between-gap"><?php foreach ($newReleaseTop as $item) { render_item_card($item, 210); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal rail-row--home-taxonomy"><?php foreach ($newReleaseBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
+  </section>
+  <section class="rail-section only-sp">
+    <h2>新作作品</h2>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($newReleaseTop as $item) { render_item_card($item, 210, null, true); } ?></div>
+  </section>
+
   <section class="rail-section only-pc home-feature-section">
     <h2>新着作品</h2>
     <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift rail-row--between-gap"><?php foreach ($latestTop as $item) { render_item_card($item, 210); } ?></div>
