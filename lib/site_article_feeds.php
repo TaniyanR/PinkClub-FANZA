@@ -117,6 +117,28 @@ function site_article_feed_item_url(array $item): string
     return public_url('item.php?id=' . (int)($item['id'] ?? 0));
 }
 
+function site_article_feed_table_exists(string $table): bool
+{
+    static $cache = [];
+
+    if (!in_array($table, ['item_actresses', 'item_genres', 'item_makers', 'item_tags', 'tags'], true)) {
+        return false;
+    }
+    if (array_key_exists($table, $cache)) {
+        return $cache[$table];
+    }
+
+    try {
+        $stmt = db()->prepare('SHOW TABLES LIKE :table_name');
+        $stmt->execute([':table_name' => $table]);
+        $cache[$table] = (bool)$stmt->fetch(PDO::FETCH_NUM);
+        return $cache[$table];
+    } catch (Throwable) {
+        $cache[$table] = false;
+        return false;
+    }
+}
+
 function site_article_feed_candidate_rows(string $feedKey, string $type, int $days = 0): array
 {
     $where = items_product_source_where('i') . ' AND TRIM(COALESCE(i.title, "")) <> "" AND (TRIM(COALESCE(i.image_large, "")) <> "" OR TRIM(COALESCE(i.image_small, "")) <> "" OR TRIM(COALESCE(i.image_list, "")) <> "") AND (TRIM(COALESCE(i.sample_movie_url_476, "")) <> "" OR TRIM(COALESCE(i.sample_movie_url_560, "")) <> "" OR TRIM(COALESCE(i.sample_movie_url_644, "")) <> "" OR TRIM(COALESCE(i.sample_movie_url_720, "")) <> "")';
@@ -131,7 +153,12 @@ function site_article_feed_candidate_rows(string $feedKey, string $type, int $da
         $order = 'RAND()';
     }
 
-    $sql = 'SELECT i.*, (SELECT GROUP_CONCAT(DISTINCT ia.actress_name SEPARATOR " ") FROM item_actresses ia WHERE ia.item_id = i.id) AS actress_names, (SELECT GROUP_CONCAT(DISTINCT ig.genre_name SEPARATOR " ") FROM item_genres ig WHERE ig.item_id = i.id) AS genre_names, (SELECT GROUP_CONCAT(DISTINCT im.maker_name SEPARATOR " ") FROM item_makers im WHERE im.item_id = i.id) AS maker_names, (SELECT GROUP_CONCAT(DISTINCT t.name SEPARATOR " ") FROM item_tags it INNER JOIN tags t ON t.id = it.tag_id WHERE it.item_id = i.id) AS tag_names FROM items i WHERE ' . $where . ' ORDER BY ' . $order . ' LIMIT 200';
+    $actressSelect = site_article_feed_table_exists('item_actresses') ? '(SELECT GROUP_CONCAT(DISTINCT ia.actress_name SEPARATOR " ") FROM item_actresses ia WHERE ia.item_id = i.id)' : "''";
+    $genreSelect = site_article_feed_table_exists('item_genres') ? '(SELECT GROUP_CONCAT(DISTINCT ig.genre_name SEPARATOR " ") FROM item_genres ig WHERE ig.item_id = i.id)' : "''";
+    $makerSelect = site_article_feed_table_exists('item_makers') ? '(SELECT GROUP_CONCAT(DISTINCT im.maker_name SEPARATOR " ") FROM item_makers im WHERE im.item_id = i.id)' : "''";
+    $tagSelect = site_article_feed_table_exists('item_tags') && site_article_feed_table_exists('tags') ? '(SELECT GROUP_CONCAT(DISTINCT t.name SEPARATOR " ") FROM item_tags it INNER JOIN tags t ON t.id = it.tag_id WHERE it.item_id = i.id)' : "''";
+
+    $sql = 'SELECT i.*, ' . $actressSelect . ' AS actress_names, ' . $genreSelect . ' AS genre_names, ' . $makerSelect . ' AS maker_names, ' . $tagSelect . ' AS tag_names FROM items i WHERE ' . $where . ' ORDER BY ' . $order . ' LIMIT 200';
     $stmt = db()->prepare($sql);
     $stmt->execute($params);
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -180,9 +207,18 @@ function site_article_feed_maybe_publish(string $feedKey, array $config): void
         return;
     }
     try {
+        if (($config['type'] ?? '') === 'general') {
+            $exists = db()->prepare('SELECT 1 FROM site_article_feed_items WHERE feed_key = :feed_key AND item_id = :item_id LIMIT 1');
+            $exists->execute([':feed_key' => $feedKey, ':item_id' => (int)$item['id']]);
+            if ($exists->fetchColumn()) {
+                return;
+            }
+        }
+
         $insert = db()->prepare('INSERT INTO site_article_feed_items(feed_key, item_id, content_id, published_at, created_at, updated_at) VALUES(:feed_key, :item_id, :content_id, NOW(), NOW(), NOW())');
         $insert->execute([':feed_key' => $feedKey, ':item_id' => (int)$item['id'], ':content_id' => trim((string)($item['content_id'] ?? ''))]);
-    } catch (Throwable) {
+    } catch (Throwable $e) {
+        error_log('[site_article_feed] insert failed: ' . $e->getMessage());
     }
 }
 
