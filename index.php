@@ -422,13 +422,15 @@ try {
         $latestBottom = array_slice($latestRows, 5, 15);
         $fallbackItems = array_slice($latestRows, 0, 12);
 
-        $popularRows = fetch_items_with_order_fallback($pdo, [
-            'view_count DESC, release_date DESC, id DESC',
-            'view_count DESC, date_published DESC, id DESC',
-            'view_count DESC, id DESC',
-            'id DESC',
-        ], 40);
+        $popularWhereSql = $sourceWhereSql !== '' ? $sourceWhereSql . ' AND view_count > 0' : ' WHERE view_count > 0';
+        $popularRows = query_all_safe($pdo, 'SELECT * FROM items' . $popularWhereSql . ' ORDER BY view_count DESC, release_date DESC, id DESC LIMIT 40');
         $popularRows = take_unique_items_for_home($popularRows, $usedHomeItemKeys, 20);
+        if (count($popularRows) < 20) {
+            $randomRows = fetch_items_with_order_fallback($pdo, [
+                'RAND()',
+            ], 40);
+            $popularRows = array_merge($popularRows, take_unique_items_for_home($randomRows, $usedHomeItemKeys, 20 - count($popularRows)));
+        }
         $pickupTop = array_slice($popularRows, 0, 5);
         $pickupBottom = array_slice($popularRows, 5, 15);
 
@@ -625,12 +627,12 @@ $hasHomeContent = $newReleaseTop !== []
   </section>
 
   <section class="rail-section only-pc home-feature-section">
-    <h2>ピックアップ（人気順）</h2>
+    <h2>ピックアップ</h2>
     <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift rail-row--between-gap"><?php foreach ($pickupTop as $item) { render_item_card($item, 210); } ?></div>
     <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal rail-row--home-taxonomy"><?php foreach ($pickupBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
   <section class="rail-section only-sp">
-    <h2>ピックアップ（人気順）</h2>
+    <h2>ピックアップ</h2>
     <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($pickupTop as $item) { render_item_card($item, 210, null, true); } ?></div>
   </section>
 
