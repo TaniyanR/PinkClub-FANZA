@@ -651,6 +651,13 @@
   min-width: 380px;
 }
 
+.site-main--legacy .rail-row--home-actresses .rail-card .thumb {
+  height: 180px;
+  object-fit: cover;
+  object-position: center top;
+  background: #fff;
+}
+
 @media (max-width: 900px) {
   .site-main--legacy .rail-row--home-actresses,
   .site-main--legacy .rail-row--home-taxonomy {
