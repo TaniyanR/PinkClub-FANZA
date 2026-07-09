@@ -131,6 +131,9 @@ require __DIR__ . '/includes/header.php';
     <label>RSS URL
       <input type="url" name="site_rss_url" value="<?= e(site_setting_get('site.rss_url', public_url('feed.php'))) ?>">
     </label>
+    <label>サイトマップ URL
+      <input type="url" value="<?= e(public_url('sitemap.php')) ?>" readonly>
+    </label>
     <label>キャッチフレーズ（検索結果説明用）
       <input type="text" name="site_tagline" value="<?= e(site_setting_get('site.tagline', '')) ?>">
     </label>
