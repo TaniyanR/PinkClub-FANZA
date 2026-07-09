@@ -381,7 +381,7 @@ try {
         $pg = paginate($itemCount, $page, $per);
         $usedHomeItemKeys = [];
         $latestRows = fetch_items_with_order_fallback($pdo, [
-            'release_date DESC, updated_at DESC, id DESC',
+            'release_date DESC, id ASC',
             'date_published DESC, updated_at DESC, id DESC',
             'updated_at DESC, id DESC',
             'id DESC',
