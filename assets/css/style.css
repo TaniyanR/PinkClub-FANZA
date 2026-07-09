@@ -276,6 +276,7 @@ body:not(.admin-page):not(.login-page):not(.setup-page){
   color:#fff;
 }
 .site-footer__copy{text-align:right;color:#fff}
+.site-footer__copy a{text-decoration:none}
 .site-footer a{color:#fff}
 
 body.admin-page .admin-sidebar{width:250px}

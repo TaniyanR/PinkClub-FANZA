@@ -83,7 +83,7 @@ $copyrightYears = $copyrightStartYear >= $currentYear
   <div class="site-footer__credit">
     <a href="https://affiliate.dmm.com/api/"><img src="https://p.dmm.co.jp/p/affiliate/web_service/r18_135_17.gif" width="135" height="17" alt="WEB SERVICE BY FANZA" /></a>
   </div>
-  <div class="site-footer__copy">© <?= e($copyrightYears) ?> <?= e($siteName) ?></div>
+  <div class="site-footer__copy">© <?= e($copyrightYears) ?> <a href="<?= e(public_url('')) ?>"><?= e($siteName) ?></a></div>
 </footer>
 <script>
 (function () {
