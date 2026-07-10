@@ -35,6 +35,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $stmt = db()->prepare('SELECT id, username FROM admins WHERE username=:username LIMIT 1');
                 $stmt->execute([':username' => $email]);
                 $admin = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+                if (!is_array($admin)) {
+                    $countStmt = db()->query('SELECT COUNT(*) FROM admins');
+                    if ((int)($countStmt ? $countStmt->fetchColumn() : 0) === 1) {
+                        $stmt = db()->query('SELECT id, username FROM admins ORDER BY id ASC LIMIT 1');
+                        $admin = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+                    }
+                }
                 if (is_array($admin)) {
                     $u = [
                         'id' => (int)$admin['id'],
@@ -62,11 +69,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     . "このURLは1時間で期限切れになります。";
                 $ok = @mail($email, '[PinkClub-FANZA] Password Reset', $body);
             } else {
-                $ok = true;
+                $ok = false;
             }
 
             db()->prepare('INSERT INTO mail_logs(direction,from_name,from_email,to_email,subject,body,status,last_error,created_at,updated_at) VALUES ("out",NULL,:from,:to,:subj,:body,:status,:err,NOW(),NOW())')
-                ->execute([':from' => 'noreply@pinkclub.local', ':to' => $email, ':subj' => 'Password Reset', ':body' => 'パスワード再発行メールを送信しました。', ':status' => $ok ? 'sent' : 'failed', ':err' => $ok ? null : 'mail() unavailable']);
+                ->execute([':from' => 'noreply@pinkclub.local', ':to' => $email, ':subj' => 'Password Reset', ':body' => is_array($u) ? 'パスワード再発行メールを送信しました。' : '送信対象なしのためメール送信をスキップしました。', ':status' => $ok ? 'sent' : 'failed', ':err' => $ok ? null : (is_array($u) ? 'mail() unavailable' : 'password reset skipped: target not found')]);
         }
         if ($message === '') {
             $message = '入力情報を受け付けました。該当ユーザーが存在する場合は再設定案内を送信しました。';

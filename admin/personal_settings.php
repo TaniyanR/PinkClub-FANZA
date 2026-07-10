@@ -83,6 +83,7 @@ require __DIR__ . '/includes/header.php';
     <label>メールアドレス
       <input type="email" name="email" value="<?= e(setting_admin_email('')) ?>">
     </label>
+    <p class="admin-form-note">メールアドレスを変更すると、次回ログイン時のユーザー名もこのメールアドレスになります。</p>
     <label>現在のパスワード（パスワード変更時のみ）
       <input type="password" name="current_password" autocomplete="current-password">
     </label>
