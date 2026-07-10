@@ -33,7 +33,12 @@ function config_local(): array
         return $local;
     }
 
-    $local = require $path;
+    try {
+        $local = require $path;
+    } catch (Throwable $exception) {
+        error_log('[config] config.local.php load failed: ' . $exception->getMessage());
+        $local = [];
+    }
     if (!is_array($local)) {
         $local = [];
     }

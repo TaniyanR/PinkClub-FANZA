@@ -13,7 +13,13 @@ function local_config_load(): array
         return [];
     }
 
-    $loaded = require $path;
+    try {
+        $loaded = require $path;
+    } catch (Throwable $exception) {
+        error_log('[local_config] load failed: ' . $exception->getMessage());
+        return [];
+    }
+
     return is_array($loaded) ? $loaded : [];
 }
 
@@ -21,7 +27,7 @@ function local_config_write(array $local): void
 {
     $path = local_config_path();
     $dir = dirname($path);
-    $tmp = $path . '.tmp';
+    $tmp = $path . '.tmp.' . bin2hex(random_bytes(8));
 
     if (!is_dir($dir) || !is_writable($dir)) {
         throw new RuntimeException('保存先ディレクトリに書き込みできません。');

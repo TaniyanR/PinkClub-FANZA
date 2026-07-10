@@ -5,6 +5,37 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/local_config_writer.php';
 
+
+function setup_check_safe_pdo_error(Throwable $exception): string
+{
+    $message = $exception->getMessage();
+    $sqlState = $exception instanceof PDOException ? (string)$exception->getCode() : '';
+    if (preg_match('/SQLSTATE\[([^\]]+)\](?: \[([^\]]+)\])?/', $message, $matches) === 1) {
+        $sqlState = $matches[1] . (isset($matches[2]) ? ' / ' . $matches[2] : '');
+    }
+
+    if (str_contains($message, 'Access denied')) {
+        $reason = 'DBユーザー認証に失敗しました。';
+    } elseif (str_contains($message, 'Unknown database')) {
+        $reason = '指定されたデータベースが見つかりません。';
+    } elseif (str_contains($message, 'php_network_getaddresses') || str_contains($message, 'getaddrinfo')) {
+        $reason = 'DBホスト名を解決できません。';
+    } elseif (str_contains($message, 'Connection refused')) {
+        $reason = 'DBサーバーへの接続が拒否されました。';
+    } else {
+        $reason = 'DB接続テストに失敗しました。';
+    }
+
+    $suffix = $sqlState !== '' ? '（PDOエラー: ' . $sqlState . '）' : '';
+    return $reason . $suffix . 'ホスト名、ポート、データベース名、ユーザー名、パスワードを確認してください。';
+}
+
+function setup_check_test_db_connection(string $host, int $port, string $dbname, string $user, string $pass): void
+{
+    $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $dbname);
+    new PDO($dsn, $user, $pass, db_options());
+}
+
 $dbConfigError = null;
 $dbConfigNotice = null;
 $csrfError = null;
@@ -35,8 +66,6 @@ if ($isPost && $csrfError === null && (string)post('action', '') === 'save_db_co
     $pass = (string)post('db_pass', '');
     if ($host === '' || $port <= 0 || $dbname === '' || $user === '') {
         $dbConfigError = 'DBホスト名、DBポート、データベース、ユーザー名を入力してください。';
-    } elseif ($host !== 'localhost' && str_contains($dbname, '_') && $host === strtok($dbname, '_')) {
-        $dbConfigError = 'DBホスト名にサーバーIDが入力されています。DBホスト名は通常 localhost です。';
     } else {
         try {
             $local = local_config_load();
@@ -47,8 +76,7 @@ if ($isPost && $csrfError === null && (string)post('action', '') === 'save_db_co
                 $dbConfigError = '初回保存時はMySQLユーザーのパスワードを入力してください。';
                 throw new RuntimeException('db password required');
             }
-            $testDsn = sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $host, $port);
-            new PDO($testDsn, $user, $pass, db_options());
+            setup_check_test_db_connection($host, $port, $dbname, $user, $pass);
             $local['db'] = [
                 'host' => $host,
                 'port' => $port,
@@ -60,14 +88,12 @@ if ($isPost && $csrfError === null && (string)post('action', '') === 'save_db_co
             local_config_write($local);
             $GLOBALS['app_config']['db'] = $local['db'];
             db_reset_connections();
-            $setupResult = installer_run();
-            if (($setupResult['success'] ?? false) === true) {
-                app_redirect(LOGIN_PATH);
-            }
-            $dbConfigError = (string)($setupResult['error'] ?? 'DB接続設定は保存しましたが、セットアップに失敗しました。install.log を確認してください。');
+            $currentDbConfig = $local['db'];
+            $dbConfigNotice = 'DB接続テストに成功し、設定を保存しました。既存データは変更していません。';
         } catch (Throwable $exception) {
             if ($dbConfigError === null) {
-                $dbConfigError = 'DB接続テストに失敗しました。MySQLホスト名、データベース名、ユーザー名、パスワードを確認してください。あわせて、サーバーパネルのMySQL設定で対象データベースにこのMySQLユーザーを追加済みか確認してください。';
+                $dbConfigError = setup_check_safe_pdo_error($exception);
+                error_log('[setup_check] db_config_save_failed: ' . get_class($exception) . ' ' . $exception->getMessage());
             }
         }
     }

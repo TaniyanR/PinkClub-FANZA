@@ -174,7 +174,12 @@ $dbConfig = [
 ];
 $localConfigPath = __DIR__ . '/../config.local.php';
 if (is_file($localConfigPath)) {
-    $localConfig = require $localConfigPath;
+    try {
+        $localConfig = require $localConfigPath;
+    } catch (Throwable $exception) {
+        error_log('[config] config.local.php load failed: ' . $exception->getMessage());
+        $localConfig = [];
+    }
     if (is_array($localConfig) && isset($localConfig['db']) && is_array($localConfig['db'])) {
         $dbConfig = array_replace($dbConfig, array_intersect_key($localConfig['db'], $dbConfig));
     }
