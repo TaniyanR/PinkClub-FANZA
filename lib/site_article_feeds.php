@@ -164,7 +164,7 @@ function site_article_feed_candidate_rows(string $feedKey, string $type, int $da
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }
 
-function site_article_feed_select_items(string $feedKey, array $config, int $limit): array
+function site_article_feed_select_items(string $feedKey, array $config, int $limit, bool $excludeDelivered = false): array
 {
     $limit = max(1, min(50, $limit));
     $ngWords = site_article_feed_ng_words();
@@ -172,6 +172,14 @@ function site_article_feed_select_items(string $feedKey, array $config, int $lim
     $dayCandidates = ($config['type'] ?? '') === 'free' ? [(int)($config['days'] ?? 0), max(1, (int)floor(((int)($config['days'] ?? 0)) / 2)), 1, 0] : [0];
     $selected = [];
     $seen = [];
+
+    if ($excludeDelivered) {
+        $delivered = db()->prepare('SELECT item_id FROM site_article_feed_items WHERE feed_key = :feed_key');
+        $delivered->execute([':feed_key' => $feedKey]);
+        foreach ($delivered->fetchAll(PDO::FETCH_COLUMN) ?: [] as $itemId) {
+            $seen[(int)$itemId] = true;
+        }
+    }
 
     foreach ($dayCandidates as $days) {
         $rows = site_article_feed_candidate_rows($feedKey, (string)$config['type'], $days);
@@ -240,9 +248,9 @@ function site_article_feed_insert_item(string $feedKey, array $config, array $it
     }
 }
 
-function site_article_feed_publish_initial(string $feedKey, array $config): void
+function site_article_feed_publish_initial(string $feedKey, array $config, int $limit): void
 {
-    $items = site_article_feed_select_items($feedKey, $config, (int)$config['limit']);
+    $items = site_article_feed_select_items($feedKey, $config, $limit, true);
     foreach ($items as $index => $item) {
         site_article_feed_insert_item($feedKey, $config, $item, (int)$index);
     }
@@ -250,8 +258,10 @@ function site_article_feed_publish_initial(string $feedKey, array $config): void
 
 function site_article_feed_maybe_publish(string $feedKey, array $config): void
 {
-    if (site_article_feed_count_items($feedKey) === 0) {
-        site_article_feed_publish_initial($feedKey, $config);
+    $currentCount = site_article_feed_count_items($feedKey);
+    $limit = (int)$config['limit'];
+    if ($currentCount < $limit) {
+        site_article_feed_publish_initial($feedKey, $config, $limit - $currentCount);
         return;
     }
 
