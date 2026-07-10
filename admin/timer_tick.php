@@ -13,209 +13,35 @@ function timer_json(array $payload, int $status = 200): void
     exit;
 }
 
-function timer_job_due(array $state, int $intervalMinutes): bool
-{
-    $lastRunAt = trim((string)($state['last_run_at'] ?? ''));
-    if ($lastRunAt === '') {
-        return true;
-    }
-    $ts = strtotime($lastRunAt);
-    if ($ts === false) {
-        return true;
-    }
-    return $ts <= (time() - ($intervalMinutes * 60));
-}
-
-function timer_lock_job(PDO $pdo, string $jobKey, int $seconds = 55): bool
-{
-    $lockUntil = date('Y-m-d H:i:s', time() + max(5, $seconds));
-    $stmt = $pdo->prepare(
-        'UPDATE sync_job_state
-         SET lock_until = :lock_until
-         WHERE job_key = :job_key AND (lock_until IS NULL OR lock_until < NOW())'
-    );
-    $stmt->execute([':lock_until' => $lockUntil, ':job_key' => $jobKey]);
-    return $stmt->rowCount() > 0;
-}
-
-function timer_unlock_job(PDO $pdo, string $jobKey, bool $success, string $message, int $nextOffset, ?string $lastRunAt = null): void
-{
-    $stmt = $pdo->prepare(
-        'UPDATE sync_job_state
-         SET lock_until = NULL,
-             last_success = :ok,
-             last_message = :msg,
-             next_offset = :next_offset,
-             last_run_at = :last_run_at,
-             updated_at = NOW()
-         WHERE job_key = :job_key'
-    );
-    $stmt->execute([
-        ':ok' => $success ? 1 : 0,
-        ':msg' => mb_substr($message, 0, 1000),
-        ':next_offset' => max(1, $nextOffset),
-        ':last_run_at' => $lastRunAt ?? date('Y-m-d H:i:s'),
-        ':job_key' => $jobKey,
-    ]);
-}
-
-
-function timer_split_lines(string $value, int $max = 5): array
-{
-    $lines = preg_split('/\R/u', $value) ?: [];
-    $result = [];
-    foreach ($lines as $line) {
-        $line = trim((string)$line);
-        if ($line === '') {
-            continue;
-        }
-        $result[] = $line;
-        if (count($result) >= $max) {
-            break;
-        }
-    }
-    return $result;
-}
-
-function timer_build_compound_keyword(string $value): string
-{
-    $value = trim($value);
-    if ($value === '') {
-        return '';
-    }
-
-    $parts = array_map('trim', explode(',', $value, 2));
-    if (count($parts) === 2 && $parts[0] !== '' && $parts[1] !== '') {
-        return $parts[1] . 'は' . $parts[0] . 'が大好き';
-    }
-
-    return $value;
-}
-
-function timer_seed_jobs(PDO $pdo): void
-{
-    $pdo->exec('CREATE TABLE IF NOT EXISTS sync_job_state (job_key VARCHAR(64) PRIMARY KEY,next_offset INT NOT NULL DEFAULT 1,next_initial VARCHAR(10) NULL,last_run_at DATETIME NULL,last_success TINYINT(1) NOT NULL DEFAULT 0,last_message TEXT NULL,lock_until DATETIME NULL,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-    $columns = [];
-    $stmt = $pdo->query('SHOW COLUMNS FROM sync_job_state');
-    foreach (($stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : []) as $column) {
-        $columns[(string)($column['Field'] ?? '')] = true;
-    }
-    if (!isset($columns['lock_until'])) {
-        $pdo->exec('ALTER TABLE sync_job_state ADD COLUMN lock_until DATETIME NULL AFTER last_message');
-    }
-    foreach (['items', 'genres', 'actresses', 'series'] as $jobKey) {
-        $pdo->prepare('INSERT INTO sync_job_state (job_key, next_offset, updated_at) VALUES (:job_key, 1, NOW()) ON DUPLICATE KEY UPDATE updated_at = updated_at')
-            ->execute([':job_key' => $jobKey]);
-    }
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !auth_user()) {
     timer_json(['ran' => false, 'saved_items' => 0, 'message' => 'session_expired', 'at' => date('Y-m-d H:i:s')], 401);
 }
 auth_require_admin();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    timer_json(['ran' => false, 'saved_items' => 0, 'message' => 'POST only'], 405);
+    timer_json(['ran' => false, 'saved_items' => 0, 'message' => 'POST only', 'at' => date('Y-m-d H:i:s')], 405);
 }
 csrf_validate_or_fail((string)post('_csrf', ''));
 
 $now = date('Y-m-d H:i:s');
-$settings = settings_get();
-
-$pdo = db();
-timer_seed_jobs($pdo);
-$interval = max(1, settings_int('item_sync_interval_minutes', 60));
-$masterFloorId = (string)($settings['master_floor_id'] ?? '43');
-$site = (string)($settings['site'] ?? 'FANZA');
-$service = (string)($settings['service'] ?? 'digital');
-$floor = (string)($settings['floor'] ?? 'videoa');
-$itemBatch = (int)($settings['item_sync_batch'] ?? 100);
-if (!in_array($itemBatch, [1, 10, 20, 30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000], true)) {
-    $itemBatch = 100;
-}
-
-$compoundRaw = timer_split_lines(site_setting_get('item_sync_compound_keywords', ''), 5);
-$excludeKeywords = timer_split_lines(site_setting_get('item_sync_exclude_keywords', ''), 5);
-$compoundKeyword = '';
-foreach ($compoundRaw as $raw) {
-    $generated = timer_build_compound_keyword($raw);
-    if ($generated !== '') {
-        $compoundKeyword = $generated;
-        break;
-    }
-}
-
-$apiKeyword = $compoundKeyword;
-
-$sortModes = ['rank', 'date', 'review'];
-$sortIndex = max(0, settings_int('item_sync_sort_index', 0));
-$sort = $sortModes[$sortIndex % count($sortModes)];
-
-$jobs = [
-    'items' => static function (DmmSyncService $sync, int $offset) use ($site, $service, $floor, $itemBatch, $apiKeyword, $excludeKeywords, $sort): array {
-        $extraParams = ['sort' => $sort];
-        if ($apiKeyword !== '') {
-            $extraParams['keyword'] = $apiKeyword;
-        }
-        $result = $sync->syncItemsBatch($site, $service, $floor, $itemBatch, $offset, $extraParams, $excludeKeywords);
-        return ['count' => (int)($result['synced_count'] ?? 0), 'next_offset' => (int)($result['next_offset'] ?? ($offset + 100)), 'message' => 'ItemListを同期しました'];
-    },
-    'genres' => static fn(DmmSyncService $sync, int $offset): array => ['count' => $sync->syncGenres($masterFloorId, null, 100, $offset), 'next_offset' => $offset + 100, 'message' => 'GenreSearchを同期しました'],
-    'actresses' => static fn(DmmSyncService $sync, int $offset): array => ['count' => $sync->syncMaster('actress', null, $offset, 100), 'next_offset' => $offset + 100, 'message' => 'ActressSearchを同期しました'],
-    'series' => static fn(DmmSyncService $sync, int $offset): array => ['count' => $sync->syncSeries($masterFloorId, null, 100, $offset), 'next_offset' => $offset + 100, 'message' => 'SeriesSearchを同期しました'],
-];
-
-$stateStmt = $pdo->query("SELECT job_key, next_offset, last_run_at, lock_until FROM sync_job_state ORDER BY FIELD(job_key, 'items','genres','actresses','series')");
-$states = $stateStmt ? $stateStmt->fetchAll(PDO::FETCH_ASSOC) : [];
-$stateMap = [];
-foreach ($states as $state) {
-    $stateMap[(string)$state['job_key']] = $state;
-}
-
 if (!settings_bool('item_sync_enabled', false)) {
     timer_json(['ran' => false, 'saved_items' => 0, 'message' => '自動取得はOFFです', 'at' => $now]);
 }
 
-foreach (array_keys($jobs) as $jobKey) {
-    $state = $stateMap[$jobKey] ?? ['next_offset' => 1, 'last_run_at' => null];
-    if (!timer_job_due($state, $interval)) {
-        continue;
-    }
-
-    if (!timer_lock_job($pdo, $jobKey)) {
-        continue;
-    }
-
-    $offset = max(1, (int)($state['next_offset'] ?? 1));
-    try {
-        $cred = api_credential_get($jobKey);
-        if (trim((string)($cred['api_id'] ?? '')) === '' || trim((string)($cred['affiliate_id'] ?? '')) === '') {
-            timer_unlock_job($pdo, $jobKey, false, 'API ID / アフィリエイトID 未設定のためスキップ', $offset, $now);
-            continue;
-        }
-
-        $syncService = dmm_sync_service($jobKey);
-        $result = $jobs[$jobKey]($syncService, $offset);
-        $nextOffset = max(1, (int)($result['next_offset'] ?? ($offset + 100)));
-        if ($nextOffset > 50000) {
-            $nextOffset = 1;
-        }
-        timer_unlock_job($pdo, $jobKey, true, (string)($result['message'] ?? '同期成功'), $nextOffset, $now);
-        if ($jobKey === 'items') {
-            site_setting_set_many(['last_item_sync_at' => $now, 'item_sync_offset' => (string)$nextOffset, 'item_sync_sort_index' => (string)($sortIndex + 1)]);
-        }
-
-        timer_json([
-            'ran' => true,
-            'job' => $jobKey,
-            'saved_items' => (int)($result['count'] ?? 0),
-            'message' => (string)($result['message'] ?? '同期しました'),
-            'at' => $now,
-        ]);
-    } catch (Throwable $e) {
-        timer_unlock_job($pdo, $jobKey, false, $e->getMessage(), $offset, $now);
-        error_log('[timer_tick] job=' . $jobKey . ' error=' . $e->getMessage());
-        timer_json(['ran' => false, 'job' => $jobKey, 'saved_items' => 0, 'message' => '同期に失敗しました。ログを確認してください。', 'at' => $now], 500);
-    }
+$result = scheduler_tick();
+$status = (string)($result['status'] ?? 'idle');
+$message = (string)($result['message'] ?? '実行対象なし');
+$payload = [
+    'ran' => $status === 'ran',
+    'job' => (string)($result['schedule_type'] ?? ''),
+    'saved_items' => (int)($result['synced_count'] ?? 0),
+    'message' => $message,
+    'at' => $now,
+];
+if ($status === 'error') {
+    error_log('[timer_tick] job=' . (string)($result['schedule_type'] ?? '') . ' error=' . $message);
+    timer_json($payload, 500);
 }
-
-timer_json(['ran' => false, 'saved_items' => 0, 'message' => '次回実行待ちです', 'at' => $now]);
+if ($status === 'idle' && $message === '') {
+    $payload['message'] = '実行対象なし';
+}
+timer_json($payload);

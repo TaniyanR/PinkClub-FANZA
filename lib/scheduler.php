@@ -11,7 +11,7 @@ function scheduler_tick(): array
     scheduler_seed_default_schedules($pdo);
     scheduler_apply_auto_settings($pdo);
 
-    $stmt = $pdo->query("SELECT * FROM api_schedules WHERE is_enabled = 1 ORDER BY id ASC");
+    $stmt = $pdo->query("SELECT * FROM api_schedules WHERE is_enabled = 1 AND schedule_type IN ('items','genres','actresses','series') ORDER BY FIELD(schedule_type, 'items','genres','actresses','series')");
     $schedules = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
     foreach ($schedules as $schedule) {
         if (!scheduler_is_due($schedule)) {
@@ -39,17 +39,14 @@ function scheduler_tick(): array
 
 function scheduler_run_schedule(array $schedule): array
 {
-    $service = dmm_sync_service();
     $settings = settings_get();
     $type = (string)$schedule['schedule_type'];
-    $floorId = (string)($settings['master_floor_id'] ?? '43');
 
     return match ($type) {
-        'items' => scheduler_run_items_schedule($service, $settings),
-        'genres' => ['synced_count' => $service->syncGenres($floorId, 'あ', 100, 1), 'message' => 'ジャンルを同期しました'],
-        'makers' => ['synced_count' => $service->syncMakers($floorId, 'あ', 100, 1), 'message' => 'メーカーを同期しました'],
-        'series' => ['synced_count' => $service->syncSeries($floorId, 'あ', 100, 1), 'message' => 'シリーズを同期しました'],
-        'authors' => ['synced_count' => $service->syncAuthors($floorId, 'あ', 100, 1), 'message' => '作者を同期しました'],
+        'items' => scheduler_run_items_schedule(dmm_sync_service('items'), $settings),
+        'genres' => scheduler_run_master_schedule('genres', dmm_sync_service('genres'), $settings),
+        'actresses' => scheduler_run_master_schedule('actresses', dmm_sync_service('actresses'), $settings),
+        'series' => scheduler_run_master_schedule('series', dmm_sync_service('series'), $settings),
         default => ['synced_count' => 0, 'message' => '未対応スケジュールです'],
     };
 }
@@ -83,25 +80,100 @@ function scheduler_run_items_schedule(DmmSyncService $service, array $settings):
     if ($lockStmt->rowCount() === 0) {
         return ['synced_count' => 0, 'message' => 'ロック取得失敗のためスキップ'];
     }
+    $skip = scheduler_skip_missing_credentials($pdo, 'items');
+    if ($skip !== null) {
+        return $skip;
+    }
     $stateStmt = $pdo->prepare("SELECT next_offset FROM sync_job_state WHERE job_key = 'items' LIMIT 1");
     $stateStmt->execute();
     $offset = max(1, (int)$stateStmt->fetchColumn());
 
-    $result = $service->syncItemsBatch(
-        (string)($settings['site'] ?? 'FANZA'),
-        (string)($settings['service'] ?? 'digital'),
-        (string)($settings['floor'] ?? 'videoa'),
-        (int)($settings['item_sync_batch'] ?? 100),
-        $offset,
-        $extraParams,
-        $excludeKeywords
-    );
-    $nextOffset = max(1, (int)($result['next_offset'] ?? 1));
-    $pdo->prepare("UPDATE sync_job_state SET next_offset = :next_offset, last_run_at = NOW(), last_success = 1, last_message = :message, lock_until = NULL, updated_at = NOW() WHERE job_key = 'items'")
-        ->execute([':next_offset' => $nextOffset, ':message' => '商品を同期しました']);
-    site_setting_set_many(['last_item_sync_at' => date('Y-m-d H:i:s'), 'item_sync_offset' => (string)$nextOffset, 'item_sync_sort_index' => (string)($sortIndex + 1)]);
+    try {
+        $result = $service->syncItemsBatch(
+            (string)($settings['site'] ?? 'FANZA'),
+            (string)($settings['service'] ?? 'digital'),
+            (string)($settings['floor'] ?? 'videoa'),
+            (int)($settings['item_sync_batch'] ?? 100),
+            $offset,
+            $extraParams,
+            $excludeKeywords
+        );
+        $nextOffset = max(1, (int)($result['next_offset'] ?? 1));
+        $pdo->prepare("UPDATE sync_job_state SET next_offset = :next_offset, last_run_at = NOW(), last_success = 1, last_message = :message, lock_until = NULL, updated_at = NOW() WHERE job_key = 'items'")
+            ->execute([':next_offset' => $nextOffset, ':message' => '商品を同期しました']);
+        site_setting_set_many(['last_item_sync_at' => date('Y-m-d H:i:s'), 'item_sync_offset' => (string)$nextOffset, 'item_sync_sort_index' => (string)($sortIndex + 1)]);
 
-    return ['synced_count' => (int)($result['synced_count'] ?? 0), 'message' => '商品を同期しました'];
+        return ['synced_count' => (int)($result['synced_count'] ?? 0), 'message' => '商品を同期しました'];
+    } catch (Throwable $e) {
+        $pdo->prepare("UPDATE sync_job_state SET last_run_at = NOW(), last_success = 0, last_message = :message, lock_until = NULL, updated_at = NOW() WHERE job_key = 'items'")
+            ->execute([':message' => mb_substr($e->getMessage(), 0, 1000)]);
+        throw $e;
+    }
+}
+
+
+function scheduler_run_master_schedule(string $jobKey, DmmSyncService $service, array $settings): array
+{
+    $pdo = db();
+    scheduler_ensure_job_state_table($pdo);
+    scheduler_seed_job_state($pdo);
+    $lockUntil = date('Y-m-d H:i:s', time() + 55);
+    $lockStmt = $pdo->prepare('UPDATE sync_job_state SET lock_until = :lock_until WHERE job_key = :job_key AND (lock_until IS NULL OR lock_until < NOW())');
+    $lockStmt->execute([':lock_until' => $lockUntil, ':job_key' => $jobKey]);
+    if ($lockStmt->rowCount() === 0) {
+        return ['synced_count' => 0, 'message' => 'ロック取得失敗のためスキップ'];
+    }
+    $skip = scheduler_skip_missing_credentials($pdo, $jobKey);
+    if ($skip !== null) {
+        return $skip;
+    }
+
+    $stateStmt = $pdo->prepare('SELECT next_offset FROM sync_job_state WHERE job_key = :job_key LIMIT 1');
+    $stateStmt->execute([':job_key' => $jobKey]);
+    $offset = max(1, (int)$stateStmt->fetchColumn());
+
+    try {
+        $floorId = (string)($settings['master_floor_id'] ?? '43');
+        $count = match ($jobKey) {
+            'genres' => $service->syncGenres($floorId, null, 100, $offset),
+            'actresses' => $service->syncMaster('actress', null, $offset, 100),
+            'series' => $service->syncSeries($floorId, null, 100, $offset),
+            default => 0,
+        };
+        $nextOffset = $count < 100 ? 1 : $offset + 100;
+        if ($nextOffset > 50000) {
+            $nextOffset = 1;
+        }
+        $message = match ($jobKey) {
+            'genres' => 'ジャンルを同期しました',
+            'actresses' => '女優を同期しました',
+            'series' => 'シリーズを同期しました',
+            default => '同期しました',
+        };
+        $pdo->prepare('UPDATE sync_job_state SET next_offset = :next_offset, last_run_at = NOW(), last_success = 1, last_message = :message, lock_until = NULL, updated_at = NOW() WHERE job_key = :job_key')
+            ->execute([':next_offset' => $nextOffset, ':message' => $message, ':job_key' => $jobKey]);
+
+        return ['synced_count' => $count, 'message' => $message];
+    } catch (Throwable $e) {
+        $pdo->prepare('UPDATE sync_job_state SET last_run_at = NOW(), last_success = 0, last_message = :message, lock_until = NULL, updated_at = NOW() WHERE job_key = :job_key')
+            ->execute([':message' => mb_substr($e->getMessage(), 0, 1000), ':job_key' => $jobKey]);
+        throw $e;
+    }
+}
+
+
+function scheduler_skip_missing_credentials(PDO $pdo, string $jobKey): ?array
+{
+    $cred = api_credential_get('items');
+    if (trim((string)($cred['api_id'] ?? '')) !== '' && trim((string)($cred['affiliate_id'] ?? '')) !== '') {
+        return null;
+    }
+
+    $message = 'API ID / アフィリエイトID 未設定のためスキップ';
+    $pdo->prepare('UPDATE sync_job_state SET last_run_at = NOW(), last_success = 0, last_message = :message, lock_until = NULL, updated_at = NOW() WHERE job_key = :job_key')
+        ->execute([':message' => $message, ':job_key' => $jobKey]);
+
+    return ['synced_count' => 0, 'message' => $message];
 }
 
 function scheduler_split_lines(string $value, int $max = 5): array
@@ -140,7 +212,7 @@ function scheduler_apply_auto_settings(PDO $pdo): void
 {
     $enabled = settings_bool('item_sync_enabled', false) ? 1 : 0;
     $interval = max(1, settings_int('item_sync_interval_minutes', 60));
-    $pdo->prepare("UPDATE api_schedules SET interval_minutes = :interval, is_enabled = :enabled, updated_at = NOW() WHERE schedule_type IN ('items','genres','makers','series','authors')")
+    $pdo->prepare("UPDATE api_schedules SET interval_minutes = :interval, is_enabled = :enabled, updated_at = NOW() WHERE schedule_type IN ('items','genres','actresses','series')")
         ->execute([':interval' => $interval, ':enabled' => $enabled]);
 }
 
@@ -182,10 +254,25 @@ function scheduler_ensure_columns(PDO $pdo, string $table, array $alterSqlByColu
     }
 }
 
+function scheduler_job_keys(): array
+{
+    return ['items', 'genres', 'actresses', 'series'];
+}
+
 function scheduler_seed_default_schedules(PDO $pdo): void
 {
-    foreach (['items', 'genres', 'makers', 'series', 'authors'] as $type) {
+    foreach (scheduler_job_keys() as $type) {
         $pdo->prepare('INSERT INTO api_schedules(schedule_type, interval_minutes, is_enabled, created_at, updated_at) VALUES(?, 60, 1, NOW(), NOW()) ON DUPLICATE KEY UPDATE updated_at = updated_at')->execute([$type]);
+    }
+    scheduler_seed_job_state($pdo);
+}
+
+function scheduler_seed_job_state(PDO $pdo): void
+{
+    scheduler_ensure_job_state_table($pdo);
+    foreach (scheduler_job_keys() as $jobKey) {
+        $pdo->prepare('INSERT INTO sync_job_state (job_key, next_offset, updated_at) VALUES (:job_key, 1, NOW()) ON DUPLICATE KEY UPDATE updated_at = updated_at')
+            ->execute([':job_key' => $jobKey]);
     }
 }
 
