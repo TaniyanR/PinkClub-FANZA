@@ -80,6 +80,10 @@ function scheduler_run_items_schedule(DmmSyncService $service, array $settings):
     if ($lockStmt->rowCount() === 0) {
         return ['synced_count' => 0, 'message' => 'ロック取得失敗のためスキップ'];
     }
+    $skip = scheduler_skip_missing_credentials($pdo, 'items');
+    if ($skip !== null) {
+        return $skip;
+    }
     $stateStmt = $pdo->prepare("SELECT next_offset FROM sync_job_state WHERE job_key = 'items' LIMIT 1");
     $stateStmt->execute();
     $offset = max(1, (int)$stateStmt->fetchColumn());
@@ -119,6 +123,10 @@ function scheduler_run_master_schedule(string $jobKey, DmmSyncService $service, 
     if ($lockStmt->rowCount() === 0) {
         return ['synced_count' => 0, 'message' => 'ロック取得失敗のためスキップ'];
     }
+    $skip = scheduler_skip_missing_credentials($pdo, $jobKey);
+    if ($skip !== null) {
+        return $skip;
+    }
 
     $stateStmt = $pdo->prepare('SELECT next_offset FROM sync_job_state WHERE job_key = :job_key LIMIT 1');
     $stateStmt->execute([':job_key' => $jobKey]);
@@ -151,6 +159,21 @@ function scheduler_run_master_schedule(string $jobKey, DmmSyncService $service, 
             ->execute([':message' => mb_substr($e->getMessage(), 0, 1000), ':job_key' => $jobKey]);
         throw $e;
     }
+}
+
+
+function scheduler_skip_missing_credentials(PDO $pdo, string $jobKey): ?array
+{
+    $cred = api_credential_get('items');
+    if (trim((string)($cred['api_id'] ?? '')) !== '' && trim((string)($cred['affiliate_id'] ?? '')) !== '') {
+        return null;
+    }
+
+    $message = 'API ID / アフィリエイトID 未設定のためスキップ';
+    $pdo->prepare('UPDATE sync_job_state SET last_run_at = NOW(), last_success = 0, last_message = :message, lock_until = NULL, updated_at = NOW() WHERE job_key = :job_key')
+        ->execute([':message' => $message, ':job_key' => $jobKey]);
+
+    return ['synced_count' => 0, 'message' => $message];
 }
 
 function scheduler_split_lines(string $value, int $max = 5): array
