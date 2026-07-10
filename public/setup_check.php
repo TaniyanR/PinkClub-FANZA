@@ -68,6 +68,9 @@ function setup_safe_db_error(string $stage, Throwable $exception): string
     if (str_contains($message, 'Access denied')) {
         return $stage . 'に失敗しました。ユーザー名またはパスワードが違う、またはDBユーザーが対象DBに追加されていない可能性があります。';
     }
+    if (str_contains($message, 'Connection refused') || str_contains($message, 'No such file or directory') || str_contains($message, 'timed out')) {
+        return $stage . 'に失敗しました。MySQLサーバーへ接続できません。DBホスト名、DBポート、MySQLサーバーの稼働状況を確認してください。';
+    }
 
     return $stage . 'に失敗しました。config.local.php に書き込めない、またはDB接続設定を確認できない可能性があります。詳細: ' . $message;
 }
@@ -113,18 +116,6 @@ if (!$csrfFailed && $_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('actio
                 $dbConfigError = '初回保存時はMySQLユーザーのパスワードを入力してください。';
                 throw new RuntimeException('db password required');
             }
-            try {
-                $testDsn = sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $host, $port);
-                new PDO($testDsn, $user, $pass, db_options());
-            } catch (Throwable $exception) {
-                throw new RuntimeException(setup_safe_db_error('DBサーバー接続テスト', $exception), 0, $exception);
-            }
-            try {
-                $dbTestDsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $dbname);
-                new PDO($dbTestDsn, $user, $pass, db_options());
-            } catch (Throwable $exception) {
-                throw new RuntimeException(setup_safe_db_error('対象DB接続テスト', $exception), 0, $exception);
-            }
             $local['db'] = [
                 'host' => $host,
                 'port' => $port,
@@ -140,6 +131,19 @@ if (!$csrfFailed && $_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('actio
             }
             $GLOBALS['app_config']['db'] = $local['db'];
             db_reset_connections();
+            $dbConfigNotice = 'DB接続設定を保存しました。';
+            try {
+                $testDsn = sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $host, $port);
+                new PDO($testDsn, $user, $pass, db_options());
+            } catch (Throwable $exception) {
+                throw new RuntimeException(setup_safe_db_error('DBサーバー接続テスト', $exception), 0, $exception);
+            }
+            try {
+                $dbTestDsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $dbname);
+                new PDO($dbTestDsn, $user, $pass, db_options());
+            } catch (Throwable $exception) {
+                throw new RuntimeException(setup_safe_db_error('対象DB接続テスト', $exception), 0, $exception);
+            }
             db_pdo();
             $setupResult = installer_run();
             if (($setupResult['success'] ?? false) === true) {
