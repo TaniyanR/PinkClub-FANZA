@@ -42,12 +42,17 @@ if (!$csrfFailed && $_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('actio
             if ($pass === '' && isset($local['db']['pass'])) {
                 $pass = (string)$local['db']['pass'];
             }
+            if ($pass === '' && isset($local['db']['password'])) {
+                $pass = (string)$local['db']['password'];
+            }
             if ($pass === '') {
                 $dbConfigError = '初回保存時はMySQLユーザーのパスワードを入力してください。';
                 throw new RuntimeException('db password required');
             }
             $testDsn = sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $host, $port);
             new PDO($testDsn, $user, $pass, db_options());
+            $dbTestDsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $dbname);
+            new PDO($dbTestDsn, $user, $pass, db_options());
             $local['db'] = [
                 'host' => $host,
                 'port' => $port,
@@ -57,6 +62,10 @@ if (!$csrfFailed && $_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('actio
                 'charset' => 'utf8mb4',
             ];
             local_config_write($local);
+            $saved = local_config_load();
+            if (($saved['db'] ?? null) !== $local['db']) {
+                throw new RuntimeException('設定ファイルの保存内容を確認できませんでした。');
+            }
             $GLOBALS['app_config']['db'] = $local['db'];
             db_reset_connections();
             $setupResult = installer_run();
@@ -66,7 +75,7 @@ if (!$csrfFailed && $_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('actio
             $dbConfigError = (string)($setupResult['error'] ?? 'DB接続設定は保存しましたが、セットアップに失敗しました。install.log を確認してください。');
         } catch (Throwable $exception) {
             if ($dbConfigError === null) {
-                $dbConfigError = 'DB接続テストに失敗しました。MySQLホスト名、データベース名、ユーザー名、パスワードを確認してください。あわせて、サーバーパネルのMySQL設定で対象データベースにこのMySQLユーザーを追加済みか確認してください。';
+                $dbConfigError = 'DB接続設定の保存に失敗しました: ' . $exception->getMessage();
             }
         }
     }
