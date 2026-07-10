@@ -8,6 +8,7 @@ require_once __DIR__ . '/../lib/site_settings.php';
 require_once __DIR__ . '/../lib/rate_limit.php';
 require_once __DIR__ . '/../lib/csrf.php';
 require_once __DIR__ . '/../lib/admin_auth.php';
+require_once __DIR__ . '/../lib/url.php';
 require_once __DIR__ . '/partials/_helpers.php';
 
 if (!function_exists('e')) {
@@ -17,56 +18,102 @@ if (!function_exists('e')) {
     }
 }
 
+function password_reset_log(string $reason, array $context = []): void
+{
+    $safeContext = [];
+    foreach ($context as $key => $value) {
+        if ($value === null || is_scalar($value)) {
+            $safeContext[$key] = $value;
+        }
+    }
+    error_log('[password_reset] ' . $reason . ' ' . json_encode($safeContext, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}
+
+function password_reset_find_admin_by_email(string $email): ?array
+{
+    $siteAdminEmail = setting_admin_email('');
+    if ($siteAdminEmail === '' || strcasecmp($email, $siteAdminEmail) !== 0) {
+        password_reset_log('target_not_found', ['reason' => 'site_admin_email_mismatch']);
+        return null;
+    }
+
+    $stmt = db()->query('SELECT COUNT(*) FROM admins');
+    $adminCount = $stmt ? (int)$stmt->fetchColumn() : 0;
+    if ($adminCount !== 1) {
+        password_reset_log('target_not_found', ['reason' => 'admin_count_not_one', 'admin_count' => $adminCount]);
+        return null;
+    }
+
+    $stmt = db()->query('SELECT id, username FROM admins ORDER BY id ASC LIMIT 1');
+    $admin = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+    if (!is_array($admin)) {
+        password_reset_log('target_not_found', ['reason' => 'single_admin_fetch_failed']);
+        return null;
+    }
+
+    return [
+        'id' => (int)$admin['id'],
+        'username' => (string)$admin['username'],
+        'email' => $siteAdminEmail,
+    ];
+}
+
+function password_reset_write_mail_log(string $email, string $status, ?string $lastError): void
+{
+    if (!db_table_exists('mail_logs')) {
+        password_reset_log('mail_log_skipped', ['reason' => 'mail_logs_missing', 'status' => $status, 'last_error' => $lastError]);
+        return;
+    }
+
+    db()->prepare('INSERT INTO mail_logs(direction,from_name,from_email,to_email,subject,body,status,last_error,created_at,updated_at) VALUES ("out",NULL,:from,:to,:subj,:body,:status,:err,NOW(),NOW())')
+        ->execute([
+            ':from' => 'noreply@pinkclub.local',
+            ':to' => $email,
+            ':subj' => 'Password Reset',
+            ':body' => 'パスワード再発行メール処理を受け付けました。',
+            ':status' => $status,
+            ':err' => $lastError,
+        ]);
+}
+
 admin_session_start();
 $message = '';
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     rate_limit_check('password_reset');
     if (!csrf_verify((string)($_POST['_token'] ?? ''))) {
         $message = 'リクエストが無効です。';
+        password_reset_log('csrf_error');
     } else {
         $email = trim((string)($_POST['email'] ?? ''));
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $message = 'メールアドレスの形式が正しくありません。';
+            password_reset_log('invalid_email_format');
         } else {
-            $u = null;
-            if (admin_users_table_available()) {
-                $stmt = db()->prepare('SELECT id, username, email FROM admin_users WHERE email=:email AND is_active=1 LIMIT 1');
-                $stmt->execute([':email' => $email]);
-                $u = $stmt->fetch(PDO::FETCH_ASSOC);
-            }
-            if (!is_array($u) && $email === setting_admin_email('')) {
-                $stmt = db()->query('SELECT id, username FROM admins ORDER BY id ASC LIMIT 1');
-                $admin = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
-                if (is_array($admin)) {
-                    $u = [
-                        'id' => (int)$admin['id'],
-                        'username' => (string)$admin['username'],
-                        'email' => $email,
-                    ];
-                }
-            }
+            $target = password_reset_find_admin_by_email($email);
+            $status = 'failed';
+            $lastError = 'no matching reset target';
 
-            if (is_array($u) && db_table_exists('admin_password_resets')) {
+            if (is_array($target) && db_table_exists('admin_password_resets')) {
                 $token = bin2hex(random_bytes(32));
                 db()->prepare('INSERT INTO admin_password_resets(admin_user_id,token_hash,expires_at) VALUES (:admin_user_id,:token_hash,DATE_ADD(NOW(), INTERVAL 1 HOUR))')
-                    ->execute([':admin_user_id' => (int)$u['id'], ':token_hash' => hash('sha256', $token)]);
+                    ->execute([':admin_user_id' => (int)$target['id'], ':token_hash' => hash('sha256', $token)]);
 
                 $resetUrl = url('/public/reset_password.php?token=' . rawurlencode($token));
                 $body = "管理者パスワード再設定の申請を受け付けました。\n"
-                    . "ユーザー名: " . (string)$u['username'] . "\n"
-                    . "メールアドレス: " . (string)$u['email'] . "\n"
+                    . "ユーザー名: " . (string)$target['username'] . "\n"
+                    . "メールアドレス: " . (string)$target['email'] . "\n"
                     . "再設定URL: " . $resetUrl . "\n\n"
                     . "このURLは1時間で期限切れになります。";
                 $ok = @mail($email, '[PinkClub-FANZA] Password Reset', $body);
-            } else {
-                $ok = true;
+                $status = $ok ? 'sent' : 'failed';
+                $lastError = $ok ? null : 'mail() failed or unavailable';
+                password_reset_log($ok ? 'mail_sent' : 'mail_failed', ['admin_id' => (int)$target['id']]);
+            } elseif (is_array($target)) {
+                $lastError = 'admin_password_resets table missing';
+                password_reset_log('token_not_created', ['reason' => $lastError, 'admin_id' => (int)$target['id']]);
             }
 
-            db()->prepare('INSERT INTO mail_logs(direction,from_name,from_email,to_email,subject,body,status,last_error,created_at,updated_at) VALUES ("out",NULL,:from,:to,:subj,:body,:status,:err,NOW(),NOW())')
-                ->execute([':from' => 'noreply@pinkclub.local', ':to' => $email, ':subj' => 'Password Reset', ':body' => 'パスワード再発行メールを送信しました。', ':status' => $ok ? 'sent' : 'failed', ':err' => $ok ? null : 'mail() unavailable']);
-            if (!$ok) {
-                $message = '現在メールを送信できません。しばらくしてから再度お試しください。';
-            }
+            password_reset_write_mail_log($email, $status, $lastError);
         }
         if ($message === '') {
             $message = '入力情報を受け付けました。該当ユーザーが存在する場合は再設定案内を送信しました。';
@@ -95,7 +142,7 @@ if (headers_sent() === false) {
       <p class="login-subtitle">パスワード再発行</p>
 
       <?php if ($message !== '') : ?><p><?php echo e($message); ?></p><?php endif; ?>
-      <form method="post" class="login-form">
+      <form method="post" class="login-form" action="<?php echo e(url('/public/forgot_password.php')); ?>">
         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
         <label class="login-label">
           登録メールアドレス

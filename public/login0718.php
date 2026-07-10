@@ -24,6 +24,7 @@ $setupMessage = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify(post('_csrf'))) {
         unset($_SESSION['_csrf']);
+        error_log('[admin_login] csrf_error');
         $error = 'ログイン画面の有効期限が切れました。もう一度ログインしてください。';
     } else {
         rate_limit_check('admin_login');

@@ -14,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate_or_fail((string)post('_csrf', ''));
 
     $email = trim((string)post('email', ''));
+    $currentPassword = (string)post('current_password', '');
     $password = (string)post('password', '');
     $passwordConfirm = (string)post('password_confirm', '');
 
@@ -26,28 +27,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($adminId <= 0) {
         $error = '管理者情報を確認できません。';
     } else {
-        if ($email !== '') {
-            $stmt = db()->prepare('SELECT id FROM admins WHERE username=:username AND id<>:id LIMIT 1');
-            $stmt->execute([
-                ':username' => $email,
-                ':id' => $adminId,
-            ]);
-            if ($stmt->fetchColumn() !== false) {
-                $error = 'このメールアドレスはログインユーザー名として使用できません。';
+        if ($password !== '') {
+            $stmt = db()->prepare('SELECT password_hash FROM admins WHERE id=:id LIMIT 1');
+            $stmt->execute([':id' => $adminId]);
+            $hash = (string)($stmt->fetchColumn() ?: '');
+            if ($currentPassword === '' || $hash === '' || !password_verify($currentPassword, $hash)) {
+                $error = '現在のパスワードが正しくありません。';
             }
         }
 
         if ($error === null) {
             site_setting_set('site.admin_email', $email);
-
-            if ($email !== '') {
-                db()->prepare('UPDATE admins SET username=:username, updated_at=NOW() WHERE id=:id LIMIT 1')
-                    ->execute([
-                        ':username' => $email,
-                        ':id' => $adminId,
-                    ]);
-                $_SESSION['admin']['username'] = $email;
-            }
 
             if ($password !== '') {
                 db()->prepare('UPDATE admins SET password_hash=:password_hash, updated_at=NOW() WHERE id=:id LIMIT 1')
@@ -72,6 +62,10 @@ require __DIR__ . '/includes/header.php';
     <?= csrf_input() ?>
     <label>メールアドレス
       <input type="email" name="email" value="<?= e(setting_admin_email('')) ?>">
+    </label>
+    <p class="form-help">メールアドレスはパスワード再発行・通知用です。ログインユーザー名は変更されません。</p>
+    <label>現在のパスワード（パスワード変更時のみ）
+      <input type="password" name="current_password" autocomplete="current-password">
     </label>
     <label>新しいパスワード
       <input type="password" name="password" minlength="8" autocomplete="new-password">
