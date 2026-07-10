@@ -162,12 +162,15 @@ This PR implements 6 incomplete features identified in README.md and docs/issues
 
 ### 3. API自動取得タイマー機能 / Auto-import Timer ✅
 
-**場所 / Location**: `public/_bootstrap.php` / `scripts/auto_import.php`
+**場所 / Location**: `public/_bootstrap.php` / `scripts/auto_import.php` / `admin/api_auto.php`
 
 **機能 / Features**:
-- cronなしの場合は、通常の公開ページへの `GET` / `HEAD` アクセスをきっかけに `public/_bootstrap.php` の終了処理で自動更新を確認
-- cronを使える環境では `scripts/auto_import.php` から同じスケジューラを実行可能
-- ロック機構で重複実行を防止
+- cron不要方式: 通常の公開ページへの `GET` / `HEAD` アクセスをきっかけに `public/_bootstrap.php` の終了処理で自動更新を確認
+- cron不要方式は公開アクセスが無い環境では動きません
+- cron方式: `scripts/auto_import.php` から同じスケジューラを実行可能。本番運用ではアクセス有無に依存しないcron方式を推奨
+- 管理画面タイマー方式: `/admin/api_auto.php` を開いている間だけJavaScriptが `admin/timer_tick.php` をPOSTし、同じスケジューラを確認
+- 自動更新対象は `items` / `genres` / `actresses` / `series`
+- ロック機構で重複実行を防止し、`sync_job_state` でジョブごとのoffsetと状態を管理
 - `api_schedules`テーブルで実行スケジュールを管理
 
 **cron設定例 / Cron Examples**:

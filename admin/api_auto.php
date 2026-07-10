@@ -67,6 +67,12 @@ $enabled = settings_bool('item_sync_enabled', false);
 $compoundLines = preg_split('/\R/u', site_setting_get('item_sync_compound_keywords', '')) ?: [];
 $excludeLines = preg_split('/\R/u', site_setting_get('item_sync_exclude_keywords', '')) ?: [];
 $timerPollMs = max(1, $currentInterval) * 60 * 1000;
+$pdo = db();
+scheduler_ensure_schedule_table($pdo);
+scheduler_seed_default_schedules($pdo);
+scheduler_apply_auto_settings($pdo);
+$stateStmt = $pdo->query("SELECT job_key, last_run_at, last_success, last_message, next_offset, lock_until FROM sync_job_state WHERE job_key IN ('items','genres','actresses','series') ORDER BY FIELD(job_key, 'items','genres','actresses','series')");
+$autoStates = $stateStmt ? $stateStmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
 require __DIR__ . '/includes/header.php';
 ?>
@@ -129,6 +135,22 @@ require __DIR__ . '/includes/header.php';
 
     <div class="admin-actions" style="margin-top:20px;"><button type="submit">保存</button></div>
   </form>
+
+
+  <h2 style="margin-top:24px;">自動更新状態</h2>
+  <table class="admin-table">
+    <tr><th>ジョブ</th><th>最終実行日時</th><th>成功</th><th>メッセージ</th><th>次回offset</th><th>ロック期限</th></tr>
+    <?php foreach ($autoStates as $state): ?>
+      <tr>
+        <td><?= e((string)($state['job_key'] ?? '')) ?></td>
+        <td><?= e((string)($state['last_run_at'] ?? '')) ?></td>
+        <td><?= ((int)($state['last_success'] ?? 0) === 1) ? '成功' : '未成功' ?></td>
+        <td><?= e((string)($state['last_message'] ?? '')) ?></td>
+        <td><?= e((string)($state['next_offset'] ?? '1')) ?></td>
+        <td><?= e((string)($state['lock_until'] ?? '')) ?></td>
+      </tr>
+    <?php endforeach; ?>
+  </table>
 
   <?php if ($enabled): ?>
     <div class="admin-notice admin-notice--success" id="auto-timer-status" data-endpoint="<?= e(admin_url('timer_tick.php')) ?>" data-csrf="<?= e(csrf_token()) ?>" data-poll-ms="<?= e((string)$timerPollMs) ?>">
