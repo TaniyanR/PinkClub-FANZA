@@ -72,7 +72,31 @@ function setup_safe_db_error(string $stage, Throwable $exception): string
         return $stage . 'に失敗しました。MySQLサーバーへ接続できません。DBホスト名、DBポート、MySQLサーバーの稼働状況を確認してください。';
     }
 
-    return $stage . 'に失敗しました。config.local.php に書き込めない、またはDB接続設定を確認できない可能性があります。詳細: ' . $message;
+    return $stage . 'に失敗しました。DBホスト名、DBポート、データベース、ユーザー名、パスワードを確認してください。';
+}
+
+function setup_test_db_config(array $db): void
+{
+    $host = (string)($db['host'] ?? '');
+    $port = (int)($db['port'] ?? 3306);
+    $dbname = (string)($db['dbname'] ?? '');
+    $user = (string)($db['user'] ?? '');
+    $pass = (string)($db['pass'] ?? '');
+    $charset = (string)($db['charset'] ?? 'utf8mb4');
+
+    try {
+        $serverDsn = sprintf('mysql:host=%s;port=%d;charset=%s', $host, $port, $charset);
+        new PDO($serverDsn, $user, $pass, db_options());
+    } catch (Throwable $exception) {
+        throw new RuntimeException(setup_safe_db_error('DBサーバー接続テスト', $exception), 0, $exception);
+    }
+
+    try {
+        $dbDsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=%s', $host, $port, $dbname, $charset);
+        new PDO($dbDsn, $user, $pass, db_options());
+    } catch (Throwable $exception) {
+        throw new RuntimeException(setup_safe_db_error('対象DB接続テスト', $exception), 0, $exception);
+    }
 }
 
 $localConfigStatus = setup_local_config_status();
@@ -116,7 +140,7 @@ if (!$csrfFailed && $_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('actio
                 $dbConfigError = '初回保存時はMySQLユーザーのパスワードを入力してください。';
                 throw new RuntimeException('db password required');
             }
-            $local['db'] = [
+            $newDbConfig = [
                 'host' => $host,
                 'port' => $port,
                 'dbname' => $dbname,
@@ -124,32 +148,19 @@ if (!$csrfFailed && $_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('actio
                 'pass' => $pass,
                 'charset' => 'utf8mb4',
             ];
+
+            setup_test_db_config($newDbConfig);
+
+            $local['db'] = $newDbConfig;
             local_config_write($local);
             $saved = local_config_load();
-            if (($saved['db'] ?? null) !== $local['db']) {
+            $savedDb = isset($saved['db']) && is_array($saved['db']) ? setup_normalize_local_db($saved['db']) : null;
+            if ($savedDb !== $newDbConfig) {
                 throw new RuntimeException('設定ファイルの保存内容を確認できませんでした。');
             }
-            $GLOBALS['app_config']['db'] = $local['db'];
+            $GLOBALS['app_config']['db'] = $newDbConfig;
             db_reset_connections();
-            $dbConfigNotice = 'DB接続設定を保存しました。';
-            try {
-                $testDsn = sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $host, $port);
-                new PDO($testDsn, $user, $pass, db_options());
-            } catch (Throwable $exception) {
-                throw new RuntimeException(setup_safe_db_error('DBサーバー接続テスト', $exception), 0, $exception);
-            }
-            try {
-                $dbTestDsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $dbname);
-                new PDO($dbTestDsn, $user, $pass, db_options());
-            } catch (Throwable $exception) {
-                throw new RuntimeException(setup_safe_db_error('対象DB接続テスト', $exception), 0, $exception);
-            }
-            db_pdo();
-            $setupResult = installer_run();
-            if (($setupResult['success'] ?? false) === true) {
-                app_redirect(LOGIN_PATH);
-            }
-            $dbConfigError = (string)($setupResult['error'] ?? 'DB接続設定は保存しましたが、セットアップに失敗しました。install.log を確認してください。');
+            $dbConfigNotice = 'DB接続テストに成功したため、DB接続設定を保存しました。';
         } catch (Throwable $exception) {
             if ($dbConfigError === null) {
                 $dbConfigError = str_starts_with($exception->getMessage(), 'DB')
