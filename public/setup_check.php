@@ -7,8 +7,18 @@ require_once __DIR__ . '/../lib/local_config_writer.php';
 
 $dbConfigError = null;
 $dbConfigNotice = null;
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'run_installer') {
-    csrf_validate_or_fail(post('_csrf'));
+$csrfValid = true;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $csrfValid = csrf_verify(post('_csrf'));
+    if (!$csrfValid) {
+        $dbConfigError = '画面の有効期限が切れました。もう一度操作してください。';
+        $_SESSION['_csrf'] = bin2hex(random_bytes(32));
+        csrf_token();
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $csrfValid && (string)post('action', '') === 'run_installer') {
     try {
         $setupResult = installer_run();
         if (($setupResult['success'] ?? false) === true) {
@@ -20,8 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'run
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'save_db_config') {
-    csrf_validate_or_fail(post('_csrf'));
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $csrfValid && (string)post('action', '') === 'save_db_config') {
     $host = trim((string)post('db_host', ''));
     $port = (int)post('db_port', 3306);
     $dbname = trim((string)post('db_name', ''));
@@ -79,9 +88,6 @@ if ($dbConfigError !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
 $configErrors = db_validate_config($currentDbConfig, true);
 if ($configErrors === []) {
     $status = installer_status();
-    if (($status['completed'] ?? false) === true) {
-        app_redirect(LOGIN_PATH);
-    }
 } else {
     $status = ['server_connection'=>false,'db_connection'=>false,'admins_table'=>false,'settings_table'=>false,'admin_user'=>false,'settings_row'=>false,'completed'=>false];
     $dbConfigNotice = 'DB設定が未入力です。MySQL情報を入力して保存してください。';
