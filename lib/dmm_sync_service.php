@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/dmm_api_client.php';
 require_once __DIR__ . '/dmm_normalizer.php';
 require_once __DIR__ . '/repository.php';
+require_once __DIR__ . '/db.php';
 
 class DmmSyncService
 {
@@ -18,9 +19,10 @@ class DmmSyncService
         $response = $this->client->fetchFloorList();
         $siteList = DmmNormalizer::toList($response['result']['site'] ?? []);
         $count = 0;
-        $this->pdo->beginTransaction();
         try {
-            foreach ($siteList as $site) {
+            $count = db_retryable_transaction($this->pdo, function () use ($siteList): int {
+                $count = 0;
+                foreach ($siteList as $site) {
                 $siteCode = (string)($site['code'] ?? ($site['site'] ?? ''));
                 $siteName = $site['name'] ?? '';
                 $this->upsertSimple('dmm_sites', 'site_code', $siteCode, $siteName);
@@ -38,11 +40,11 @@ class DmmSyncService
                     }
                 }
             }
-            $this->pdo->commit();
+                return $count;
+            });
             $this->logSync('floors', 1, $count, 'Floor sync completed.');
             return $count;
         } catch (Throwable $e) {
-            $this->pdo->rollBack();
             $this->logSync('floors', 0, 0, $e->getMessage());
             throw $e;
         }
@@ -79,9 +81,10 @@ class DmmSyncService
             default => throw new InvalidArgumentException('Unknown master type.'),
         };
 
-        $this->pdo->beginTransaction();
         try {
-            foreach ($rows as $r) {
+            $count = db_retryable_transaction($this->pdo, function () use ($rows, $kind, $table): int {
+                $count = 0;
+                foreach ($rows as $r) {
                 $idKey = match ($kind) {
                     'genre' => 'genre_id',
                     'maker' => 'maker_id',
@@ -108,11 +111,11 @@ class DmmSyncService
                 ]);
                 $count++;
             }
-            $this->pdo->commit();
+                return $count;
+            });
             $this->logSync($kind . 's', 1, $count, 'Master sync completed.');
             return $count;
         } catch (Throwable $e) {
-            $this->pdo->rollBack();
             $this->logSync($kind . 's', 0, 0, $e->getMessage());
             throw $e;
         }
@@ -193,9 +196,10 @@ class DmmSyncService
     private function saveItems(array $items, string $logType): int
     {
         $count = 0;
-        $this->pdo->beginTransaction();
         try {
-            foreach ($items as $item) {
+            $count = db_retryable_transaction($this->pdo, function () use ($items): int {
+                $count = 0;
+                foreach ($items as $item) {
                 $itemId = $this->upsertItem($item);
                 $this->rebuildItemRelations($itemId, $item);
                 if (function_exists('generate_tags_for_item')) {
@@ -207,11 +211,11 @@ class DmmSyncService
                 }
                 $count++;
             }
-            $this->pdo->commit();
+                return $count;
+            });
             $this->logSync($logType, 1, $count, 'Item sync completed.');
             return $count;
         } catch (Throwable $e) {
-            $this->pdo->rollBack();
             $this->logSync($logType, 0, 0, $e->getMessage());
             throw $e;
         }

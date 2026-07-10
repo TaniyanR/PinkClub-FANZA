@@ -14,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate_or_fail((string)post('_csrf', ''));
 
     $email = trim((string)post('email', ''));
+    $currentPassword = (string)post('current_password', '');
     $password = (string)post('password', '');
     $passwordConfirm = (string)post('password_confirm', '');
 
@@ -25,7 +26,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = '確認用パスワードが一致しません。';
     } elseif ($adminId <= 0) {
         $error = '管理者情報を確認できません。';
-    } else {
+    }
+    if ($error === null && $password !== '') {
+        $stmt = db()->prepare('SELECT password_hash FROM admins WHERE id=:id LIMIT 1');
+        $stmt->execute([':id' => $adminId]);
+        $passwordHash = (string)$stmt->fetchColumn();
+        if ($passwordHash === '' || !password_verify($currentPassword, $passwordHash)) {
+            $error = '現在のパスワードが正しくありません。';
+        }
+    }
+    if ($error === null) {
         if ($email !== '') {
             $stmt = db()->prepare('SELECT id FROM admins WHERE username=:username AND id<>:id LIMIT 1');
             $stmt->execute([
@@ -72,6 +82,9 @@ require __DIR__ . '/includes/header.php';
     <?= csrf_input() ?>
     <label>メールアドレス
       <input type="email" name="email" value="<?= e(setting_admin_email('')) ?>">
+    </label>
+    <label>現在のパスワード（パスワード変更時のみ）
+      <input type="password" name="current_password" autocomplete="current-password">
     </label>
     <label>新しいパスワード
       <input type="password" name="password" minlength="8" autocomplete="new-password">

@@ -112,6 +112,38 @@ function db(): PDO
     return db_pdo();
 }
 
+function db_is_retryable_lock_error(Throwable $e): bool
+{
+    if (!$e instanceof PDOException) {
+        return false;
+    }
+
+    $code = isset($e->errorInfo[1]) ? (int)$e->errorInfo[1] : (int)$e->getCode();
+    return in_array($code, [1205, 1213], true);
+}
+
+function db_retryable_transaction(PDO $pdo, callable $callback, int $maxAttempts = 3)
+{
+    $attempt = 0;
+    beginning:
+    $attempt++;
+    $pdo->beginTransaction();
+    try {
+        $result = $callback($attempt);
+        $pdo->commit();
+        return $result;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        if ($attempt < $maxAttempts && db_is_retryable_lock_error($e)) {
+            usleep(100000 * $attempt);
+            goto beginning;
+        }
+        throw $e;
+    }
+}
+
 function db_can_connect(): bool
 {
     try {

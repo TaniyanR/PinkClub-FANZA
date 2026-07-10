@@ -18,6 +18,8 @@ if (!function_exists('e')) {
 }
 
 admin_session_start();
+db()->exec('CREATE TABLE IF NOT EXISTS password_reset_tokens (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,admin_id INT UNSIGNED NOT NULL,token_hash CHAR(64) NOT NULL,expires_at DATETIME NOT NULL,used_at DATETIME NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,request_ip_hash CHAR(64) NULL,user_agent_hash CHAR(64) NULL,UNIQUE KEY uk_password_reset_token_hash (token_hash),INDEX idx_password_reset_admin (admin_id, created_at),INDEX idx_password_reset_expires (expires_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+db()->exec('CREATE TABLE IF NOT EXISTS mail_logs (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,direction ENUM("in","out") NOT NULL DEFAULT "in",from_name VARCHAR(255) NULL,from_email VARCHAR(255) NULL,to_email VARCHAR(255) NULL,subject VARCHAR(255) NOT NULL,body TEXT NOT NULL,status ENUM("received","sent","failed") NOT NULL DEFAULT "received",last_error TEXT NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at DATETIME NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 $message = '';
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     rate_limit_check('password_reset');
@@ -29,13 +31,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $message = 'メールアドレスの形式が正しくありません。';
         } else {
             $u = null;
-            if (admin_users_table_available()) {
-                $stmt = db()->prepare('SELECT id, username, email FROM admin_users WHERE email=:email AND is_active=1 LIMIT 1');
-                $stmt->execute([':email' => $email]);
-                $u = $stmt->fetch(PDO::FETCH_ASSOC);
-            }
-            if (!is_array($u) && $email === setting_admin_email('')) {
-                $stmt = db()->query('SELECT id, username FROM admins ORDER BY id ASC LIMIT 1');
+            if ($email === setting_admin_email('')) {
+                $stmt = db()->prepare('SELECT id, username FROM admins WHERE username=:username LIMIT 1');
+                $stmt->execute([':username' => $email]);
                 $admin = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
                 if (is_array($admin)) {
                     $u = [
@@ -46,10 +44,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 }
             }
 
-            if (is_array($u) && db_table_exists('admin_password_resets')) {
+            if (is_array($u)) {
                 $token = bin2hex(random_bytes(32));
-                db()->prepare('INSERT INTO admin_password_resets(admin_user_id,token_hash,expires_at) VALUES (:admin_user_id,:token_hash,DATE_ADD(NOW(), INTERVAL 1 HOUR))')
-                    ->execute([':admin_user_id' => (int)$u['id'], ':token_hash' => hash('sha256', $token)]);
+                db()->prepare('INSERT INTO password_reset_tokens(admin_id,token_hash,expires_at,request_ip_hash,user_agent_hash) VALUES (:admin_id,:token_hash,DATE_ADD(NOW(), INTERVAL 1 HOUR),:request_ip_hash,:user_agent_hash)')
+                    ->execute([
+                        ':admin_id' => (int)$u['id'],
+                        ':token_hash' => hash('sha256', $token),
+                        ':request_ip_hash' => hash('sha256', (string)($_SERVER['REMOTE_ADDR'] ?? '')),
+                        ':user_agent_hash' => hash('sha256', (string)($_SERVER['HTTP_USER_AGENT'] ?? '')),
+                    ]);
 
                 $resetUrl = url('/public/reset_password.php?token=' . rawurlencode($token));
                 $body = "管理者パスワード再設定の申請を受け付けました。\n"
@@ -64,9 +67,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
             db()->prepare('INSERT INTO mail_logs(direction,from_name,from_email,to_email,subject,body,status,last_error,created_at,updated_at) VALUES ("out",NULL,:from,:to,:subj,:body,:status,:err,NOW(),NOW())')
                 ->execute([':from' => 'noreply@pinkclub.local', ':to' => $email, ':subj' => 'Password Reset', ':body' => 'パスワード再発行メールを送信しました。', ':status' => $ok ? 'sent' : 'failed', ':err' => $ok ? null : 'mail() unavailable']);
-            if (!$ok) {
-                $message = '現在メールを送信できません。しばらくしてから再度お試しください。';
-            }
         }
         if ($message === '') {
             $message = '入力情報を受け付けました。該当ユーザーが存在する場合は再設定案内を送信しました。';

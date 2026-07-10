@@ -9,13 +9,12 @@ require_once __DIR__ . '/../lib/db.php';
 require_once __DIR__ . '/partials/_helpers.php';
 
 admin_session_start();
+db()->exec('CREATE TABLE IF NOT EXISTS password_reset_tokens (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,admin_id INT UNSIGNED NOT NULL,token_hash CHAR(64) NOT NULL,expires_at DATETIME NOT NULL,used_at DATETIME NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,request_ip_hash CHAR(64) NULL,user_agent_hash CHAR(64) NULL,UNIQUE KEY uk_password_reset_token_hash (token_hash),INDEX idx_password_reset_admin (admin_id, created_at),INDEX idx_password_reset_expires (expires_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 $token = trim((string)($_GET['token'] ?? ''));
 $reset = false;
-if (db_table_exists('admin_password_resets')) {
-    $stmt = db()->prepare('SELECT * FROM admin_password_resets WHERE token_hash=:h AND used_at IS NULL AND expires_at >= NOW() ORDER BY id DESC LIMIT 1');
-    $stmt->execute([':h' => hash('sha256', $token)]);
-    $reset = $stmt->fetch(PDO::FETCH_ASSOC);
-}
+$stmt = db()->prepare('SELECT * FROM password_reset_tokens WHERE token_hash=:h AND used_at IS NULL AND expires_at >= NOW() ORDER BY id DESC LIMIT 1');
+$stmt->execute([':h' => hash('sha256', $token)]);
+$reset = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!is_array($reset)) {
     http_response_code(403);
@@ -37,15 +36,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         } elseif ($password !== $passwordConfirm) {
             $error = '確認用パスワードが一致しません。';
         } else {
-            $adminUserId = (int)$reset['admin_user_id'];
-            if (admin_users_table_available()) {
-                db()->prepare('UPDATE admin_users SET password_hash=:h, updated_at=NOW() WHERE id=:id')
-                    ->execute([':h' => password_hash($password, PASSWORD_DEFAULT), ':id' => $adminUserId]);
-            } else {
-                db()->prepare('UPDATE admins SET password_hash=:h, updated_at=NOW() WHERE id=:id')
-                    ->execute([':h' => password_hash($password, PASSWORD_DEFAULT), ':id' => $adminUserId]);
-            }
-            db()->prepare('UPDATE admin_password_resets SET used_at=NOW() WHERE id=:id')->execute([':id' => (int)$reset['id']]);
+            $adminUserId = (int)$reset['admin_id'];
+            db()->prepare('UPDATE admins SET password_hash=:h, updated_at=NOW() WHERE id=:id')
+                ->execute([':h' => password_hash($password, PASSWORD_DEFAULT), ':id' => $adminUserId]);
+            db()->prepare('UPDATE password_reset_tokens SET used_at=NOW() WHERE id=:id')->execute([':id' => (int)$reset['id']]);
             $_SESSION['forgot_password_success'] = 'パスワードを再設定しました。新しいパスワードでログインしてください。';
             app_redirect(login_url());
         }
