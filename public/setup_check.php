@@ -7,8 +7,83 @@ require_once __DIR__ . '/../lib/local_config_writer.php';
 
 $dbConfigError = null;
 $dbConfigNotice = null;
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'run_installer') {
-    csrf_validate_or_fail(post('_csrf'));
+
+function setup_normalize_local_db(array $db): array
+{
+    if (!isset($db['dbname']) && isset($db['name'])) {
+        $db['dbname'] = $db['name'];
+    }
+    if (!isset($db['pass']) && isset($db['password'])) {
+        $db['pass'] = $db['password'];
+    }
+
+    return $db;
+}
+
+function setup_local_config_status(): array
+{
+    $path = local_config_path();
+    $status = [
+        'path' => $path,
+        'exists' => is_file($path),
+        'readable' => false,
+        'writable' => false,
+        'loaded' => false,
+        'error' => $GLOBALS['config_local_error'] ?? null,
+        'db' => [],
+        'has_password' => false,
+    ];
+    $status['writable'] = $status['exists'] ? is_writable($path) : is_writable(dirname($path));
+    if (!$status['exists']) {
+        return $status;
+    }
+    $status['readable'] = is_readable($path);
+    if (!$status['readable']) {
+        $status['error'] = 'config.local.php を読み込めません。ファイル権限を確認してください。';
+        return $status;
+    }
+
+    try {
+        $local = local_config_load();
+        $db = isset($local['db']) && is_array($local['db']) ? setup_normalize_local_db($local['db']) : [];
+        $status['loaded'] = true;
+        $status['db'] = $db;
+        $status['has_password'] = (string)($db['pass'] ?? '') !== '';
+    } catch (Throwable $exception) {
+        $status['error'] = $exception->getMessage();
+    }
+
+    return $status;
+}
+
+function setup_safe_db_error(string $stage, Throwable $exception): string
+{
+    $message = $exception->getMessage();
+    if (!extension_loaded('pdo_mysql')) {
+        return $stage . 'に失敗しました。PDO MySQL拡張が有効ではない可能性があります。';
+    }
+    if (str_contains($message, 'Unknown database')) {
+        return $stage . 'に失敗しました。DBサーバーには接続できましたが、対象DBへ接続できません。DB名が存在しない可能性があります。';
+    }
+    if (str_contains($message, 'Access denied')) {
+        return $stage . 'に失敗しました。ユーザー名またはパスワードが違う、またはDBユーザーが対象DBに追加されていない可能性があります。';
+    }
+    if (str_contains($message, 'Connection refused') || str_contains($message, 'No such file or directory') || str_contains($message, 'timed out')) {
+        return $stage . 'に失敗しました。MySQLサーバーへ接続できません。DBホスト名、DBポート、MySQLサーバーの稼働状況を確認してください。';
+    }
+
+    return $stage . 'に失敗しました。config.local.php に書き込めない、またはDB接続設定を確認できない可能性があります。詳細: ' . $message;
+}
+
+$localConfigStatus = setup_local_config_status();
+$csrfFailed = false;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !csrf_verify(post('_csrf'))) {
+    unset($_SESSION['_csrf']);
+    $csrfFailed = true;
+    $dbConfigError = 'セットアップ確認画面の有効期限が切れました。もう一度操作してください。';
+}
+
+if (!$csrfFailed && $_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'run_installer') {
     try {
         $setupResult = installer_run();
         if (($setupResult['success'] ?? false) === true) {
@@ -20,8 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'run
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'save_db_config') {
-    csrf_validate_or_fail(post('_csrf'));
+if (!$csrfFailed && $_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'save_db_config') {
     $host = trim((string)post('db_host', ''));
     $port = (int)post('db_port', 3306);
     $dbname = trim((string)post('db_name', ''));
@@ -34,15 +108,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'sav
     } else {
         try {
             $local = local_config_load();
-            if ($pass === '' && isset($local['db']['pass'])) {
-                $pass = (string)$local['db']['pass'];
+            $localDb = isset($local['db']) && is_array($local['db']) ? setup_normalize_local_db($local['db']) : [];
+            if ($pass === '' && isset($localDb['pass'])) {
+                $pass = (string)$localDb['pass'];
             }
             if ($pass === '') {
                 $dbConfigError = '初回保存時はMySQLユーザーのパスワードを入力してください。';
                 throw new RuntimeException('db password required');
             }
-            $testDsn = sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $host, $port);
-            new PDO($testDsn, $user, $pass, db_options());
             $local['db'] = [
                 'host' => $host,
                 'port' => $port,
@@ -52,8 +125,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'sav
                 'charset' => 'utf8mb4',
             ];
             local_config_write($local);
+            $saved = local_config_load();
+            if (($saved['db'] ?? null) !== $local['db']) {
+                throw new RuntimeException('設定ファイルの保存内容を確認できませんでした。');
+            }
             $GLOBALS['app_config']['db'] = $local['db'];
             db_reset_connections();
+            $dbConfigNotice = 'DB接続設定を保存しました。';
+            try {
+                $testDsn = sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $host, $port);
+                new PDO($testDsn, $user, $pass, db_options());
+            } catch (Throwable $exception) {
+                throw new RuntimeException(setup_safe_db_error('DBサーバー接続テスト', $exception), 0, $exception);
+            }
+            try {
+                $dbTestDsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $port, $dbname);
+                new PDO($dbTestDsn, $user, $pass, db_options());
+            } catch (Throwable $exception) {
+                throw new RuntimeException(setup_safe_db_error('対象DB接続テスト', $exception), 0, $exception);
+            }
+            db_pdo();
             $setupResult = installer_run();
             if (($setupResult['success'] ?? false) === true) {
                 app_redirect(LOGIN_PATH);
@@ -61,14 +152,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'sav
             $dbConfigError = (string)($setupResult['error'] ?? 'DB接続設定は保存しましたが、セットアップに失敗しました。install.log を確認してください。');
         } catch (Throwable $exception) {
             if ($dbConfigError === null) {
-                $dbConfigError = 'DB接続テストに失敗しました。MySQLホスト名、データベース名、ユーザー名、パスワードを確認してください。あわせて、サーバーパネルのMySQL設定で対象データベースにこのMySQLユーザーを追加済みか確認してください。';
+                $dbConfigError = str_starts_with($exception->getMessage(), 'DB')
+                    ? $exception->getMessage()
+                    : 'DB接続設定の保存に失敗しました: ' . $exception->getMessage();
             }
         }
     }
 }
 
-$currentDbConfig = app_config()['db'] ?? [];
-if ($dbConfigError !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
+$localConfigStatus = setup_local_config_status();
+$currentDbConfig = $localConfigStatus['loaded'] && is_array($localConfigStatus['db']) && $localConfigStatus['db'] !== []
+    ? array_replace(app_config()['db'] ?? [], array_intersect_key($localConfigStatus['db'], app_config()['db'] ?? []))
+    : (app_config()['db'] ?? []);
+if (($localConfigStatus['error'] ?? null) !== null) {
+    $dbConfigError = 'config.local.php の読み込みに失敗しました: ' . (string)$localConfigStatus['error'];
+}
+if (!$csrfFailed && $dbConfigError !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $currentDbConfig = array_replace($currentDbConfig, [
         'host' => trim((string)post('db_host', '')),
         'port' => (int)post('db_port', 3306),
@@ -123,6 +222,13 @@ csrf_token();
       <?php if ($dbConfigError !== null): ?>
         <div class="alert alert-error"><?= e($dbConfigError) ?></div>
       <?php endif; ?>
+      <h3>config.local.php 診断</h3>
+      <table><tbody>
+        <tr><th>パス</th><td><?= e((string)$localConfigStatus['path']) ?></td></tr>
+        <tr><th>状態</th><td><?= ($localConfigStatus['exists'] ?? false) ? '存在します' : '存在しません' ?> / <?= ($localConfigStatus['loaded'] ?? false) ? '読み込み可能' : '未読み込み' ?> / <?= ($localConfigStatus['writable'] ?? false) ? '書き込み可能' : '書き込み不可' ?></td></tr>
+        <tr><th>読み込み中DB</th><td><?= e((string)($currentDbConfig['host'] ?? '')) ?> / <?= e((string)($currentDbConfig['dbname'] ?? '')) ?> / <?= e((string)($currentDbConfig['user'] ?? '')) ?></td></tr>
+        <tr><th>DBパスワード</th><td><?= ($localConfigStatus['has_password'] ?? false) ? '保存済み' : '未保存' ?></td></tr>
+      </tbody></table>
       <form method="post">
         <?= csrf_input() ?>
         <input type="hidden" name="action" value="save_db_config">

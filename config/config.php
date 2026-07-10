@@ -174,9 +174,20 @@ $dbConfig = [
 ];
 $localConfigPath = __DIR__ . '/../config.local.php';
 if (is_file($localConfigPath)) {
-    $localConfig = require $localConfigPath;
-    if (is_array($localConfig) && isset($localConfig['db']) && is_array($localConfig['db'])) {
-        $dbConfig = array_replace($dbConfig, array_intersect_key($localConfig['db'], $dbConfig));
+    try {
+        $localConfig = require $localConfigPath;
+        if (is_array($localConfig) && isset($localConfig['db']) && is_array($localConfig['db'])) {
+            $localDbConfig = $localConfig['db'];
+            if (!isset($localDbConfig['dbname']) && isset($localDbConfig['name'])) {
+                $localDbConfig['dbname'] = $localDbConfig['name'];
+            }
+            if (!isset($localDbConfig['pass']) && isset($localDbConfig['password'])) {
+                $localDbConfig['pass'] = $localDbConfig['password'];
+            }
+            $dbConfig = array_replace($dbConfig, array_intersect_key($localDbConfig, $dbConfig));
+        }
+    } catch (Throwable $e) {
+        $GLOBALS['config_local_error'] = $e->getMessage();
     }
 }
 
