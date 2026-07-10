@@ -30,6 +30,13 @@ function csrf_set_cookie(string $token): void
     $_COOKIE[csrf_cookie_name()] = $token;
 }
 
+function csrf_reset_token(): string
+{
+    $_SESSION['_csrf'] = bin2hex(random_bytes(32));
+    csrf_set_cookie((string)$_SESSION['_csrf']);
+    return (string)$_SESSION['_csrf'];
+}
+
 function csrf_token(): string
 {
     if (empty($_SESSION['_csrf'])) {
@@ -71,8 +78,23 @@ function csrf_verify(?string $token): bool
 
 function csrf_validate_or_fail(?string $token): void
 {
-    if (!csrf_verify($token)) {
-        http_response_code(419);
-        exit('CSRF validation failed.');
+    if (csrf_verify($token)) {
+        return;
     }
+
+    csrf_reset_token();
+    http_response_code(419);
+    if (function_exists('flash_set')) {
+        flash_set('error', '画面の有効期限が切れました。もう一度操作してください。');
+    }
+
+    $fallback = (string)($_SERVER['HTTP_REFERER'] ?? '');
+    if ($fallback === '') {
+        $fallback = (string)($_SERVER['REQUEST_URI'] ?? '/');
+    }
+    if (function_exists('app_redirect')) {
+        app_redirect($fallback);
+    }
+
+    exit('画面の有効期限が切れました。もう一度操作してください。');
 }

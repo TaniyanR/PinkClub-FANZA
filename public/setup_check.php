@@ -7,8 +7,15 @@ require_once __DIR__ . '/../lib/local_config_writer.php';
 
 $dbConfigError = null;
 $dbConfigNotice = null;
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'run_installer') {
-    csrf_validate_or_fail(post('_csrf'));
+$csrfError = null;
+$isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
+if ($isPost && !csrf_verify(post('_csrf'))) {
+    csrf_reset_token();
+    error_log('[setup_check] csrf_error');
+    $csrfError = '画面の有効期限が切れました。もう一度操作してください。';
+}
+
+if ($isPost && $csrfError === null && (string)post('action', '') === 'run_installer') {
     try {
         $setupResult = installer_run();
         if (($setupResult['success'] ?? false) === true) {
@@ -20,8 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'run
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'save_db_config') {
-    csrf_validate_or_fail(post('_csrf'));
+if ($isPost && $csrfError === null && (string)post('action', '') === 'save_db_config') {
     $host = trim((string)post('db_host', ''));
     $port = (int)post('db_port', 3306);
     $dbname = trim((string)post('db_name', ''));
@@ -68,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'sav
 }
 
 $currentDbConfig = app_config()['db'] ?? [];
-if ($dbConfigError !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
+if (($dbConfigError !== null || $csrfError !== null) && $isPost) {
     $currentDbConfig = array_replace($currentDbConfig, [
         'host' => trim((string)post('db_host', '')),
         'port' => (int)post('db_port', 3306),
@@ -80,7 +86,7 @@ $configErrors = db_validate_config($currentDbConfig, true);
 if ($configErrors === []) {
     $status = installer_status();
     if (($status['completed'] ?? false) === true) {
-        app_redirect(LOGIN_PATH);
+        $dbConfigNotice = 'セットアップは完了しています。必要に応じてログイン画面へ戻ってください。';
     }
 } else {
     $status = ['server_connection'=>false,'db_connection'=>false,'admins_table'=>false,'settings_table'=>false,'admin_user'=>false,'settings_row'=>false,'completed'=>false];
@@ -112,11 +118,14 @@ csrf_token();
   <main class="setup-page">
     <section class="setup-card">
       <h1><?= e(APP_NAME) ?> セットアップ確認</h1>
-      <div class="alert alert-warning">セットアップ失敗時の診断ページです。DB設定保存後またはDBを空にした後は、この画面の「セットアップを実行する」から再実行できます。</div>
+      <div class="alert alert-warning">セットアップ失敗時の診断ページです。DB設定保存後やセットアップ未完了時は、この画面の「セットアップを実行する」から再実行できます。既存データの削除は行いません。</div>
 
 
       <h2>DB接続設定</h2>
       <div class="alert alert-warning">サーバーパネルに表示されるMySQL情報を入力してください。接続テストに成功した場合のみ保存します。</div>
+      <?php if ($csrfError !== null): ?>
+        <div class="alert alert-error"><?= e($csrfError) ?></div>
+      <?php endif; ?>
       <?php if ($dbConfigNotice !== null): ?>
         <div class="alert alert-warning"><?= e($dbConfigNotice) ?></div>
       <?php endif; ?>
@@ -138,7 +147,7 @@ csrf_token();
 
       <?php if ($configErrors === []): ?>
         <h2>セットアップ実行</h2>
-        <div class="alert alert-warning">DBを削除・空にした後は、このボタンで <code>sql/schema.sql</code> と <code>sql/migrations/*.sql</code> をファイル名順に自動適用します。</div>
+        <div class="alert alert-warning">このボタンで不足しているテーブル定義やマイグレーションをファイル名順に適用します。既存データの削除は行いません。</div>
         <form method="post">
           <?= csrf_input() ?>
           <input type="hidden" name="action" value="run_installer">
