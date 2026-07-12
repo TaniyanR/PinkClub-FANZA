@@ -13,6 +13,7 @@ $menuGroups = [
         ['label' => '個人設定', 'file' => 'personal_settings.php'],
         ['label' => '広告コード', 'file' => 'ads_code.php'],
         ['label' => 'コード設定', 'file' => 'code_settings.php'],
+        ['label' => 'cron設定', 'file' => 'cron_settings.php'],
     ]],
     ['label' => 'リンク設定', 'children' => [
         ['label' => '相互リンク管理', 'file' => 'links.php'],
