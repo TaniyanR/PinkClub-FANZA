@@ -37,21 +37,19 @@ if ($siteName === '') {
 
 $copyrightStartYear = (int)date('Y');
 try {
-    $pdo = db();
-    $startDate = null;
-    foreach (['date_published', 'release_date', 'created_at'] as $column) {
-        $stmt = $pdo->query("SELECT MIN(" . $column . ") FROM items WHERE " . $column . " IS NOT NULL AND " . $column . " <> ''");
-        $value = $stmt ? trim((string)$stmt->fetchColumn()) : '';
-        if ($value !== '') {
-            $startDate = $value;
-            break;
+    static $cachedCopyrightStartYear = null;
+    if ($cachedCopyrightStartYear === null) {
+        $stmt = db()->query("SELECT COALESCE((SELECT MIN(date_published) FROM items WHERE date_published IS NOT NULL AND date_published <> ''),(SELECT MIN(release_date) FROM items WHERE release_date IS NOT NULL AND release_date <> ''),(SELECT MIN(created_at) FROM items WHERE created_at IS NOT NULL AND created_at <> ''))");
+        $startDate = $stmt ? trim((string)$stmt->fetchColumn()) : '';
+        if ($startDate !== '') {
+            $timestamp = strtotime($startDate);
+            if ($timestamp !== false) {
+                $cachedCopyrightStartYear = (int)date('Y', $timestamp);
+            }
         }
     }
-    if ($startDate !== null) {
-        $timestamp = strtotime($startDate);
-        if ($timestamp !== false) {
-            $copyrightStartYear = (int)date('Y', $timestamp);
-        }
+    if ($cachedCopyrightStartYear !== null) {
+        $copyrightStartYear = $cachedCopyrightStartYear;
     }
 } catch (Throwable $e) {
 }

@@ -182,30 +182,45 @@ function query_all_safe(PDO $pdo, string $sql, array $params = []): array
 
 function index_table_exists(PDO $pdo, string $table): bool
 {
+    static $cache = [];
+
     if (!in_array($table, ['rss_items', 'rss_sources'], true)) {
         return false;
+    }
+    if (array_key_exists($table, $cache)) {
+        return $cache[$table];
     }
 
     try {
         $stmt = $pdo->prepare('SHOW TABLES LIKE :table_name');
         $stmt->execute([':table_name' => $table]);
-        return (bool)$stmt->fetch(PDO::FETCH_NUM);
+        $cache[$table] = (bool)$stmt->fetch(PDO::FETCH_NUM);
+        return $cache[$table];
     } catch (Throwable) {
+        $cache[$table] = false;
         return false;
     }
 }
 
 function index_column_exists(PDO $pdo, string $table, string $column): bool
 {
+    static $cache = [];
+
     if (!in_array($table, ['items', 'rss_sources'], true)) {
         return false;
+    }
+    $cacheKey = $table . '.' . $column;
+    if (array_key_exists($cacheKey, $cache)) {
+        return $cache[$cacheKey];
     }
 
     try {
         $stmt = $pdo->prepare('SHOW COLUMNS FROM ' . $table . ' LIKE :column');
         $stmt->execute([':column' => $column]);
-        return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+        $cache[$cacheKey] = (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+        return $cache[$cacheKey];
     } catch (Throwable) {
+        $cache[$cacheKey] = false;
         return false;
     }
 }
