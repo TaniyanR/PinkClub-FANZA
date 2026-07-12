@@ -54,12 +54,13 @@ class DmmApiClient
             'output' => 'json',
         ]), static fn ($v) => $v !== null && $v !== '');
 
-        $url = rtrim($this->endpoint, '/') . '/' . $operation . '?' . http_build_query($query);
+        $url = rtrim($this->endpoint, '/') . '/' . $operation . '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
+        $safeUrl = rtrim($this->endpoint, '/') . '/' . $operation . '?' . http_build_query($this->maskSensitiveParams($query), '', '&', PHP_QUERY_RFC3986);
         $requestHash = hash('sha256', $url);
 
         $cached = $this->fetchCachedResponse($requestHash);
         if ($cached !== null) {
-            $this->insertApiLog($operation, $url, $requestHash, 200, json_encode($cached, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}', true);
+            $this->insertApiLog($operation, $safeUrl, $requestHash, 200, json_encode($cached, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}', true);
             return $cached;
         }
 
@@ -76,17 +77,17 @@ class DmmApiClient
         if ($response === false) {
             $error = curl_error($ch);
             curl_close($ch);
-            $this->insertApiLog($operation, $url, $requestHash, 0, json_encode(['error' => $error], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}', false);
+            $this->insertApiLog($operation, $safeUrl, $requestHash, 0, json_encode(['error' => $error], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}', false);
             throw new RuntimeException('cURL error: ' . $error);
         }
 
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        $this->insertApiLog($operation, $url, $requestHash, $httpCode, $response, false);
+        $this->insertApiLog($operation, $safeUrl, $requestHash, $httpCode, $response, false);
 
         if ($httpCode >= 400) {
-            throw new RuntimeException('HTTP error: ' . $httpCode);
+            throw new RuntimeException($this->buildHttpErrorMessage($httpCode, $operation, $query, $response));
         }
 
         $decoded = json_decode($response, true);
@@ -99,6 +100,76 @@ class DmmApiClient
         }
 
         return $decoded;
+    }
+
+    private function buildHttpErrorMessage(int $httpCode, string $operation, array $query, string $response): string
+    {
+        $parts = ['HTTP error: ' . $httpCode];
+        $parts[] = 'request: ' . json_encode($this->diagnosticParams($operation, $query), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $parts[] = 'response: ' . $this->redactSensitiveText($this->formatErrorResponse($response), $query);
+        return implode(' / ', $parts);
+    }
+
+    private function formatErrorResponse(string $response): string
+    {
+        $decoded = json_decode($response, true);
+        if (is_array($decoded)) {
+            $summary = [];
+            foreach (['code', 'message', 'error', 'errors'] as $key) {
+                if (array_key_exists($key, $decoded)) {
+                    $summary[$key] = $decoded[$key];
+                }
+            }
+            if (isset($decoded['result']) && is_array($decoded['result'])) {
+                $summary['result'] = $decoded['result'];
+            }
+            if ($summary !== []) {
+                return mb_substr(json_encode($summary, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}', 0, 2000);
+            }
+        }
+
+        $body = trim($response);
+        return $body === '' ? '(empty)' : mb_substr($body, 0, 1000);
+    }
+
+    private function diagnosticParams(string $operation, array $query): array
+    {
+        $diagnostic = [
+            'operation' => $operation,
+            'api_id' => '***',
+            'affiliate_id' => '***',
+        ];
+
+        foreach (['site', 'service', 'floor', 'hits', 'offset', 'sort'] as $key) {
+            if (array_key_exists($key, $query)) {
+                $diagnostic[$key] = $query[$key];
+            }
+        }
+        $diagnostic['keyword'] = isset($query['keyword']) && trim((string)$query['keyword']) !== '' ? 'あり' : 'なし';
+
+        return $diagnostic;
+    }
+
+    private function maskSensitiveParams(array $query): array
+    {
+        if (array_key_exists('api_id', $query)) {
+            $query['api_id'] = '***';
+        }
+        if (array_key_exists('affiliate_id', $query)) {
+            $query['affiliate_id'] = '***';
+        }
+        return $query;
+    }
+
+    private function redactSensitiveText(string $text, array $query): string
+    {
+        foreach (['api_id', 'affiliate_id'] as $key) {
+            $value = (string)($query[$key] ?? '');
+            if ($value !== '') {
+                $text = str_replace($value, '***', $text);
+            }
+        }
+        return $text;
     }
 
     private function fetchCachedResponse(string $requestHash): ?array
