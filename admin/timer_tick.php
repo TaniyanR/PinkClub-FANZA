@@ -30,8 +30,17 @@ if (!settings_bool('item_sync_enabled', false)) {
 $result = scheduler_tick();
 $status = (string)($result['status'] ?? 'idle');
 $message = (string)($result['message'] ?? '実行対象なし');
+$ran = $status === 'ran';
+if (isset($result['jobs']) && is_array($result['jobs'])) {
+    foreach ($result['jobs'] as $job) {
+        if (($job['status'] ?? '') === 'success') {
+            $ran = true;
+            break;
+        }
+    }
+}
 $payload = [
-    'ran' => $status === 'ran',
+    'ran' => $ran,
     'job' => (string)($result['schedule_type'] ?? ''),
     'saved_items' => (int)($result['synced_count'] ?? 0),
     'message' => $message,

@@ -29,25 +29,34 @@ function scheduler_tick(): array
 
         try {
             $result = scheduler_run_schedule($schedule);
-            $pdo->prepare('UPDATE api_schedules SET last_run_at = NOW(), lock_until = NULL WHERE id = ?')->execute([$schedule['id']]);
-            $jobs[] = array_merge(['schedule_type' => $scheduleType, 'status' => 'success'], $result);
+            $jobStatus = scheduler_schedule_result_status($result);
+            if ($jobStatus === 'success') {
+                $pdo->prepare('UPDATE api_schedules SET last_run_at = NOW(), lock_until = NULL WHERE id = ?')->execute([$schedule['id']]);
+            } else {
+                $pdo->prepare('UPDATE api_schedules SET lock_until = NULL WHERE id = ?')->execute([$schedule['id']]);
+            }
+            $jobs[] = array_merge(['schedule_type' => $scheduleType, 'status' => $jobStatus], $result);
         } catch (Throwable $e) {
-            $pdo->prepare('UPDATE api_schedules SET last_run_at = NOW(), lock_until = NULL WHERE id = ?')->execute([$schedule['id']]);
+            $pdo->prepare('UPDATE api_schedules SET lock_until = NULL WHERE id = ?')->execute([$schedule['id']]);
             $jobs[] = ['schedule_type' => $scheduleType, 'status' => 'error', 'synced_count' => 0, 'message' => $e->getMessage()];
         }
     }
 
     if ($jobs !== []) {
         $hasError = false;
+        $hasSuccess = false;
         $syncedCount = 0;
         foreach ($jobs as $job) {
             if (($job['status'] ?? '') === 'error') {
                 $hasError = true;
             }
+            if (($job['status'] ?? '') === 'success') {
+                $hasSuccess = true;
+            }
             $syncedCount += (int)($job['synced_count'] ?? 0);
         }
         return [
-            'status' => $hasError ? 'error' : 'ran',
+            'status' => $hasError ? 'error' : ($hasSuccess ? 'ran' : 'idle'),
             'schedule_type' => (string)($jobs[0]['schedule_type'] ?? ''),
             'synced_count' => $syncedCount,
             'message' => scheduler_jobs_message($jobs),
@@ -58,6 +67,14 @@ function scheduler_tick(): array
     return ['status' => 'idle', 'message' => '実行対象なし', 'jobs' => []];
 }
 
+function scheduler_schedule_result_status(array $result): string
+{
+    $message = (string)($result['message'] ?? '');
+    if ($message === 'ロック取得失敗のためスキップ' || $message === 'API ID / アフィリエイトID 未設定のためスキップ') {
+        return 'skipped';
+    }
+    return 'success';
+}
 
 function scheduler_jobs_message(array $jobs): string
 {
