@@ -22,7 +22,7 @@
 - 管理ログイン入口（固定）: `/public/login0718.php`
 - 管理トップ: `/admin/index.php`
 - 公開トップ: `/public/`
-- 初期管理者: `admin` / `password`
+- 初期管理者情報はインストーラーで入力します（固定初期パスワードはありません）。
 
 ## 失敗時の確認
 - エラー詳細は `logs/install.log` に記録されます。
@@ -64,7 +64,7 @@
 2. 各ページの「10件テスト取得」で接続確認します。
 3. 自動取得を使う場合は `item_sync_enabled` をONにします。
 4. 通常の公開ページへの `GET` / `HEAD` アクセス時にはスケジューラを確認しません。
-5. 自動更新はcron専用です。公開アクセスや管理画面を開いた状態では同期を開始しません。`scripts/auto_import.php` をCLIで10分間隔実行してください。
+5. 自動更新はcron専用です。公開アクセスや管理画面を開いた状態では同期を開始しません。`cron/fetch.php` と `cron/post.php` をCLIで10分間隔実行してください。
 6. cron実行時に期限が来ている商品・女優ジョブを確認します。
 
 ## リリース運用方針（速度優先・一括リリース）
@@ -167,7 +167,7 @@ This PR implements 6 incomplete features identified in README.md and docs/issues
 **機能 / Features**:
 - cron専用で、通常ユーザーによる公開ページへの `GET` / `HEAD` アクセスでは自動更新を確認しません
 - 公開アクセス回数に関係なく、cron実行時だけ期限が来ているジョブを確認
-- cron専用方式: 公開アクセスや管理画面表示では同期せず、`scripts/auto_import.php` のCLI実行時だけ同じスケジューラを確認
+- cron専用方式: 公開アクセスや管理画面表示では同期せず、`cron/fetch.php` / `cron/post.php` のCLI実行時だけ同じスケジューラを確認
 - 自動更新対象は `items`（商品）/ `actresses`（女優）のみ
 - `genres`（ジャンル）/ `series`（シリーズ）は手動取得のみ
 - 次回のcron実行時に、期限が来ている商品と女優を両方確認し、1回の起動で両方が実行される場合があります
@@ -176,7 +176,8 @@ This PR implements 6 incomplete features identified in README.md and docs/issues
 
 **手動実行 / Manual Execution**:
 ```bash
-php /path/to/PinkClub-FANZA/scripts/auto_import.php
+php /path/to/PinkClub-FANZA/cron/fetch.php
+php /path/to/PinkClub-FANZA/cron/post.php
 ```
 
 ---
@@ -382,7 +383,8 @@ The system is ready for production deployment.
 - `admin/includes/header.php`: サイドメニュー構造を指定どおり固定、トップバーに「ログアウト」追加。
 - `admin/site_settings.php`: サイト名/URL/キャッチフレーズ/キーワード保存画面を実装。
 - `admin/affiliate_api.php`: API ID/アフィリエイトID、取得件数、タイマー設定、10件手動取得、タイマー状態表示を実装。
-- `scripts/auto_import.php`: cronからCLI実行する自動同期入口。URL方式は使用しません。
+- `cron/fetch.php`: cronからCLIまたは秘密トークン付きWeb URLで実行する取得入口。
+- `cron/post.php`: cronからCLIまたは秘密トークン付きWeb URLで実行する投稿入口。
 - `lib/access_analytics.php` / `public/_bootstrap.php` / `public/out.php`: PV/UU/IN/OUT 計測と外部遷移ログを実装。
 - `admin/access_analytics.php`: KPI/期間別/前期間比較/日別一覧のアクセス解析画面を実装。
 - `admin/link_partners.php` / `admin/rss_settings.php` / `admin/links.php` / `admin/rss.php`: 相互リンク・RSS管理画面（最小CRUD）を実装。
@@ -493,7 +495,7 @@ function normalize_content_id(string $contentId): string
 
 ### 6. Concurrency Control
 ✅ **Status**: Lock mechanism prevents race conditions
-- `scripts/auto_import.php`: Uses database lock to prevent concurrent execution
+- `cron/fetch.php` / `cron/post.php`: Use file locks to prevent concurrent execution
 - Lock expires after 10 minutes to prevent deadlock
 - Proper cleanup in exception handlers
 
@@ -994,7 +996,7 @@ SEO/SNS表示品質を統一する。
 
 ## 必須仕様
 - ログインURL: `/public/login0718.php`
-- 初期資格情報: `admin / password`
+- 初期資格情報: インストーラーで管理者ユーザー名と8文字以上のパスワードを入力
 - パスワード変更は任意（強制しない）
 - `config.local.php` の `admin.password_hash` が存在すれば優先
 - 管理画面にパスワード変更導線（アカウント設定）
@@ -1239,8 +1241,50 @@ RSSブロックの表示位置を設定可能にする。
 
 自動更新はcron専用です。公開ページへのアクセスでは同期せず、管理画面を開いていてもJavaScriptタイマーによる自動同期は行いません。
 
-- 実行方法: `scripts/auto_import.php` をPHP CLIで実行します。
-- URL方式: 使用しません。cron用URLや公開エンドポイントはありません。
+- 実行方法: `cron/fetch.php` / `cron/post.php` をPHP CLIで実行します。
+- URL方式: 管理画面「cron設定」で生成した秘密トークン付きURLのみ使用できます。
 - 推奨cron間隔: 10分（管理画面の更新間隔も10分で使用可能です）。
 - 取得件数: 最大500。選択肢は 1、10、20、30、50、100、200、300、500 です。1000、2000、3000、5000は使用できません。
 - 画像品質・画像URL・公開ページの表示件数は変更していません。
+
+## 2026-07 本番運用前の安全化メモ
+
+### インストール
+
+- 固定初期管理者パスワード（`admin / password`）は使用しません。
+- `public/setup_check.php` でDBホスト、DB名、DBユーザー、DBパスワード、管理者ユーザー名、管理者パスワード、管理者パスワード確認、サイト名、サイト説明を入力してセットアップします。
+- 管理者パスワードは8文字以上かつ確認入力との一致が必要です。
+- 既にインストール済みの場合、セットアップ画面はログイン画面へ戻り、再実行できません。
+- 共有サーバーでDB作成権限がない場合でも、事前作成済みDBへ接続できればインストールできます。
+
+### Cron実行
+
+CLI実行例:
+
+```bash
+php /path/to/PinkClub-FANZA/cron/fetch.php
+php /path/to/PinkClub-FANZA/cron/post.php
+```
+
+Web実行を使う場合は、管理画面の「cron設定」に表示される秘密トークン付きURLを使用してください。
+
+```text
+/cron/fetch.php?token=管理画面で生成された十分に長い秘密値
+/cron/post.php?token=管理画面で生成された十分に長い秘密値
+```
+
+- トークンなし、または不一致の場合はHTTP 403で終了します。
+- 秘密トークンは管理画面でコピー・再生成できます。
+- Cron処理はファイルロックで多重実行を防止します。
+- シンサーバー等の共有サーバーでは、サーバーパネルのCron設定にPHP CLIのパスと上記PHPファイルの絶対パスを指定してください。
+- XAMPPではタスクスケジューラ等から `php.exe` と対象PHPファイルの絶対パスを指定してください。
+
+### 記事一覧・RSS運用
+
+- 管理画面では取得済みデータを「記事一覧」として確認する方針です。
+- RSSや外部HTTP通信を追加する場合は、`http` / `https` の公開URLのみを対象にし、localhost、ループバック、プライベートIP、リンクローカルIP、`file://`、`ftp://` などの内部ネットワークアクセスを拒否してください。
+- 1件の外部取得に失敗しても、他の取得処理を継続できるようにログを確認してください。
+
+### livedoor接続テスト・投稿失敗時の扱い
+
+このリポジトリには livedoor AtomPub 投稿機能（`post_history` / `post_items` を使う投稿処理）は含まれていません。該当機能を導入する場合は、接続テストで勝手に公開記事を作成せず、投稿成功時のみ履歴・投稿対象・記事状態を更新し、投稿失敗時は候補記事を再利用できる状態にしてください。

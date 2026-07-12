@@ -238,22 +238,31 @@ function installer_normalize_settings_table(PDO $pdo, string $stepLabel): void
     installer_log('step=' . $stepLabel . ' settings_table_normalized=true');
 }
 
-function installer_ensure_admin_user(PDO $pdo, string $stepLabel): bool
+function installer_ensure_admin_user(PDO $pdo, string $stepLabel, string $username = '', string $password = ''): bool
 {
-    $stmt = $pdo->prepare('SELECT 1 FROM admins WHERE username = :username LIMIT 1');
-    $stmt->execute(['username' => 'admin']);
-    if ($stmt->fetchColumn() !== false) { installer_log('step=' . $stepLabel . ' admin_exists=true'); return false; }
-    $initialPassword = substr(str_replace(['+', '/', '='], '', base64_encode(random_bytes(18))), 0, 18);
+    $exists = (int)$pdo->query('SELECT COUNT(*) FROM admins')->fetchColumn();
+    if ($exists > 0) { installer_log('step=' . $stepLabel . ' admin_exists=true'); return false; }
+    $username = trim($username) !== '' ? trim($username) : 'admin';
+    if ($password === '' || strlen($password) < 8) {
+        throw new RuntimeException('管理者パスワードは8文字以上で入力してください。');
+    }
     $insert = $pdo->prepare('INSERT INTO admins (username, password_hash) VALUES (:username, :password_hash)');
-    $insert->execute(['username' => 'admin', 'password_hash' => password_hash($initialPassword, PASSWORD_DEFAULT)]);
-    installer_log('step=' . $stepLabel . ' admin_created=true initial_password=' . $initialPassword);
+    $insert->execute(['username' => $username, 'password_hash' => password_hash($password, PASSWORD_DEFAULT)]);
+    installer_log('step=' . $stepLabel . ' admin_created=true username=' . $username);
     return true;
 }
 
-function installer_ensure_settings_row(PDO $pdo, string $stepLabel): bool
+function installer_ensure_settings_row(PDO $pdo, string $stepLabel, array $site = []): bool
 {
     require_once __DIR__ . '/site_settings.php';
     try {
+        if (trim((string)($site['name'] ?? '')) !== '') {
+            site_setting_set('site.title', trim((string)$site['name']));
+            site_setting_set('site.name', trim((string)$site['name']));
+        }
+        if (trim((string)($site['description'] ?? '')) !== '') {
+            site_setting_set('site.tagline', trim((string)$site['description']));
+        }
         site_setting_set('installer.ready', '1');
         installer_log('step=' . $stepLabel . ' settings_row_upserted=true');
         return true;
@@ -279,9 +288,7 @@ function installer_status(): array
     $status['admins_table'] = db_table_exists('admins');
     $status['settings_table'] = db_table_exists('settings');
     if ($status['admins_table']) {
-        $stmt = db()->prepare('SELECT 1 FROM admins WHERE username = :username LIMIT 1');
-        $stmt->execute(['username' => 'admin']);
-        $status['admin_user'] = $stmt->fetchColumn() !== false;
+        $status['admin_user'] = ((int)db()->query('SELECT COUNT(*) FROM admins')->fetchColumn()) > 0;
     }
     if ($status['settings_table']) {
         require_once __DIR__ . '/site_settings.php';
@@ -316,9 +323,12 @@ function installer_status(): array
     return $status;
 }
 
-function installer_run(): array
+function installer_run(array $options = []): array
 {
-    installer_log('step=start db=' . (app_config()['db']['dbname'] ?? '')); 
+    installer_log('step=start db=' . (app_config()['db']['dbname'] ?? ''));
+    $adminUsername = trim((string)($options['admin_username'] ?? 'admin'));
+    $adminPassword = (string)($options['admin_password'] ?? '');
+    $siteOptions = is_array($options['site'] ?? null) ? $options['site'] : []; 
     $result = ['success'=>false,'steps'=>[],'error'=>null,'error_detail'=>null,'failed_sql'=>null,'error_summary'=>null,'log_tail'=>null];
     $currentStep = 'server_connection';
     $step = static function (string $id, bool $ok, string $message = '') use (&$result): void { $result['steps'][]=['id'=>$id,'status'=>$ok?'ok':'ng','message'=>$message]; };
@@ -340,15 +350,15 @@ function installer_run(): array
         $currentStep='seed_data';
         $seedPath = __DIR__ . '/../sql/seed.sql';
         if (is_file($seedPath)) installer_execute_sql_file($seedPath, 'seed_data');
-        installer_ensure_admin_user(db(),'seed_data');
-        installer_ensure_settings_row(db(),'seed_data');
+        installer_ensure_admin_user(db(), 'seed_data', $adminUsername, $adminPassword);
+        installer_ensure_settings_row(db(), 'seed_data', $siteOptions);
         $step('seed_data', true);
 
         $currentStep='completion_check';
         $dbName = (string)db()->query('SELECT DATABASE()')->fetchColumn();
         installer_log('step=completion_check selected_database=' . $dbName . ' config_database=' . (string)(app_config()['db']['dbname'] ?? ''));
-        installer_ensure_admin_user(db(), 'completion_check_retry');
-        installer_ensure_settings_row(db(), 'completion_check_retry');
+        installer_ensure_admin_user(db(), 'completion_check_retry', $adminUsername, $adminPassword);
+        installer_ensure_settings_row(db(), 'completion_check_retry', $siteOptions);
         $status = installer_status();
         if (($status['completed'] ?? false) !== true) {
             $requiredKeys = ['server_connection', 'db_connection', 'admins_table', 'settings_table', 'admin_user', 'settings_row'];

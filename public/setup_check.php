@@ -109,13 +109,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !csrf_verify(post('_csrf'))) {
 
 if (!$csrfFailed && $_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('action', '') === 'run_installer') {
     try {
-        $setupResult = installer_run();
+        if ((installer_status()['completed'] ?? false) === true) {
+            throw new RuntimeException('インストール済みのため、セットアップは実行できません。');
+        }
+        $adminUsername = trim((string)post('admin_username', ''));
+        $adminPassword = (string)post('admin_password', '');
+        $adminPasswordConfirm = (string)post('admin_password_confirm', '');
+        if ($adminUsername === '') { throw new RuntimeException('管理者ユーザー名を入力してください。'); }
+        if (strlen($adminPassword) < 8) { throw new RuntimeException('管理者パスワードは8文字以上で入力してください。'); }
+        if ($adminPassword !== $adminPasswordConfirm) { throw new RuntimeException('管理者パスワード確認が一致しません。'); }
+        $setupResult = installer_run([
+            'admin_username' => $adminUsername,
+            'admin_password' => $adminPassword,
+            'site' => [
+                'name' => trim((string)post('site_name', '')),
+                'description' => trim((string)post('site_description', '')),
+            ],
+        ]);
         if (($setupResult['success'] ?? false) === true) {
             app_redirect(LOGIN_PATH);
         }
         $dbConfigError = (string)($setupResult['error'] ?? 'セットアップに失敗しました。install.log を確認してください。');
     } catch (Throwable $exception) {
-        $dbConfigError = 'セットアップに失敗しました。MySQL情報と logs/install.log を確認してください。';
+        $dbConfigError = $exception->getMessage() !== '' ? $exception->getMessage() : 'セットアップに失敗しました。MySQL情報と logs/install.log を確認してください。';
     }
 }
 
@@ -203,7 +219,7 @@ $checks = [
     '対象DB接続' => $status['db_connection'] ?? false,
     'admins テーブル' => $status['admins_table'] ?? false,
     'settings テーブル' => $status['settings_table'] ?? false,
-    '初期管理者 admin' => $status['admin_user'] ?? false,
+    '管理者ユーザー' => $status['admin_user'] ?? false,
     'settings(installer.ready=1)' => $status['settings_row'] ?? false,
 ];
 
@@ -254,6 +270,13 @@ csrf_token();
         <form method="post">
           <?= csrf_input() ?>
           <input type="hidden" name="action" value="run_installer">
+          <table><tbody>
+            <tr><th>管理者ユーザー名</th><td><input name="admin_username" value="admin" required autocomplete="username"></td></tr>
+            <tr><th>管理者パスワード</th><td><input name="admin_password" type="password" minlength="8" required autocomplete="new-password"><br><small>8文字以上で入力してください。固定初期パスワードはありません。</small></td></tr>
+            <tr><th>管理者パスワード確認</th><td><input name="admin_password_confirm" type="password" minlength="8" required autocomplete="new-password"></td></tr>
+            <tr><th>サイト名</th><td><input name="site_name" value="<?= e(APP_NAME) ?>" required></td></tr>
+            <tr><th>サイト説明</th><td><input name="site_description" value=""></td></tr>
+          </tbody></table>
           <p><button type="submit">セットアップを実行する</button></p>
         </form>
       <?php endif; ?>
