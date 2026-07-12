@@ -118,11 +118,51 @@ function contact_contains_spam_keyword(array $values): bool
     return false;
 }
 
-function contact_duplicate_seen(string $email, string $subject, string $message): bool
+function contact_duplicate_hash(string $email, string $subject, string $message): string
 {
     $normalized = rate_limit_client_ip() . "\n" . strtolower(trim($email)) . "\n" . preg_replace('/\s+/u', ' ', trim(str_replace(["\r\n", "\r"], "\n", $subject))) . "\n" . preg_replace('/\s+/u', ' ', trim(str_replace(["\r\n", "\r"], "\n", $message)));
-    $hash = hash('sha256', $normalized);
-    $file = rate_limit_dir() . DIRECTORY_SEPARATOR . 'contact_duplicate_' . $hash . '.json';
+    return hash('sha256', $normalized);
+}
+
+function contact_duplicate_file(string $hash): string
+{
+    return rate_limit_dir() . DIRECTORY_SEPARATOR . 'contact_duplicate_' . $hash . '.json';
+}
+
+function contact_duplicate_cleanup(): void
+{
+    try {
+        if (random_int(1, 100) !== 1) {
+            return;
+        }
+    } catch (Throwable) {
+        return;
+    }
+
+    $files = glob(rate_limit_dir() . DIRECTORY_SEPARATOR . 'contact_duplicate_*.json');
+    if (!is_array($files)) {
+        return;
+    }
+
+    $expiresBefore = time() - 3600;
+    foreach ($files as $file) {
+        if (!is_string($file) || is_link($file) || !is_file($file)) {
+            continue;
+        }
+        $base = basename($file);
+        if (!preg_match('/\Acontact_duplicate_[a-f0-9]{64}\.json\z/', $base)) {
+            continue;
+        }
+        $mtime = @filemtime($file);
+        if (is_int($mtime) && $mtime < $expiresBefore) {
+            @unlink($file);
+        }
+    }
+}
+
+function contact_duplicate_is_recent(string $email, string $subject, string $message): bool
+{
+    $file = contact_duplicate_file(contact_duplicate_hash($email, $subject, $message));
     $now = time();
     $handle = @fopen($file, 'c+');
     if ($handle === false) {
@@ -134,14 +174,28 @@ function contact_duplicate_seen(string $email, string $subject, string $message)
         $decoded = is_string($raw) && $raw !== '' ? json_decode($raw, true) : [];
         $last = is_array($decoded) ? (int)($decoded['last'] ?? 0) : 0;
         $duplicate = $last > $now - 600;
-        ftruncate($handle, 0);
-        rewind($handle);
-        fwrite($handle, json_encode(['hash' => $hash, 'last' => $now]));
-        fflush($handle);
         @flock($handle, LOCK_UN);
     }
     @fclose($handle);
     return $duplicate;
+}
+
+function contact_duplicate_mark(string $email, string $subject, string $message): void
+{
+    contact_duplicate_cleanup();
+    $hash = contact_duplicate_hash($email, $subject, $message);
+    $handle = @fopen(contact_duplicate_file($hash), 'c+');
+    if ($handle === false) {
+        return;
+    }
+    if (@flock($handle, LOCK_EX)) {
+        ftruncate($handle, 0);
+        rewind($handle);
+        fwrite($handle, json_encode(['hash' => $hash, 'last' => time()]));
+        fflush($handle);
+        @flock($handle, LOCK_UN);
+    }
+    @fclose($handle);
 }
 
 function contact_has_newline(string $value): bool
@@ -291,7 +345,7 @@ if ($isContactPage && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST')) {
             $spamReason = 'too_many_urls';
         } elseif (contact_contains_spam_keyword([$contactForm['name'], $contactForm['email'], $contactForm['subject'], $contactForm['message']])) {
             $spamReason = 'keyword';
-        } elseif (contact_duplicate_seen($contactForm['email'], $contactForm['subject'], $contactForm['message'])) {
+        } elseif (contact_duplicate_is_recent($contactForm['email'], $contactForm['subject'], $contactForm['message'])) {
             $spamReason = 'duplicate';
         } elseif (!$rateLimitAllowed) {
             $spamReason = 'rate_limit';
@@ -346,6 +400,7 @@ if ($isContactPage && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST')) {
         }
 
         if ($status === 'sent') {
+            contact_duplicate_mark($contactForm['email'], $contactForm['subject'], $contactForm['message']);
             $contactSuccess = true;
             $contactForm = ['subject' => '', 'message' => '', 'name' => '', 'email' => ''];
         } else {

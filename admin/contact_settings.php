@@ -7,46 +7,53 @@ $title = 'お問い合わせ設定';
 $message = null;
 $error = null;
 $settingKey = 'contact.spam_keywords';
+$spamKeywords = site_setting_get($settingKey, '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    csrf_validate_or_fail((string)post('_csrf', ''));
     $rawKeywords = (string)post('spam_keywords', '');
-    $lines = preg_split('/\R/u', $rawKeywords) ?: [];
-    $keywords = [];
-    $seen = [];
-    foreach ($lines as $line) {
-        $keyword = trim((string)$line);
-        if ($keyword === '') {
-            continue;
-        }
-        $length = function_exists('mb_strlen') ? mb_strlen($keyword, 'UTF-8') : strlen($keyword);
-        if ($length > 100) {
-            $error = 'スパムキーワードは1件100文字以内で入力してください。';
-            break;
-        }
-        $dedupeKey = function_exists('mb_strtolower') ? mb_strtolower($keyword, 'UTF-8') : strtolower($keyword);
-        if (isset($seen[$dedupeKey])) {
-            continue;
-        }
-        $seen[$dedupeKey] = true;
-        $keywords[] = $keyword;
-    }
+    $spamKeywords = $rawKeywords;
 
-    if ($error === null && count($keywords) > 100) {
-        $error = 'スパムキーワードは最大100件まで入力できます。';
-    }
+    if (!csrf_verify((string)post('_csrf', ''))) {
+        $error = '画面の有効期限が切れました。もう一度操作してください。';
+    } else {
+        $lines = preg_split('/\R/u', $rawKeywords) ?: [];
+        $keywords = [];
+        $seen = [];
+        foreach ($lines as $line) {
+            $keyword = trim((string)$line);
+            if ($keyword === '') {
+                continue;
+            }
+            $length = function_exists('mb_strlen') ? mb_strlen($keyword, 'UTF-8') : strlen($keyword);
+            if ($length > 100) {
+                $error = 'スパムキーワードは1件100文字以内で入力してください。';
+                break;
+            }
+            $dedupeKey = function_exists('mb_strtolower') ? mb_strtolower($keyword, 'UTF-8') : strtolower($keyword);
+            if (isset($seen[$dedupeKey])) {
+                continue;
+            }
+            $seen[$dedupeKey] = true;
+            $keywords[] = $keyword;
+        }
 
-    if ($error === null) {
-        try {
-            site_setting_set($settingKey, implode("\n", $keywords));
-            $message = 'お問い合わせ設定を保存しました。';
-        } catch (Throwable $e) {
-            $error = 'お問い合わせ設定の保存に失敗しました。';
+        if ($error === null && count($keywords) > 100) {
+            $error = 'スパムキーワードは最大100件まで入力できます。';
+        }
+
+        if ($error === null) {
+            try {
+                $spamKeywords = implode("\n", $keywords);
+                site_setting_set($settingKey, $spamKeywords);
+                $message = 'お問い合わせ設定を保存しました。';
+            } catch (Throwable $e) {
+                $error = 'お問い合わせ設定の保存に失敗しました。';
+                $spamKeywords = $rawKeywords;
+            }
         }
     }
 }
 
-$spamKeywords = site_setting_get($settingKey, '');
 require __DIR__ . '/includes/header.php';
 ?>
 <section class="admin-card admin-card--form">
