@@ -142,6 +142,9 @@ function scheduler_run_items_schedule(DmmSyncService $service, array $settings):
     $stateStmt = $pdo->prepare("SELECT next_offset FROM sync_job_state WHERE job_key = 'items' LIMIT 1");
     $stateStmt->execute();
     $offset = max(1, (int)$stateStmt->fetchColumn());
+    if ($offset > 50000) {
+        $offset = 1;
+    }
 
     try {
         $result = $service->syncItemsBatch(
@@ -154,6 +157,9 @@ function scheduler_run_items_schedule(DmmSyncService $service, array $settings):
             $excludeKeywords
         );
         $nextOffset = max(1, (int)($result['next_offset'] ?? 1));
+        if ($nextOffset > 50000) {
+            $nextOffset = 1;
+        }
         $pdo->prepare("UPDATE sync_job_state SET next_offset = :next_offset, last_run_at = NOW(), last_success = 1, last_message = :message, lock_until = NULL, updated_at = NOW() WHERE job_key = 'items'")
             ->execute([':next_offset' => $nextOffset, ':message' => '商品を同期しました']);
         site_setting_set_many(['last_item_sync_at' => date('Y-m-d H:i:s'), 'item_sync_offset' => (string)$nextOffset, 'item_sync_sort_index' => (string)($sortIndex + 1)]);

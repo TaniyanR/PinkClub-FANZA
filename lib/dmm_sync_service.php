@@ -142,7 +142,7 @@ class DmmSyncService
     public function syncItems(string $siteCode, string $serviceCode, string $floorCode, array $params = []): int
     {
         $hits = min(100, max(1, (int)($params['hits'] ?? 100)));
-        $offset = max(1, (int)($params['offset'] ?? 1));
+        $offset = $this->normalizeItemListOffset((int)($params['offset'] ?? 1));
         $response = $this->client->fetchItems($siteCode, $serviceCode, $floorCode, ['hits' => $hits, 'offset' => $offset]);
         $items = DmmNormalizer::normalizeItemsResponse($response);
         return $this->saveItems($items, 'items');
@@ -151,11 +151,12 @@ class DmmSyncService
     public function syncItemsBatch(string $siteCode, string $serviceCode, string $floorCode, int $batch, int $offset = 1, array $extraParams = [], array $excludeKeywords = []): array
     {
         $remaining = max(1, $batch);
-        $currentOffset = max(1, $offset);
+        $currentOffset = $this->normalizeItemListOffset($offset);
         $total = 0;
 
         while ($remaining > 0) {
             $hits = min(100, $remaining);
+            $currentOffset = $this->normalizeItemListOffset($currentOffset);
             $requestParams = array_merge($extraParams, ['hits' => $hits, 'offset' => $currentOffset]);
             $response = $this->client->fetchItems($siteCode, $serviceCode, $floorCode, $requestParams);
             $items = DmmNormalizer::normalizeItemsResponse($response);
@@ -179,7 +180,7 @@ class DmmSyncService
             $saved = $this->saveItems($items, 'items');
             $total += $saved;
             $remaining -= $hits;
-            $currentOffset += $hits;
+            $currentOffset = $this->normalizeItemListOffset($currentOffset + $hits);
 
             if (count($items) < $hits) {
                 $currentOffset = 1;
@@ -188,6 +189,12 @@ class DmmSyncService
         }
 
         return ['synced_count' => $total, 'next_offset' => $currentOffset];
+    }
+
+    private function normalizeItemListOffset(int $offset): int
+    {
+        $offset = max(1, $offset);
+        return $offset > 50000 ? 1 : $offset;
     }
 
     private function saveItems(array $items, string $logType): int
