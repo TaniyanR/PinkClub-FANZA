@@ -11,30 +11,85 @@ function scheduler_tick(): array
     scheduler_seed_default_schedules($pdo);
     scheduler_apply_auto_settings($pdo);
 
-    $stmt = $pdo->query("SELECT * FROM api_schedules WHERE is_enabled = 1 AND schedule_type IN ('items','genres','actresses','series') ORDER BY FIELD(schedule_type, 'items','genres','actresses','series')");
+    $stmt = $pdo->query("SELECT * FROM api_schedules WHERE is_enabled = 1 AND schedule_type IN ('items','actresses') ORDER BY FIELD(schedule_type, 'items','actresses')");
     $schedules = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    $jobs = [];
     foreach ($schedules as $schedule) {
         if (!scheduler_is_due($schedule)) {
             continue;
         }
+        $scheduleType = (string)$schedule['schedule_type'];
         $lockUntil = date('Y-m-d H:i:s', time() + 55);
         $locked = $pdo->prepare('UPDATE api_schedules SET lock_until = :lock_until WHERE id = :id AND (lock_until IS NULL OR lock_until < NOW())');
         $locked->execute(['lock_until' => $lockUntil, 'id' => $schedule['id']]);
         if ($locked->rowCount() === 0) {
+            $jobs[] = ['schedule_type' => $scheduleType, 'status' => 'skipped', 'synced_count' => 0, 'message' => 'ロック取得失敗のためスキップ'];
             continue;
         }
 
         try {
             $result = scheduler_run_schedule($schedule);
-            $pdo->prepare('UPDATE api_schedules SET last_run_at = NOW(), lock_until = NULL WHERE id = ?')->execute([$schedule['id']]);
-            return array_merge(['status' => 'ran', 'schedule_type' => $schedule['schedule_type']], $result);
+            $jobStatus = scheduler_schedule_result_status($result);
+            if ($jobStatus === 'success') {
+                $pdo->prepare('UPDATE api_schedules SET last_run_at = NOW(), lock_until = NULL WHERE id = ?')->execute([$schedule['id']]);
+            } else {
+                $pdo->prepare('UPDATE api_schedules SET lock_until = NULL WHERE id = ?')->execute([$schedule['id']]);
+            }
+            $jobs[] = array_merge(['schedule_type' => $scheduleType, 'status' => $jobStatus], $result);
         } catch (Throwable $e) {
             $pdo->prepare('UPDATE api_schedules SET lock_until = NULL WHERE id = ?')->execute([$schedule['id']]);
-            return ['status' => 'error', 'schedule_type' => $schedule['schedule_type'], 'message' => $e->getMessage()];
+            $jobs[] = ['schedule_type' => $scheduleType, 'status' => 'error', 'synced_count' => 0, 'message' => $e->getMessage()];
         }
     }
 
-    return ['status' => 'idle', 'message' => '実行対象なし'];
+    if ($jobs !== []) {
+        $hasError = false;
+        $hasSuccess = false;
+        $syncedCount = 0;
+        foreach ($jobs as $job) {
+            if (($job['status'] ?? '') === 'error') {
+                $hasError = true;
+            }
+            if (($job['status'] ?? '') === 'success') {
+                $hasSuccess = true;
+            }
+            $syncedCount += (int)($job['synced_count'] ?? 0);
+        }
+        return [
+            'status' => $hasError ? 'error' : ($hasSuccess ? 'ran' : 'idle'),
+            'schedule_type' => (string)($jobs[0]['schedule_type'] ?? ''),
+            'synced_count' => $syncedCount,
+            'message' => scheduler_jobs_message($jobs),
+            'jobs' => $jobs,
+        ];
+    }
+
+    return ['status' => 'idle', 'message' => '実行対象なし', 'jobs' => []];
+}
+
+function scheduler_schedule_result_status(array $result): string
+{
+    $message = (string)($result['message'] ?? '');
+    if ($message === 'ロック取得失敗のためスキップ' || $message === 'API ID / アフィリエイトID 未設定のためスキップ') {
+        return 'skipped';
+    }
+    return 'success';
+}
+
+function scheduler_jobs_message(array $jobs): string
+{
+    $messages = [];
+    foreach ($jobs as $job) {
+        $type = (string)($job['schedule_type'] ?? '');
+        $label = match ($type) {
+            'items' => '商品',
+            'actresses' => '女優',
+            default => $type,
+        };
+        $message = (string)($job['message'] ?? '');
+        $messages[] = $label . ': ' . $message;
+    }
+    return implode(' / ', $messages);
 }
 
 function scheduler_run_schedule(array $schedule): array
@@ -212,8 +267,10 @@ function scheduler_apply_auto_settings(PDO $pdo): void
 {
     $enabled = settings_bool('item_sync_enabled', false) ? 1 : 0;
     $interval = max(1, settings_int('item_sync_interval_minutes', 60));
-    $pdo->prepare("UPDATE api_schedules SET interval_minutes = :interval, is_enabled = :enabled, updated_at = NOW() WHERE schedule_type IN ('items','genres','actresses','series')")
+    $pdo->prepare("UPDATE api_schedules SET interval_minutes = :interval, is_enabled = :enabled, updated_at = NOW() WHERE schedule_type IN ('items','actresses')")
         ->execute([':interval' => $interval, ':enabled' => $enabled]);
+    $pdo->prepare("UPDATE api_schedules SET is_enabled = 0, updated_at = NOW() WHERE schedule_type IN ('genres','series')")
+        ->execute();
 }
 
 function scheduler_is_due(array $schedule): bool
@@ -256,7 +313,7 @@ function scheduler_ensure_columns(PDO $pdo, string $table, array $alterSqlByColu
 
 function scheduler_job_keys(): array
 {
-    return ['items', 'genres', 'actresses', 'series'];
+    return ['items', 'actresses'];
 }
 
 function scheduler_seed_default_schedules(PDO $pdo): void

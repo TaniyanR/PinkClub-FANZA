@@ -30,15 +30,35 @@ if (!settings_bool('item_sync_enabled', false)) {
 $result = scheduler_tick();
 $status = (string)($result['status'] ?? 'idle');
 $message = (string)($result['message'] ?? '実行対象なし');
+$ran = $status === 'ran';
+if (isset($result['jobs']) && is_array($result['jobs'])) {
+    foreach ($result['jobs'] as $job) {
+        if (($job['status'] ?? '') === 'success') {
+            $ran = true;
+            break;
+        }
+    }
+}
 $payload = [
-    'ran' => $status === 'ran',
+    'ran' => $ran,
     'job' => (string)($result['schedule_type'] ?? ''),
     'saved_items' => (int)($result['synced_count'] ?? 0),
     'message' => $message,
     'at' => $now,
 ];
+if (isset($result['jobs']) && is_array($result['jobs'])) {
+    $payload['jobs'] = $result['jobs'];
+}
 if ($status === 'error') {
-    error_log('[timer_tick] job=' . (string)($result['schedule_type'] ?? '') . ' error=' . $message);
+    if (isset($result['jobs']) && is_array($result['jobs'])) {
+        foreach ($result['jobs'] as $job) {
+            if (($job['status'] ?? '') === 'error') {
+                error_log('[timer_tick] job=' . (string)($job['schedule_type'] ?? '') . ' error=' . (string)($job['message'] ?? ''));
+            }
+        }
+    } else {
+        error_log('[timer_tick] job=' . (string)($result['schedule_type'] ?? '') . ' error=' . $message);
+    }
     timer_json($payload, 500);
 }
 if ($status === 'idle' && $message === '') {
