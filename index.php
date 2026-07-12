@@ -339,7 +339,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
       <?php if ($thumbUrl !== ''): ?>
-        <a href="<?= e($itemUrl) ?>"><img class="thumb" src="<?= e($thumbUrl) ?>" alt="<?= e($title) ?>" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;"></a>
+        <a href="<?= e($itemUrl) ?>"><img class="thumb" src="<?= e($thumbUrl) ?>" alt="<?= e($title) ?>" loading="lazy" decoding="async" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;"></a>
       <?php else: ?>
         <div class="rail-card__noimage" style="width:<?= (int)$width ?>px;height:<?= (int)$width ?>px;">画像なし</div>
       <?php endif; ?>
@@ -397,7 +397,8 @@ try {
     $pdo = db();
     $sourceWhere = items_product_source_where();
     $sourceWhereSql = $sourceWhere !== '' ? ' WHERE ' . $sourceWhere : '';
-    $itemCount = (int)$pdo->query('SELECT COUNT(*) FROM items' . $sourceWhereSql)->fetchColumn();
+    $itemExistsStmt = $pdo->query('SELECT 1 FROM items' . $sourceWhereSql . ' LIMIT 1');
+    $itemCount = ($itemExistsStmt && $itemExistsStmt->fetchColumn()) ? 1 : 0;
 
     if ($itemCount > 0) {
         $seedBase = intdiv(time(), 1800);
@@ -427,16 +428,19 @@ try {
         $popularRows = take_unique_items_for_home($popularRows, $usedHomeItemKeys, 20);
         if (count($popularRows) < 20) {
             $randomRows = fetch_items_with_order_fallback($pdo, [
-                'RAND()',
-            ], 40);
+                'updated_at DESC, id DESC',
+                'id DESC',
+            ], 120);
+            $randomRows = seeded_shuffle($randomRows, $seedBase + 10);
             $popularRows = array_merge($popularRows, take_unique_items_for_home($randomRows, $usedHomeItemKeys, 20 - count($popularRows)));
         }
         $pickupTop = array_slice($popularRows, 0, 5);
         $pickupBottom = array_slice($popularRows, 5, 15);
 
         if (db_table_exists($pdo, 'actresses')) {
-            $actressCandidates = $pdo->query('SELECT id,name,image_small,image_large,image_url FROM actresses ORDER BY (CASE WHEN COALESCE(NULLIF(image_small, ""), NULLIF(image_large, ""), NULLIF(image_url, ""), "") = "" THEN 1 ELSE 0 END), RAND() LIMIT 30')->fetchAll();
-            $actresses = array_slice($actressCandidates ?: [], 0, 15);
+            $actressCandidates = $pdo->query('SELECT id,name,image_small,image_large,image_url FROM actresses ORDER BY (CASE WHEN COALESCE(NULLIF(image_small, ""), NULLIF(image_large, ""), NULLIF(image_url, ""), "") = "" THEN 1 ELSE 0 END), updated_at DESC, id DESC LIMIT 60')->fetchAll();
+            $actressCandidates = seeded_shuffle($actressCandidates ?: [], $seedBase + 15);
+            $actresses = array_slice($actressCandidates, 0, 15);
         }
 
         if (db_table_exists($pdo, 'genres') && db_table_exists($pdo, 'item_genres')) {

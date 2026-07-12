@@ -148,7 +148,7 @@ function scheduler_run_items_schedule(DmmSyncService $service, array $settings):
             (string)($settings['site'] ?? 'FANZA'),
             (string)($settings['service'] ?? 'digital'),
             (string)($settings['floor'] ?? 'videoa'),
-            (int)($settings['item_sync_batch'] ?? 100),
+            settings_allowed_item_sync_batch((int)($settings['item_sync_batch'] ?? 100)),
             $offset,
             $extraParams,
             $excludeKeywords

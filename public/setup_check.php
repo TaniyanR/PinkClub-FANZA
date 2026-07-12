@@ -178,6 +178,14 @@ $currentDbConfig = $localConfigStatus['loaded'] && is_array($localConfigStatus['
 if (($localConfigStatus['error'] ?? null) !== null) {
     $dbConfigError = 'config.local.php の読み込みに失敗しました: ' . (string)$localConfigStatus['error'];
 }
+
+$cronTargetFile = realpath(__DIR__ . '/../scripts/auto_import.php');
+$phpCliPath = PHP_BINARY;
+if ($phpCliPath === '' || !is_file($phpCliPath)) {
+    $phpCliPath = '';
+}
+$cronCommand = ($phpCliPath !== '' && $cronTargetFile !== false) ? $phpCliPath . ' ' . $cronTargetFile : '';
+$cronExample = $cronCommand !== '' ? '*/10 * * * * ' . $cronCommand : '';
 if (!$csrfFailed && $dbConfigError !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $currentDbConfig = array_replace($currentDbConfig, [
         'host' => trim((string)post('db_host', '')),
@@ -252,6 +260,14 @@ csrf_token();
         </tbody></table>
         <p><button type="submit">DB設定を保存する</button></p>
       </form>
+
+      <h3>cron実行コマンド</h3>
+      <table><tbody>
+        <tr><th>実行対象ファイル</th><td><code><?= e($cronTargetFile !== false ? $cronTargetFile : '要確認') ?></code></td></tr>
+        <tr><th>推奨実行間隔</th><td>10分</td></tr>
+        <tr><th>cron実行コマンド</th><td><?php if ($cronCommand !== ''): ?><input id="cron-command" type="text" value="<?= e($cronCommand) ?>" readonly style="width:100%;"><button type="button" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('cron-command').value);">コピー</button><?php else: ?>PHP CLIのパスはサーバー管理画面で確認してください<?php endif; ?></td></tr>
+        <tr><th>推奨設定例</th><td><?php if ($cronExample !== ''): ?><input id="cron-example" type="text" value="<?= e($cronExample) ?>" readonly style="width:100%;"><button type="button" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('cron-example').value);">コピー</button><?php else: ?>要確認<?php endif; ?></td></tr>
+      </tbody></table>
 
       <?php if ($configErrors === []): ?>
         <h2>セットアップ実行</h2>
