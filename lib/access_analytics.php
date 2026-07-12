@@ -40,6 +40,7 @@ function analytics_track_beacon(): void
         return;
     }
 
+    try {
     $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
     $hash = analytics_visitor_hash($ua);
     $rawPath = (string)($_POST['path'] ?? '/');
@@ -60,11 +61,9 @@ function analytics_track_beacon(): void
     $refCode = trim((string)($_POST['ref'] ?? ''));
 
     $pdo = db();
-    $pdo->prepare('INSERT INTO daily_stats(stat_date,pv,uu,in_count,out_count,updated_at) VALUES(:d,0,0,0,0,NOW()) ON DUPLICATE KEY UPDATE updated_at=NOW()')->execute([':d' => $today]);
-
-    $seenStmt = $pdo->prepare("SELECT id FROM site_events WHERE event_type = 'pv' AND session_id_hash = :marker AND ip_hash = :ip_hash AND created_at >= CURDATE() AND created_at < CURDATE() + INTERVAL 1 DAY LIMIT 1");
-    $seenStmt->execute([':marker' => analytics_beacon_marker_hash(), ':ip_hash' => $hash]);
-    $isUniqueVisitor = !$seenStmt->fetchColumn();
+    $visitStmt = $pdo->prepare('INSERT IGNORE INTO visit_sessions(stat_date,visitor_hash,first_seen_at) VALUES(:d,:h,NOW())');
+    $visitStmt->execute([':d' => $today, ':h' => $hash]);
+    $isUniqueVisitor = $visitStmt->rowCount() === 1;
 
     $pdo->prepare("INSERT INTO site_events(event_type,path,referrer,ua_hash,ip_hash,session_id_hash,created_at) VALUES('pv',:path,:referrer,:ua,:ip,:marker,NOW())")->execute([
         ':path' => $pathForStats,
@@ -73,13 +72,7 @@ function analytics_track_beacon(): void
         ':ip' => $hash,
         ':marker' => analytics_beacon_marker_hash(),
     ]);
-    $pdo->prepare('UPDATE daily_stats SET pv = pv + 1, uu = uu + :uu, updated_at = NOW() WHERE stat_date = :d')->execute([':d' => $today, ':uu' => $isUniqueVisitor ? 1 : 0]);
-
-    $visitStmt = $pdo->prepare('SELECT id FROM visit_sessions WHERE stat_date=:d AND visitor_hash=:h LIMIT 1');
-    $visitStmt->execute([':d' => $today, ':h' => $hash]);
-    if (!$visitStmt->fetchColumn()) {
-        $pdo->prepare('INSERT INTO visit_sessions(stat_date,visitor_hash,first_seen_at) VALUES(:d,:h,NOW())')->execute([':d' => $today, ':h' => $hash]);
-    }
+    $pdo->prepare('INSERT INTO daily_stats(stat_date,pv,uu,in_count,out_count,updated_at) VALUES(:d,1,:uu,0,0,NOW()) ON DUPLICATE KEY UPDATE pv = pv + 1, uu = uu + VALUES(uu), updated_at = NOW()')->execute([':d' => $today, ':uu' => $isUniqueVisitor ? 1 : 0]);
 
     $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
     if ($refCode !== '' || ($refererHost !== '' && !str_contains(strtolower($refererHost), $host))) {
@@ -90,6 +83,9 @@ function analytics_track_beacon(): void
         ]);
         $pdo->prepare('UPDATE daily_stats SET in_count = in_count + 1, updated_at = NOW() WHERE stat_date=:d')->execute([':d' => $today]);
     }
+    } catch (Throwable $e) {
+        analytics_disable_for_request($e);
+    }
 }
 
 function analytics_log_out(string $targetUrl, string $refCode, string $path): void
@@ -97,6 +93,7 @@ function analytics_log_out(string $targetUrl, string $refCode, string $path): vo
     if (!analytics_ensure_tables()) {
         return;
     }
+    try {
     $today = date('Y-m-d');
     $pdo = db();
     $pdo->prepare('INSERT INTO out_logs(created_at,ref_code,target_url,path) VALUES(NOW(),:ref,:url,:path)')->execute([
@@ -104,8 +101,10 @@ function analytics_log_out(string $targetUrl, string $refCode, string $path): vo
         ':url' => mb_substr($targetUrl, 0, 1000),
         ':path' => mb_substr($path, 0, 255),
     ]);
-    $pdo->prepare('INSERT INTO daily_stats(stat_date,pv,uu,in_count,out_count,updated_at) VALUES(:d,0,0,0,0,NOW()) ON DUPLICATE KEY UPDATE updated_at=NOW()')->execute([':d' => $today]);
-    $pdo->prepare('UPDATE daily_stats SET out_count = out_count + 1, updated_at = NOW() WHERE stat_date=:d')->execute([':d' => $today]);
+    $pdo->prepare('INSERT INTO daily_stats(stat_date,pv,uu,in_count,out_count,updated_at) VALUES(:d,0,0,0,1,NOW()) ON DUPLICATE KEY UPDATE out_count = out_count + 1, updated_at = NOW()')->execute([':d' => $today]);
+    } catch (Throwable $e) {
+        analytics_disable_for_request($e);
+    }
 }
 
 function analytics_log_taxonomy_page_view(string $path): void
@@ -155,31 +154,11 @@ function analytics_log_series_page_view(int $seriesId): void
 
 function analytics_ensure_tables(): bool
 {
-    static $ok = false;
-    static $disabled = false;
-    if ($ok) {
-        return true;
-    }
-    if ($disabled) {
-        return false;
-    }
+    return empty($GLOBALS['__analytics_disabled_for_request']);
+}
 
-    $ok = true;
-    try {
-        $pdo = db();
-        $pdo->exec('CREATE TABLE IF NOT EXISTS daily_stats (stat_date DATE PRIMARY KEY,pv INT NOT NULL DEFAULT 0,uu INT NOT NULL DEFAULT 0,in_count INT NOT NULL DEFAULT 0,out_count INT NOT NULL DEFAULT 0,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-        $pdo->exec('CREATE TABLE IF NOT EXISTS visit_sessions (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,stat_date DATE NOT NULL,visitor_hash CHAR(64) NOT NULL,first_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE KEY uk_visit_daily (stat_date, visitor_hash)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-        $pdo->exec('CREATE TABLE IF NOT EXISTS in_logs (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,ref_code VARCHAR(64) NULL,referer_host VARCHAR(255) NULL,path VARCHAR(255) NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-        $pdo->exec('CREATE TABLE IF NOT EXISTS out_logs (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,ref_code VARCHAR(64) NULL,target_url TEXT NOT NULL,path VARCHAR(255) NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-        $pdo->exec("CREATE TABLE IF NOT EXISTS site_events (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,event_type ENUM('in','out','pv') NOT NULL,path VARCHAR(255) NULL,referrer VARCHAR(500) NULL,ua_hash CHAR(64) NULL,ip_hash CHAR(64) NULL,session_id_hash CHAR(64) NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,INDEX idx_site_events_type_date (event_type, created_at),INDEX idx_site_events_session_date (session_id_hash, created_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        $pdo->exec('CREATE TABLE IF NOT EXISTS partner_sites (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,name VARCHAR(255) NOT NULL,ref_code VARCHAR(64) NOT NULL UNIQUE,url TEXT NOT NULL,is_enabled TINYINT(1) NOT NULL DEFAULT 1,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-        $pdo->exec('CREATE TABLE IF NOT EXISTS partner_rss (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,partner_site_id BIGINT UNSIGNED NOT NULL,feed_url TEXT NOT NULL,is_enabled TINYINT(1) NOT NULL DEFAULT 1,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,INDEX idx_partner_rss_partner (partner_site_id),CONSTRAINT fk_partner_rss_site FOREIGN KEY (partner_site_id) REFERENCES partner_sites(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-        $pdo->exec('CREATE TABLE IF NOT EXISTS mutual_links (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,site_name VARCHAR(255) NOT NULL,site_url TEXT NOT NULL,link_url TEXT NULL,rss_url TEXT NULL,contact_email VARCHAR(255) NULL,apply_type VARCHAR(32) NOT NULL DEFAULT "link_only",rule_text TEXT NULL,rule_json LONGTEXT NULL,status VARCHAR(20) NOT NULL DEFAULT "pending",is_enabled TINYINT(1) NOT NULL DEFAULT 1,enabled TINYINT(1) NOT NULL DEFAULT 1,display_order INT NOT NULL DEFAULT 100,display_position VARCHAR(32) NOT NULL DEFAULT "sidebar",rss_enabled TINYINT(1) NOT NULL DEFAULT 0,banner_image_url TEXT NULL,image_url TEXT NULL,approved_at DATETIME NULL,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,INDEX idx_mutual_links_status (status),INDEX idx_mutual_links_status_enabled_order (status,is_enabled,display_order,id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-        return true;
-    } catch (Throwable $e) {
-        $ok = false;
-        $disabled = true;
-        error_log('analytics disabled: ' . $e->getMessage());
-        return false;
-    }
+function analytics_disable_for_request(Throwable $e): void
+{
+    $GLOBALS['__analytics_disabled_for_request'] = true;
+    error_log('analytics disabled: ' . $e->getMessage());
 }

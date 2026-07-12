@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../public/_bootstrap.php';
 require_once __DIR__ . '/../lib/app.php';
+require_once __DIR__ . '/../lib/scheduler.php';
 
 auth_require_admin();
 
@@ -12,7 +13,7 @@ $message = '';
 $messageType = 'success';
 
 $intervalOptions = [10, 20, 30, 60, 120, 180, 360, 720];
-$batchOptions = [1, 10, 20, 30, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000];
+$batchOptions = [1, 10, 20, 30, 50, 100, 200, 300, 500];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate_or_fail((string)post('_csrf', ''));
@@ -63,10 +64,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $settings = settings_get();
 $currentInterval = (int)($settings['item_sync_interval_minutes'] ?? 60);
 $currentBatch = (int)($settings['item_sync_batch'] ?? 100);
+if (!in_array($currentBatch, $batchOptions, true)) {
+    $currentBatch = 100;
+}
 $enabled = settings_bool('item_sync_enabled', false);
 $compoundLines = preg_split('/\R/u', site_setting_get('item_sync_compound_keywords', '')) ?: [];
 $excludeLines = preg_split('/\R/u', site_setting_get('item_sync_exclude_keywords', '')) ?: [];
-$timerPollMs = max(1, $currentInterval) * 60 * 1000;
 $pdo = db();
 scheduler_ensure_schedule_table($pdo);
 scheduler_seed_default_schedules($pdo);
@@ -153,65 +156,9 @@ require __DIR__ . '/includes/header.php';
   </table>
 
   <?php if ($enabled): ?>
-    <div class="admin-notice admin-notice--success" id="auto-timer-status" data-endpoint="<?= e(admin_url('timer_tick.php')) ?>" data-csrf="<?= e(csrf_token()) ?>" data-poll-ms="<?= e((string)$timerPollMs) ?>">
-      <p>自動更新はONです。この画面を開いている間、<?= e((string)$currentInterval) ?>分ごとに自動更新を確認します。</p>
+    <div class="admin-notice admin-notice--success" id="auto-timer-status">
+      <p>自動更新はONです。同期はcronでのみ実行されます。この画面を開いていても自動更新は開始しません。</p>
     </div>
-    <script>
-      (function () {
-        var status = document.getElementById('auto-timer-status');
-        if (!status) {
-          return;
-        }
-        var endpoint = status.getAttribute('data-endpoint');
-        var csrf = status.getAttribute('data-csrf');
-        var pollMs = parseInt(status.getAttribute('data-poll-ms') || '60000', 10);
-        if (!pollMs || pollMs < 60000) {
-          pollMs = 60000;
-        }
-        var running = false;
-        var updateStatus = function (message) {
-          var paragraph = status.querySelector('p');
-          if (paragraph) {
-            paragraph.textContent = message;
-          }
-        };
-        var tick = function () {
-          if (running || !endpoint || !csrf) {
-            return;
-          }
-          running = true;
-          var body = new FormData();
-          body.append('_csrf', csrf);
-          fetch(endpoint, {
-            method: 'POST',
-            credentials: 'same-origin',
-            body: body
-          }).then(function (response) {
-            if (response.status === 401 || response.status === 419) {
-              window.location.reload();
-              return Promise.reject(new Error('auth'));
-            }
-            return response.json();
-          }).then(function (data) {
-            if (data && data.message === 'session_expired') {
-              window.location.reload();
-              return;
-            }
-            var message = data && data.message ? data.message : '自動更新を確認しました';
-            updateStatus(message + '（' + new Date().toLocaleString() + '）');
-          }).catch(function (err) {
-            if (err && err.message === 'auth') {
-              return;
-            }
-            updateStatus('自動更新の確認に失敗しました（' + new Date().toLocaleString() + '）');
-          }).finally(function () {
-            running = false;
-          });
-        };
-        tick();
-        setInterval(tick, pollMs);
-      }());
-    </script>
   <?php endif; ?>
 </section>
 <?php require __DIR__ . '/includes/footer.php'; ?>

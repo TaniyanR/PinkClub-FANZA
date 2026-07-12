@@ -63,9 +63,9 @@
    - `admin/api_series.php`（シリーズ）
 2. 各ページの「10件テスト取得」で接続確認します。
 3. 自動取得を使う場合は `item_sync_enabled` をONにします。
-4. 通常の公開ページへの `GET` / `HEAD` アクセス時に `public/_bootstrap.php` の終了処理からスケジューラを確認します（cron不要）。
-5. `/admin/api_auto.php` を開いたままにした場合も、設定した間隔ごとに `admin/timer_tick.php` を実行できます。
-6. tickごとに最大1種類のみ同期します。
+4. 通常の公開ページへの `GET` / `HEAD` アクセス時にはスケジューラを確認しません。
+5. 自動更新はcron専用です。公開アクセスや管理画面を開いた状態では同期を開始しません。`scripts/auto_import.php` をCLIで10分間隔実行してください。
+6. cron実行時に期限が来ている商品・女優ジョブを確認します。
 
 ## リリース運用方針（速度優先・一括リリース）
 
@@ -165,12 +165,12 @@ This PR implements 6 incomplete features identified in README.md and docs/issues
 **場所 / Location**: `public/_bootstrap.php` / `scripts/auto_import.php` / `admin/api_auto.php`
 
 **機能 / Features**:
-- cronは使用せず、通常ユーザーによる公開ページへの `GET` / `HEAD` アクセスをきっかけに `public/_bootstrap.php` の終了処理で自動更新を確認
-- 公開アクセスがゼロの場合は自動更新されず、次の公開ページアクセス時に期限が来ているジョブを確認
-- 管理画面タイマー方式: `/admin/api_auto.php` を開いている間だけJavaScriptが `admin/timer_tick.php` をPOSTし、同じスケジューラを確認
+- cron専用で、通常ユーザーによる公開ページへの `GET` / `HEAD` アクセスでは自動更新を確認しません
+- 公開アクセス回数に関係なく、cron実行時だけ期限が来ているジョブを確認
+- cron専用方式: 公開アクセスや管理画面表示では同期せず、`scripts/auto_import.php` のCLI実行時だけ同じスケジューラを確認
 - 自動更新対象は `items`（商品）/ `actresses`（女優）のみ
 - `genres`（ジャンル）/ `series`（シリーズ）は手動取得のみ
-- 次の公開ページアクセス時に、期限が来ている商品と女優を両方確認し、1回の起動で両方が実行される場合があります
+- 次回のcron実行時に、期限が来ている商品と女優を両方確認し、1回の起動で両方が実行される場合があります
 - ロック機構で重複実行を防止し、`sync_job_state` でジョブごとのoffsetと状態を管理
 - `api_schedules`テーブルで実行スケジュールを管理
 
@@ -307,7 +307,7 @@ PinkClub-FANZA/
 
 - [ ] データベースマイグレーションを実行
 - [ ] `config.local.php`の設定を確認
-- [ ] cronは使用せず、公開ページアクセスまたは管理画面タイマーで自動更新を確認
+- [x] cron専用で、公開ページアクセスまたは管理画面タイマーでは自動更新を確認しません
 - [ ] `auto_import.php`がWeb経由でアクセスできないことを確認
 - [ ] 本番環境でAPI接続テスト
 - [ ] データベースのバックアップ取得
@@ -382,7 +382,7 @@ The system is ready for production deployment.
 - `admin/includes/header.php`: サイドメニュー構造を指定どおり固定、トップバーに「ログアウト」追加。
 - `admin/site_settings.php`: サイト名/URL/キャッチフレーズ/キーワード保存画面を実装。
 - `admin/affiliate_api.php`: API ID/アフィリエイトID、取得件数、タイマー設定、10件手動取得、タイマー状態表示を実装。
-- `admin/timer_tick.php`: cron不使用のタイマー式同期エンドポイントを追加（POST+CSRF+認証+JSON返却）。
+- `scripts/auto_import.php`: cronからCLI実行する自動同期入口。URL方式は使用しません。
 - `lib/access_analytics.php` / `public/_bootstrap.php` / `public/out.php`: PV/UU/IN/OUT 計測と外部遷移ログを実装。
 - `admin/access_analytics.php`: KPI/期間別/前期間比較/日別一覧のアクセス解析画面を実装。
 - `admin/link_partners.php` / `admin/rss_settings.php` / `admin/links.php` / `admin/rss.php`: 相互リンク・RSS管理画面（最小CRUD）を実装。
@@ -634,7 +634,7 @@ No critical or high-risk security vulnerabilities were identified. The code foll
 | ① | DB設計最終化（PK/FK/INDEX/分析・RSS・リンク対応） | todo | P0 | epic:foundation | type:feature | - |
 | ② | config.php/config.local.php 切替整備（直書き排除） | verify | P0 | epic:foundation | type:chore | ① |
 | ③ | APIキー管理の秘匿化・テストキー切替 | verify | P0 | epic:import | type:security | ② |
-| ④ | API取得内部タイマー（last_run/interval/lock_until） | todo | P0 | epic:import | type:feature | ①,③ |
+| ④ | API取得cron運用（last_run/interval/lock_until） | todo | P0 | epic:import | type:feature | ①,③ |
 | ⑤ | API保存整形（重複排除・更新反映・72hキャッシュ） | todo | P0 | epic:import | type:feature | ①,④ |
 | ⑥ | 自動タグ生成 | todo | P1 | epic:front | type:feature | ⑤ |
 | ⑦ | キーワードフィルタ | todo | P1 | epic:front | type:feature | ⑤ |
@@ -786,16 +786,16 @@ APIキー漏えい防止と運用性向上。
 `epic:import` `type:security` `priority:P0`
 ```
 
-### ④ API取得内部タイマー（last_run/interval/lock_until）
+### ④ API取得cron運用（last_run/interval/lock_until）
 ```md
 ## 背景
-cron禁止のため、内部タイマーで安全に定期取得する。
+cronを使用し、商品・女優の自動更新を安全に定期実行する。
 
 ## スコープ
 - `last_run` / `interval` / `lock_until` 管理
 - 多重実行防止
 - 間隔: 1/3/6/12/24h
-- 件数: 10/100/500/1000
+- 件数: 1/10/20/30/50/100/200/300/500（最大500。1000/2000/3000/5000は使用不可）
 - 失敗連続5回で警告フラグ
 
 ## 受け入れ基準
@@ -1234,3 +1234,13 @@ RSSブロックの表示位置を設定可能にする。
 - `WEB SERVICE BY FANZA` など公式クレジット表示は維持してください。
 - 自サーバー保存画像を使うとDMM審査で不承認になる可能性があります。
 - 見た目を維持する場合でも、FANZA画像ファイル本体は保存しないでください。
+
+## 自動更新（cron専用）
+
+自動更新はcron専用です。公開ページへのアクセスでは同期せず、管理画面を開いていてもJavaScriptタイマーによる自動同期は行いません。
+
+- 実行方法: `scripts/auto_import.php` をPHP CLIで実行します。
+- URL方式: 使用しません。cron用URLや公開エンドポイントはありません。
+- 推奨cron間隔: 10分（管理画面の更新間隔も10分で使用可能です）。
+- 取得件数: 最大500。選択肢は 1、10、20、30、50、100、200、300、500 です。1000、2000、3000、5000は使用できません。
+- 画像品質・画像URL・公開ページの表示件数は変更していません。

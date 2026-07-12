@@ -55,7 +55,7 @@ function settings_get(): array
         'service' => strtolower(settings_normalize_token((string)site_setting_get('fanza_service', 'digital'), 'digital')),
         'floor' => strtolower(settings_normalize_token((string)site_setting_get('fanza_floor', 'videoa'), 'videoa')),
         'master_floor_id' => trim(site_setting_get('master_floor_id', '43')),
-        'item_sync_batch' => settings_int('item_sync_batch', 100),
+        'item_sync_batch' => settings_allowed_item_sync_batch(settings_int('item_sync_batch', 100)),
         'item_sync_enabled' => settings_bool('item_sync_enabled', false),
         'item_sync_interval_minutes' => settings_int('item_sync_interval_minutes', 60),
         'last_item_sync_at' => site_setting_get('last_item_sync_at', ''),
@@ -73,6 +73,15 @@ function settings_int(string $key, int $default): int
     return (int)$value;
 }
 
+function settings_allowed_item_sync_batch(int $value): int
+{
+    $allowed = [1, 10, 20, 30, 50, 100, 200, 300, 500];
+    if (!in_array($value, $allowed, true)) {
+        return 100;
+    }
+    return $value;
+}
+
 function settings_bool(string $key, bool $default): bool
 {
     return settings_int($key, $default ? 1 : 0) === 1;
@@ -80,7 +89,7 @@ function settings_bool(string $key, bool $default): bool
 
 function settings_save(string $apiId, string $affiliateId, int $itemSyncBatch = 100, ?int $masterFloorId = null): void
 {
-    $allowed = [100, 200, 300, 500, 1000];
+    $allowed = [1, 10, 20, 30, 50, 100, 200, 300, 500];
     if (!in_array($itemSyncBatch, $allowed, true)) {
         $itemSyncBatch = 100;
     }
