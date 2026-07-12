@@ -634,7 +634,7 @@ No critical or high-risk security vulnerabilities were identified. The code foll
 | ① | DB設計最終化（PK/FK/INDEX/分析・RSS・リンク対応） | todo | P0 | epic:foundation | type:feature | - |
 | ② | config.php/config.local.php 切替整備（直書き排除） | verify | P0 | epic:foundation | type:chore | ① |
 | ③ | APIキー管理の秘匿化・テストキー切替 | verify | P0 | epic:import | type:security | ② |
-| ④ | API取得内部タイマー（last_run/interval/lock_until） | todo | P0 | epic:import | type:feature | ①,③ |
+| ④ | API取得cron運用（last_run/interval/lock_until） | todo | P0 | epic:import | type:feature | ①,③ |
 | ⑤ | API保存整形（重複排除・更新反映・72hキャッシュ） | todo | P0 | epic:import | type:feature | ①,④ |
 | ⑥ | 自動タグ生成 | todo | P1 | epic:front | type:feature | ⑤ |
 | ⑦ | キーワードフィルタ | todo | P1 | epic:front | type:feature | ⑤ |
@@ -786,10 +786,10 @@ APIキー漏えい防止と運用性向上。
 `epic:import` `type:security` `priority:P0`
 ```
 
-### ④ API取得内部タイマー（last_run/interval/lock_until）
+### ④ API取得cron運用（last_run/interval/lock_until）
 ```md
 ## 背景
-cron禁止のため、内部タイマーで安全に定期取得する。
+cronを使用し、商品・女優の自動更新を安全に定期実行する。
 
 ## スコープ
 - `last_run` / `interval` / `lock_until` 管理
