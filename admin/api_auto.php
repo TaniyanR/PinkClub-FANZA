@@ -71,7 +71,7 @@ $pdo = db();
 scheduler_ensure_schedule_table($pdo);
 scheduler_seed_default_schedules($pdo);
 scheduler_apply_auto_settings($pdo);
-$stateStmt = $pdo->query("SELECT job_key, last_run_at, last_success, last_message, next_offset, lock_until FROM sync_job_state WHERE job_key IN ('items','genres','actresses','series') ORDER BY FIELD(job_key, 'items','genres','actresses','series')");
+$stateStmt = $pdo->query("SELECT job_key, last_run_at, last_success, last_message, next_offset, lock_until FROM sync_job_state WHERE job_key IN ('items','actresses') ORDER BY FIELD(job_key, 'items','actresses')");
 $autoStates = $stateStmt ? $stateStmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
 require __DIR__ . '/includes/header.php';
@@ -142,7 +142,7 @@ require __DIR__ . '/includes/header.php';
     <tr><th>ジョブ</th><th>最終実行日時</th><th>成功</th><th>メッセージ</th><th>次回offset</th><th>ロック期限</th></tr>
     <?php foreach ($autoStates as $state): ?>
       <tr>
-        <td><?= e((string)($state['job_key'] ?? '')) ?></td>
+        <td><?= e(['items' => '商品', 'actresses' => '女優'][(string)($state['job_key'] ?? '')] ?? (string)($state['job_key'] ?? '')) ?></td>
         <td><?= e((string)($state['last_run_at'] ?? '')) ?></td>
         <td><?= ((int)($state['last_success'] ?? 0) === 1) ? '成功' : '未成功' ?></td>
         <td><?= e((string)($state['last_message'] ?? '')) ?></td>

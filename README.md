@@ -165,25 +165,14 @@ This PR implements 6 incomplete features identified in README.md and docs/issues
 **場所 / Location**: `public/_bootstrap.php` / `scripts/auto_import.php` / `admin/api_auto.php`
 
 **機能 / Features**:
-- cron不要方式: 通常の公開ページへの `GET` / `HEAD` アクセスをきっかけに `public/_bootstrap.php` の終了処理で自動更新を確認
-- cron不要方式は公開アクセスが無い環境では動きません
-- cron方式: `scripts/auto_import.php` から同じスケジューラを実行可能。本番運用ではアクセス有無に依存しないcron方式を推奨
+- cronは使用せず、通常ユーザーによる公開ページへの `GET` / `HEAD` アクセスをきっかけに `public/_bootstrap.php` の終了処理で自動更新を確認
+- 公開アクセスがゼロの場合は自動更新されず、次の公開ページアクセス時に期限が来ているジョブを確認
 - 管理画面タイマー方式: `/admin/api_auto.php` を開いている間だけJavaScriptが `admin/timer_tick.php` をPOSTし、同じスケジューラを確認
-- 自動更新対象は `items` / `genres` / `actresses` / `series`
+- 自動更新対象は `items`（商品）/ `actresses`（女優）のみ
+- `genres`（ジャンル）/ `series`（シリーズ）は手動取得のみ
+- 次の公開ページアクセス時に、期限が来ている商品と女優を両方確認し、1回の起動で両方が実行される場合があります
 - ロック機構で重複実行を防止し、`sync_job_state` でジョブごとのoffsetと状態を管理
 - `api_schedules`テーブルで実行スケジュールを管理
-
-**cron設定例 / Cron Examples**:
-```bash
-# 毎時実行
-0 * * * * /usr/bin/php /path/to/PinkClub-FANZA/scripts/auto_import.php >> /path/to/logs/cron.log 2>&1
-
-# 3時間ごとに実行（STAR を * に置き換え）
-0 STAR/3 * * * /usr/bin/php /path/to/PinkClub-FANZA/scripts/auto_import.php >> /path/to/logs/cron.log 2>&1
-
-# 毎日午前3時に実行
-0 3 * * * /usr/bin/php /path/to/PinkClub-FANZA/scripts/auto_import.php >> /path/to/logs/cron.log 2>&1
-```
 
 **手動実行 / Manual Execution**:
 ```bash
@@ -318,7 +307,7 @@ PinkClub-FANZA/
 
 - [ ] データベースマイグレーションを実行
 - [ ] `config.local.php`の設定を確認
-- [ ] cronジョブを設定（`scripts/auto_import.php`）
+- [ ] cronは使用せず、公開ページアクセスまたは管理画面タイマーで自動更新を確認
 - [ ] `auto_import.php`がWeb経由でアクセスできないことを確認
 - [ ] 本番環境でAPI接続テスト
 - [ ] データベースのバックアップ取得
