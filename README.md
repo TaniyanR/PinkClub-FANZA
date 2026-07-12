@@ -170,7 +170,7 @@ This PR implements 6 incomplete features identified in README.md and docs/issues
 - cron専用方式: 公開アクセスや管理画面表示では同期せず、`scripts/auto_import.php` のCLI実行時だけ同じスケジューラを確認
 - 自動更新対象は `items`（商品）/ `actresses`（女優）のみ
 - `genres`（ジャンル）/ `series`（シリーズ）は手動取得のみ
-- 次の公開ページアクセス時に、期限が来ている商品と女優を両方確認し、1回の起動で両方が実行される場合があります
+- 次回のcron実行時に、期限が来ている商品と女優を両方確認し、1回の起動で両方が実行される場合があります
 - ロック機構で重複実行を防止し、`sync_job_state` でジョブごとのoffsetと状態を管理
 - `api_schedules`テーブルで実行スケジュールを管理
 

@@ -180,12 +180,8 @@ if (($localConfigStatus['error'] ?? null) !== null) {
 }
 
 $cronTargetFile = realpath(__DIR__ . '/../scripts/auto_import.php');
-$phpCliPath = PHP_BINARY;
-if ($phpCliPath === '' || !is_file($phpCliPath)) {
-    $phpCliPath = '';
-}
-$cronCommand = ($phpCliPath !== '' && $cronTargetFile !== false) ? $phpCliPath . ' ' . $cronTargetFile : '';
-$cronExample = $cronCommand !== '' ? '*/10 * * * * ' . $cronCommand : '';
+$cronCommandExample = $cronTargetFile !== false ? 'php ' . $cronTargetFile : '';
+$cronScheduleExample = $cronCommandExample !== '' ? '*/10 * * * * ' . $cronCommandExample : '';
 if (!$csrfFailed && $dbConfigError !== null && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $currentDbConfig = array_replace($currentDbConfig, [
         'host' => trim((string)post('db_host', '')),
@@ -265,8 +261,9 @@ csrf_token();
       <table><tbody>
         <tr><th>実行対象ファイル</th><td><code><?= e($cronTargetFile !== false ? $cronTargetFile : '要確認') ?></code></td></tr>
         <tr><th>推奨実行間隔</th><td>10分</td></tr>
-        <tr><th>cron実行コマンド</th><td><?php if ($cronCommand !== ''): ?><input id="cron-command" type="text" value="<?= e($cronCommand) ?>" readonly style="width:100%;"><button type="button" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('cron-command').value);">コピー</button><?php else: ?>PHP CLIのパスはサーバー管理画面で確認してください<?php endif; ?></td></tr>
-        <tr><th>推奨設定例</th><td><?php if ($cronExample !== ''): ?><input id="cron-example" type="text" value="<?= e($cronExample) ?>" readonly style="width:100%;"><button type="button" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('cron-example').value);">コピー</button><?php else: ?>要確認<?php endif; ?></td></tr>
+        <tr><th>PHP CLI</th><td>サーバー管理画面で確認してください。サーバー環境によりPHP CLIパスが異なります。</td></tr>
+        <tr><th>参考コマンド</th><td><?php if ($cronCommandExample !== ''): ?><input id="cron-command" type="text" value="<?= e($cronCommandExample) ?>" readonly style="width:100%;"><button type="button" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('cron-command').value);">コピー</button><br><small>参考例です。<code>php</code> が利用できるか、またはPHP CLIの絶対パスが必要かはサーバー管理画面で確認してください。</small><?php else: ?>要確認<?php endif; ?></td></tr>
+        <tr><th>推奨設定例</th><td><?php if ($cronScheduleExample !== ''): ?><input id="cron-example" type="text" value="<?= e($cronScheduleExample) ?>" readonly style="width:100%;"><button type="button" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('cron-example').value);">コピー</button><br><small>参考例です。実際のPHP CLIパスはサーバー環境に合わせてください。</small><?php else: ?>要確認<?php endif; ?></td></tr>
       </tbody></table>
 
       <?php if ($configErrors === []): ?>

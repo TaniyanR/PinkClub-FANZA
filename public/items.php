@@ -316,7 +316,7 @@ function pick_full_package_image(array $item): string
     return '';
 }
 
-function render_item_card(array $item, int $width = 180, ?array $taxonomy = null, bool $preferFullPackageImage = false): void
+function render_item_card(array $item, int $width = 180, ?array $taxonomy = null, bool $preferFullPackageImage = false, bool $lazyLoad = true): void
 {
     $itemUrl = app_url('public/item.php?id=' . (int)$item['id']);
     $title = (string)($item['title'] ?? '');
@@ -343,7 +343,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
       <?php if ($thumbUrl !== ''): ?>
-        <a href="<?= e($itemUrl) ?>"><img class="thumb" src="<?= e($thumbUrl) ?>" alt="<?= e($title) ?>" loading="lazy" decoding="async" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;"></a>
+        <a href="<?= e($itemUrl) ?>"><img class="thumb" src="<?= e($thumbUrl) ?>" alt="<?= e($title) ?>"<?= $lazyLoad ? ' loading="lazy"' : '' ?> decoding="async" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;"></a>
       <?php else: ?>
         <div class="rail-card__noimage" style="width:<?= (int)$width ?>px;height:<?= (int)$width ?>px;">画像なし</div>
       <?php endif; ?>
@@ -428,13 +428,13 @@ require __DIR__ . '/partials/header.php';
   <?php if ($fallbackItems !== []): ?>
     <section class="rail-section">
       <h2>取得できた作品</h2>
-      <div class="rail-row rail-row--180"><?php foreach ($fallbackItems as $item) { render_item_card($item, 180); } ?></div>
+      <div class="rail-row rail-row--180"><?php foreach ($fallbackItems as $index => $item) { render_item_card($item, 180, null, false, $index >= 6); } ?></div>
     </section>
   <?php endif; ?>
 <?php else: ?>
   <section class="rail-section">
     <h2>新着作品</h2>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($latestItems as $item) { render_item_card($item, 200, null, true); } ?></div>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--no-scroll"><?php foreach ($latestItems as $index => $item) { render_item_card($item, 200, null, true, $index >= 6); } ?></div>
     <?php pcf_render_pagination($pg, public_url('items.php')); ?>
   </section>
 <?php endif; ?>

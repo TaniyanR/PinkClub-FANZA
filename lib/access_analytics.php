@@ -40,6 +40,7 @@ function analytics_track_beacon(): void
         return;
     }
 
+    try {
     $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
     $hash = analytics_visitor_hash($ua);
     $rawPath = (string)($_POST['path'] ?? '/');
@@ -82,6 +83,9 @@ function analytics_track_beacon(): void
         ]);
         $pdo->prepare('UPDATE daily_stats SET in_count = in_count + 1, updated_at = NOW() WHERE stat_date=:d')->execute([':d' => $today]);
     }
+    } catch (Throwable $e) {
+        analytics_disable_for_request($e);
+    }
 }
 
 function analytics_log_out(string $targetUrl, string $refCode, string $path): void
@@ -89,6 +93,7 @@ function analytics_log_out(string $targetUrl, string $refCode, string $path): vo
     if (!analytics_ensure_tables()) {
         return;
     }
+    try {
     $today = date('Y-m-d');
     $pdo = db();
     $pdo->prepare('INSERT INTO out_logs(created_at,ref_code,target_url,path) VALUES(NOW(),:ref,:url,:path)')->execute([
@@ -97,6 +102,9 @@ function analytics_log_out(string $targetUrl, string $refCode, string $path): vo
         ':path' => mb_substr($path, 0, 255),
     ]);
     $pdo->prepare('INSERT INTO daily_stats(stat_date,pv,uu,in_count,out_count,updated_at) VALUES(:d,0,0,0,1,NOW()) ON DUPLICATE KEY UPDATE out_count = out_count + 1, updated_at = NOW()')->execute([':d' => $today]);
+    } catch (Throwable $e) {
+        analytics_disable_for_request($e);
+    }
 }
 
 function analytics_log_taxonomy_page_view(string $path): void
@@ -146,27 +154,11 @@ function analytics_log_series_page_view(int $seriesId): void
 
 function analytics_ensure_tables(): bool
 {
-    static $ok = false;
-    static $disabled = false;
-    if ($ok) {
-        return true;
-    }
-    if ($disabled) {
-        return false;
-    }
+    return empty($GLOBALS['__analytics_disabled_for_request']);
+}
 
-    try {
-        $pdo = db();
-        $pdo->query('SELECT 1 FROM daily_stats LIMIT 1');
-        $pdo->query('SELECT 1 FROM visit_sessions LIMIT 1');
-        $pdo->query('SELECT 1 FROM in_logs LIMIT 1');
-        $pdo->query('SELECT 1 FROM out_logs LIMIT 1');
-        $pdo->query('SELECT 1 FROM site_events LIMIT 1');
-        $ok = true;
-        return true;
-    } catch (Throwable $e) {
-        $disabled = true;
-        error_log('analytics disabled: ' . $e->getMessage());
-        return false;
-    }
+function analytics_disable_for_request(Throwable $e): void
+{
+    $GLOBALS['__analytics_disabled_for_request'] = true;
+    error_log('analytics disabled: ' . $e->getMessage());
 }

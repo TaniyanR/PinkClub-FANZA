@@ -318,7 +318,7 @@ function pick_full_package_image(array $item): string
     return '';
 }
 
-function render_item_card(array $item, int $width = 180, ?array $taxonomy = null, bool $preferFullPackageImage = false): void
+function render_item_card(array $item, int $width = 180, ?array $taxonomy = null, bool $preferFullPackageImage = false, bool $lazyLoad = true): void
 {
     $itemUrl = app_url('public/item.php?id=' . (int)$item['id']);
     $title = (string)($item['title'] ?? '');
@@ -339,7 +339,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
       <?php if ($thumbUrl !== ''): ?>
-        <a href="<?= e($itemUrl) ?>"><img class="thumb" src="<?= e($thumbUrl) ?>" alt="<?= e($title) ?>" loading="lazy" decoding="async" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;"></a>
+        <a href="<?= e($itemUrl) ?>"><img class="thumb" src="<?= e($thumbUrl) ?>" alt="<?= e($title) ?>"<?= $lazyLoad ? ' loading="lazy"' : '' ?> decoding="async" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;"></a>
       <?php else: ?>
         <div class="rail-card__noimage" style="width:<?= (int)$width ?>px;height:<?= (int)$width ?>px;">画像なし</div>
       <?php endif; ?>
@@ -428,19 +428,16 @@ try {
         $popularRows = take_unique_items_for_home($popularRows, $usedHomeItemKeys, 20);
         if (count($popularRows) < 20) {
             $randomRows = fetch_items_with_order_fallback($pdo, [
-                'updated_at DESC, id DESC',
-                'id DESC',
-            ], 120);
-            $randomRows = seeded_shuffle($randomRows, $seedBase + 10);
+                'RAND()',
+            ], 40);
             $popularRows = array_merge($popularRows, take_unique_items_for_home($randomRows, $usedHomeItemKeys, 20 - count($popularRows)));
         }
         $pickupTop = array_slice($popularRows, 0, 5);
         $pickupBottom = array_slice($popularRows, 5, 15);
 
         if (db_table_exists($pdo, 'actresses')) {
-            $actressCandidates = $pdo->query('SELECT id,name,image_small,image_large,image_url FROM actresses ORDER BY (CASE WHEN COALESCE(NULLIF(image_small, ""), NULLIF(image_large, ""), NULLIF(image_url, ""), "") = "" THEN 1 ELSE 0 END), updated_at DESC, id DESC LIMIT 60')->fetchAll();
-            $actressCandidates = seeded_shuffle($actressCandidates ?: [], $seedBase + 15);
-            $actresses = array_slice($actressCandidates, 0, 15);
+            $actressCandidates = $pdo->query('SELECT id,name,image_small,image_large,image_url FROM actresses ORDER BY (CASE WHEN COALESCE(NULLIF(image_small, ""), NULLIF(image_large, ""), NULLIF(image_url, ""), "") = "" THEN 1 ELSE 0 END), RAND() LIMIT 30')->fetchAll();
+            $actresses = array_slice($actressCandidates ?: [], 0, 15);
         }
 
         if (db_table_exists($pdo, 'genres') && db_table_exists($pdo, 'item_genres')) {
@@ -612,32 +609,32 @@ $hasHomeContent = $newReleaseTop !== []
 <?php else: ?>
   <section class="rail-section only-pc home-feature-section">
     <h2>新作作品</h2>
-    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift rail-row--between-gap"><?php foreach ($newReleaseTop as $item) { render_item_card($item, 210); } ?></div>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift rail-row--between-gap"><?php foreach ($newReleaseTop as $item) { render_item_card($item, 210, null, false, false); } ?></div>
     <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal rail-row--home-taxonomy"><?php foreach ($newReleaseBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
   <section class="rail-section only-sp">
     <h2>新作作品</h2>
-    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($newReleaseTop as $item) { render_item_card($item, 210, null, true); } ?></div>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($newReleaseTop as $item) { render_item_card($item, 210, null, true, false); } ?></div>
   </section>
 
   <section class="rail-section only-pc home-feature-section">
     <h2>新着作品</h2>
-    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift rail-row--between-gap"><?php foreach ($latestTop as $item) { render_item_card($item, 210); } ?></div>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift rail-row--between-gap"><?php foreach ($latestTop as $item) { render_item_card($item, 210, null, false, false); } ?></div>
     <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal rail-row--home-taxonomy"><?php foreach ($latestBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
   <section class="rail-section only-sp">
     <h2>新着作品</h2>
-    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($latestTop as $item) { render_item_card($item, 210, null, true); } ?></div>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($latestTop as $item) { render_item_card($item, 210, null, true, false); } ?></div>
   </section>
 
   <section class="rail-section only-pc home-feature-section">
     <h2>ピックアップ</h2>
-    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift rail-row--between-gap"><?php foreach ($pickupTop as $item) { render_item_card($item, 210); } ?></div>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift rail-row--between-gap"><?php foreach ($pickupTop as $item) { render_item_card($item, 210, null, false, false); } ?></div>
     <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal rail-row--home-taxonomy"><?php foreach ($pickupBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
   <section class="rail-section only-sp">
     <h2>ピックアップ</h2>
-    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($pickupTop as $item) { render_item_card($item, 210, null, true); } ?></div>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($pickupTop as $item) { render_item_card($item, 210, null, true, false); } ?></div>
   </section>
 
   <section class="rail-section">
