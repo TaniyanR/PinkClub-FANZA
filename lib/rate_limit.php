@@ -22,10 +22,10 @@ function rate_limit_dir(): string
     return $dir;
 }
 
-function rate_limit_check(string $action, int $maxAttempts = 5, int $windowSeconds = 60): void
+function rate_limit_allow(string $action, int $maxAttempts = 5, int $windowSeconds = 60): bool
 {
     if ($maxAttempts <= 0 || $windowSeconds <= 0) {
-        return;
+        return true;
     }
 
     $key = preg_replace('/[^a-zA-Z0-9_-]/', '_', $action);
@@ -39,7 +39,7 @@ function rate_limit_check(string $action, int $maxAttempts = 5, int $windowSecon
 
     $handle = @fopen($file, 'c+');
     if ($handle === false) {
-        return;
+        return true;
     }
 
     if (@flock($handle, LOCK_EX)) {
@@ -57,10 +57,7 @@ function rate_limit_check(string $action, int $maxAttempts = 5, int $windowSecon
         if (count($attempts) >= $maxAttempts) {
             @flock($handle, LOCK_UN);
             @fclose($handle);
-            http_response_code(429);
-            header('Content-Type: text/plain; charset=UTF-8');
-            echo 'Too Many Requests';
-            exit;
+            return false;
         }
 
         $attempts[] = $now;
@@ -72,4 +69,17 @@ function rate_limit_check(string $action, int $maxAttempts = 5, int $windowSecon
     }
 
     @fclose($handle);
+    return true;
+}
+
+function rate_limit_check(string $action, int $maxAttempts = 5, int $windowSeconds = 60): void
+{
+    if (rate_limit_allow($action, $maxAttempts, $windowSeconds)) {
+        return;
+    }
+
+    http_response_code(429);
+    header('Content-Type: text/plain; charset=UTF-8');
+    echo 'Too Many Requests';
+    exit;
 }

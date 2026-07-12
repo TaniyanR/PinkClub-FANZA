@@ -37,6 +37,118 @@ function contact_destination_email(?int $currentUserId): array
     return ['', 'admin email not found'];
 }
 
+
+function contact_form_strlen(string $value): int
+{
+    return function_exists('mb_strlen') ? mb_strlen($value, 'UTF-8') : strlen($value);
+}
+
+function contact_spam_log(string $reason): void
+{
+    error_log('contact_form_spam reason=' . $reason . ' at=' . date('c') . ' ip_hash=' . hash('sha256', rate_limit_client_ip()));
+}
+
+function contact_form_issue_id(): string
+{
+    $now = time();
+    $forms = $_SESSION['contact_forms'] ?? [];
+    $forms = is_array($forms) ? $forms : [];
+    foreach ($forms as $id => $createdAt) {
+        if ((int)$createdAt < $now - 7200) {
+            unset($forms[$id]);
+        }
+    }
+    while (count($forms) >= 10) {
+        array_shift($forms);
+    }
+    try {
+        $id = bin2hex(random_bytes(16));
+    } catch (Throwable) {
+        $id = hash('sha256', uniqid('', true) . '|' . $now . '|' . session_id());
+    }
+    $forms[$id] = $now;
+    $_SESSION['contact_forms'] = $forms;
+    return $id;
+}
+
+function contact_form_consume_age(string $id): ?int
+{
+    $forms = $_SESSION['contact_forms'] ?? [];
+    if (!is_array($forms) || $id === '' || !isset($forms[$id])) {
+        return null;
+    }
+    $createdAt = (int)$forms[$id];
+    unset($forms[$id]);
+    $_SESSION['contact_forms'] = $forms;
+    return time() - $createdAt;
+}
+
+function contact_url_count(string $text): int
+{
+    $text = preg_replace('/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/iu', ' ', $text) ?? $text;
+    preg_match_all('~\b(?:https?://|www\.)\S+|\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:com|net|org|jp|co\.jp|info|biz|io|me|tv|xyz|site|online|club|tokyo|shop|app)(?:/\S*)?~iu', $text, $matches);
+    return count($matches[0] ?? []);
+}
+
+function contact_spam_keywords(): array
+{
+    $lines = preg_split('/\R/u', site_setting_get('contact.spam_keywords', '')) ?: [];
+    $keywords = [];
+    foreach ($lines as $line) {
+        $keyword = trim((string)$line);
+        if ($keyword !== '') {
+            $keywords[] = $keyword;
+        }
+    }
+    return $keywords;
+}
+
+function contact_contains_spam_keyword(array $values): bool
+{
+    $haystack = implode("\n", $values);
+    foreach (contact_spam_keywords() as $keyword) {
+        if (function_exists('mb_stripos')) {
+            if (mb_stripos($haystack, $keyword, 0, 'UTF-8') !== false) {
+                return true;
+            }
+        } elseif (stripos($haystack, $keyword) !== false) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function contact_duplicate_seen(string $email, string $subject, string $message): bool
+{
+    $normalized = rate_limit_client_ip() . "\n" . strtolower(trim($email)) . "\n" . preg_replace('/\s+/u', ' ', trim(str_replace(["\r\n", "\r"], "\n", $subject))) . "\n" . preg_replace('/\s+/u', ' ', trim(str_replace(["\r\n", "\r"], "\n", $message)));
+    $hash = hash('sha256', $normalized);
+    $file = rate_limit_dir() . DIRECTORY_SEPARATOR . 'contact_duplicate_' . $hash . '.json';
+    $now = time();
+    $handle = @fopen($file, 'c+');
+    if ($handle === false) {
+        return false;
+    }
+    $duplicate = false;
+    if (@flock($handle, LOCK_EX)) {
+        $raw = stream_get_contents($handle);
+        $decoded = is_string($raw) && $raw !== '' ? json_decode($raw, true) : [];
+        $last = is_array($decoded) ? (int)($decoded['last'] ?? 0) : 0;
+        $duplicate = $last > $now - 600;
+        ftruncate($handle, 0);
+        rewind($handle);
+        fwrite($handle, json_encode(['hash' => $hash, 'last' => $now]));
+        fflush($handle);
+        @flock($handle, LOCK_UN);
+    }
+    @fclose($handle);
+    return $duplicate;
+}
+
+function contact_has_newline(string $value): bool
+{
+    return str_contains($value, "\r") || str_contains($value, "\n");
+}
+
 function about_access_ranking_text(): string
 {
     try {
@@ -124,17 +236,16 @@ $contactForm = [
 $isContactPage = $slug === 'contact';
 
 if ($isContactPage && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST')) {
-    rate_limit_check('contact_form', 3, 300);
+    $rateLimitAllowed = rate_limit_allow('contact_form', 3, 300);
+    $spamReason = null;
 
     $contactForm['subject'] = trim((string)($_POST['subject'] ?? ''));
     $contactForm['message'] = trim((string)($_POST['message'] ?? ''));
     $contactForm['name'] = trim((string)($_POST['name'] ?? ''));
     $contactForm['email'] = trim((string)($_POST['email'] ?? ''));
+    $formAge = contact_form_consume_age((string)($_POST['contact_form_id'] ?? ''));
 
     if (!csrf_verify((string)($_POST['_token'] ?? ''))) {
-        $formErrors[] = 'リクエストが無効です。';
-    }
-    if (trim((string)($_POST['website'] ?? '')) !== '') {
         $formErrors[] = 'リクエストが無効です。';
     }
     if ($contactForm['name'] === '') {
@@ -142,8 +253,6 @@ if ($isContactPage && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST')) {
     }
     if ($contactForm['email'] === '') {
         $formErrors[] = 'メールアドレスは必須です。';
-    } elseif (!filter_var($contactForm['email'], FILTER_VALIDATE_EMAIL)) {
-        $formErrors[] = 'メールアドレスの形式が正しくありません。';
     }
     if ($contactForm['subject'] === '') {
         $formErrors[] = '題名は必須です。';
@@ -151,8 +260,49 @@ if ($isContactPage && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST')) {
     if ($contactForm['message'] === '') {
         $formErrors[] = '内容は必須です。';
     }
+    if (contact_form_strlen($contactForm['name']) > 100) {
+        $formErrors[] = '氏名は100文字以内で入力してください。';
+    }
+    if (contact_form_strlen($contactForm['email']) > 254) {
+        $formErrors[] = 'メールアドレスは254文字以内で入力してください。';
+    }
+    if (contact_form_strlen($contactForm['subject']) > 200) {
+        $formErrors[] = '題名は200文字以内で入力してください。';
+    }
+    if (contact_form_strlen($contactForm['message']) > 5000) {
+        $formErrors[] = '内容は5000文字以内で入力してください。';
+    }
+    if ($contactForm['email'] !== '' && !filter_var($contactForm['email'], FILTER_VALIDATE_EMAIL)) {
+        $formErrors[] = 'メールアドレスの形式が正しくありません。';
+    }
+    if (contact_has_newline($contactForm['name']) || contact_has_newline($contactForm['email']) || contact_has_newline($contactForm['subject'])) {
+        $spamReason = 'header_injection';
+    }
+    if ($formAge === null || $formAge > 7200) {
+        $formErrors[] = 'フォームの有効期限が切れました。再度お試しください。';
+    }
 
     if ($formErrors === []) {
+        if (trim((string)($_POST['website'] ?? '')) !== '') {
+            $spamReason = 'honeypot';
+        } elseif ($formAge < 3) {
+            $spamReason = 'too_fast';
+        } elseif (contact_url_count($contactForm['subject'] . "\n" . $contactForm['message']) > 3) {
+            $spamReason = 'too_many_urls';
+        } elseif (contact_contains_spam_keyword([$contactForm['name'], $contactForm['email'], $contactForm['subject'], $contactForm['message']])) {
+            $spamReason = 'keyword';
+        } elseif (contact_duplicate_seen($contactForm['email'], $contactForm['subject'], $contactForm['message'])) {
+            $spamReason = 'duplicate';
+        } elseif (!$rateLimitAllowed) {
+            $spamReason = 'rate_limit';
+        }
+    }
+
+    if ($formErrors === [] && $spamReason !== null) {
+        contact_spam_log($spamReason);
+        $contactSuccess = true;
+        $contactForm = ['subject' => '', 'message' => '', 'name' => '', 'email' => ''];
+    } elseif ($formErrors === []) {
         $currentUser = admin_current_user();
         $currentUserId = is_array($currentUser) ? (int)($currentUser['id'] ?? 0) : 0;
         [$toEmail, $toEmailError] = contact_destination_email($currentUserId > 0 ? $currentUserId : null);
@@ -204,6 +354,9 @@ if ($isContactPage && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST')) {
     }
 }
 
+$contactFormId = $isContactPage && !$contactSuccess ? contact_form_issue_id() : '';
+
+
 if ($slug === 'about' || $slug === 'privacy-policy') {
     $p['body'] = str_replace(
         ['[サイト名]', '[サイトURL]', '[サイトRSS]', '[アクセスランキング]', '[Privacy Policy(URL付き)]'],
@@ -237,19 +390,20 @@ include __DIR__ . '/partials/header.php';
                     <?php endforeach; ?>
                     <form class="contact-form" method="post" action="<?php echo e((string)($_SERVER['REQUEST_URI'] ?? '/p/contact')); ?>">
                         <input type="hidden" name="_token" value="<?php echo e(csrf_token()); ?>">
+                        <input type="hidden" name="contact_form_id" value="<?php echo e($contactFormId); ?>">
                         <input type="text" name="website" value="" autocomplete="off" tabindex="-1" style="display:none">
 
                         <label for="contact-name">氏名</label>
-                        <input id="contact-name" name="name" value="<?php echo e($contactForm['name']); ?>" required>
+                        <input id="contact-name" name="name" value="<?php echo e($contactForm['name']); ?>" maxlength="100" required>
 
                         <label for="contact-email">メールアドレス</label>
-                        <input id="contact-email" name="email" type="email" value="<?php echo e($contactForm['email']); ?>" required>
+                        <input id="contact-email" name="email" type="email" value="<?php echo e($contactForm['email']); ?>" maxlength="254" required>
 
                         <label for="contact-subject">題名</label>
-                        <input id="contact-subject" name="subject" value="<?php echo e($contactForm['subject']); ?>" required>
+                        <input id="contact-subject" name="subject" value="<?php echo e($contactForm['subject']); ?>" maxlength="200" required>
 
                         <label for="contact-message">内容</label>
-                        <textarea id="contact-message" name="message" rows="10" required><?php echo e($contactForm['message']); ?></textarea>
+                        <textarea id="contact-message" name="message" rows="10" maxlength="5000" required><?php echo e($contactForm['message']); ?></textarea>
 
                         <button type="submit">送信</button>
                     </form>
