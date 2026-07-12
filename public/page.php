@@ -419,7 +419,7 @@ $contactFormId = $isContactPage && !$contactSuccess ? contact_form_issue_id() : 
 if ($slug === 'about' || $slug === 'privacy-policy') {
     $p['body'] = str_replace(
         ['[サイト名]', '[サイトURL]', '[サイトRSS]', '[アクセスランキング]', '[Privacy Policy(URL付き)]'],
-        [site_setting_get('site.title', site_setting_get('site.name', APP_NAME)), site_setting_get('site.url', app_url()), site_setting_get('site.rss_url', public_url('feed.php')), about_access_ranking_text(), 'Privacy Policy（' . public_url('page.php?slug=privacy-policy') . '）'],
+        [site_setting_get('site.title', site_setting_get('site.name', APP_NAME)), site_setting_get('site.url', app_url()), public_url('feed.php'), about_access_ranking_text(), 'Privacy Policy（' . public_url('page.php?slug=privacy-policy') . '）'],
         (string)$p['body']
     );
 }
