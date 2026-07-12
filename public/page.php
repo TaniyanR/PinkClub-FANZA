@@ -163,8 +163,12 @@ function contact_duplicate_cleanup(): void
 function contact_duplicate_is_recent(string $email, string $subject, string $message): bool
 {
     $file = contact_duplicate_file(contact_duplicate_hash($email, $subject, $message));
+    if (is_link($file) || !is_file($file)) {
+        return false;
+    }
+
     $now = time();
-    $handle = @fopen($file, 'c+');
+    $handle = @fopen($file, 'r');
     if ($handle === false) {
         return false;
     }
