@@ -398,22 +398,31 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 10px;
-  line-height: 1.5;
+  column-gap: 10px;
+  row-gap: 12px;
+  line-height: 1.7;
 }
 
-.pcf-chip-list strong {
-  margin-right: 2px;
+.pcf-kana-directory .pcf-chip-list + .pcf-chip-list {
+  margin-top: 16px;
+}
+
+.pcf-kana-directory .pcf-chip-list strong {
+  flex: 0 0 100%;
+  margin: 0 0 -2px;
+  line-height: 1.4;
 }
 
 .pcf-chip {
+  box-sizing: border-box;
   display: inline-block;
   max-width: 100%;
   padding: 6px 14px;
-  border: 1px solid #d9d9d9;
+  border: 1px solid #c8ddf4;
   border-radius: 9999px;
-  background: #fff;
+  background: #eaf4ff;
   color: #1e73be;
+  font-weight: 700;
   line-height: 1.4;
   text-decoration: none;
   overflow-wrap: anywhere;
@@ -436,7 +445,8 @@
 
 @media (max-width: 600px) {
   .pcf-chip-list {
-    gap: 7px 8px;
+    column-gap: 8px;
+    row-gap: 10px;
   }
 
   .pcf-chip {
