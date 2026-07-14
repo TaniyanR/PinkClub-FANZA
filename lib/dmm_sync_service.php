@@ -194,6 +194,11 @@ class DmmSyncService
             }
 
             $processedCount = 0;
+            $saveItems = [];
+            $saveUpdatedCount = 0;
+            $existingContentIds = $this->itemsExistByContentIds(array_map(static function (array $item): string {
+                return (string)($item['content_id'] ?? '');
+            }, $fetchedItems));
             foreach ($fetchedItems as $item) {
                 $processedCount++;
                 $excluded = false;
@@ -212,15 +217,27 @@ class DmmSyncService
                     continue;
                 }
 
-                $exists = $this->itemExistsByContentId((string)($item['content_id'] ?? ''));
+                $contentId = (string)($item['content_id'] ?? '');
+                $exists = isset($existingContentIds[$contentId]);
                 if (!$exists && $newCount >= $targetNew) {
                     $processedCount--;
                     break;
                 }
 
-                $stats = $this->saveItemsWithStats([$item], 'items', false);
-                $newCount += (int)$stats['new_count'];
-                $updatedCount += (int)$stats['updated_count'];
+                $saveItems[] = $item;
+                if ($exists) {
+                    $saveUpdatedCount++;
+                    continue;
+                }
+                $newCount++;
+                if ($contentId !== '') {
+                    $existingContentIds[$contentId] = true;
+                }
+            }
+
+            if ($saveItems !== []) {
+                $this->saveItemsWithStats($saveItems, 'items', false);
+                $updatedCount += $saveUpdatedCount;
             }
 
             if ($advancePastOffset) {
@@ -325,6 +342,28 @@ class DmmSyncService
         $stmt = $this->pdo->prepare('SELECT 1 FROM items WHERE content_id = ? LIMIT 1');
         $stmt->execute([$contentId]);
         return (bool)$stmt->fetchColumn();
+    }
+
+    /**
+     * @param string[] $contentIds
+     * @return array<string, bool>
+     */
+    private function itemsExistByContentIds(array $contentIds): array
+    {
+        $contentIds = array_values(array_unique(array_filter(array_map('strval', $contentIds), static fn (string $contentId): bool => $contentId !== '')));
+        if ($contentIds === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($contentIds), '?'));
+        $stmt = $this->pdo->prepare("SELECT content_id FROM items WHERE content_id IN ({$placeholders})");
+        $stmt->execute($contentIds);
+
+        $exists = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) ?: [] as $contentId) {
+            $exists[(string)$contentId] = true;
+        }
+        return $exists;
     }
 
     private function upsertSimple(string $table, string $codeColumn, string $code, string $name): void

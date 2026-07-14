@@ -19,7 +19,7 @@ function scheduler_tick(): array
             continue;
         }
         $scheduleType = (string)$schedule['schedule_type'];
-        $lockUntil = date('Y-m-d H:i:s', time() + 55);
+        $lockUntil = date('Y-m-d H:i:s', time() + ($scheduleType === 'items' ? 300 : 55));
         $locked = $pdo->prepare('UPDATE api_schedules SET lock_until = :lock_until WHERE id = :id AND (lock_until IS NULL OR lock_until < NOW())');
         $locked->execute(['lock_until' => $lockUntil, 'id' => $schedule['id']]);
         if ($locked->rowCount() === 0) {
@@ -127,7 +127,7 @@ function scheduler_run_items_schedule(DmmSyncService $service, array $settings):
     $pdo = db();
     scheduler_ensure_job_state_table($pdo);
     $pdo->prepare("INSERT INTO sync_job_state (job_key, next_offset, updated_at) VALUES ('items', 1, NOW()) ON DUPLICATE KEY UPDATE updated_at = updated_at")->execute();
-    $lockUntil = date('Y-m-d H:i:s', time() + 55);
+    $lockUntil = date('Y-m-d H:i:s', time() + 300);
     $lockStmt = $pdo->prepare("UPDATE sync_job_state SET lock_until = :lock_until WHERE job_key = 'items' AND (lock_until IS NULL OR lock_until < NOW())");
     $lockStmt->execute([':lock_until' => $lockUntil]);
     if ($lockStmt->rowCount() === 0) {
