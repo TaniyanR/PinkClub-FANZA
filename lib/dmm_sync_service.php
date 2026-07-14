@@ -150,45 +150,120 @@ class DmmSyncService
 
     public function syncItemsBatch(string $siteCode, string $serviceCode, string $floorCode, int $batch, int $offset = 1, array $extraParams = [], array $excludeKeywords = []): array
     {
-        $remaining = max(1, $batch);
+        $targetNew = max(1, $batch);
         $currentOffset = $this->normalizeItemListOffset($offset);
-        $total = 0;
+        $nextOffset = $currentOffset;
+        $apiCount = 0;
+        $newCount = 0;
+        $updatedCount = 0;
+        $excludedCount = 0;
+        $checkedCount = 0;
+        $maxChecked = 1000;
+        $hitLimit = 100;
+        $reachedEnd = false;
 
-        while ($remaining > 0) {
-            $hits = min(100, $remaining);
-            $currentOffset = $this->normalizeItemListOffset($currentOffset);
-            $requestParams = array_merge($extraParams, ['hits' => $hits, 'offset' => $currentOffset]);
+        $fetchAndSave = function (int $requestOffset, bool $advancePastOffset) use (
+            $siteCode,
+            $serviceCode,
+            $floorCode,
+            $extraParams,
+            $excludeKeywords,
+            $hitLimit,
+            &$apiCount,
+            &$newCount,
+            &$updatedCount,
+            &$excludedCount,
+            &$checkedCount,
+            &$nextOffset,
+            &$reachedEnd,
+            $targetNew
+        ): int {
+            $requestOffset = $this->normalizeItemListOffset($requestOffset);
+            $requestParams = array_merge($extraParams, ['hits' => $hitLimit, 'offset' => $requestOffset]);
             $response = $this->client->fetchItems($siteCode, $serviceCode, $floorCode, $requestParams);
-            $items = DmmNormalizer::normalizeItemsResponse($response);
-            if ($excludeKeywords !== []) {
-                $items = array_values(array_filter($items, static function (array $item) use ($excludeKeywords): bool {
+            $fetchedItems = DmmNormalizer::normalizeItemsResponse($response);
+            $fetchedCount = count($fetchedItems);
+            $apiCount += $fetchedCount;
+            $checkedCount += $fetchedCount;
+            if ($fetchedCount === 0) {
+                $reachedEnd = true;
+                if ($advancePastOffset) {
+                    $nextOffset = 1;
+                }
+                return 0;
+            }
+
+            $processedCount = 0;
+            foreach ($fetchedItems as $item) {
+                $processedCount++;
+                $excluded = false;
+                if ($excludeKeywords !== []) {
                     $title = (string)($item['title'] ?? '');
                     foreach ($excludeKeywords as $keyword) {
                         $keyword = trim((string)$keyword);
                         if ($keyword !== '' && mb_strpos($title, $keyword) !== false) {
-                            return false;
+                            $excluded = true;
+                            break;
                         }
                     }
-                    return true;
-                }));
-            }
-            if ($items === []) {
-                $currentOffset = 1;
-                break;
+                }
+                if ($excluded) {
+                    $excludedCount++;
+                    continue;
+                }
+
+                $exists = $this->itemExistsByContentId((string)($item['content_id'] ?? ''));
+                if (!$exists && $newCount >= $targetNew) {
+                    $processedCount--;
+                    break;
+                }
+
+                $stats = $this->saveItemsWithStats([$item], 'items', false);
+                $newCount += (int)$stats['new_count'];
+                $updatedCount += (int)$stats['updated_count'];
             }
 
-            $saved = $this->saveItems($items, 'items');
-            $total += $saved;
-            $remaining -= $hits;
-            $currentOffset = $this->normalizeItemListOffset($currentOffset + $hits);
+            if ($advancePastOffset) {
+                $nextOffset = $this->normalizeItemListOffset($requestOffset + $processedCount);
+                if ($fetchedCount < $hitLimit) {
+                    $nextOffset = 1;
+                    $reachedEnd = true;
+                }
+            }
 
-            if (count($items) < $hits) {
-                $currentOffset = 1;
+            return $fetchedCount;
+        };
+
+        $fetchAndSave(1, false);
+
+        while ($newCount < $targetNew && $checkedCount < $maxChecked && !$reachedEnd) {
+            $fetchAndSave($currentOffset, true);
+            $currentOffset = $nextOffset;
+            if ($nextOffset === 1 && $reachedEnd) {
                 break;
             }
         }
 
-        return ['synced_count' => $total, 'next_offset' => $currentOffset];
+        $message = sprintf(
+            '商品を同期しました。API取得: %d件 / 新規: %d件 / 更新: %d件 / 除外: %d件 / 次回offset: %d',
+            $apiCount,
+            $newCount,
+            $updatedCount,
+            $excludedCount,
+            $nextOffset
+        );
+        $this->logSync('items', 1, $newCount, $message);
+
+        return [
+            'synced_count' => $newCount,
+            'api_count' => $apiCount,
+            'new_count' => $newCount,
+            'updated_count' => $updatedCount,
+            'excluded_count' => $excludedCount,
+            'checked_count' => $checkedCount,
+            'next_offset' => $nextOffset,
+            'message' => $message,
+        ];
     }
 
     private function normalizeItemListOffset(int $offset): int
@@ -199,10 +274,19 @@ class DmmSyncService
 
     private function saveItems(array $items, string $logType): int
     {
+        $stats = $this->saveItemsWithStats($items, $logType, true);
+        return (int)$stats['saved_count'];
+    }
+
+    private function saveItemsWithStats(array $items, string $logType, bool $writeLog): array
+    {
         $count = 0;
+        $newCount = 0;
+        $updatedCount = 0;
         $this->pdo->beginTransaction();
         try {
             foreach ($items as $item) {
+                $exists = $this->itemExistsByContentId((string)($item['content_id'] ?? ''));
                 $itemId = $this->upsertItem($item);
                 $this->rebuildItemRelations($itemId, $item);
                 if (function_exists('generate_tags_for_item')) {
@@ -213,15 +297,34 @@ class DmmSyncService
                     ]);
                 }
                 $count++;
+                if ($exists) {
+                    $updatedCount++;
+                } else {
+                    $newCount++;
+                }
             }
             $this->pdo->commit();
-            $this->logSync($logType, 1, $count, 'Item sync completed.');
-            return $count;
+            if ($writeLog) {
+                $this->logSync($logType, 1, $count, 'Item sync completed.');
+            }
+            return ['saved_count' => $count, 'new_count' => $newCount, 'updated_count' => $updatedCount];
         } catch (Throwable $e) {
             $this->pdo->rollBack();
-            $this->logSync($logType, 0, 0, $e->getMessage());
+            if ($writeLog) {
+                $this->logSync($logType, 0, 0, $e->getMessage());
+            }
             throw $e;
         }
+    }
+
+    private function itemExistsByContentId(string $contentId): bool
+    {
+        if ($contentId === '') {
+            return false;
+        }
+        $stmt = $this->pdo->prepare('SELECT 1 FROM items WHERE content_id = ? LIMIT 1');
+        $stmt->execute([$contentId]);
+        return (bool)$stmt->fetchColumn();
     }
 
     private function upsertSimple(string $table, string $codeColumn, string $code, string $name): void
