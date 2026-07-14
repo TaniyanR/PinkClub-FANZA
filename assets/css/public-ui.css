@@ -397,23 +397,35 @@
 .pcf-chip-list {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-  line-height: 1.5;
+  align-items: flex-start;
+  column-gap: 10px;
+  row-gap: 12px;
+  line-height: 1.7;
+}
+
+.pcf-chip-list + .pcf-chip-list {
+  margin-top: 14px;
 }
 
 .pcf-chip-list strong {
-  margin-right: 2px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  margin-right: 4px;
+  line-height: 1.4;
 }
 
 .pcf-chip {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   max-width: 100%;
+  min-height: 34px;
   padding: 6px 14px;
-  border: 1px solid #d9d9d9;
+  border: 1px solid #c8ddf4;
   border-radius: 9999px;
-  background: #fff;
+  background: #eaf4ff;
   color: #1e73be;
+  font-weight: 700;
   line-height: 1.4;
   text-decoration: none;
   overflow-wrap: anywhere;
@@ -436,10 +448,12 @@
 
 @media (max-width: 600px) {
   .pcf-chip-list {
-    gap: 7px 8px;
+    column-gap: 8px;
+    row-gap: 10px;
   }
 
   .pcf-chip {
+    min-height: 33px;
     padding: 6px 12px;
     font-size: 13px;
   }
