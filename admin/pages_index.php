@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../public/_bootstrap.php';
+require_once __DIR__ . '/../lib/contact_page_slug.php';
 auth_require_admin();
 $title = '固定ページ一覧';
 $message = null;
@@ -25,8 +26,10 @@ try {
     $defaults = [
         ['slug' => 'about', 'title' => 'サイトについて', 'body' => $aboutBody],
         ['slug' => 'privacy-policy', 'title' => 'Privacy Policy', 'body' => $privacyPolicyBody],
-        ['slug' => 'contact', 'title' => 'お問い合わせ', 'body' => "お問い合わせは下記フォームよりご連絡ください。"],
+        ['slug' => CONTACT_PAGE_SLUG, 'title' => 'お問い合わせ', 'body' => "お問い合わせは下記フォームよりご連絡ください。"],
     ];
+
+    migrate_contact_page_slug();
 
     $insert = db()->prepare('INSERT INTO fixed_pages(slug,title,body,is_published,created_at,updated_at) VALUES(:slug,:title,:body,1,NOW(),NOW()) ON DUPLICATE KEY UPDATE slug=slug');
     foreach ($defaults as $defaultPage) {

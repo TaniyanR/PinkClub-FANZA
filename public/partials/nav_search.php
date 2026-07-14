@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/db.php';
+require_once __DIR__ . '/../../lib/contact_page_slug.php';
 
 $path = (string)parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
 $searchQuery = trim((string)($_GET['q'] ?? ''));
@@ -20,7 +21,7 @@ $mobileMainItems = $navItems;
 $mobileInfoItems = [
     ['href' => public_url('page.php?slug=about'), 'label' => 'サイトについて'],
     ['href' => public_url('page.php?slug=privacy-policy'), 'label' => 'Privacy Policy'],
-    ['href' => public_url('page.php?slug=contact'), 'label' => 'お問い合わせ'],
+    ['href' => public_url('page.php?slug=que'), 'label' => 'お問い合わせ'],
 ];
 $sitePostCount = null;
 $siteActressCount = null;
@@ -46,7 +47,7 @@ try {
 try {
     $stmt = db()->query('SELECT slug,title FROM fixed_pages WHERE is_published = 1 ORDER BY id ASC');
     $fixedPages = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
-    $excludedSlugs = ['about', 'privacy-policy', 'contact'];
+    $excludedSlugs = ['about', 'privacy-policy', CONTACT_PAGE_OLD_SLUG, CONTACT_PAGE_SLUG];
     $excludedTitles = ['サイトについて', 'Privacy Policy', 'お問い合わせ'];
     foreach ($fixedPages as $page) {
         $slug = trim((string)($page['slug'] ?? ''));

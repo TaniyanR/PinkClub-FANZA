@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/app_features.php';
+require_once __DIR__ . '/../../lib/contact_page_slug.php';
 require_once __DIR__ . '/_helpers.php';
 
 $sortMode = site_setting_get('link.sort_mode', 'registered');
@@ -18,7 +19,7 @@ $fixedPages = [];
 $defaultFixedPages = [
     ['slug' => 'about', 'title' => 'サイトについて', 'href' => public_url('page.php?slug=about')],
     ['slug' => 'privacy-policy', 'title' => 'Privacy Policy', 'href' => public_url('page.php?slug=privacy-policy')],
-    ['slug' => 'contact', 'title' => 'お問い合わせ', 'href' => public_url('page.php?slug=contact')],
+    ['slug' => CONTACT_PAGE_SLUG, 'title' => 'お問い合わせ', 'href' => public_url('page.php?slug=que')],
 ];
 
 try {
@@ -99,7 +100,15 @@ if ($fixedPages === []) {
                 <?php if ($siteActressCount !== null): ?><li><a style="color:#000;">女優数：<strong><?= e(number_format($siteActressCount)) ?></strong></a></li><?php endif; ?>
                 <?php foreach ($fixedPages as $page): ?>
                     <?php $pageHref = trim((string)($page['href'] ?? '')); ?>
-                    <?php if ($pageHref === '') { $pageHref = public_url('page.php?slug=' . (string)$page['slug']); } ?>
+                    <?php
+                    if ($pageHref === '') {
+                        $pageSlug = (string)$page['slug'];
+                        if ($pageSlug === CONTACT_PAGE_OLD_SLUG) {
+                            $pageSlug = CONTACT_PAGE_SLUG;
+                        }
+                        $pageHref = public_url('page.php?slug=' . $pageSlug);
+                    }
+                    ?>
                     <li><a href="<?= e($pageHref) ?>"><?= e((string)$page['title']) ?></a></li>
                 <?php endforeach; ?>
             </ul>
