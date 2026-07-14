@@ -93,8 +93,7 @@ try {
     $pg = paginate(0, $page, $per);
 }
 if ($row === null) {
-    http_response_code(404);
-    exit('not found');
+    require __DIR__ . '/404.php';
 }
 
 $genreName = pcf_genre_display_name($row);

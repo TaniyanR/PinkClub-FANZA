@@ -53,14 +53,12 @@ $list = [];
 $hasNext = false;
 $label = fetch_label($id, $name);
 if ($label === null) {
-    http_response_code(404);
-    exit('not found');
+    require __DIR__ . '/404.php';
 }
 
 $labelName = trim((string)($label['name'] ?? ''));
 if ($labelName === '') {
-    http_response_code(404);
-    exit('not found');
+    require __DIR__ . '/404.php';
 }
 
 $rows = dedupe_items_by_key(fetch_items_by_label_name($labelName, $limit + 1, $offset));

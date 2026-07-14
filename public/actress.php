@@ -63,8 +63,7 @@ function actress_profile_image(array $profile): string
 
 $id = (int)get('id', 0);
 if ($id <= 0) {
-    http_response_code(404);
-    exit('not found');
+    require __DIR__ . '/404.php';
 }
 
 $row = null;
@@ -76,15 +75,13 @@ try {
 }
 
 if (!is_array($row)) {
-    http_response_code(404);
-    exit('not found');
+    require __DIR__ . '/404.php';
 }
 
 $actressDisplayName = trim((string)($row['name'] ?? ''));
 $dmmId = trim((string)($row['dmm_id'] ?? ''));
 if ($actressDisplayName === '' || is_invalid_actress_name($actressDisplayName) || str_starts_with($dmmId, 'name:') || !ctype_digit($dmmId)) {
-    http_response_code(404);
-    exit('not found');
+    require __DIR__ . '/404.php';
 }
 
 try {
