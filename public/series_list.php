@@ -100,9 +100,9 @@ require __DIR__ . '/partials/header.php';
       <?php if ($groupRows === []): continue; endif; ?>
       <section class="pcf-index-block">
         <h2 class="pcf-section-title"><?= e($kana) ?>行</h2>
-        <div class="pcf-list-card__meta">
+        <div class="pcf-list-card__meta pcf-chip-list">
           <?php foreach ($groupRows as $i => $r): ?>
-            <?php if ($i > 0): ?>　<?php endif; ?><a href="<?= e(public_url('series_detail.php?id=' . (int)($r['id'] ?? 0))) ?>"><?= e((string)($r['name'] ?? '')) ?></a>
+            <a class="pcf-chip" href="<?= e(public_url('series_detail.php?id=' . (int)($r['id'] ?? 0))) ?>"><?= e((string)($r['name'] ?? '')) ?></a>
           <?php endforeach; ?>
         </div>
       </section>
@@ -111,10 +111,10 @@ require __DIR__ . '/partials/header.php';
       <section class="pcf-index-block">
         <h2 class="pcf-section-title">A~Z</h2>
         <?php foreach ($alphaGroups as $letter => $groupRows): ?>
-          <div class="pcf-list-card__meta">
+          <div class="pcf-list-card__meta pcf-chip-list">
             <strong><?= e($letter) ?></strong>
             <?php foreach ($groupRows as $i => $r): ?>
-              <?php if ($i > 0): ?>　<?php endif; ?><a href="<?= e(public_url('series_detail.php?id=' . (int)($r['id'] ?? 0))) ?>"><?= e((string)($r['name'] ?? '')) ?></a>
+              <a class="pcf-chip" href="<?= e(public_url('series_detail.php?id=' . (int)($r['id'] ?? 0))) ?>"><?= e((string)($r['name'] ?? '')) ?></a>
             <?php endforeach; ?>
           </div>
         <?php endforeach; ?>
