@@ -50,8 +50,7 @@ if ($makerName !== '') {
     }
 }
 if ($row === null || $makerName === '' || pcf_is_noise_name($makerName) || $makerNameIsMutualLink) {
-    http_response_code(404);
-    exit('not found');
+    require __DIR__ . '/404.php';
 }
 
 try {

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/bootstrap.php';
+require_once __DIR__ . '/../lib/repository.php';
 
 header('Content-Type: application/xml; charset=UTF-8');
 
@@ -22,21 +23,25 @@ function sitemap_url(string $loc, string $changefreq, string $priority, string $
     echo "  </url>\n";
 }
 
-function sitemap_table_count(string $table): int
+function sitemap_table_count(string $table, string $where = ''): int
 {
     try {
         if (!db_table_exists($table)) {
             return 0;
         }
-        return (int)db()->query('SELECT COUNT(*) FROM ' . $table)->fetchColumn();
+        $sql = 'SELECT COUNT(*) FROM ' . $table;
+        if ($where !== '') {
+            $sql .= ' WHERE ' . $where;
+        }
+        return (int)db()->query($sql)->fetchColumn();
     } catch (Throwable) {
         return 0;
     }
 }
 
-function sitemap_emit_table(string $table, string $path, string $changefreq, string $priority, int $start, int &$remaining): int
+function sitemap_emit_table(string $table, string $path, string $changefreq, string $priority, int $start, int &$remaining, string $where = ''): int
 {
-    $count = sitemap_table_count($table);
+    $count = sitemap_table_count($table, $where);
     if ($remaining <= 0) {
         return $count;
     }
@@ -46,7 +51,12 @@ function sitemap_emit_table(string $table, string $path, string $changefreq, str
 
     $limit = min($remaining, $count - $start);
     try {
-        $stmt = db()->prepare('SELECT id, updated_at FROM ' . $table . ' ORDER BY id ASC LIMIT :limit OFFSET :offset');
+        $sql = 'SELECT id, updated_at FROM ' . $table;
+        if ($where !== '') {
+            $sql .= ' WHERE ' . $where;
+        }
+        $sql .= ' ORDER BY id ASC LIMIT :limit OFFSET :offset';
+        $stmt = db()->prepare($sql);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $start, PDO::PARAM_INT);
         $stmt->execute();
@@ -67,7 +77,7 @@ $staticUrls = [
     [public_url('search.php'), 'daily', '0.9'],
 ];
 $tables = [
-    ['items', 'item.php', 'weekly', '0.8'],
+    ['items', 'item.php', 'weekly', '0.8', items_front_release_where()],
     ['genres', 'genre.php', 'daily', '0.9'],
     ['series_master', 'series_detail.php', 'daily', '0.9'],
     ['actresses', 'actress.php', 'daily', '0.9'],
@@ -75,7 +85,7 @@ $tables = [
 ];
 $totalUrls = count($staticUrls);
 foreach ($tables as $table) {
-    $totalUrls += sitemap_table_count((string)$table[0]);
+    $totalUrls += sitemap_table_count((string)$table[0], (string)($table[4] ?? ''));
 }
 
 if ((isset($_GET['index']) && (string)$_GET['index'] === '1') || ($totalUrls > $perSitemap && !isset($_GET['part']))) {
@@ -112,7 +122,7 @@ foreach ($staticUrls as $index => $url) {
 $start = max(0, $start - count($staticUrls));
 
 foreach ($tables as $table) {
-    $count = sitemap_emit_table((string)$table[0], (string)$table[1], (string)$table[2], (string)$table[3], $start, $remaining);
+    $count = sitemap_emit_table((string)$table[0], (string)$table[1], (string)$table[2], (string)$table[3], $start, $remaining, (string)($table[4] ?? ''));
     $start = max(0, $start - $count);
 }
 

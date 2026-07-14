@@ -77,6 +77,7 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= e($titleText) ?></title>
   <?php if ($descriptionText !== ''): ?><meta name="description" content="<?= e($descriptionText) ?>"><?php endif; ?>
+  <?php if (isset($robotsMeta) && is_string($robotsMeta) && trim($robotsMeta) !== ''): ?><meta name="robots" content="<?= e(trim($robotsMeta)) ?>"><?php endif; ?>
   <?php if ($canonicalHref !== ''): ?><link rel="canonical" href="<?= e($canonicalHref) ?>"><?php endif; ?>
   <?php if ($relPrevHref !== ''): ?><link rel="prev" href="<?= e($relPrevHref) ?>"><?php endif; ?>
   <?php if ($relNextHref !== ''): ?><link rel="next" href="<?= e($relNextHref) ?>"><?php endif; ?>

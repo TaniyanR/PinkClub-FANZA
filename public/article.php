@@ -14,12 +14,7 @@ $stmt->execute([':id' => $articleId]);
 $article = $stmt->fetch();
 
 if (!$article) {
-    http_response_code(404);
-    $pageTitle = $siteTitle . ' | 記事が見つかりません';
-    require __DIR__ . '/partials/header.php';
-    echo '<h1>記事が見つかりませんでした。</h1>';
-    require __DIR__ . '/partials/footer.php';
-    exit;
+    require __DIR__ . '/404.php';
 }
 
 $pageTitle = $siteTitle . ' | ' . $article['title'];

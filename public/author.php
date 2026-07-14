@@ -18,8 +18,7 @@ try {
     $row = false;
 }
 if (!$row) {
-    http_response_code(404);
-    exit('not found');
+    require __DIR__ . '/404.php';
 }
 
 $list = [];

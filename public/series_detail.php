@@ -69,8 +69,7 @@ try {
     $pg = paginate(0, $page, $per);
 }
 if ($series === null) {
-    http_response_code(404);
-    exit('not found');
+    require __DIR__ . '/404.php';
 }
 
 $seriesName = (string)($series['name'] ?? 'シリーズ詳細');

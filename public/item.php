@@ -277,8 +277,7 @@ try {
 }
 
 if (!$item) {
-    http_response_code(404);
-    exit('not found');
+    require __DIR__ . '/404.php';
 }
 
 $pageViewUserAgent = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
