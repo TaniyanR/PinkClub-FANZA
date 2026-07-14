@@ -248,11 +248,13 @@ function site_article_feed_insert_item(string $feedKey, array $config, array $it
     }
 }
 
-function site_article_feed_publish_initial(string $feedKey, array $config, int $limit): void
+function site_article_feed_publish_initial(string $feedKey, array $config, int $limit, int $startIndex = 0): void
 {
     $items = site_article_feed_select_items($feedKey, $config, $limit, true);
+    $intervalSeconds = max(0, (int)($config['interval'] ?? 0) * 60);
     foreach ($items as $index => $item) {
-        site_article_feed_insert_item($feedKey, $config, $item, (int)$index);
+        $offsetSeconds = ((int)$startIndex + (int)$index) * $intervalSeconds;
+        site_article_feed_insert_item($feedKey, $config, $item, $offsetSeconds);
     }
 }
 
@@ -261,7 +263,7 @@ function site_article_feed_maybe_publish(string $feedKey, array $config): void
     $currentCount = site_article_feed_count_items($feedKey);
     $limit = (int)$config['limit'];
     if ($currentCount < $limit) {
-        site_article_feed_publish_initial($feedKey, $config, $limit - $currentCount);
+        site_article_feed_publish_initial($feedKey, $config, $limit - $currentCount, $currentCount);
         return;
     }
 
