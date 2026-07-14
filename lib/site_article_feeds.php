@@ -248,11 +248,67 @@ function site_article_feed_insert_item(string $feedKey, array $config, array $it
     }
 }
 
-function site_article_feed_publish_initial(string $feedKey, array $config, int $limit): void
+function site_article_feed_rebalance_existing_published_at_once(array $configs): void
+{
+    $flagKey = 'site_article_feed_published_at_rebalanced_v1';
+    if (site_setting_get($flagKey, '') === '1') {
+        return;
+    }
+
+    $pdo = db();
+    try {
+        $baseStmt = $pdo->query('SELECT NOW()');
+        $baseValue = $baseStmt ? $baseStmt->fetchColumn() : false;
+        $basePublishedAt = is_string($baseValue) ? $baseValue : '';
+    } catch (Throwable) {
+        $basePublishedAt = '';
+    }
+    if ($basePublishedAt === '') {
+        $basePublishedAt = date('Y-m-d H:i:s');
+    }
+
+    try {
+        $pdo->beginTransaction();
+        foreach ($configs as $feedKey => $config) {
+            $limit = max(1, (int)($config['limit'] ?? 1));
+            $intervalSeconds = max(0, (int)($config['interval'] ?? 0) * 60);
+
+            $select = $pdo->prepare('SELECT id FROM site_article_feed_items WHERE feed_key = :feed_key ORDER BY published_at DESC, id DESC LIMIT :limit');
+            $select->bindValue(':feed_key', (string)$feedKey, PDO::PARAM_STR);
+            $select->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $select->execute();
+            $ids = array_map('intval', $select->fetchAll(PDO::FETCH_COLUMN) ?: []);
+
+            foreach ($ids as $index => $id) {
+                if ($id <= 0) {
+                    continue;
+                }
+                $offsetSeconds = (int)$index * $intervalSeconds;
+                $update = $pdo->prepare('UPDATE site_article_feed_items SET published_at = DATE_SUB(:base_published_at, INTERVAL ' . $offsetSeconds . ' SECOND) WHERE id = :id AND feed_key = :feed_key');
+                $update->execute([
+                    ':base_published_at' => $basePublishedAt,
+                    ':id' => $id,
+                    ':feed_key' => (string)$feedKey,
+                ]);
+            }
+        }
+        site_setting_set($flagKey, '1');
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log('[site_article_feed] rebalance failed: ' . $e->getMessage());
+    }
+}
+
+function site_article_feed_publish_initial(string $feedKey, array $config, int $limit, int $startIndex = 0): void
 {
     $items = site_article_feed_select_items($feedKey, $config, $limit, true);
+    $intervalSeconds = max(0, (int)($config['interval'] ?? 0) * 60);
     foreach ($items as $index => $item) {
-        site_article_feed_insert_item($feedKey, $config, $item, (int)$index);
+        $offsetSeconds = ((int)$startIndex + (int)$index) * $intervalSeconds;
+        site_article_feed_insert_item($feedKey, $config, $item, $offsetSeconds);
     }
 }
 
@@ -261,7 +317,7 @@ function site_article_feed_maybe_publish(string $feedKey, array $config): void
     $currentCount = site_article_feed_count_items($feedKey);
     $limit = (int)$config['limit'];
     if ($currentCount < $limit) {
-        site_article_feed_publish_initial($feedKey, $config, $limit - $currentCount);
+        site_article_feed_publish_initial($feedKey, $config, $limit - $currentCount, $currentCount);
         return;
     }
 
@@ -302,6 +358,7 @@ function site_article_feed_render(string $feedKey): void
     $config = $configs[$feedKey];
     try {
         site_article_feed_ensure_table();
+        site_article_feed_rebalance_existing_published_at_once($configs);
         site_article_feed_maybe_publish($feedKey, $config);
         $items = site_article_feed_items($feedKey, (int)$config['limit']);
     } catch (Throwable) {
