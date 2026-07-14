@@ -19,7 +19,7 @@ function scheduler_tick(): array
             continue;
         }
         $scheduleType = (string)$schedule['schedule_type'];
-        $lockUntil = date('Y-m-d H:i:s', time() + 55);
+        $lockUntil = date('Y-m-d H:i:s', time() + ($scheduleType === 'items' ? 300 : 55));
         $locked = $pdo->prepare('UPDATE api_schedules SET lock_until = :lock_until WHERE id = :id AND (lock_until IS NULL OR lock_until < NOW())');
         $locked->execute(['lock_until' => $lockUntil, 'id' => $schedule['id']]);
         if ($locked->rowCount() === 0) {
@@ -119,9 +119,7 @@ function scheduler_run_items_schedule(DmmSyncService $service, array $settings):
         }
     }
 
-    $sortModes = ['rank', 'date', 'review'];
-    $sortIndex = max(0, settings_int('item_sync_sort_index', 0));
-    $extraParams = ['sort' => $sortModes[$sortIndex % count($sortModes)]];
+    $extraParams = ['sort' => 'date'];
     if ($compoundKeyword !== '') {
         $extraParams['keyword'] = $compoundKeyword;
     }
@@ -129,7 +127,7 @@ function scheduler_run_items_schedule(DmmSyncService $service, array $settings):
     $pdo = db();
     scheduler_ensure_job_state_table($pdo);
     $pdo->prepare("INSERT INTO sync_job_state (job_key, next_offset, updated_at) VALUES ('items', 1, NOW()) ON DUPLICATE KEY UPDATE updated_at = updated_at")->execute();
-    $lockUntil = date('Y-m-d H:i:s', time() + 55);
+    $lockUntil = date('Y-m-d H:i:s', time() + 300);
     $lockStmt = $pdo->prepare("UPDATE sync_job_state SET lock_until = :lock_until WHERE job_key = 'items' AND (lock_until IS NULL OR lock_until < NOW())");
     $lockStmt->execute([':lock_until' => $lockUntil]);
     if ($lockStmt->rowCount() === 0) {
@@ -137,6 +135,7 @@ function scheduler_run_items_schedule(DmmSyncService $service, array $settings):
     }
     $skip = scheduler_skip_missing_credentials($pdo, 'items');
     if ($skip !== null) {
+        $pdo->prepare("UPDATE sync_job_state SET lock_until = NULL, updated_at = NOW() WHERE job_key = 'items'")->execute();
         return $skip;
     }
     $stateStmt = $pdo->prepare("SELECT next_offset FROM sync_job_state WHERE job_key = 'items' LIMIT 1");
@@ -144,6 +143,9 @@ function scheduler_run_items_schedule(DmmSyncService $service, array $settings):
     $offset = max(1, (int)$stateStmt->fetchColumn());
     if ($offset > 50000) {
         $offset = 1;
+    }
+    if ($offset < 101) {
+        $offset = 101;
     }
 
     try {
@@ -160,11 +162,12 @@ function scheduler_run_items_schedule(DmmSyncService $service, array $settings):
         if ($nextOffset > 50000) {
             $nextOffset = 1;
         }
+        $message = (string)($result['message'] ?? '商品を同期しました');
         $pdo->prepare("UPDATE sync_job_state SET next_offset = :next_offset, last_run_at = NOW(), last_success = 1, last_message = :message, lock_until = NULL, updated_at = NOW() WHERE job_key = 'items'")
-            ->execute([':next_offset' => $nextOffset, ':message' => '商品を同期しました']);
-        site_setting_set_many(['last_item_sync_at' => date('Y-m-d H:i:s'), 'item_sync_offset' => (string)$nextOffset, 'item_sync_sort_index' => (string)($sortIndex + 1)]);
+            ->execute([':next_offset' => $nextOffset, ':message' => $message]);
+        site_setting_set_many(['last_item_sync_at' => date('Y-m-d H:i:s'), 'item_sync_offset' => (string)$nextOffset]);
 
-        return ['synced_count' => (int)($result['synced_count'] ?? 0), 'message' => '商品を同期しました'];
+        return ['synced_count' => (int)($result['synced_count'] ?? 0), 'message' => $message];
     } catch (Throwable $e) {
         $pdo->prepare("UPDATE sync_job_state SET last_run_at = NOW(), last_success = 0, last_message = :message, lock_until = NULL, updated_at = NOW() WHERE job_key = 'items'")
             ->execute([':message' => mb_substr($e->getMessage(), 0, 1000)]);
