@@ -69,8 +69,6 @@ if ($ogImage !== '' && !str_starts_with($ogImage, 'http://') && !str_starts_with
 $jsonLdText = isset($jsonLd) && is_string($jsonLd) && $jsonLd !== '' ? $jsonLd : '';
 $relPrevHref = isset($relPrev) && is_string($relPrev) && $relPrev !== '' ? $relPrev : '';
 $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relNext : '';
-$isContactRequestPage = basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'page.php'
-    && (string)($_GET['slug'] ?? '') === 'que';
 ?>
 <!doctype html>
 <html lang="ja">
@@ -106,39 +104,6 @@ $isContactRequestPage = basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'p
   <?php endif; ?>
   <link rel="stylesheet" href="<?= e(asset_url('css/style.css')) ?>">
   <link rel="stylesheet" href="<?= e(asset_url('css/public-ui.css')) ?>">
-  <?php if ($isContactRequestPage): ?>
-  <style>
-    .contact-form .deletion-consent {
-      display: grid !important;
-      grid-template-columns: 20px minmax(0, 1fr) !important;
-      align-items: start !important;
-      column-gap: 10px !important;
-      width: 100% !important;
-      max-width: 100% !important;
-      margin: 16px 0 !important;
-      box-sizing: border-box !important;
-      line-height: 1.6 !important;
-    }
-    .contact-form .deletion-consent input[type="checkbox"] {
-      display: block !important;
-      width: 18px !important;
-      min-width: 18px !important;
-      max-width: 18px !important;
-      height: 18px !important;
-      margin: 4px 0 0 !important;
-      padding: 0 !important;
-      box-sizing: border-box !important;
-    }
-    .contact-form .deletion-consent span {
-      display: block !important;
-      min-width: 0 !important;
-      width: auto !important;
-      overflow-wrap: anywhere !important;
-      word-break: normal !important;
-      writing-mode: horizontal-tb !important;
-    }
-  </style>
-  <?php endif; ?>
 </head>
 <body>
 <?php if ($customBodyOpenCode !== ''): ?>
