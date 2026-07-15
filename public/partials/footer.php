@@ -120,6 +120,24 @@ $copyrightYears = $copyrightStartYear >= $currentYear
 </script>
 <script>
 (function () {
+  var cards = document.querySelectorAll('.rail-row--home-actresses .rail-card');
+  cards.forEach(function (card) {
+    var image = card.querySelector('img.thumb');
+    var titleLink = card.querySelector('a.rail-card__title');
+    if (!image || !titleLink || image.parentElement.tagName.toLowerCase() === 'a') {
+      return;
+    }
+
+    var imageLink = document.createElement('a');
+    imageLink.href = titleLink.href;
+    imageLink.setAttribute('aria-label', titleLink.textContent.trim());
+    image.parentNode.insertBefore(imageLink, image);
+    imageLink.appendChild(image);
+  });
+}());
+</script>
+<script>
+(function () {
   if (!navigator.sendBeacon) {
     return;
   }
