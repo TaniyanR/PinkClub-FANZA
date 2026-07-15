@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 /**
  * ジャンル・メーカーなどの公開ディレクトリ一覧をJSONへ事前生成する。
- * キャッシュが期限切れでも古い内容を先に返し、終了処理で安全に更新する。
+ * キャッシュが期限切れ、または元データが更新済みでも古い内容を先に返し、
+ * 終了処理で安全に新しいJSONへ差し替える。
  */
 function pcf_public_directory_cache_rows(string $kind, int $ttlSeconds = 21600): array
 {
@@ -19,8 +20,13 @@ function pcf_public_directory_cache_rows(string $kind, int $ttlSeconds = 21600):
 
     if ($cached !== null) {
         $generatedAt = (int)($cached['generated_at'] ?? 0);
+        $cachedSourceVersion = (int)($cached['source_version'] ?? 0);
+        $currentSourceVersion = pcf_public_directory_cache_source_version($kind);
         $rows = is_array($cached['rows'] ?? null) ? $cached['rows'] : [];
-        if ($generatedAt > 0 && (time() - $generatedAt) < $ttlSeconds) {
+
+        $isFreshByTime = $generatedAt > 0 && (time() - $generatedAt) < $ttlSeconds;
+        $isFreshBySource = $currentSourceVersion <= 0 || $cachedSourceVersion === $currentSourceVersion;
+        if ($isFreshByTime && $isFreshBySource) {
             return $rows;
         }
 
@@ -71,6 +77,7 @@ function pcf_public_directory_cache_rebuild(string $kind): ?array
             'version' => 1,
             'kind' => $kind,
             'generated_at' => time(),
+            'source_version' => pcf_public_directory_cache_source_version($kind),
             'rows' => $rows,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
@@ -100,6 +107,22 @@ function pcf_public_directory_cache_rebuild(string $kind): ?array
     } finally {
         @flock($lockHandle, LOCK_UN);
         @fclose($lockHandle);
+    }
+}
+
+function pcf_public_directory_cache_source_version(string $kind): int
+{
+    $config = pcf_public_directory_cache_config($kind);
+    if ($config === null || !function_exists('db')) {
+        return 0;
+    }
+
+    try {
+        $table = $config['table'];
+        $value = db()->query("SELECT COALESCE(UNIX_TIMESTAMP(MAX(updated_at)), 0) FROM {$table}")->fetchColumn();
+        return max(0, (int)$value);
+    } catch (Throwable) {
+        return 0;
     }
 }
 
