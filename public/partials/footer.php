@@ -184,7 +184,7 @@ $copyrightYears = $copyrightStartYear >= $currentYear
     '<label>該当ページURL（必須）</label><textarea name="deletion_urls" rows="5" maxlength="5000" placeholder="複数ある場合は1行ずつ全て記載してください" required></textarea>' +
     '<label>本人確認書類（必須）</label><input name="identity_document" type="file" accept="image/jpeg,image/png,application/pdf" required><small>JPEG・PNG・PDF、5MB以内。受付メールに添付して送信し、当サイトのサーバーには保存しません。</small>' +
     '<label>申請理由（必須）</label><textarea name="deletion_reason" rows="8" maxlength="5000" placeholder="取り消しを希望する理由と経緯をご記入ください" required></textarea>' +
-    '<label class="deletion-consent"><input type="checkbox" name="deletion_consent" value="1" required><span>プライバシーポリシーを読み、本人確認書類を提出することに同意します（提出書類は本人確認の目的以外には使用しません）。</span></label>' +
+    '<div class="deletion-consent"><input id="deletion-consent" type="checkbox" name="deletion_consent" value="1" required><label for="deletion-consent">プライバシーポリシーを読み、本人確認書類を提出することに同意します（提出書類は本人確認の目的以外には使用しません）。</label></div>' +
     '<button type="submit">掲載削除依頼を送信する</button>';
   contactForm.parentNode.insertBefore(deletion, contactForm.nextSibling);
 
@@ -216,9 +216,11 @@ $copyrightYears = $copyrightStartYear >= $currentYear
     '.contact-form-tab:focus-visible{outline:3px solid rgba(85,91,97,.28);outline-offset:2px}' +
     '.contact-form-heading{margin-top:4px}' +
     '.contact-form-description{margin:-4px 0 18px}' +
-    '.deletion-consent{display:flex;align-items:flex-start;gap:8px;line-height:1.6}' +
-    '.deletion-consent input[type="checkbox"]{flex:0 0 auto;margin:5px 0 0}' +
-    '.deletion-consent span{display:block}' +
+    '.deletion-consent{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:8px;width:100%;max-width:none;margin:16px 0;clear:both}' +
+    '.deletion-consent input[type="checkbox"]{width:auto;min-width:0;margin:5px 0 0}' +
+    '.deletion-consent label{display:block;width:auto;max-width:none;margin:0;line-height:1.6;white-space:normal;writing-mode:horizontal-tb}' +
+    '.contact-form button[type="submit"]{background:#555b61!important;border-color:#555b61!important;color:#fff!important}' +
+    '.contact-form button[type="submit"]:hover{background:#44494e!important;border-color:#44494e!important}' +
     '@media(max-width:600px){.contact-form-tabs{grid-template-columns:1fr}.contact-form-tab{width:100%}}';
   document.head.appendChild(style);
 
