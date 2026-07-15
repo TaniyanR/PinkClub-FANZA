@@ -4,37 +4,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
+require_once __DIR__ . '/../lib/public_directory_cache.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
-$rows = [];
+$rows = pcf_public_directory_cache_rows('makers');
 $displayRows = [];
-$pageSize = 200;
-$offset = 0;
-$maxRows = 20000;
-
-try {
-    while ($offset < $maxRows) {
-        $batch = fetch_makers($pageSize, $offset, 'name');
-        if ($batch === []) {
-            break;
-        }
-
-        foreach ($batch as $row) {
-            if (is_array($row)) {
-                $rows[] = $row;
-            }
-        }
-
-        $batchCount = count($batch);
-        if ($batchCount < $pageSize) {
-            break;
-        }
-        $offset += $batchCount;
-    }
-} catch (Throwable) {
-    $rows = [];
-}
-
 $seenRows = [];
 foreach ($rows as $r) {
     if (!is_array($r)) {
