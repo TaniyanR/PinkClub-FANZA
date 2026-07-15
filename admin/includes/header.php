@@ -24,6 +24,7 @@ $menuGroups = [
         ['label' => 'サンプル動画再取得', 'file' => 'movie_repair.php'],
         ['label' => '自動設定', 'file' => 'api_auto.php'],
     ]],
+    ['label' => '削除依頼', 'file' => 'deletion_requests.php'],
     ['label' => 'アクセス解析', 'children' => [
         ['label' => 'グラフ', 'file' => 'analytics.php?tab=graph'],
         ['label' => 'リンク元', 'file' => 'analytics.php?tab=referrer'],
