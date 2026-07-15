@@ -25,7 +25,6 @@ function sample_images_parse_list(?string $value): array
     return array_values(array_filter(array_map('trim', $parts), static fn(string $v): bool => $v !== ''));
 }
 
-
 function sample_images_is_self_hosted_fanza_image_url(string $url): bool
 {
     $value = trim($url);
@@ -118,25 +117,64 @@ if ($images === []) {
     body { font-family: Arial, sans-serif; margin: 12px; background: #f8f9fa; overflow: hidden; box-sizing: border-box; height: calc(100vh - 24px); display: flex; flex-direction: column; }
     h1 { font-size: 18px; margin-bottom: 12px; position: sticky; top: 0; background: #f8f9fa; padding: 6px 0; flex: 0 0 auto; }
     .message { text-align: center; color: #555; margin-top: 32px; }
-    .sample-scroll { display: flex; flex-wrap: nowrap; gap: 10px; overflow-x: auto; overflow-y: hidden; padding-bottom: 6px; flex: 1 1 auto; min-height: 0; }
+    .sample-viewer { position: relative; flex: 1 1 auto; min-height: 0; }
+    .sample-scroll { display: flex; flex-wrap: nowrap; gap: 10px; overflow-x: auto; overflow-y: hidden; padding-bottom: 6px; height: 100%; min-height: 0; scroll-behavior: smooth; }
     .sample-scroll::-webkit-scrollbar { height: 10px; }
     .sample-scroll::-webkit-scrollbar-thumb { background: #b9bdc5; border-radius: 8px; }
     .sample-frame { width: min(840px, calc(100vw - 54px)); height: 100%; flex: 0 0 min(840px, calc(100vw - 54px)); max-width: none; background: #fff; border: 1px solid #dcdcde; margin: 0; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
     .sample-frame img { width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+    .sample-next { position: absolute; top: 50%; right: 14px; z-index: 2; width: 48px; height: 48px; margin-top: -24px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.92); color: #222; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28); font-size: 30px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity .2s ease, transform .2s ease; }
+    .sample-next:hover { transform: scale(1.06); }
+    .sample-next:focus-visible { outline: 3px solid #ff4f9a; outline-offset: 2px; }
+    .sample-next[hidden] { display: none; }
+    @media (max-width: 600px) {
+      .sample-next { width: 44px; height: 44px; right: 8px; margin-top: -22px; font-size: 27px; }
+    }
   </style>
 </head>
 <body>
   <h1><?= e((string)$item['title']) ?> のサンプル画像</h1>
-  <div class="sample-scroll">
-  <?php if ($images === []): ?>
-    <p class="message">画像がありません</p>
-  <?php else: ?>
-    <?php foreach ($images as $index => $image): ?>
-      <div class="sample-frame">
-        <img src="<?= e($image) ?>" alt="サンプル画像 <?= e((string)($index + 1)) ?>">
-      </div>
-    <?php endforeach; ?>
-  <?php endif; ?>
+  <div class="sample-viewer">
+    <div class="sample-scroll" id="sampleScroll">
+    <?php if ($images === []): ?>
+      <p class="message">画像がありません</p>
+    <?php else: ?>
+      <?php foreach ($images as $index => $image): ?>
+        <div class="sample-frame">
+          <img src="<?= e($image) ?>" alt="サンプル画像 <?= e((string)($index + 1)) ?>">
+        </div>
+      <?php endforeach; ?>
+    <?php endif; ?>
+    </div>
+    <?php if (count($images) > 1): ?>
+      <button type="button" class="sample-next" id="sampleNext" aria-label="次のサンプル画像へ">›</button>
+    <?php endif; ?>
   </div>
+  <?php if (count($images) > 1): ?>
+  <script>
+  (function () {
+    var scroller = document.getElementById('sampleScroll');
+    var nextButton = document.getElementById('sampleNext');
+    if (!scroller || !nextButton) {
+      return;
+    }
+
+    var updateButton = function () {
+      var remaining = scroller.scrollWidth - scroller.clientWidth - scroller.scrollLeft;
+      nextButton.hidden = remaining <= 4;
+    };
+
+    nextButton.addEventListener('click', function () {
+      var frame = scroller.querySelector('.sample-frame');
+      var distance = frame ? frame.getBoundingClientRect().width + 10 : Math.max(280, scroller.clientWidth * 0.85);
+      scroller.scrollBy({ left: distance, behavior: 'smooth' });
+    });
+
+    scroller.addEventListener('scroll', updateButton, { passive: true });
+    window.addEventListener('resize', updateButton);
+    updateButton();
+  }());
+  </script>
+  <?php endif; ?>
 </body>
 </html>
