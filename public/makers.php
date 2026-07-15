@@ -8,21 +8,52 @@ require_once __DIR__ . '/partials/public_ui.php';
 
 $rows = [];
 $displayRows = [];
+$pageSize = 200;
+$offset = 0;
+$maxRows = 20000;
+
 try {
-    $rows = fetch_makers(500, 0, 'name');
+    while ($offset < $maxRows) {
+        $batch = fetch_makers($pageSize, $offset, 'name');
+        if ($batch === []) {
+            break;
+        }
+
+        foreach ($batch as $row) {
+            if (is_array($row)) {
+                $rows[] = $row;
+            }
+        }
+
+        $batchCount = count($batch);
+        if ($batchCount < $pageSize) {
+            break;
+        }
+        $offset += $batchCount;
+    }
 } catch (Throwable) {
     $rows = [];
 }
 
+$seenRows = [];
 foreach ($rows as $r) {
     if (!is_array($r)) {
         continue;
     }
+
     $name = trim((string)($r['name'] ?? ''));
     $dmmId = trim((string)($r['dmm_id'] ?? ''));
     if ($name === '' || pcf_is_noise_name($name) || str_starts_with($dmmId, 'name:')) {
         continue;
     }
+
+    $id = (int)($r['id'] ?? 0);
+    $signature = $id > 0 ? 'id:' . $id : 'name:' . mb_strtolower($name, 'UTF-8');
+    if (isset($seenRows[$signature])) {
+        continue;
+    }
+
+    $seenRows[$signature] = true;
     $displayRows[] = $r;
 }
 
@@ -32,13 +63,15 @@ foreach ($kanaOrder as $kana) {
     $kanaGroups[$kana] = [];
 }
 $alphaGroups = [];
+$otherRows = [];
 
 $resolveIndex = static function (array $row): array {
     $name = trim((string)($row['name'] ?? ''));
     $ch = mb_substr($name, 0, 1);
     if ($ch === '') {
-        return ['type' => 'none', 'key' => ''];
+        return ['type' => 'other', 'key' => ''];
     }
+
     $h = mb_convert_kana($ch, 'c', 'UTF-8');
     if (preg_match('/^[ぁ-お]/u', $h)) { return ['type' => 'kana', 'key' => 'あ']; }
     if (preg_match('/^[か-ご]/u', $h)) { return ['type' => 'kana', 'key' => 'か']; }
@@ -51,7 +84,8 @@ $resolveIndex = static function (array $row): array {
     if (preg_match('/^[ら-ろ]/u', $h)) { return ['type' => 'kana', 'key' => 'ら']; }
     if (preg_match('/^[わ-ん]/u', $h)) { return ['type' => 'kana', 'key' => 'わ']; }
     if (preg_match('/^[A-Za-z]/', $ch)) { return ['type' => 'alpha', 'key' => strtoupper($ch)]; }
-    return ['type' => 'none', 'key' => ''];
+
+    return ['type' => 'other', 'key' => ''];
 };
 
 foreach ($displayRows as $r) {
@@ -62,12 +96,17 @@ foreach ($displayRows as $r) {
     }
     if ($idx['type'] === 'alpha') {
         $alphaGroups[$idx['key']][] = $r;
+        continue;
     }
+    $otherRows[] = $r;
 }
 
 $sortByName = static function (array &$list): void {
     usort($list, static function (array $a, array $b): int {
-        return strcmp(mb_strtolower((string)($a['name'] ?? ''), 'UTF-8'), mb_strtolower((string)($b['name'] ?? ''), 'UTF-8'));
+        return strcmp(
+            mb_strtolower((string)($a['name'] ?? ''), 'UTF-8'),
+            mb_strtolower((string)($b['name'] ?? ''), 'UTF-8')
+        );
     });
 };
 foreach ($kanaGroups as &$groupRows) {
@@ -79,6 +118,7 @@ foreach ($alphaGroups as &$groupRows) {
     $sortByName($groupRows);
 }
 unset($groupRows);
+$sortByName($otherRows);
 
 $title = 'メーカー一覧';
 require __DIR__ . '/partials/header.php';
@@ -92,23 +132,35 @@ require __DIR__ . '/partials/header.php';
       <section class="pcf-index-block">
         <h2 class="pcf-section-title"><?= e($kana) ?>行</h2>
         <div class="pcf-list-card__meta pcf-chip-list">
-          <?php foreach ($groupRows as $i => $r): ?>
+          <?php foreach ($groupRows as $r): ?>
             <a class="pcf-chip" href="<?= e(public_url('maker.php?id=' . (int)($r['id'] ?? 0))) ?>"><?= e((string)($r['name'] ?? '')) ?></a>
           <?php endforeach; ?>
         </div>
       </section>
     <?php endforeach; ?>
+
     <?php if ($alphaGroups !== []): ?>
       <section class="pcf-index-block">
         <h2 class="pcf-section-title">A~Z</h2>
         <?php foreach ($alphaGroups as $letter => $groupRows): ?>
           <div class="pcf-list-card__meta pcf-chip-list">
             <strong><?= e($letter) ?></strong>
-            <?php foreach ($groupRows as $i => $r): ?>
+            <?php foreach ($groupRows as $r): ?>
               <a class="pcf-chip" href="<?= e(public_url('maker.php?id=' . (int)($r['id'] ?? 0))) ?>"><?= e((string)($r['name'] ?? '')) ?></a>
             <?php endforeach; ?>
           </div>
         <?php endforeach; ?>
+      </section>
+    <?php endif; ?>
+
+    <?php if ($otherRows !== []): ?>
+      <section class="pcf-index-block">
+        <h2 class="pcf-section-title">その他</h2>
+        <div class="pcf-list-card__meta pcf-chip-list">
+          <?php foreach ($otherRows as $r): ?>
+            <a class="pcf-chip" href="<?= e(public_url('maker.php?id=' . (int)($r['id'] ?? 0))) ?>"><?= e((string)($r['name'] ?? '')) ?></a>
+          <?php endforeach; ?>
+        </div>
       </section>
     <?php endif; ?>
   </div>
