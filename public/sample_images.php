@@ -123,12 +123,16 @@ if ($images === []) {
     .sample-scroll::-webkit-scrollbar-thumb { background: #b9bdc5; border-radius: 8px; }
     .sample-frame { width: min(840px, calc(100vw - 54px)); height: 100%; flex: 0 0 min(840px, calc(100vw - 54px)); max-width: none; background: #fff; border: 1px solid #dcdcde; margin: 0; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
     .sample-frame img { width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
-    .sample-next { position: absolute; top: 50%; right: 14px; z-index: 2; width: 48px; height: 48px; margin-top: -24px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.92); color: #222; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28); font-size: 30px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity .2s ease, transform .2s ease; }
-    .sample-next:hover { transform: scale(1.06); }
-    .sample-next:focus-visible { outline: 3px solid #ff4f9a; outline-offset: 2px; }
-    .sample-next[hidden] { display: none; }
+    .sample-arrow { position: absolute; top: 50%; z-index: 2; width: 48px; height: 48px; margin-top: -24px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.92); color: #222; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28); font-size: 30px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity .2s ease, transform .2s ease; }
+    .sample-prev { left: 14px; }
+    .sample-next { right: 14px; }
+    .sample-arrow:hover { transform: scale(1.06); }
+    .sample-arrow:focus-visible { outline: 3px solid #ff4f9a; outline-offset: 2px; }
+    .sample-arrow[hidden] { display: none; }
     @media (max-width: 600px) {
-      .sample-next { width: 44px; height: 44px; right: 8px; margin-top: -22px; font-size: 27px; }
+      .sample-arrow { width: 44px; height: 44px; margin-top: -22px; font-size: 27px; }
+      .sample-prev { left: 8px; }
+      .sample-next { right: 8px; }
     }
   </style>
 </head>
@@ -147,32 +151,43 @@ if ($images === []) {
     <?php endif; ?>
     </div>
     <?php if (count($images) > 1): ?>
-      <button type="button" class="sample-next" id="sampleNext" aria-label="次のサンプル画像へ">›</button>
+      <button type="button" class="sample-arrow sample-prev" id="samplePrev" aria-label="前のサンプル画像へ" hidden>‹</button>
+      <button type="button" class="sample-arrow sample-next" id="sampleNext" aria-label="次のサンプル画像へ">›</button>
     <?php endif; ?>
   </div>
   <?php if (count($images) > 1): ?>
   <script>
   (function () {
     var scroller = document.getElementById('sampleScroll');
+    var prevButton = document.getElementById('samplePrev');
     var nextButton = document.getElementById('sampleNext');
-    if (!scroller || !nextButton) {
+    if (!scroller || !prevButton || !nextButton) {
       return;
     }
 
-    var updateButton = function () {
+    var updateButtons = function () {
       var remaining = scroller.scrollWidth - scroller.clientWidth - scroller.scrollLeft;
+      prevButton.hidden = scroller.scrollLeft <= 4;
       nextButton.hidden = remaining <= 4;
     };
 
-    nextButton.addEventListener('click', function () {
+    var scrollOneFrame = function (direction) {
       var frame = scroller.querySelector('.sample-frame');
       var distance = frame ? frame.getBoundingClientRect().width + 10 : Math.max(280, scroller.clientWidth * 0.85);
-      scroller.scrollBy({ left: distance, behavior: 'smooth' });
+      scroller.scrollBy({ left: direction * distance, behavior: 'smooth' });
+    };
+
+    prevButton.addEventListener('click', function () {
+      scrollOneFrame(-1);
     });
 
-    scroller.addEventListener('scroll', updateButton, { passive: true });
-    window.addEventListener('resize', updateButton);
-    updateButton();
+    nextButton.addEventListener('click', function () {
+      scrollOneFrame(1);
+    });
+
+    scroller.addEventListener('scroll', updateButtons, { passive: true });
+    window.addEventListener('resize', updateButtons);
+    updateButtons();
   }());
   </script>
   <?php endif; ?>
