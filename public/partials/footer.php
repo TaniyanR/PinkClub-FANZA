@@ -154,7 +154,7 @@ $copyrightYears = $copyrightStartYear >= $currentYear
     '<label>連絡用メールアドレス（必須）</label><input name="deletion_email" type="email" maxlength="254" placeholder="例：example@example.com" required>' +
     '<label>電話番号（任意）</label><input name="deletion_phone" maxlength="30" placeholder="例：090-1234-5678">' +
     '<label>該当ページURL（必須）</label><textarea name="deletion_urls" rows="5" maxlength="5000" placeholder="複数ある場合は1行ずつ全て記載してください" required></textarea>' +
-    '<label>本人確認書類（必須）</label><input name="identity_document" type="file" accept="image/jpeg,image/png,application/pdf" required><small>JPEG・PNG・PDF、5MB以内。公開領域外に保存します。</small>' +
+    '<label>本人確認書類（必須）</label><input name="identity_document" type="file" accept="image/jpeg,image/png,application/pdf" required><small>JPEG・PNG・PDF、5MB以内。受付メールに添付して送信し、当サイトのサーバーには保存しません。</small>' +
     '<label>申請理由（必須）</label><textarea name="deletion_reason" rows="8" maxlength="5000" placeholder="取り消しを希望する理由と経緯をご記入ください" required></textarea>' +
     '<label><input type="checkbox" name="deletion_consent" value="1" required> プライバシーポリシーを読み、本人確認書類を提出することに同意します（提出書類は本人確認の目的以外には使用しません）。</label>' +
     '<button type="submit">削除依頼を送信する</button>';
