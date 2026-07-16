@@ -15,7 +15,7 @@ declare(strict_types=1);
   <div id="pcf-recent-list" class="pcf-recent__list" aria-live="polite"></div>
 </section>
 <div id="pcf-recent-restore" class="pcf-recent-restore" hidden>
-  <button id="pcf-recent-show" type="button">最近見た作品を表示する</button>
+  <button id="pcf-recent-show" type="button" onclick="try{localStorage.removeItem('pcf_recently_viewed_hidden_v1')}catch(e){}window.location.reload();">最近見た作品を表示する</button>
 </div>
 <style>
 .pcf-recent{margin:18px 0 24px;padding:16px;border:1px solid #ddd;border-radius:8px;background:#fff}
