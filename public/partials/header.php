@@ -107,6 +107,7 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
   <script src="<?= e(asset_url('js/recently-viewed.js')) ?>" defer></script>
   <script src="<?= e(asset_url('js/recommendations.js')) ?>" defer></script>
   <script src="<?= e(asset_url('js/item-detail-fixes.js')) ?>" defer></script>
+  <script src="<?= e(asset_url('js/vr-sample-player.js')) ?>" defer></script>
 </head>
 <body>
 <?php if ($customBodyOpenCode !== ''): ?>
