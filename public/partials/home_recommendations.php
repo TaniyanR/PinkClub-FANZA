@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 ?>
-<section id="pcf-recommendations" class="pcf-recommendations" aria-labelledby="pcf-recommendations-title" hidden>
+<section id="pcf-recommendations" class="pcf-recommendations" data-endpoint="<?= e(public_url('recommendations.php')) ?>" aria-labelledby="pcf-recommendations-title" hidden>
   <div class="pcf-recommendations__heading">
     <div>
       <h2 id="pcf-recommendations-title">あなたへのおすすめ</h2>
