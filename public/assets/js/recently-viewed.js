@@ -2,6 +2,7 @@
   'use strict';
 
   const STORAGE_KEY = 'pcf_recently_viewed_v1';
+  const VISIBILITY_KEY = 'pcf_recently_viewed_hidden_v1';
   const MAX_STORED = 20;
   const MAX_RENDERED = 10;
 
@@ -99,6 +100,21 @@
     }
   };
 
+  const historyIsHidden = () => localStorage.getItem(VISIBILITY_KEY) === '1';
+
+  const setHistoryHidden = (hidden) => {
+    try {
+      if (hidden) {
+        localStorage.setItem(VISIBILITY_KEY, '1');
+      } else {
+        localStorage.removeItem(VISIBILITY_KEY);
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
   const idsFromLinks = (filename) => {
     const ids = [];
     document.querySelectorAll(`a[href*="${filename}?id="]`).forEach((link) => {
@@ -119,13 +135,14 @@
     const id = Number.parseInt(new URLSearchParams(window.location.search).get('id') || '', 10);
     if (!Number.isInteger(id) || id <= 0) return;
 
-    const rawTitle = document.querySelector('meta[property="og:title"]')?.content
-      || document.querySelector('h1')?.textContent
-      || document.title;
+    const titleMeta = document.querySelector('meta[property="og:title"]');
+    const heading = document.querySelector('h1');
+    const rawTitle = (titleMeta && titleMeta.content) || (heading && heading.textContent) || document.title;
     const title = String(rawTitle || '').replace(/\s*\|\s*PinkClub.*$/i, '').trim();
     if (!title) return;
 
-    const image = safeImageUrl(document.querySelector('meta[property="og:image"]')?.content || '');
+    const imageMeta = document.querySelector('meta[property="og:image"]');
+    const image = safeImageUrl((imageMeta && imageMeta.content) || '');
     const url = safePageUrl(window.location.href);
     if (!url) return;
 
@@ -138,7 +155,7 @@
       image,
       url,
       viewedAt: Date.now(),
-      viewCount: Math.min(999, Number(existing?.viewCount || 0) + 1),
+      viewCount: Math.min(999, Number(existing ? existing.viewCount : 0) + 1),
       actresses: idsFromLinks('actress.php'),
       genres: idsFromLinks('genre.php'),
       makers: idsFromLinks('maker.php'),
@@ -162,36 +179,49 @@
     return noImage;
   };
 
-  const moveSectionAfterLatest = (section) => {
-    const body = section.closest('.site-main__body');
+  const moveAfterLatest = (element) => {
+    const body = element.closest('.site-main__body');
     if (!body) return;
     const latestSections = Array.from(body.querySelectorAll('.rail-section')).filter((candidate) => {
       const heading = candidate.querySelector('h2');
       return heading && heading.textContent.trim() === '新着作品';
     });
-    const lastLatest = latestSections.at(-1);
-    if (lastLatest && lastLatest.nextSibling !== section) lastLatest.after(section);
+    const lastLatest = latestSections.length ? latestSections[latestSections.length - 1] : null;
+    if (lastLatest && lastLatest.nextSibling !== element) lastLatest.after(element);
   };
 
   const renderHistory = () => {
     const section = document.getElementById('pcf-recently-viewed');
     const list = document.getElementById('pcf-recent-list');
     const clearButton = document.getElementById('pcf-recent-clear');
-    if (!section || !list || !clearButton) return;
+    const hideButton = document.getElementById('pcf-recent-hide');
+    const restore = document.getElementById('pcf-recent-restore');
+    const showButton = document.getElementById('pcf-recent-show');
+    if (!section || !list || !clearButton || !hideButton || !restore || !showButton) return;
 
     const history = readHistory().slice(0, MAX_RENDERED);
     list.replaceChildren();
 
     if (history.length === 0) {
       section.hidden = true;
+      restore.hidden = true;
       return;
     }
 
+    if (historyIsHidden()) {
+      section.hidden = true;
+      moveAfterLatest(restore);
+      restore.hidden = false;
+      return;
+    }
+
+    restore.hidden = true;
+
     history.forEach((entry) => {
-      const article = createElement('article', 'pcf-recent__card');
       const pageUrl = safePageUrl(entry.url);
       if (!pageUrl) return;
 
+      const article = createElement('article', 'pcf-recent__card');
       const imageLink = createElement('a');
       imageLink.href = pageUrl;
       imageLink.setAttribute('aria-label', entry.title);
@@ -227,10 +257,11 @@
 
     if (!list.children.length) {
       section.hidden = true;
+      restore.hidden = true;
       return;
     }
 
-    moveSectionAfterLatest(section);
+    moveAfterLatest(section);
     section.hidden = false;
 
     list.querySelectorAll('[data-recent-remove-id]').forEach((button) => {
@@ -241,9 +272,20 @@
       });
     });
 
+    hideButton.onclick = () => {
+      setHistoryHidden(true);
+      renderHistory();
+    };
+
+    showButton.onclick = () => {
+      setHistoryHidden(false);
+      renderHistory();
+    };
+
     clearButton.onclick = () => {
       if (!window.confirm('閲覧履歴をすべて削除しますか？')) return;
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(VISIBILITY_KEY);
       renderHistory();
     };
   };
@@ -252,6 +294,6 @@
   renderHistory();
   window.addEventListener('pageshow', renderHistory);
   window.addEventListener('storage', (event) => {
-    if (event.key === STORAGE_KEY) renderHistory();
+    if (event.key === STORAGE_KEY || event.key === VISIBILITY_KEY) renderHistory();
   });
 })();
