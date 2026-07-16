@@ -48,17 +48,17 @@
     }
   };
 
-  const enableVrCardMovies = (root = document) => {
-    root.querySelectorAll?.('.pcf-dm-card').forEach((card) => {
-      const titleElement = card.querySelector('.pcf-dm-card__title');
+  const enableVrCardMovies = () => {
+    document.querySelectorAll('.rail-card').forEach((card) => {
+      const titleElement = card.querySelector('.rail-card__title');
       const title = (titleElement?.textContent || '').trim();
       if (!VR_TITLE_PATTERN.test(title)) {
         return;
       }
 
-      const disabledMovieButton = Array.from(card.querySelectorAll('.pcf-dm-card__button.is-disabled'))
+      const movieButton = Array.from(card.querySelectorAll('.sample-movie-trigger'))
         .find((element) => (element.textContent || '').trim() === 'サンプル動画');
-      if (!disabledMovieButton) {
+      if (!movieButton || !movieButton.disabled || movieButton.dataset.movieUrl) {
         return;
       }
 
@@ -67,13 +67,11 @@
         return;
       }
 
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'pcf-dm-card__button sample-movie-trigger';
-      button.dataset.movieUrl = playerUrl;
-      button.dataset.movieTitle = title;
-      button.textContent = 'サンプル動画';
-      disabledMovieButton.replaceWith(button);
+      movieButton.disabled = false;
+      movieButton.classList.remove('sample-button--disabled');
+      movieButton.classList.add('sample-button--enabled');
+      movieButton.dataset.movieUrl = playerUrl;
+      movieButton.dataset.movieTitle = title;
     });
   };
 
