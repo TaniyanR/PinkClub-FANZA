@@ -57,6 +57,11 @@ class DmmNormalizer
 
         $urls = [];
         self::collectMovieUrlsFromValue($sampleMovie[$key] ?? null, $urls);
+        if ($urls !== []) {
+            return $urls[0];
+        }
+
+        self::collectMovieUrlsFromValue($sampleMovie, $urls);
         return $urls[0] ?? null;
     }
 
@@ -71,6 +76,56 @@ class DmmNormalizer
             is_array($infoTitle) ? ($infoTitle['value'] ?? null) : null
         );
         return $title ?? '';
+    }
+
+    private static function isInvalidName(string $name): bool
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return true;
+        }
+        if (preg_match('/^[\-‐‑‒–—―ーｰ_\s]+$/u', $name) === 1) {
+            return true;
+        }
+        return preg_match('/[�]|(?:Ã.|Â.|縺|繝|譁|螟)/u', $name) === 1;
+    }
+
+    private static function normalizeNamedList(mixed $value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        $source = is_array($value) && array_is_list($value) ? $value : [$value];
+        $rows = [];
+        $seen = [];
+
+        foreach ($source as $entry) {
+            if (is_string($entry)) {
+                $id = '';
+                $name = trim($entry);
+                $ruby = null;
+            } elseif (is_array($entry)) {
+                $id = trim((string)($entry['id'] ?? $entry['dmm_id'] ?? ''));
+                $name = trim((string)($entry['name'] ?? $entry['value'] ?? $entry['text'] ?? ''));
+                $ruby = isset($entry['ruby']) ? trim((string)$entry['ruby']) : null;
+            } else {
+                continue;
+            }
+
+            if (self::isInvalidName($name)) {
+                continue;
+            }
+
+            $key = mb_strtolower($id !== '' ? 'id:' . $id : 'name:' . $name, 'UTF-8');
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $rows[] = ['id' => $id, 'name' => $name, 'ruby' => $ruby];
+        }
+
+        return $rows;
     }
 
     public static function toList(mixed $value): array
@@ -102,8 +157,13 @@ class DmmNormalizer
                 continue;
             }
 
-            $info = $row['iteminfo'] ?? [];
-            $sampleMovie = $row['sampleMovieURL'] ?? [];
+            $info = is_array($row['iteminfo'] ?? null) ? $row['iteminfo'] : [];
+            $sampleMovie = $row['sampleMovieURL']
+                ?? $row['sampleMovieUrl']
+                ?? $row['sample_movie_url']
+                ?? $row['sampleMovie']
+                ?? $row['sampleMovieURLVR']
+                ?? [];
             $delivery = $row['prices']['deliveries']['delivery'] ?? [];
             $deliveryList = self::toList($delivery);
             $priceMin = $deliveryList[0]['price'] ?? null;
@@ -131,20 +191,20 @@ class DmmNormalizer
                 'sample_movie_url_560' => is_array($sampleMovie) ? self::sampleMovieUrl($sampleMovie, 'size_560_360') : null,
                 'sample_movie_url_644' => is_array($sampleMovie) ? self::sampleMovieUrl($sampleMovie, 'size_644_414') : null,
                 'sample_movie_url_720' => is_array($sampleMovie) ? self::sampleMovieUrl($sampleMovie, 'size_720_480') : null,
-                'sample_movie_pc_flag' => isset($sampleMovie['pc_flag']) ? (int) $sampleMovie['pc_flag'] : 0,
-                'sample_movie_sp_flag' => isset($sampleMovie['sp_flag']) ? (int) $sampleMovie['sp_flag'] : 0,
+                'sample_movie_pc_flag' => is_array($sampleMovie) && isset($sampleMovie['pc_flag']) ? (int) $sampleMovie['pc_flag'] : 0,
+                'sample_movie_sp_flag' => is_array($sampleMovie) && isset($sampleMovie['sp_flag']) ? (int) $sampleMovie['sp_flag'] : 0,
                 'price_min_text' => $priceMin,
                 'list_price_text' => $listPrice,
                 'release_date' => !empty($row['date']) ? $row['date'] : null,
-                'actresses' => self::toList($info['actress'] ?? []),
-                'genres' => self::toList($info['genre'] ?? []),
-                'makers' => self::toList($info['maker'] ?? []),
-                'series' => self::toList($info['series'] ?? []),
-                'authors' => self::toList($info['author'] ?? []),
-                'directors' => self::toList($info['director'] ?? []),
-                'labels' => self::toList($info['label'] ?? []),
-                'campaigns' => self::toList($row['campaign'] ?? []),
-                'actors' => self::toList($info['actor'] ?? []),
+                'actresses' => self::normalizeNamedList($info['actress'] ?? []),
+                'genres' => self::normalizeNamedList($info['genre'] ?? []),
+                'makers' => self::normalizeNamedList($info['maker'] ?? []),
+                'series' => self::normalizeNamedList($info['series'] ?? []),
+                'authors' => self::normalizeNamedList($info['author'] ?? []),
+                'directors' => self::normalizeNamedList($info['director'] ?? []),
+                'labels' => self::normalizeNamedList($info['label'] ?? []),
+                'campaigns' => self::normalizeNamedList($row['campaign'] ?? []),
+                'actors' => self::normalizeNamedList($info['actor'] ?? []),
             ];
         }
 
