@@ -111,8 +111,13 @@ if ($scores === []) {
     exit;
 }
 
-arsort($scores);
-$candidateIds = array_slice(array_keys($scores), 0, 80);
+$candidateIds = array_keys($scores);
+usort($candidateIds, static function (int $a, int $b) use ($scores): int {
+    $scoreCompare = ((int)($scores[$b]['score'] ?? 0)) <=> ((int)($scores[$a]['score'] ?? 0));
+    return $scoreCompare !== 0 ? $scoreCompare : ($b <=> $a);
+});
+$candidateIds = array_slice($candidateIds, 0, 80);
+
 $params = [];
 $in = recommendation_placeholders($candidateIds, 'item_', $params);
 
@@ -126,12 +131,14 @@ try {
 }
 
 usort($rows, static function (array $a, array $b) use ($scores): int {
-    $scoreCompare = ((int)($scores[(int)($b['id'] ?? 0)]['score'] ?? 0)) <=> ((int)($scores[(int)($a['id'] ?? 0)]['score'] ?? 0));
+    $aId = (int)($a['id'] ?? 0);
+    $bId = (int)($b['id'] ?? 0);
+    $scoreCompare = ((int)($scores[$bId]['score'] ?? 0)) <=> ((int)($scores[$aId]['score'] ?? 0));
     if ($scoreCompare !== 0) {
         return $scoreCompare;
     }
     $dateCompare = strcmp((string)($b['release_date'] ?? ''), (string)($a['release_date'] ?? ''));
-    return $dateCompare !== 0 ? $dateCompare : ((int)($b['id'] ?? 0) <=> (int)($a['id'] ?? 0));
+    return $dateCompare !== 0 ? $dateCompare : ($bId <=> $aId);
 });
 
 $items = [];
