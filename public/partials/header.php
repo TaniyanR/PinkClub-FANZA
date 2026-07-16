@@ -152,3 +152,6 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
       </nav>
     <?php endif; ?>
     <div class="site-main__body">
+    <?php if ($scriptName === 'index.php'): ?>
+      <?php require __DIR__ . '/home_mood.php'; ?>
+    <?php endif; ?>
