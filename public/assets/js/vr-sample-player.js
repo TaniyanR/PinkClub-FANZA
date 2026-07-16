@@ -21,59 +21,59 @@
   const officialPlayerUrl = (contentId) =>
     `https://www.dmm.co.jp/digital/-/vr-sample-player/=/cid=${encodeURIComponent(contentId)}/`;
 
-  const contentIdFromCard = (card) => {
-    const image = card.querySelector('.pcf-dm-card__image, img');
-    const candidates = [
-      image?.currentSrc,
-      image?.getAttribute('src'),
-      image?.getAttribute('data-src'),
-      image?.getAttribute('data-lazy-src'),
-      image?.getAttribute('data-original'),
-      card.querySelector('a[href]')?.getAttribute('href'),
-    ];
-
-    for (const candidate of candidates) {
-      const contentId = contentIdFromValue(candidate);
-      if (contentId) {
-        return contentId;
+  const localPlayerUrlFromCard = (card) => {
+    const itemLink = Array.from(card.querySelectorAll('a[href]')).find((link) => {
+      try {
+        const url = new URL(link.href, window.location.href);
+        return /\/item\.php$/i.test(url.pathname) && /^\d+$/.test(url.searchParams.get('id') || '');
+      } catch (_) {
+        return false;
       }
+    });
+
+    if (!itemLink) {
+      return '';
     }
-    return '';
+
+    try {
+      const itemUrl = new URL(itemLink.href, window.location.href);
+      const itemId = itemUrl.searchParams.get('id') || '';
+      itemUrl.pathname = itemUrl.pathname.replace(/item\.php$/i, 'vr_sample.php');
+      itemUrl.search = '';
+      itemUrl.searchParams.set('id', itemId);
+      itemUrl.hash = '';
+      return itemUrl.toString();
+    } catch (_) {
+      return '';
+    }
   };
 
   const enableVrCardMovies = (root = document) => {
     root.querySelectorAll?.('.pcf-dm-card').forEach((card) => {
-      if (card.dataset.vrMovieChecked === '1') {
-        return;
-      }
-
       const titleElement = card.querySelector('.pcf-dm-card__title');
       const title = (titleElement?.textContent || '').trim();
       if (!VR_TITLE_PATTERN.test(title)) {
-        card.dataset.vrMovieChecked = '1';
         return;
       }
 
       const disabledMovieButton = Array.from(card.querySelectorAll('.pcf-dm-card__button.is-disabled'))
         .find((element) => (element.textContent || '').trim() === 'サンプル動画');
       if (!disabledMovieButton) {
-        card.dataset.vrMovieChecked = '1';
         return;
       }
 
-      const contentId = contentIdFromCard(card);
-      if (!contentId) {
+      const playerUrl = localPlayerUrlFromCard(card);
+      if (!playerUrl) {
         return;
       }
 
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'pcf-dm-card__button sample-movie-trigger';
-      button.dataset.movieUrl = officialPlayerUrl(contentId);
+      button.dataset.movieUrl = playerUrl;
       button.dataset.movieTitle = title;
       button.textContent = 'サンプル動画';
       disabledMovieButton.replaceWith(button);
-      card.dataset.vrMovieChecked = '1';
     });
   };
 
@@ -133,25 +133,6 @@
     movieArea.removeAttribute('aria-label');
   };
 
-  const apply = () => {
-    enableVrCardMovies();
-    enableVrItemMovie();
-  };
-
-  apply();
-  window.addEventListener('load', apply, { once: true });
-  window.addEventListener('pageshow', apply);
-
-  let scheduled = false;
-  const observer = new MutationObserver(() => {
-    if (scheduled) {
-      return;
-    }
-    scheduled = true;
-    window.requestAnimationFrame(() => {
-      scheduled = false;
-      apply();
-    });
-  });
-  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'data-src', 'data-lazy-src', 'data-original'] });
+  enableVrCardMovies();
+  enableVrItemMovie();
 })();
