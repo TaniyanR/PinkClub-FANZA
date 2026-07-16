@@ -8,7 +8,7 @@ $moods = [
     ['label' => 'ストーリー重視', 'query' => 'ドラマ ストーリー 長編 映画'],
 ];
 ?>
-<section aria-label="気分から作品を探す" style="margin:0 0 24px;padding:16px;border:1px solid #d6d6d6;border-radius:8px;background:#fff;">
+<section aria-label="気分から作品を探す" style="margin:14px auto 18px;padding:16px;max-width:1100px;border:1px solid #d6d6d6;border-radius:8px;background:#fff;box-sizing:border-box;">
   <h2 style="margin:0 0 6px;font-size:20px;">今日はどんな気分ですか？</h2>
   <p style="margin:0 0 14px;color:#666;font-size:14px;line-height:1.6;">気になる雰囲気を選ぶだけで、近い作品を探せます。</p>
   <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
