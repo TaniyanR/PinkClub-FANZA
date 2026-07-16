@@ -22,6 +22,17 @@ $pdo->exec('CREATE TABLE IF NOT EXISTS movie_repair_status (
     CONSTRAINT fk_movie_repair_item FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 
+try {
+    $pdo->exec('DROP TRIGGER IF EXISTS trg_items_preserve_sample_movie_urls');
+    $pdo->exec('CREATE TRIGGER trg_items_preserve_sample_movie_urls BEFORE UPDATE ON items FOR EACH ROW SET
+        NEW.sample_movie_url_476 = COALESCE(NULLIF(TRIM(NEW.sample_movie_url_476), ""), OLD.sample_movie_url_476),
+        NEW.sample_movie_url_560 = COALESCE(NULLIF(TRIM(NEW.sample_movie_url_560), ""), OLD.sample_movie_url_560),
+        NEW.sample_movie_url_644 = COALESCE(NULLIF(TRIM(NEW.sample_movie_url_644), ""), OLD.sample_movie_url_644),
+        NEW.sample_movie_url_720 = COALESCE(NULLIF(TRIM(NEW.sample_movie_url_720), ""), OLD.sample_movie_url_720)');
+} catch (Throwable $e) {
+    error_log('sample movie preservation trigger setup failed: ' . $e->getMessage());
+}
+
 $missingWhere = '(COALESCE(sample_movie_url_476, "") = "" AND COALESCE(sample_movie_url_560, "") = "" AND COALESCE(sample_movie_url_644, "") = "" AND COALESCE(sample_movie_url_720, "") = "")';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -33,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $settings = settings_get();
         $client = dmm_client_for_type('items');
         $stmt = $pdo->prepare(
-            'SELECT i.id, i.content_id, i.raw_json
+            'SELECT i.id, i.content_id, i.raw_json, i.service_code, i.floor_code
              FROM items i
              LEFT JOIN movie_repair_status mrs ON mrs.item_id = i.id
              WHERE ' . $missingWhere . '
@@ -58,18 +69,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             try {
-                $response = $client->fetchItems(
-                    (string)$settings['site'],
-                    (string)$settings['service'],
-                    (string)$settings['floor'],
-                    ['hits' => 100, 'keyword' => $contentId]
-                );
-                $rows = DmmNormalizer::normalizeItemsResponse($response);
+                $siteCode = trim((string)($settings['site'] ?? 'FANZA'));
+                $targetService = trim((string)($target['service_code'] ?? ''));
+                $targetFloor = trim((string)($target['floor_code'] ?? ''));
+                $defaultService = trim((string)($settings['service'] ?? ''));
+                $defaultFloor = trim((string)($settings['floor'] ?? ''));
+
+                $scopes = [];
+                foreach ([[$targetService, $targetFloor], [$defaultService, $defaultFloor]] as $scope) {
+                    [$serviceCode, $floorCode] = $scope;
+                    if ($serviceCode === '' || $floorCode === '') {
+                        continue;
+                    }
+                    $scopeKey = $serviceCode . '|' . $floorCode;
+                    $scopes[$scopeKey] = [$serviceCode, $floorCode];
+                }
+
                 $matched = null;
-                foreach ($rows as $row) {
-                    if (strcasecmp(trim((string)($row['content_id'] ?? '')), $contentId) === 0) {
-                        $matched = $row;
-                        break;
+                $matchedScope = '';
+                foreach ($scopes as [$serviceCode, $floorCode]) {
+                    $response = $client->fetchItems(
+                        $siteCode,
+                        $serviceCode,
+                        $floorCode,
+                        ['hits' => 100, 'keyword' => $contentId]
+                    );
+                    $rows = DmmNormalizer::normalizeItemsResponse($response);
+                    foreach ($rows as $row) {
+                        if (strcasecmp(trim((string)($row['content_id'] ?? '')), $contentId) === 0) {
+                            $matched = $row;
+                            $matchedScope = $serviceCode . '/' . $floorCode;
+                            break 2;
+                        }
                     }
                 }
 
@@ -87,8 +118,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $raw = [];
                     }
                     $newRaw = is_array($matched['raw'] ?? null) ? $matched['raw'] : [];
-                    if (isset($newRaw['sampleMovieURL'])) {
-                        $raw['sampleMovieURL'] = $newRaw['sampleMovieURL'];
+                    foreach (['sampleMovieURL', 'sampleMovieUrl', 'sample_movie_url', 'sampleMovie', 'sampleMovieURLVR'] as $movieKey) {
+                        if (array_key_exists($movieKey, $newRaw)) {
+                            $raw[$movieKey] = $newRaw[$movieKey];
+                        }
                     }
                     $update = $pdo->prepare(
                         'UPDATE items SET
@@ -113,11 +146,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ':id' => $itemId,
                     ]);
                     $status = 'restored';
-                    $statusMessage = '動画URLを復元しました。';
+                    $statusMessage = '動画URLを復元しました。照会先: ' . $matchedScope;
                     $restored++;
                 } else {
                     $status = 'not_provided';
-                    $statusMessage = $matched === null ? 'API応答に対象商品がありません。' : 'API応答に動画URLがありません。';
+                    $statusMessage = $matched === null
+                        ? '商品のservice/floorを含むAPI応答に対象商品がありません。'
+                        : '対象商品のAPI応答に動画URLがありません。';
                     $notProvided++;
                 }
 
@@ -145,7 +180,7 @@ require __DIR__ . '/includes/header.php';
 ?>
 <section class="card">
   <h1>サンプル動画再取得</h1>
-  <p>動画URLが保存されていない商品をFANZA APIへ個別照会し、取得できた動画URLだけを補完します。</p>
+  <p>動画URLが保存されていない商品を、その商品のservice・floorでFANZA APIへ個別照会し、取得できた動画URLだけを補完します。</p>
 
   <?php if ($message !== ''): ?>
     <div class="admin-notice <?= $messageType === 'success' ? 'admin-notice--success' : 'admin-notice--error' ?>"><p><?= e($message) ?></p></div>
