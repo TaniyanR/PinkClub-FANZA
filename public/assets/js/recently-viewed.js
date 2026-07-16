@@ -18,7 +18,18 @@
 
   if (!storageAvailable()) return;
 
-  const safeUrl = (value) => {
+  const safePageUrl = (value) => {
+    try {
+      const url = new URL(String(value || ''), window.location.origin);
+      if (url.origin !== window.location.origin) return '';
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') return '';
+      return url.href;
+    } catch (_) {
+      return '';
+    }
+  };
+
+  const safeImageUrl = (value) => {
     try {
       const url = new URL(String(value || ''), window.location.origin);
       return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
@@ -27,11 +38,48 @@
     }
   };
 
+  const normalizeIdList = (value) => {
+    if (!Array.isArray(value)) return [];
+    const ids = [];
+    value.forEach((candidate) => {
+      const id = Number.parseInt(String(candidate), 10);
+      if (Number.isInteger(id) && id > 0 && !ids.includes(id)) ids.push(id);
+    });
+    return ids.slice(0, 10);
+  };
+
+  const normalizeEntry = (entry) => {
+    if (!entry || typeof entry !== 'object') return null;
+    const id = Number.parseInt(String(entry.id || ''), 10);
+    const title = typeof entry.title === 'string' ? entry.title.trim().slice(0, 300) : '';
+    const url = safePageUrl(entry.url);
+    if (!Number.isInteger(id) || id <= 0 || title === '' || url === '') return null;
+
+    return {
+      version: 1,
+      id,
+      title,
+      image: safeImageUrl(entry.image),
+      url,
+      viewedAt: Number.isFinite(Number(entry.viewedAt)) ? Number(entry.viewedAt) : 0,
+      viewCount: Math.max(1, Math.min(999, Number.parseInt(String(entry.viewCount || 1), 10) || 1)),
+      actresses: normalizeIdList(entry.actresses),
+      genres: normalizeIdList(entry.genres),
+      makers: normalizeIdList(entry.makers),
+      series: normalizeIdList(entry.series)
+    };
+  };
+
   const readHistory = () => {
     try {
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
       if (!Array.isArray(parsed)) return [];
-      return parsed.filter((entry) => entry && Number.isInteger(entry.id) && entry.id > 0);
+      const normalized = [];
+      parsed.forEach((entry) => {
+        const validEntry = normalizeEntry(entry);
+        if (validEntry && !normalized.some((item) => item.id === validEntry.id)) normalized.push(validEntry);
+      });
+      return normalized.slice(0, MAX_STORED);
     } catch (_) {
       return [];
     }
@@ -39,7 +87,12 @@
 
   const writeHistory = (history) => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, MAX_STORED)));
+      const normalized = [];
+      history.forEach((entry) => {
+        const validEntry = normalizeEntry(entry);
+        if (validEntry && !normalized.some((item) => item.id === validEntry.id)) normalized.push(validEntry);
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized.slice(0, MAX_STORED)));
       return true;
     } catch (_) {
       return false;
@@ -50,7 +103,9 @@
     const ids = [];
     document.querySelectorAll(`a[href*="${filename}?id="]`).forEach((link) => {
       try {
-        const id = Number.parseInt(new URL(link.href, window.location.origin).searchParams.get('id') || '', 10);
+        const url = new URL(link.href, window.location.origin);
+        if (url.origin !== window.location.origin) return;
+        const id = Number.parseInt(url.searchParams.get('id') || '', 10);
         if (Number.isInteger(id) && id > 0 && !ids.includes(id)) ids.push(id);
       } catch (_) {}
     });
@@ -70,20 +125,19 @@
     const title = String(rawTitle || '').replace(/\s*\|\s*PinkClub.*$/i, '').trim();
     if (!title) return;
 
-    const image = safeUrl(document.querySelector('meta[property="og:image"]')?.content || '');
-    const url = safeUrl(window.location.href);
+    const image = safeImageUrl(document.querySelector('meta[property="og:image"]')?.content || '');
+    const url = safePageUrl(window.location.href);
     if (!url) return;
 
     const previous = readHistory();
     const existing = previous.find((entry) => entry.id === id);
-    const now = Date.now();
     const record = {
       version: 1,
       id,
       title: title.slice(0, 300),
       image,
       url,
-      viewedAt: now,
+      viewedAt: Date.now(),
       viewCount: Math.min(999, Number(existing?.viewCount || 0) + 1),
       actresses: idsFromLinks('actress.php'),
       genres: idsFromLinks('genre.php'),
@@ -99,6 +153,24 @@
     if (className) node.className = className;
     if (text !== undefined) node.textContent = text;
     return node;
+  };
+
+  const createNoImage = () => {
+    const noImage = createElement('div', 'pcf-recent__card-image', '画像なし');
+    noImage.style.display = 'grid';
+    noImage.style.placeItems = 'center';
+    return noImage;
+  };
+
+  const moveSectionAfterLatest = (section) => {
+    const body = section.closest('.site-main__body');
+    if (!body) return;
+    const latestSections = Array.from(body.querySelectorAll('.rail-section')).filter((candidate) => {
+      const heading = candidate.querySelector('h2');
+      return heading && heading.textContent.trim() === '新着作品';
+    });
+    const lastLatest = latestSections.at(-1);
+    if (lastLatest && lastLatest.nextSibling !== section) lastLatest.after(section);
   };
 
   const renderHistory = () => {
@@ -117,30 +189,32 @@
 
     history.forEach((entry) => {
       const article = createElement('article', 'pcf-recent__card');
+      const pageUrl = safePageUrl(entry.url);
+      if (!pageUrl) return;
+
       const imageLink = createElement('a');
-      imageLink.href = safeUrl(entry.url) || '#';
+      imageLink.href = pageUrl;
       imageLink.setAttribute('aria-label', entry.title);
 
-      if (entry.image) {
+      const imageUrl = safeImageUrl(entry.image);
+      if (imageUrl) {
         const image = createElement('img', 'pcf-recent__card-image');
-        image.src = safeUrl(entry.image);
+        image.src = imageUrl;
         image.alt = entry.title;
         image.loading = 'lazy';
         image.decoding = 'async';
+        image.addEventListener('error', () => image.replaceWith(createNoImage()), { once: true });
         imageLink.appendChild(image);
       } else {
-        const noImage = createElement('div', 'pcf-recent__card-image', '画像なし');
-        noImage.style.display = 'grid';
-        noImage.style.placeItems = 'center';
-        imageLink.appendChild(noImage);
+        imageLink.appendChild(createNoImage());
       }
 
       const titleLink = createElement('a', 'pcf-recent__card-title', entry.title);
-      titleLink.href = safeUrl(entry.url) || '#';
+      titleLink.href = pageUrl;
 
       const actions = createElement('div', 'pcf-recent__card-actions');
       const openLink = createElement('a', 'pcf-recent__open', 'もう一度見る');
-      openLink.href = safeUrl(entry.url) || '#';
+      openLink.href = pageUrl;
       const removeButton = createElement('button', 'pcf-recent__remove', '削除');
       removeButton.type = 'button';
       removeButton.dataset.recentRemoveId = String(entry.id);
@@ -151,6 +225,12 @@
       list.appendChild(article);
     });
 
+    if (!list.children.length) {
+      section.hidden = true;
+      return;
+    }
+
+    moveSectionAfterLatest(section);
     section.hidden = false;
 
     list.querySelectorAll('[data-recent-remove-id]').forEach((button) => {
@@ -170,6 +250,7 @@
 
   recordCurrentItem();
   renderHistory();
+  window.addEventListener('pageshow', renderHistory);
   window.addEventListener('storage', (event) => {
     if (event.key === STORAGE_KEY) renderHistory();
   });
