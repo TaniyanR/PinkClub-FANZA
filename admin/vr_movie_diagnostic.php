@@ -41,7 +41,7 @@ function vr_diag_collect(mixed $value, string $path = 'root', array &$rows = [])
 }
 
 $itemId = max(0, (int)($_GET['id'] ?? $_POST['id'] ?? 0));
-$item = null;
+$diagnosticItem = null;
 $dbRows = [];
 $rawRows = [];
 $apiRows = [];
@@ -50,15 +50,15 @@ $apiMessage = '';
 if ($itemId > 0) {
     $stmt = $pdo->prepare('SELECT id, content_id, title, service_code, service_name, floor_code, floor_name, sample_movie_url_476, sample_movie_url_560, sample_movie_url_644, sample_movie_url_720, sample_movie_pc_flag, sample_movie_sp_flag, raw_json FROM items WHERE id = :id LIMIT 1');
     $stmt->execute([':id' => $itemId]);
-    $item = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    $diagnosticItem = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
 }
 
-if (is_array($item)) {
+if (is_array($diagnosticItem)) {
     foreach (['sample_movie_url_476', 'sample_movie_url_560', 'sample_movie_url_644', 'sample_movie_url_720', 'sample_movie_pc_flag', 'sample_movie_sp_flag'] as $column) {
-        $dbRows[] = ['path' => 'items.' . $column, 'type' => get_debug_type($item[$column] ?? null), 'value' => (string)($item[$column] ?? '')];
+        $dbRows[] = ['path' => 'items.' . $column, 'type' => get_debug_type($diagnosticItem[$column] ?? null), 'value' => (string)($diagnosticItem[$column] ?? '')];
     }
 
-    $raw = json_decode((string)($item['raw_json'] ?? ''), true);
+    $raw = json_decode((string)($diagnosticItem['raw_json'] ?? ''), true);
     if (is_array($raw)) {
         vr_diag_collect($raw, 'raw_json', $rawRows);
     }
@@ -68,8 +68,8 @@ if (is_array($item)) {
         try {
             $settings = settings_get();
             $client = dmm_client_for_type('items');
-            $service = trim((string)($item['service_code'] ?? ''));
-            $floor = trim((string)($item['floor_code'] ?? ''));
+            $service = trim((string)($diagnosticItem['service_code'] ?? ''));
+            $floor = trim((string)($diagnosticItem['floor_code'] ?? ''));
             if ($service === '') {
                 $service = (string)($settings['service'] ?? 'digital');
             }
@@ -80,7 +80,7 @@ if (is_array($item)) {
                 (string)($settings['site'] ?? 'FANZA'),
                 $service,
                 $floor,
-                ['hits' => 100, 'keyword' => (string)($item['content_id'] ?? '')]
+                ['hits' => 100, 'keyword' => (string)($diagnosticItem['content_id'] ?? '')]
             );
             vr_diag_collect($response, 'api_response', $apiRows);
             $apiMessage = 'API応答を取得しました。service=' . $service . ' / floor=' . $floor;
@@ -101,15 +101,15 @@ require __DIR__ . '/includes/header.php';
     <button type="submit">DBを確認</button>
   </form>
 
-  <?php if ($itemId > 0 && $item === null): ?>
+  <?php if ($itemId > 0 && $diagnosticItem === null): ?>
     <div class="admin-notice admin-notice--error"><p>商品が見つかりません。</p></div>
   <?php endif; ?>
 
-  <?php if (is_array($item)): ?>
-    <h2><?= e((string)$item['title']) ?></h2>
-    <p>content_id: <?= e((string)$item['content_id']) ?><br>
-       service: <?= e((string)$item['service_code']) ?>（<?= e((string)$item['service_name']) ?>）<br>
-       floor: <?= e((string)$item['floor_code']) ?>（<?= e((string)$item['floor_name']) ?>）</p>
+  <?php if (is_array($diagnosticItem)): ?>
+    <h2><?= e((string)($diagnosticItem['title'] ?? '商品情報')) ?></h2>
+    <p>content_id: <?= e((string)($diagnosticItem['content_id'] ?? '')) ?><br>
+       service: <?= e((string)($diagnosticItem['service_code'] ?? '')) ?>（<?= e((string)($diagnosticItem['service_name'] ?? '')) ?>）<br>
+       floor: <?= e((string)($diagnosticItem['floor_code'] ?? '')) ?>（<?= e((string)($diagnosticItem['floor_name'] ?? '')) ?>）</p>
 
     <form method="post" style="margin:12px 0;">
       <?= csrf_input() ?>
@@ -133,9 +133,9 @@ require __DIR__ . '/includes/header.php';
             <tr><th>パス</th><th>型</th><th>値</th></tr>
             <?php foreach ($rows as $row): ?>
               <tr>
-                <td><?= e((string)$row['path']) ?></td>
-                <td><?= e((string)$row['type']) ?></td>
-                <td style="word-break:break-all;white-space:pre-wrap;"><?= e((string)$row['value']) ?></td>
+                <td><?= e((string)($row['path'] ?? '')) ?></td>
+                <td><?= e((string)($row['type'] ?? '')) ?></td>
+                <td style="word-break:break-all;white-space:pre-wrap;"><?= e((string)($row['value'] ?? '')) ?></td>
               </tr>
             <?php endforeach; ?>
           </table>
