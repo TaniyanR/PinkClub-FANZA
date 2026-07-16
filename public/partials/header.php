@@ -106,6 +106,7 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
   <link rel="stylesheet" href="<?= e(asset_url('css/public-ui.css')) ?>">
   <script src="<?= e(asset_url('js/recently-viewed.js')) ?>" defer></script>
   <script src="<?= e(asset_url('js/recommendations.js')) ?>" defer></script>
+  <script src="<?= e(asset_url('js/item-detail-fixes.js')) ?>" defer></script>
 </head>
 <body>
 <?php if ($customBodyOpenCode !== ''): ?>
