@@ -72,26 +72,9 @@
       movieButton.classList.add('sample-button--enabled');
       movieButton.dataset.movieUrl = playerUrl;
       movieButton.dataset.movieTitle = title;
-      movieButton.dataset.vrOfficialPlayer = '1';
-      movieButton.setAttribute('aria-label', `${title}のFANZA公式VRサンプルを新しいタブで開く`);
+      movieButton.setAttribute('aria-label', `${title}のVRサンプル動画を再生する`);
     });
   };
-
-  document.addEventListener('click', (event) => {
-    const trigger = event.target.closest('.sample-movie-trigger[data-vr-official-player="1"]');
-    if (!trigger || trigger.disabled) {
-      return;
-    }
-
-    const playerUrl = trigger.dataset.movieUrl || '';
-    if (!playerUrl) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    window.open(playerUrl, '_blank', 'noopener,noreferrer');
-  }, true);
 
   const enableVrItemMovie = () => {
     if (!/\/item\.php$/i.test(window.location.pathname)) {
