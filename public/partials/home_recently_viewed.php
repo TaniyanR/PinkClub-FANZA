@@ -26,10 +26,10 @@ declare(strict_types=1);
 .pcf-recent__control,.pcf-recent__remove,.pcf-recent-restore button{border:1px solid #888;border-radius:5px;background:#fff;color:#333;cursor:pointer}
 .pcf-recent__control{padding:7px 10px;font-size:12px;white-space:nowrap}
 .pcf-recent__list{display:flex;gap:14px;overflow-x:auto;padding:2px 2px 10px;scrollbar-width:thin}
-.pcf-recent__card{position:relative;flex:0 0 180px;min-width:180px}
+.pcf-recent__card{position:relative;display:flex;flex:0 0 180px;min-width:180px;flex-direction:column}
 .pcf-recent__card-image{display:block;width:180px;height:250px;object-fit:cover;border-radius:6px;background:#eee}
-.pcf-recent__card-title{display:-webkit-box;margin:8px 0 7px;overflow:hidden;color:#1670b7;font-size:14px;font-weight:700;line-height:1.45;text-decoration:none;-webkit-box-orient:vertical;-webkit-line-clamp:3}
-.pcf-recent__card-actions{display:flex;gap:6px;align-items:center}
+.pcf-recent__card-title{display:-webkit-box;height:4.35em;margin:8px 0 7px;overflow:hidden;color:#1670b7;font-size:14px;font-weight:700;line-height:1.45;text-decoration:none;-webkit-box-orient:vertical;-webkit-line-clamp:3}
+.pcf-recent__card-actions{display:flex;gap:6px;align-items:center;margin-top:auto}
 .pcf-recent__open{flex:1;padding:7px 8px;border:1px solid #555;border-radius:5px;color:#222;text-align:center;text-decoration:none;font-size:12px;font-weight:700}
 .pcf-recent__remove{padding:7px 8px;font-size:12px}
 .pcf-recent-restore{margin:10px 0 20px;text-align:right}
