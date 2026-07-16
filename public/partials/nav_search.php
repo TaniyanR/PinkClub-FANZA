@@ -95,3 +95,11 @@ try {
         <button class="site-search__button" type="submit">検索</button>
     </form>
 </nav>
+<?php
+$scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
+$isHomePage = in_array($scriptName, ['index.php', 'index.com'], true)
+    || $path === (string)(parse_url(public_url(''), PHP_URL_PATH) ?: '/');
+if ($isHomePage) {
+    require __DIR__ . '/home_mood.php';
+}
+?>
