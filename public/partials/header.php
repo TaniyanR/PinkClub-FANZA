@@ -132,10 +132,6 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
 
   <?php require __DIR__ . '/nav_search.php'; ?>
 </header>
-<?php $headerScriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? '')); ?>
-<?php if ($headerScriptName === 'index.php'): ?>
-  <?php require __DIR__ . '/home_mood.php'; ?>
-<?php endif; ?>
 <?php if ($canRenderAd && (!function_exists('should_show_ad') || should_show_ad('sp_header_below', $pageType, 'sp'))): ?>
 <div class="only-sp site-ad"><?php render_ad('sp_header_below', $pageType, 'sp'); ?></div>
 <?php endif; ?>
@@ -156,3 +152,6 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
       </nav>
     <?php endif; ?>
     <div class="site-main__body">
+    <?php if ($scriptName === 'index.php'): ?>
+      <?php require __DIR__ . '/home_mood.php'; ?>
+    <?php endif; ?>
