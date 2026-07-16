@@ -8,11 +8,12 @@ $moods = [
     ['label' => 'ストーリー重視', 'query' => 'ドラマ ストーリー 長編 映画'],
 ];
 ?>
-<nav aria-label="気分から作品を探す" style="display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin:0 0 14px;padding:8px 10px;border-bottom:1px solid #ddd;font-size:13px;line-height:1.5;">
-  <strong style="font-size:13px;white-space:nowrap;">気分で探す：</strong>
-  <?php foreach ($moods as $index => $mood): ?>
-    <?php $href = public_url('search.php') . '?' . http_build_query(['q' => (string)$mood['query']]); ?>
-    <?php if ($index > 0): ?><span aria-hidden="true" style="color:#aaa;">|</span><?php endif; ?>
-    <a href="<?= e($href) ?>" style="color:#333;text-decoration:underline;text-underline-offset:2px;white-space:nowrap;"><?= e((string)$mood['label']) ?></a>
-  <?php endforeach; ?>
-</nav>
+<section aria-label="気分から作品を探す" style="width:calc(100% - 24px);max-width:1200px;margin:10px auto 12px;padding:10px 12px;border-top:1px solid #e3e3e3;border-bottom:1px solid #e3e3e3;background:#fff;box-sizing:border-box;">
+  <div style="display:flex;align-items:center;justify-content:center;gap:8px 10px;flex-wrap:wrap;">
+    <strong style="font-size:14px;white-space:nowrap;">【 気分で探す 】</strong>
+    <?php foreach ($moods as $mood): ?>
+      <?php $href = public_url('search.php') . '?' . http_build_query(['q' => (string)$mood['query']]); ?>
+      <a href="<?= e($href) ?>" style="display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:6px 12px;border:1px solid #777;border-radius:5px;background:#fff;color:#222;text-decoration:none;font-size:13px;font-weight:700;line-height:1.2;box-sizing:border-box;white-space:nowrap;"><?= e((string)$mood['label']) ?></a>
+    <?php endforeach; ?>
+  </div>
+</section>
