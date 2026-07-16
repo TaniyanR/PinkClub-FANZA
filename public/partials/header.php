@@ -104,6 +104,7 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
   <?php endif; ?>
   <link rel="stylesheet" href="<?= e(asset_url('css/style.css')) ?>">
   <link rel="stylesheet" href="<?= e(asset_url('css/public-ui.css')) ?>">
+  <script src="<?= e(public_url('assets/js/recently-viewed.js')) ?>" defer></script>
 </head>
 <body>
 <?php if ($customBodyOpenCode !== ''): ?>
@@ -154,4 +155,5 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
     <div class="site-main__body">
     <?php if ($scriptName === 'index.php'): ?>
       <?php require __DIR__ . '/home_mood.php'; ?>
+      <?php require __DIR__ . '/home_recently_viewed.php'; ?>
     <?php endif; ?>
