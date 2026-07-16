@@ -2,31 +2,66 @@
   'use strict';
 
   const VR_TITLE_PATTERN = /(?:【|\[|［)?\s*VR\s*(?:】|\]|］)?/i;
-  const CONTENT_ID_PATTERN = /\/digital\/video\/([^/]+)\//i;
+  const CONTENT_ID_PATTERNS = [
+    /\/digital\/video\/([^/?#]+)(?:\/|$)/i,
+    /[?&](?:cid|id)=([a-z0-9_-]+)/i,
+  ];
 
-  const contentIdFromImage = (imageUrl) => {
-    const match = String(imageUrl || '').match(CONTENT_ID_PATTERN);
-    return match && /^[a-z0-9_-]+$/i.test(match[1]) ? match[1] : '';
+  const contentIdFromValue = (value) => {
+    const text = String(value || '');
+    for (const pattern of CONTENT_ID_PATTERNS) {
+      const match = text.match(pattern);
+      if (match && /^[a-z0-9_-]+$/i.test(match[1])) {
+        return match[1];
+      }
+    }
+    return '';
   };
 
   const officialPlayerUrl = (contentId) =>
     `https://www.dmm.co.jp/digital/-/vr-sample-player/=/cid=${encodeURIComponent(contentId)}/`;
 
-  const enableVrCardMovies = () => {
-    document.querySelectorAll('.pcf-dm-card').forEach((card) => {
+  const contentIdFromCard = (card) => {
+    const image = card.querySelector('.pcf-dm-card__image, img');
+    const candidates = [
+      image?.currentSrc,
+      image?.getAttribute('src'),
+      image?.getAttribute('data-src'),
+      image?.getAttribute('data-lazy-src'),
+      image?.getAttribute('data-original'),
+      card.querySelector('a[href]')?.getAttribute('href'),
+    ];
+
+    for (const candidate of candidates) {
+      const contentId = contentIdFromValue(candidate);
+      if (contentId) {
+        return contentId;
+      }
+    }
+    return '';
+  };
+
+  const enableVrCardMovies = (root = document) => {
+    root.querySelectorAll?.('.pcf-dm-card').forEach((card) => {
+      if (card.dataset.vrMovieChecked === '1') {
+        return;
+      }
+
       const titleElement = card.querySelector('.pcf-dm-card__title');
       const title = (titleElement?.textContent || '').trim();
       if (!VR_TITLE_PATTERN.test(title)) {
+        card.dataset.vrMovieChecked = '1';
         return;
       }
 
       const disabledMovieButton = Array.from(card.querySelectorAll('.pcf-dm-card__button.is-disabled'))
         .find((element) => (element.textContent || '').trim() === 'サンプル動画');
       if (!disabledMovieButton) {
+        card.dataset.vrMovieChecked = '1';
         return;
       }
 
-      const contentId = contentIdFromImage(card.querySelector('.pcf-dm-card__image')?.getAttribute('src'));
+      const contentId = contentIdFromCard(card);
       if (!contentId) {
         return;
       }
@@ -38,6 +73,7 @@
       button.dataset.movieTitle = title;
       button.textContent = 'サンプル動画';
       disabledMovieButton.replaceWith(button);
+      card.dataset.vrMovieChecked = '1';
     });
   };
 
@@ -57,14 +93,16 @@
     }
 
     const imageCandidates = [
+      document.querySelector('[data-package-image="1"]')?.currentSrc,
       document.querySelector('[data-package-image="1"]')?.getAttribute('src'),
+      document.querySelector('.pcf-item-sample-thumbs img')?.currentSrc,
       document.querySelector('.pcf-item-sample-thumbs img')?.getAttribute('src'),
       document.querySelector('meta[property="og:image"]')?.getAttribute('content'),
-    ].filter(Boolean);
+    ];
 
     let contentId = '';
     for (const imageUrl of imageCandidates) {
-      contentId = contentIdFromImage(imageUrl);
+      contentId = contentIdFromValue(imageUrl);
       if (contentId) {
         break;
       }
@@ -95,6 +133,25 @@
     movieArea.removeAttribute('aria-label');
   };
 
-  enableVrCardMovies();
-  enableVrItemMovie();
+  const apply = () => {
+    enableVrCardMovies();
+    enableVrItemMovie();
+  };
+
+  apply();
+  window.addEventListener('load', apply, { once: true });
+  window.addEventListener('pageshow', apply);
+
+  let scheduled = false;
+  const observer = new MutationObserver(() => {
+    if (scheduled) {
+      return;
+    }
+    scheduled = true;
+    window.requestAnimationFrame(() => {
+      scheduled = false;
+      apply();
+    });
+  });
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'data-src', 'data-lazy-src', 'data-original'] });
 })();
