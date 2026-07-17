@@ -98,7 +98,7 @@ require __DIR__ . '/partials/header.php';
   <div class="pcf-kana-directory">
     <?php foreach ($kanaGroups as $kana => $groupRows): ?>
       <?php if ($groupRows === []): continue; endif; ?>
-      <section class="pcf-index-block">
+      <section class="pcf-index-block" style="content-visibility:auto;contain-intrinsic-size:700px;">
         <h2 class="pcf-section-title"><?= e($kana) ?>行</h2>
         <div class="pcf-list-card__meta pcf-chip-list">
           <?php foreach ($groupRows as $i => $r): ?>
@@ -108,7 +108,7 @@ require __DIR__ . '/partials/header.php';
       </section>
     <?php endforeach; ?>
     <?php if ($alphaGroups !== []): ?>
-      <section class="pcf-index-block">
+      <section class="pcf-index-block" style="content-visibility:auto;contain-intrinsic-size:700px;">
         <h2 class="pcf-section-title">A~Z</h2>
         <?php foreach ($alphaGroups as $letter => $groupRows): ?>
           <div class="pcf-list-card__meta pcf-chip-list">

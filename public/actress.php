@@ -130,6 +130,7 @@ try {
     $cachedProfilePayload = null;
 }
 
+$shouldRefreshProfile = !is_array($cachedProfilePayload);
 if (is_array($cachedProfilePayload)) {
     foreach (array_keys($profile) as $profileKey) {
         if (array_key_exists($profileKey, $cachedProfilePayload)) {
@@ -139,100 +140,7 @@ if (is_array($cachedProfilePayload)) {
     $apiSyncStatus['success'] = true;
     $apiSyncStatus['message'] = '保存済みの女優プロフィールを表示しています。';
 } else {
-    try {
-        $apiSyncStatus['attempted'] = true;
-        $client = dmm_client_for_type('actresses');
-        $response = $client->searchActresses(['actress_id' => $dmmId, 'hits' => 10, 'offset' => 1]);
-        $apiRows = DmmNormalizer::toList($response['result']['actress'] ?? []);
-
-        $bestApiRow = null;
-        $bestScore = -1;
-        foreach ($apiRows as $apiRow) {
-            if (!is_array($apiRow)) {
-                continue;
-            }
-            $apiId = trim((string)($apiRow['id'] ?? ''));
-            $apiName = trim((string)($apiRow['name'] ?? ''));
-            if ($apiId !== $dmmId && $apiName !== $actressDisplayName) {
-                continue;
-            }
-
-            $score = actress_api_row_score($apiRow);
-            if ($score > $bestScore) {
-                $bestScore = $score;
-                $bestApiRow = $apiRow;
-            }
-        }
-
-        if (!is_array($bestApiRow)) {
-            $keywordResponse = $client->searchActresses(['keyword' => $actressDisplayName, 'hits' => 20, 'offset' => 1]);
-            $keywordRows = DmmNormalizer::toList($keywordResponse['result']['actress'] ?? []);
-            foreach ($keywordRows as $apiRow) {
-                if (!is_array($apiRow)) {
-                    continue;
-                }
-                $apiId = trim((string)($apiRow['id'] ?? ''));
-                $apiName = trim((string)($apiRow['name'] ?? ''));
-                if ($apiId !== $dmmId && $apiName !== $actressDisplayName) {
-                    continue;
-                }
-
-                $score = actress_api_row_score($apiRow);
-                if ($score > $bestScore) {
-                    $bestScore = $score;
-                    $bestApiRow = $apiRow;
-                }
-            }
-        }
-
-        if (is_array($bestApiRow)) {
-            $profile['name'] = trim((string)($bestApiRow['name'] ?? '')) !== '' ? (string)$bestApiRow['name'] : $profile['name'];
-            $profile['ruby'] = (string)($bestApiRow['ruby'] ?? $profile['ruby']);
-            $profile['birthday'] = (string)($bestApiRow['birthday'] ?? $profile['birthday']);
-            $profile['prefectures'] = (string)($bestApiRow['prefectures'] ?? $profile['prefectures']);
-            $profile['image_url'] = (string)($bestApiRow['imageURL']['large'] ?? $bestApiRow['image_url'] ?? $profile['image_url']);
-            $profile['image_small'] = (string)($bestApiRow['imageURL']['small'] ?? $bestApiRow['image_small'] ?? $profile['image_small']);
-            $profile['image_large'] = (string)($bestApiRow['imageURL']['large'] ?? $bestApiRow['image_large'] ?? $profile['image_large']);
-            $profile['bust'] = trim((string)($bestApiRow['bust'] ?? ''));
-            $profile['cup'] = trim((string)($bestApiRow['cup'] ?? ''));
-            $profile['waist'] = trim((string)($bestApiRow['waist'] ?? ''));
-            $profile['hip'] = trim((string)($bestApiRow['hip'] ?? ''));
-            $profile['height'] = trim((string)($bestApiRow['height'] ?? ''));
-            $profile['blood_type'] = trim((string)($bestApiRow['blood_type'] ?? ''));
-            $profile['hobby'] = trim((string)($bestApiRow['hobby'] ?? ''));
-
-            try {
-                upsert_actress([
-                    'dmm_id' => $profile['dmm_id'],
-                    'name' => $profile['name'],
-                    'ruby' => $profile['ruby'],
-                    'birthday' => $profile['birthday'],
-                    'prefectures' => $profile['prefectures'],
-                    'image_url' => $profile['image_url'],
-                    'image_small' => $profile['image_small'],
-                    'image_large' => $profile['image_large'],
-                ]);
-            } catch (Throwable $e) {
-                error_log('actress.php upsert_actress failed: ' . $e->getMessage());
-            }
-            $apiSyncStatus['success'] = true;
-            $apiSyncStatus['message'] = '女優APIでプロフィールを最新化しました。';
-        } else {
-            $apiSyncStatus['message'] = '女優APIの一致データが見つからなかったため、保存済み情報を表示しています。';
-        }
-
-        try {
-            setting_set($profileCacheKey, json_encode([
-                'cached_at' => time(),
-                'profile' => $profile,
-            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '');
-        } catch (Throwable $e) {
-            error_log('actress.php profile cache write failed: ' . $e->getMessage());
-        }
-    } catch (Throwable $e) {
-        $apiSyncStatus['message'] = '女優APIの取得に失敗したため、保存済み情報を表示しています。';
-        error_log('actress.php ActressSearch failed: ' . $e->getMessage());
-    }
+    $apiSyncStatus['message'] = '保存済み情報を先に表示し、プロフィール詳細を後から取得します。';
 }
 
 try {
@@ -348,27 +256,54 @@ require __DIR__ . '/partials/header.php';
 ]); ?>
 
 <section class="pcf-profile pcf-profile--plain pcf-actress-profile" style="display:grid;grid-template-columns:minmax(220px,320px) 1fr;gap:20px;align-items:start;">
-  <img class="pcf-actress-profile__image" src="<?= e($profileImage) ?>" alt="<?= e($actressDisplayName) ?>" style="width:100%;max-width:320px;aspect-ratio:1/1;object-fit:cover;border-radius:6px;">
+  <img id="actress-profile-image" class="pcf-actress-profile__image" src="<?= e($profileImage) ?>" alt="<?= e($actressDisplayName) ?>" decoding="async" fetchpriority="high" style="width:100%;max-width:320px;aspect-ratio:1/1;object-fit:cover;border-radius:6px;">
   <div class="pcf-profile__body pcf-actress-profile__body">
     <h1 class="pcf-hero__title" style="margin:0 0 16px;padding:0 0 6px 8px;border-left:8px solid #002bff;border-bottom:2px solid #002bff;"><?= e($actressDisplayName) ?></h1>
     <div class="pcf-actress-profile__details" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
       <dl class="pcf-detail-list" style="margin:0;">
-        <div><dt>よみ</dt><dd><?= e(actress_profile_value($profile, 'ruby')) ?></dd></div>
-        <div><dt>誕生日</dt><dd><?= e(!empty($profile['birthday']) ? format_date((string)$profile['birthday']) : '未登録') ?></dd></div>
-        <div><dt>出身地</dt><dd><?= e(actress_profile_value($profile, 'prefectures')) ?></dd></div>
-        <div><dt>趣味</dt><dd><?= e(actress_profile_value($profile, 'hobby')) ?></dd></div>
+        <div><dt>よみ</dt><dd data-actress-profile="ruby"><?= e(actress_profile_value($profile, 'ruby')) ?></dd></div>
+        <div><dt>誕生日</dt><dd data-actress-profile="birthday"><?= e(!empty($profile['birthday']) ? format_date((string)$profile['birthday']) : '未登録') ?></dd></div>
+        <div><dt>出身地</dt><dd data-actress-profile="prefectures"><?= e(actress_profile_value($profile, 'prefectures')) ?></dd></div>
+        <div><dt>趣味</dt><dd data-actress-profile="hobby"><?= e(actress_profile_value($profile, 'hobby')) ?></dd></div>
       </dl>
       <dl class="pcf-detail-list" style="margin:0;">
-        <div><dt>バスト</dt><dd><?= e(actress_profile_value($profile, 'bust')) ?></dd></div>
-        <div><dt>カップ</dt><dd><?= e(actress_profile_value($profile, 'cup')) ?></dd></div>
-        <div><dt>ウエスト</dt><dd><?= e(actress_profile_value($profile, 'waist')) ?></dd></div>
-        <div><dt>ヒップ</dt><dd><?= e(actress_profile_value($profile, 'hip')) ?></dd></div>
-        <div><dt>身長</dt><dd><?= e(actress_profile_value($profile, 'height')) ?></dd></div>
-        <div><dt>血液型</dt><dd><?= e(actress_profile_value($profile, 'blood_type')) ?></dd></div>
+        <div><dt>バスト</dt><dd data-actress-profile="bust"><?= e(actress_profile_value($profile, 'bust')) ?></dd></div>
+        <div><dt>カップ</dt><dd data-actress-profile="cup"><?= e(actress_profile_value($profile, 'cup')) ?></dd></div>
+        <div><dt>ウエスト</dt><dd data-actress-profile="waist"><?= e(actress_profile_value($profile, 'waist')) ?></dd></div>
+        <div><dt>ヒップ</dt><dd data-actress-profile="hip"><?= e(actress_profile_value($profile, 'hip')) ?></dd></div>
+        <div><dt>身長</dt><dd data-actress-profile="height"><?= e(actress_profile_value($profile, 'height')) ?></dd></div>
+        <div><dt>血液型</dt><dd data-actress-profile="blood_type"><?= e(actress_profile_value($profile, 'blood_type')) ?></dd></div>
       </dl>
     </div>
   </div>
 </section>
+
+<?php if ($shouldRefreshProfile): ?>
+<script>
+(() => {
+  const endpoint = <?= json_encode(public_url('actress_profile.php') . '?id=' . $id, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
+  fetch(endpoint, {
+    credentials: 'same-origin',
+    headers: {'Accept': 'application/json'}
+  })
+    .then((response) => response.ok ? response.json() : null)
+    .then((data) => {
+      if (!data || !data.success || !data.display) return;
+      document.querySelectorAll('[data-actress-profile]').forEach((node) => {
+        const key = node.getAttribute('data-actress-profile');
+        if (key && Object.prototype.hasOwnProperty.call(data.display, key)) {
+          node.textContent = String(data.display[key] || '未登録');
+        }
+      });
+      const image = document.getElementById('actress-profile-image');
+      if (image && data.image_url) {
+        image.src = String(data.image_url);
+      }
+    })
+    .catch(() => {});
+})();
+</script>
+<?php endif; ?>
 
 <h2 class="pcf-section-title" style="margin:15px 0 12px;padding-bottom:10px;border-bottom:2px solid #d7dbe3;"><?= e($actressDisplayName) ?>の作品</h2>
 <?php if ($list !== []): ?>
