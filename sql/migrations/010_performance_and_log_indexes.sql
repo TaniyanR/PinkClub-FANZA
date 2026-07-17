@@ -27,7 +27,7 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 SET @table_exists := (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'out_logs');
 SET @columns_exist := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'out_logs' AND COLUMN_NAME IN ('created_at','target_url'));
 SET @index_exists := (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'out_logs' AND INDEX_NAME = 'idx_out_logs_date_target');
-SET @sql := IF(@table_exists > 0 AND @columns_exist = 2 AND @index_exists = 0, 'CREATE INDEX idx_out_logs_date_target ON out_logs(created_at, target_url(191))', 'SELECT 1');
+SET @sql := IF(@table_exists > 0 AND @columns_exist = 2 AND @index_exists = 0, 'CREATE INDEX idx_out_logs_date_target ON out_logs(created_at, target_url(160))', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @table_exists := (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'page_views');
