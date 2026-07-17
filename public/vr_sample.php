@@ -15,7 +15,8 @@ function vr_sample_json(bool $available): never
 function vr_sample_official_page_has_player(string $contentId): bool
 {
     $cacheDir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'pinkclub-vr-sample-cache';
-    $cacheFile = $cacheDir . DIRECTORY_SEPARATOR . hash('sha256', $contentId) . '.json';
+    // v2: 旧判定で保存された「全件なし」の誤キャッシュを読み込まない。
+    $cacheFile = $cacheDir . DIRECTORY_SEPARATOR . 'v2-' . hash('sha256', $contentId) . '.json';
     $cacheLifetime = 21600;
 
     if (is_file($cacheFile) && (time() - (int)filemtime($cacheFile)) < $cacheLifetime) {
@@ -34,13 +35,17 @@ function vr_sample_official_page_has_player(string $contentId): bool
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_MAXREDIRS => 3,
+                CURLOPT_MAXREDIRS => 5,
                 CURLOPT_CONNECTTIMEOUT => 5,
-                CURLOPT_TIMEOUT => 10,
-                CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; PinkClubFANZA/1.0)',
+                CURLOPT_TIMEOUT => 12,
+                CURLOPT_ENCODING => '',
+                CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
                 CURLOPT_HTTPHEADER => [
-                    'Accept: text/html,application/xhtml+xml',
+                    'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                    'Accept-Language: ja,en-US;q=0.9,en;q=0.8',
                     'Cookie: age_check_done=1; ckcy=1',
+                    'Referer: https://www.dmm.co.jp/',
+                    'Upgrade-Insecure-Requests: 1',
                 ],
             ]);
             $response = curl_exec($ch);
@@ -55,9 +60,16 @@ function vr_sample_official_page_has_player(string $contentId): bool
     $available = false;
     if ($html !== '') {
         $quotedContentId = preg_quote($contentId, '/');
-        $available = preg_match('/vr-sample-player[^\r\n"\']*' . $quotedContentId . '/iu', $html) === 1
-            || preg_match('/cid[=\/:%22]+'. $quotedContentId . '/iu', $html) === 1
-                && preg_match('/VR.{0,40}サンプル|サンプル.{0,40}VR/iu', $html) === 1;
+        $isAgeGate = str_contains($html, 'あなたは18歳以上ですか')
+            || str_contains($html, '日本を代表するアダルトポータルへようこそ');
+
+        if (!$isAgeGate) {
+            $available = preg_match('/vr-sample-player[^\r\n"\']*' . $quotedContentId . '/iu', $html) === 1
+                || (
+                    preg_match('/cid[=\/:％%22]+'. $quotedContentId . '/iu', $html) === 1
+                    && preg_match('/VR.{0,80}サンプル|サンプル.{0,80}VR/iu', $html) === 1
+                );
+        }
     }
 
     if (!is_dir($cacheDir)) {
