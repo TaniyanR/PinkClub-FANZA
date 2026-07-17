@@ -8,4 +8,7 @@ require_once __DIR__ . '/../lib/crawler_guard.php';
 require_once __DIR__ . '/../lib/public_page_cache.php';
 
 pcf_crawler_guard_check();
-pcf_public_page_cache_start(120);
+
+$publicScriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
+$publicPageCacheTtl = in_array($publicScriptName, ['actresses.php', 'actress.php'], true) ? 600 : 120;
+pcf_public_page_cache_start($publicPageCacheTtl);
