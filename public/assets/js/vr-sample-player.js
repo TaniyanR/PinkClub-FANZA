@@ -2,35 +2,16 @@
   'use strict';
 
   const VR_TITLE_PATTERN = /(?:【|\[|［)?\s*VR\s*(?:】|\]|］)?/i;
-  const CONTENT_ID_PATTERNS = [
-    /\/digital\/video\/([^/?#]+)(?:\/|$)/i,
-    /[?&](?:cid|id)=([a-z0-9_-]+)/i,
-  ];
+  const checkedCards = new WeakSet();
 
-  const contentIdFromValue = (value) => {
-    const text = String(value || '');
-    for (const pattern of CONTENT_ID_PATTERNS) {
-      const match = text.match(pattern);
-      if (match && /^[a-z0-9_-]+$/i.test(match[1])) {
-        return match[1];
-      }
-    }
-    return '';
-  };
-
-  const officialPlayerUrl = (contentId) =>
-    `https://www.dmm.co.jp/digital/-/vr-sample-player/=/cid=${encodeURIComponent(contentId)}/`;
-
-  const isItemLink = (link) => {
+  const itemLinkFromCard = (card) => Array.from(card.querySelectorAll('a[href]')).find((link) => {
     try {
       const url = new URL(link.href, window.location.href);
       return /\/item\.php$/i.test(url.pathname) && /^\d+$/.test(url.searchParams.get('id') || '');
     } catch (_) {
       return false;
     }
-  };
-
-  const itemLinkFromCard = (card) => Array.from(card.querySelectorAll('a[href]')).find(isItemLink);
+  });
 
   const localPlayerUrlFromCard = (card) => {
     const itemLink = itemLinkFromCard(card);
@@ -52,90 +33,98 @@
   };
 
   const cardTitle = (card) => {
-    const preferred = card.querySelector(
-      '.rail-card__title, .pcf-dm-card__title, [class*="card__title"], h2, h3, h4'
+    const titleNode = card.querySelector(
+      '.rail-card__title, .pcf-dm-card__title, [class*="card"][class*="title"], h2, h3, h4'
     );
-    if (preferred && VR_TITLE_PATTERN.test(preferred.textContent || '')) {
-      return (preferred.textContent || '').trim();
-    }
-
-    const itemLink = itemLinkFromCard(card);
-    return (itemLink?.textContent || '').trim();
+    return (titleNode?.textContent || '').trim();
   };
 
-  const findMovieControl = (card) => Array.from(card.querySelectorAll(
-    '.sample-movie-trigger, .sample-button, .pcf-dm-card__button, button, a, span'
-  )).find((element) => (element.textContent || '').trim() === 'サンプル動画');
+  const findMovieControl = (card) => Array.from(card.querySelectorAll('button, span, a'))
+    .find((element) => (element.textContent || '').trim() === 'サンプル動画');
 
-  const cardFromItemLink = (link) => {
-    const knownCard = link.closest('.rail-card, .pcf-dm-card, [data-item-card], [class*="item-card"], [class*="product-card"]');
-    if (knownCard) {
-      return knownCard;
-    }
-
-    let node = link.parentElement;
-    for (let depth = 0; node && depth < 7; depth += 1, node = node.parentElement) {
-      if (findMovieControl(node)) {
-        return node;
+  const checkAvailability = async (playerUrl) => {
+    try {
+      const checkUrl = new URL(playerUrl, window.location.href);
+      checkUrl.searchParams.set('check', '1');
+      const response = await fetch(checkUrl.toString(), {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) {
+        return false;
       }
+      const data = await response.json();
+      return data?.available === true;
+    } catch (_) {
+      return false;
     }
-    return null;
   };
 
-  const allProductCards = () => {
-    const cards = new Set(document.querySelectorAll(
-      '.rail-card, .pcf-dm-card, [data-item-card], [class*="item-card"], [class*="product-card"]'
-    ));
+  const enableMovieControl = (currentControl, playerUrl, title) => {
+    let movieButton = currentControl;
+    if (!(currentControl instanceof HTMLButtonElement)) {
+      movieButton = document.createElement('button');
+      movieButton.type = 'button';
+      movieButton.className = currentControl.className.replace(/\bis-disabled\b/g, '').trim();
+      movieButton.textContent = 'サンプル動画';
+      currentControl.replaceWith(movieButton);
+    }
 
-    document.querySelectorAll('a[href*="item.php"]').forEach((link) => {
-      if (!isItemLink(link)) {
-        return;
-      }
-      const card = cardFromItemLink(link);
+    movieButton.disabled = false;
+    movieButton.classList.remove('is-disabled', 'sample-button--disabled');
+    if (movieButton.classList.contains('sample-button')) {
+      movieButton.classList.add('sample-button--enabled');
+    }
+    movieButton.classList.add('sample-movie-trigger');
+    movieButton.dataset.movieUrl = playerUrl;
+    movieButton.dataset.movieTitle = title;
+    movieButton.dataset.vrPopupPlayer = '1';
+    movieButton.setAttribute('aria-label', `${title}のFANZA公式VRサンプルを別ウィンドウで再生する`);
+  };
+
+  const inspectVrCard = async (card) => {
+    if (checkedCards.has(card)) {
+      return;
+    }
+    checkedCards.add(card);
+
+    const title = cardTitle(card);
+    if (!VR_TITLE_PATTERN.test(title)) {
+      return;
+    }
+
+    const currentControl = findMovieControl(card);
+    if (!currentControl) {
+      return;
+    }
+
+    const playerUrl = localPlayerUrlFromCard(card);
+    if (!playerUrl) {
+      return;
+    }
+
+    const available = await checkAvailability(playerUrl);
+    if (!available || !card.isConnected) {
+      return;
+    }
+
+    enableMovieControl(currentControl, playerUrl, title);
+  };
+
+  const findCandidateCards = (root = document) => {
+    const cards = new Set();
+    root.querySelectorAll?.('a[href*="item.php?id="]').forEach((link) => {
+      const card = link.closest('.rail-card, .pcf-dm-card, article, li, [class*="card"]');
       if (card) {
         cards.add(card);
       }
     });
-
-    return Array.from(cards);
+    return cards;
   };
 
-  const enableVrCardMovies = () => {
-    allProductCards().forEach((card) => {
-      const title = cardTitle(card);
-      if (!VR_TITLE_PATTERN.test(title)) {
-        return;
-      }
-
-      const currentControl = findMovieControl(card);
-      if (!currentControl || currentControl.dataset.vrPopupPlayer === '1') {
-        return;
-      }
-
-      const playerUrl = localPlayerUrlFromCard(card);
-      if (!playerUrl) {
-        return;
-      }
-
-      let movieButton = currentControl;
-      if (!(currentControl instanceof HTMLButtonElement)) {
-        movieButton = document.createElement('button');
-        movieButton.type = 'button';
-        movieButton.className = currentControl.className.replace(/\bis-disabled\b/g, '').trim();
-        movieButton.textContent = 'サンプル動画';
-        currentControl.replaceWith(movieButton);
-      }
-
-      movieButton.disabled = false;
-      movieButton.classList.remove('is-disabled', 'sample-button--disabled');
-      if (movieButton.classList.contains('sample-button')) {
-        movieButton.classList.add('sample-button--enabled');
-      }
-      movieButton.classList.add('sample-movie-trigger');
-      movieButton.dataset.movieUrl = playerUrl;
-      movieButton.dataset.movieTitle = title;
-      movieButton.dataset.vrPopupPlayer = '1';
-      movieButton.setAttribute('aria-label', `${title}のFANZA公式VRサンプルを別ウィンドウで再生する`);
+  const inspectAllCards = (root = document) => {
+    findCandidateCards(root).forEach((card) => {
+      void inspectVrCard(card);
     });
   };
 
@@ -178,7 +167,7 @@
     openVrPopup(playerUrl);
   }, true);
 
-  const enableVrItemMovie = () => {
+  const inspectItemPage = async () => {
     if (!/\/item\.php$/i.test(window.location.pathname)) {
       return;
     }
@@ -188,70 +177,51 @@
       return;
     }
 
+    const itemId = new URL(window.location.href).searchParams.get('id') || '';
+    if (!/^\d+$/.test(itemId)) {
+      return;
+    }
+
+    const playerUrl = new URL('vr_sample.php', window.location.href);
+    playerUrl.searchParams.set('id', itemId);
+    const available = await checkAvailability(playerUrl.toString());
+    if (!available) {
+      return;
+    }
+
     const movieArea = document.querySelector('.pcf-item-sample-movie');
     if (!movieArea || movieArea.querySelector('iframe')) {
       return;
     }
 
-    const imageCandidates = [
-      document.querySelector('[data-package-image="1"]')?.currentSrc,
-      document.querySelector('[data-package-image="1"]')?.getAttribute('src'),
-      document.querySelector('.pcf-item-sample-thumbs img')?.currentSrc,
-      document.querySelector('.pcf-item-sample-thumbs img')?.getAttribute('src'),
-      document.querySelector('meta[property="og:image"]')?.getAttribute('content'),
-    ];
-
-    let contentId = '';
-    for (const imageUrl of imageCandidates) {
-      contentId = contentIdFromValue(imageUrl);
-      if (contentId) {
-        break;
-      }
-    }
-
-    if (!contentId) {
-      return;
-    }
-
-    const iframe = document.createElement('iframe');
-    iframe.title = 'VRサンプル動画プレイヤー';
-    iframe.src = officialPlayerUrl(contentId);
-    iframe.width = '560';
-    iframe.height = '360';
-    iframe.scrolling = 'no';
-    iframe.allowFullscreen = true;
-    iframe.setAttribute('allow', 'xr-spatial-tracking *; gyroscope *; accelerometer *; fullscreen *');
-    iframe.setAttribute('loading', 'lazy');
-    iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
-    iframe.style.display = 'block';
-    iframe.style.width = '100%';
-    iframe.style.height = '100%';
-    iframe.style.border = '0';
-
-    movieArea.replaceChildren(iframe);
-    movieArea.style.background = '#000';
-    movieArea.style.color = '';
-    movieArea.removeAttribute('aria-label');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'sample-button sample-button--enabled sample-movie-trigger';
+    button.dataset.movieUrl = playerUrl.toString();
+    button.dataset.movieTitle = title;
+    button.dataset.vrPopupPlayer = '1';
+    button.textContent = 'サンプル動画';
+    movieArea.replaceChildren(button);
   };
 
-  const apply = () => {
-    enableVrCardMovies();
-    enableVrItemMovie();
-  };
-
-  apply();
-  window.addEventListener('load', apply, { once: true });
-  window.addEventListener('pageshow', apply);
+  inspectAllCards();
+  void inspectItemPage();
 
   let scheduled = false;
-  const observer = new MutationObserver(() => {
+  const observer = new MutationObserver((mutations) => {
     if (scheduled) {
       return;
     }
     scheduled = true;
     window.requestAnimationFrame(() => {
       scheduled = false;
-      apply();
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node instanceof Element) {
+            inspectAllCards(node);
+          }
+        });
+      });
     });
   });
   observer.observe(document.body, { childList: true, subtree: true });
