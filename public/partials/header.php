@@ -69,8 +69,6 @@ if ($ogImage !== '' && !str_starts_with($ogImage, 'http://') && !str_starts_with
 $jsonLdText = isset($jsonLd) && is_string($jsonLd) && $jsonLd !== '' ? $jsonLd : '';
 $relPrevHref = isset($relPrev) && is_string($relPrev) && $relPrev !== '' ? $relPrev : '';
 $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relNext : '';
-$vrAffiliateScriptPath = dirname(__DIR__) . '/assets/js/vr-card-affiliate-v3.js';
-$vrAffiliateScriptVersion = is_file($vrAffiliateScriptPath) ? (string)filemtime($vrAffiliateScriptPath) : '1';
 ?>
 <!doctype html>
 <html lang="ja">
@@ -109,7 +107,85 @@ $vrAffiliateScriptVersion = is_file($vrAffiliateScriptPath) ? (string)filemtime(
   <script src="<?= e(asset_url('js/recently-viewed.js')) ?>" defer></script>
   <script src="<?= e(asset_url('js/recommendations.js')) ?>" defer></script>
   <script src="<?= e(asset_url('js/item-detail-fixes.js')) ?>" defer></script>
-  <script src="<?= e(asset_url('js/vr-card-affiliate-v3.js') . '?v=' . rawurlencode($vrAffiliateScriptVersion)) ?>" defer></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const vrPattern = /(?:【|\[|［)?\s*VR\s*(?:】|\]|］)?/i;
+
+    const itemIdFromLink = (link) => {
+      try {
+        const url = new URL(link.href, window.location.href);
+        if (!/\/item\.php$/i.test(url.pathname)) return '';
+        const id = url.searchParams.get('id') || '';
+        return /^\d+$/.test(id) ? id : '';
+      } catch (_) {
+        return '';
+      }
+    };
+
+    const convertVrCards = (root = document) => {
+      root.querySelectorAll('a[href*="item.php"]').forEach((itemLink) => {
+        const itemId = itemIdFromLink(itemLink);
+        if (!itemId) return;
+
+        const card = itemLink.closest('.pcf-dm-card, .rail-card, article');
+        if (!card || card.dataset.vrAffiliateReady === '1') return;
+
+        const titleNode = card.querySelector('.pcf-dm-card__title, .rail-card__title, h2, h3, h4');
+        const title = (titleNode?.textContent || '').trim();
+        if (!vrPattern.test(title)) return;
+
+        const movieControl = Array.from(card.querySelectorAll('button, span, a'))
+          .find((node) => (node.textContent || '').trim() === 'サンプル動画');
+        if (!movieControl) return;
+
+        const link = document.createElement('a');
+        link.className = movieControl.className
+          .replace(/\bis-disabled\b/g, '')
+          .replace(/\bsample-button--disabled\b/g, '')
+          .trim();
+        link.classList.add('sample-button--enabled');
+        link.href = `<?= e(public_url('vr_affiliate.php')) ?>?id=${encodeURIComponent(itemId)}`;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer sponsored';
+        link.textContent = '元サイトで見る';
+        link.setAttribute('aria-label', `${title}をFANZAで見る`);
+        link.style.display = 'flex';
+        link.style.alignItems = 'center';
+        link.style.justifyContent = 'center';
+        link.style.textDecoration = 'none';
+        movieControl.replaceWith(link);
+        card.dataset.vrAffiliateReady = '1';
+      });
+    };
+
+    const replaceVrNoMovieWithPackage = () => {
+      if (!/\/item\.php$/i.test(window.location.pathname)) return;
+      const title = (document.querySelector('h1')?.textContent || document.title || '').trim();
+      if (!vrPattern.test(title)) return;
+
+      const movieArea = document.querySelector('.pcf-item-sample-movie');
+      const packageImage = document.querySelector('img[data-package-image="1"]');
+      if (!movieArea || !packageImage) return;
+
+      const image = packageImage.cloneNode(true);
+      image.removeAttribute('data-package-image');
+      image.removeAttribute('loading');
+      image.style.width = '100%';
+      image.style.height = '100%';
+      image.style.objectFit = 'contain';
+      image.style.display = 'block';
+      movieArea.replaceChildren(image);
+      movieArea.style.background = '#fff';
+      movieArea.style.color = '';
+    };
+
+    convertVrCards();
+    replaceVrNoMovieWithPackage();
+
+    const observer = new MutationObserver(() => convertVrCards());
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+  </script>
 </head>
 <body>
 <?php if ($customBodyOpenCode !== ''): ?>
