@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/site_settings.php';
 
 function analytics_beacon_marker_hash(): string
 {
@@ -32,6 +33,60 @@ function analytics_visitor_hash(string $ua): string
     }
 
     return hash('sha256', $visitorId . '|pinkclub');
+}
+
+function analytics_maybe_cleanup_old_logs(int $retentionDays = 730, int $batchSize = 2000): void
+{
+    if (mt_rand(1, 20) !== 1) {
+        return;
+    }
+
+    $retentionDays = max(365, min(3650, $retentionDays));
+    $batchSize = max(100, min(5000, $batchSize));
+    $lastCleanupAt = (int)(setting_get('analytics.cleanup.last_at', '0') ?? '0');
+    if ($lastCleanupAt > 0 && $lastCleanupAt > time() - 21600) {
+        return;
+    }
+
+    try {
+        setting_set('analytics.cleanup.last_at', (string)time());
+        $cutoffDateTime = date('Y-m-d H:i:s', strtotime('-' . $retentionDays . ' days'));
+        $cutoffDate = date('Y-m-d', strtotime('-' . $retentionDays . ' days'));
+        $targets = [
+            ['table' => 'site_events', 'column' => 'created_at', 'cutoff' => $cutoffDateTime],
+            ['table' => 'in_logs', 'column' => 'created_at', 'cutoff' => $cutoffDateTime],
+            ['table' => 'out_logs', 'column' => 'created_at', 'cutoff' => $cutoffDateTime],
+            ['table' => 'page_views', 'column' => 'viewed_at', 'cutoff' => $cutoffDateTime],
+            ['table' => 'visit_sessions', 'column' => 'stat_date', 'cutoff' => $cutoffDate],
+        ];
+
+        $deletedRows = 0;
+        foreach ($targets as $target) {
+            if (!db_table_exists((string)$target['table'])) {
+                continue;
+            }
+            $sql = sprintf(
+                'DELETE FROM \`%s\` WHERE \`%s\` < :cutoff ORDER BY \`%s\` ASC LIMIT %d',
+                $target['table'],
+                $target['column'],
+                $target['column'],
+                $batchSize
+            );
+            $stmt = db()->prepare($sql);
+            $stmt->execute([':cutoff' => $target['cutoff']]);
+            $deletedRows += $stmt->rowCount();
+        }
+
+        setting_set('analytics.cleanup.last_success_at', date('Y-m-d H:i:s'));
+        setting_set('analytics.cleanup.last_deleted_rows', (string)$deletedRows);
+        setting_set('analytics.cleanup.retention_days', (string)$retentionDays);
+    } catch (Throwable $e) {
+        error_log('analytics log cleanup failed: ' . $e->getMessage());
+        try {
+            setting_set('analytics.cleanup.last_error', mb_substr($e->getMessage(), 0, 500));
+        } catch (Throwable) {
+        }
+    }
 }
 
 function analytics_track_beacon(): void
@@ -86,6 +141,8 @@ function analytics_track_beacon(): void
     } catch (Throwable $e) {
         analytics_disable_for_request($e);
     }
+
+    analytics_maybe_cleanup_old_logs(730, 2000);
 }
 
 function analytics_log_out(string $targetUrl, string $refCode, string $path): void
