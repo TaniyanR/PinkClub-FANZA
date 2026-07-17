@@ -11,7 +11,7 @@ pcf_crawler_guard_check();
 header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: private, max-age=300');
 
-function actress_profile_json_response(array $payload, int $status = 200): never
+function actress_profile_json_response(array $payload, int $status = 200): void
 {
     http_response_code($status);
     echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{"success":false}';
@@ -80,7 +80,7 @@ function actress_profile_image_url(array $profile): string
     return '';
 }
 
-function actress_profile_success(array $profile): never
+function actress_profile_success(array $profile): void
 {
     actress_profile_json_response([
         'success' => true,
