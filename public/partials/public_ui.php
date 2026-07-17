@@ -40,6 +40,8 @@ if (!function_exists('pcf_parse_image_urls')) {
 if (!function_exists('pcf_maybe_decode_json_value')) {
     function pcf_maybe_decode_json_value(mixed $value): mixed
     {
+        static $decodedJsonCache = [];
+
         if (!is_string($value)) {
             return $value;
         }
@@ -47,14 +49,27 @@ if (!function_exists('pcf_maybe_decode_json_value')) {
         if ($trimmed === '' || ($trimmed[0] !== '{' && $trimmed[0] !== '[')) {
             return $value;
         }
+
+        $cacheKey = hash('sha256', $trimmed);
+        if (array_key_exists($cacheKey, $decodedJsonCache)) {
+            return $decodedJsonCache[$cacheKey];
+        }
+
         $decoded = json_decode($trimmed, true);
         if (is_string($decoded)) {
             $decodedAgain = json_decode($decoded, true);
-            return is_array($decodedAgain) ? $decodedAgain : $decoded;
+            $result = is_array($decodedAgain) ? $decodedAgain : $decoded;
+        } else {
+            $result = is_array($decoded) ? $decoded : $value;
         }
-        return is_array($decoded) ? $decoded : $value;
+
+        if (count($decodedJsonCache) >= 200) {
+            $decodedJsonCache = [];
+        }
+        $decodedJsonCache[$cacheKey] = $result;
+        return $result;
     }
-}
+}}
 
 if (!function_exists('pcf_looks_like_image_url')) {
     function pcf_looks_like_image_url(string $value): bool
@@ -574,7 +589,7 @@ if (!function_exists('pcf_render_item_card')) {
         $raw = [];
         $rawJson = (string)($item['raw_json'] ?? '');
         if ($rawJson !== '') {
-            $decoded = json_decode($rawJson, true);
+            $decoded = pcf_maybe_decode_json_value($rawJson);
             if (is_array($decoded)) {
                 $raw = $decoded;
             }
