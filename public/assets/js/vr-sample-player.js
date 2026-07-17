@@ -21,14 +21,16 @@
   const officialPlayerUrl = (contentId) =>
     `https://www.dmm.co.jp/digital/-/vr-sample-player/=/cid=${encodeURIComponent(contentId)}/`;
 
-  const itemLinkFromCard = (card) => Array.from(card.querySelectorAll('a[href]')).find((link) => {
+  const isItemLink = (link) => {
     try {
       const url = new URL(link.href, window.location.href);
       return /\/item\.php$/i.test(url.pathname) && /^\d+$/.test(url.searchParams.get('id') || '');
     } catch (_) {
       return false;
     }
-  });
+  };
+
+  const itemLinkFromCard = (card) => Array.from(card.querySelectorAll('a[href]')).find(isItemLink);
 
   const localPlayerUrlFromCard = (card) => {
     const itemLink = itemLinkFromCard(card);
@@ -49,27 +51,64 @@
     }
   };
 
-  const cardTitle = (card) => (
-    card.querySelector('.rail-card__title, .pcf-dm-card__title')?.textContent || ''
-  ).trim();
+  const cardTitle = (card) => {
+    const preferred = card.querySelector(
+      '.rail-card__title, .pcf-dm-card__title, [class*="card__title"], h2, h3, h4'
+    );
+    if (preferred && VR_TITLE_PATTERN.test(preferred.textContent || '')) {
+      return (preferred.textContent || '').trim();
+    }
+
+    const itemLink = itemLinkFromCard(card);
+    return (itemLink?.textContent || '').trim();
+  };
 
   const findMovieControl = (card) => Array.from(card.querySelectorAll(
-    '.sample-movie-trigger, .pcf-dm-card__button.is-disabled'
+    '.sample-movie-trigger, .sample-button, .pcf-dm-card__button, button, a, span'
   )).find((element) => (element.textContent || '').trim() === 'サンプル動画');
 
+  const cardFromItemLink = (link) => {
+    const knownCard = link.closest('.rail-card, .pcf-dm-card, [data-item-card], [class*="item-card"], [class*="product-card"]');
+    if (knownCard) {
+      return knownCard;
+    }
+
+    let node = link.parentElement;
+    for (let depth = 0; node && depth < 7; depth += 1, node = node.parentElement) {
+      if (findMovieControl(node)) {
+        return node;
+      }
+    }
+    return null;
+  };
+
+  const allProductCards = () => {
+    const cards = new Set(document.querySelectorAll(
+      '.rail-card, .pcf-dm-card, [data-item-card], [class*="item-card"], [class*="product-card"]'
+    ));
+
+    document.querySelectorAll('a[href*="item.php"]').forEach((link) => {
+      if (!isItemLink(link)) {
+        return;
+      }
+      const card = cardFromItemLink(link);
+      if (card) {
+        cards.add(card);
+      }
+    });
+
+    return Array.from(cards);
+  };
+
   const enableVrCardMovies = () => {
-    document.querySelectorAll('.rail-card, .pcf-dm-card').forEach((card) => {
+    allProductCards().forEach((card) => {
       const title = cardTitle(card);
       if (!VR_TITLE_PATTERN.test(title)) {
         return;
       }
 
       const currentControl = findMovieControl(card);
-      if (!currentControl) {
-        return;
-      }
-
-      if (currentControl.dataset.vrPopupPlayer === '1') {
+      if (!currentControl || currentControl.dataset.vrPopupPlayer === '1') {
         return;
       }
 
@@ -201,5 +240,19 @@
   };
 
   apply();
+  window.addEventListener('load', apply, { once: true });
   window.addEventListener('pageshow', apply);
+
+  let scheduled = false;
+  const observer = new MutationObserver(() => {
+    if (scheduled) {
+      return;
+    }
+    scheduled = true;
+    window.requestAnimationFrame(() => {
+      scheduled = false;
+      apply();
+    });
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
 })();
