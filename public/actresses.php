@@ -171,7 +171,7 @@ unset($rowsByAlpha);
           <?php foreach ($groupRows as $r): ?>
             <?php $name = (string)($r['name'] ?? ''); ?>
             <a href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>" style="display:flex;align-items:center;gap:8px;padding:6px;border:1px solid #e8e8e8;border-radius:6px;text-decoration:none;color:inherit;">
-              <img src="<?= e(actress_list_image($r)) ?>" alt="<?= e($name) ?>" style="width:44px;height:44px;object-fit:cover;border-radius:50%;flex:0 0 44px;">
+              <img src="<?= e(actress_list_image($r)) ?>" alt="<?= e($name) ?>" loading="lazy" decoding="async" fetchpriority="low" style="width:44px;height:44px;object-fit:cover;border-radius:50%;flex:0 0 44px;">
               <span><?= e($name) ?></span>
             </a>
           <?php endforeach; ?>
@@ -189,7 +189,7 @@ unset($rowsByAlpha);
               <?php foreach ($groupRows as $r): ?>
                 <?php $name = (string)($r['name'] ?? ''); ?>
                 <a href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>" style="display:flex;align-items:center;gap:8px;padding:6px;border:1px solid #e8e8e8;border-radius:6px;text-decoration:none;color:inherit;">
-                  <img src="<?= e(actress_list_image($r)) ?>" alt="<?= e($name) ?>" style="width:44px;height:44px;object-fit:cover;border-radius:50%;flex:0 0 44px;">
+                  <img src="<?= e(actress_list_image($r)) ?>" alt="<?= e($name) ?>" loading="lazy" decoding="async" fetchpriority="low" style="width:44px;height:44px;object-fit:cover;border-radius:50%;flex:0 0 44px;">
                   <span><?= e($name) ?></span>
                 </a>
               <?php endforeach; ?>
