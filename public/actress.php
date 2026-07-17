@@ -114,75 +114,125 @@ $profile = [
     'hobby' => '',
 ];
 
+$profileCacheKey = 'public.actress.profile.v1.' . $id;
+$profileCacheTtl = 7 * 24 * 60 * 60;
+$cachedProfilePayload = null;
 try {
-    $apiSyncStatus['attempted'] = true;
-    $client = dmm_client_for_type('actresses');
-    $response = $client->searchActresses(['actress_id' => $dmmId, 'hits' => 10, 'offset' => 1]);
-    $apiRows = DmmNormalizer::toList($response['result']['actress'] ?? []);
-
-    $keywordResponse = $client->searchActresses(['keyword' => $actressDisplayName, 'hits' => 20, 'offset' => 1]);
-    $keywordRows = DmmNormalizer::toList($keywordResponse['result']['actress'] ?? []);
-    if ($keywordRows !== []) {
-        $apiRows = array_merge($apiRows, $keywordRows);
-    }
-
-    $bestApiRow = null;
-    $bestScore = -1;
-    foreach ($apiRows as $apiRow) {
-        if (!is_array($apiRow)) {
-            continue;
-        }
-        $apiId = trim((string)($apiRow['id'] ?? ''));
-        $apiName = trim((string)($apiRow['name'] ?? ''));
-        if ($apiId !== $dmmId && $apiName !== $actressDisplayName) {
-            continue;
-        }
-
-        $score = actress_api_row_score($apiRow);
-        if ($score > $bestScore) {
-            $bestScore = $score;
-            $bestApiRow = $apiRow;
+    $decodedProfileCache = json_decode((string)(setting_get($profileCacheKey, '') ?? ''), true);
+    if (is_array($decodedProfileCache)) {
+        $cachedAt = (int)($decodedProfileCache['cached_at'] ?? 0);
+        $cachedProfile = $decodedProfileCache['profile'] ?? null;
+        if ($cachedAt > 0 && $cachedAt >= time() - $profileCacheTtl && is_array($cachedProfile)) {
+            $cachedProfilePayload = $cachedProfile;
         }
     }
+} catch (Throwable) {
+    $cachedProfilePayload = null;
+}
 
-    if (is_array($bestApiRow)) {
-        $profile['name'] = trim((string)($bestApiRow['name'] ?? '')) !== '' ? (string)$bestApiRow['name'] : $profile['name'];
-        $profile['ruby'] = (string)($bestApiRow['ruby'] ?? $profile['ruby']);
-        $profile['birthday'] = (string)($bestApiRow['birthday'] ?? $profile['birthday']);
-        $profile['prefectures'] = (string)($bestApiRow['prefectures'] ?? $profile['prefectures']);
-        $profile['image_url'] = (string)($bestApiRow['imageURL']['large'] ?? $bestApiRow['image_url'] ?? $profile['image_url']);
-        $profile['image_small'] = (string)($bestApiRow['imageURL']['small'] ?? $bestApiRow['image_small'] ?? $profile['image_small']);
-        $profile['image_large'] = (string)($bestApiRow['imageURL']['large'] ?? $bestApiRow['image_large'] ?? $profile['image_large']);
-        $profile['bust'] = trim((string)($bestApiRow['bust'] ?? ''));
-        $profile['cup'] = trim((string)($bestApiRow['cup'] ?? ''));
-        $profile['waist'] = trim((string)($bestApiRow['waist'] ?? ''));
-        $profile['hip'] = trim((string)($bestApiRow['hip'] ?? ''));
-        $profile['height'] = trim((string)($bestApiRow['height'] ?? ''));
-        $profile['blood_type'] = trim((string)($bestApiRow['blood_type'] ?? ''));
-        $profile['hobby'] = trim((string)($bestApiRow['hobby'] ?? ''));
+if (is_array($cachedProfilePayload)) {
+    foreach (array_keys($profile) as $profileKey) {
+        if (array_key_exists($profileKey, $cachedProfilePayload)) {
+            $profile[$profileKey] = (string)$cachedProfilePayload[$profileKey];
+        }
+    }
+    $apiSyncStatus['success'] = true;
+    $apiSyncStatus['message'] = '保存済みの女優プロフィールを表示しています。';
+} else {
+    try {
+        $apiSyncStatus['attempted'] = true;
+        $client = dmm_client_for_type('actresses');
+        $response = $client->searchActresses(['actress_id' => $dmmId, 'hits' => 10, 'offset' => 1]);
+        $apiRows = DmmNormalizer::toList($response['result']['actress'] ?? []);
+
+        $bestApiRow = null;
+        $bestScore = -1;
+        foreach ($apiRows as $apiRow) {
+            if (!is_array($apiRow)) {
+                continue;
+            }
+            $apiId = trim((string)($apiRow['id'] ?? ''));
+            $apiName = trim((string)($apiRow['name'] ?? ''));
+            if ($apiId !== $dmmId && $apiName !== $actressDisplayName) {
+                continue;
+            }
+
+            $score = actress_api_row_score($apiRow);
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestApiRow = $apiRow;
+            }
+        }
+
+        if (!is_array($bestApiRow)) {
+            $keywordResponse = $client->searchActresses(['keyword' => $actressDisplayName, 'hits' => 20, 'offset' => 1]);
+            $keywordRows = DmmNormalizer::toList($keywordResponse['result']['actress'] ?? []);
+            foreach ($keywordRows as $apiRow) {
+                if (!is_array($apiRow)) {
+                    continue;
+                }
+                $apiId = trim((string)($apiRow['id'] ?? ''));
+                $apiName = trim((string)($apiRow['name'] ?? ''));
+                if ($apiId !== $dmmId && $apiName !== $actressDisplayName) {
+                    continue;
+                }
+
+                $score = actress_api_row_score($apiRow);
+                if ($score > $bestScore) {
+                    $bestScore = $score;
+                    $bestApiRow = $apiRow;
+                }
+            }
+        }
+
+        if (is_array($bestApiRow)) {
+            $profile['name'] = trim((string)($bestApiRow['name'] ?? '')) !== '' ? (string)$bestApiRow['name'] : $profile['name'];
+            $profile['ruby'] = (string)($bestApiRow['ruby'] ?? $profile['ruby']);
+            $profile['birthday'] = (string)($bestApiRow['birthday'] ?? $profile['birthday']);
+            $profile['prefectures'] = (string)($bestApiRow['prefectures'] ?? $profile['prefectures']);
+            $profile['image_url'] = (string)($bestApiRow['imageURL']['large'] ?? $bestApiRow['image_url'] ?? $profile['image_url']);
+            $profile['image_small'] = (string)($bestApiRow['imageURL']['small'] ?? $bestApiRow['image_small'] ?? $profile['image_small']);
+            $profile['image_large'] = (string)($bestApiRow['imageURL']['large'] ?? $bestApiRow['image_large'] ?? $profile['image_large']);
+            $profile['bust'] = trim((string)($bestApiRow['bust'] ?? ''));
+            $profile['cup'] = trim((string)($bestApiRow['cup'] ?? ''));
+            $profile['waist'] = trim((string)($bestApiRow['waist'] ?? ''));
+            $profile['hip'] = trim((string)($bestApiRow['hip'] ?? ''));
+            $profile['height'] = trim((string)($bestApiRow['height'] ?? ''));
+            $profile['blood_type'] = trim((string)($bestApiRow['blood_type'] ?? ''));
+            $profile['hobby'] = trim((string)($bestApiRow['hobby'] ?? ''));
+
+            try {
+                upsert_actress([
+                    'dmm_id' => $profile['dmm_id'],
+                    'name' => $profile['name'],
+                    'ruby' => $profile['ruby'],
+                    'birthday' => $profile['birthday'],
+                    'prefectures' => $profile['prefectures'],
+                    'image_url' => $profile['image_url'],
+                    'image_small' => $profile['image_small'],
+                    'image_large' => $profile['image_large'],
+                ]);
+            } catch (Throwable $e) {
+                error_log('actress.php upsert_actress failed: ' . $e->getMessage());
+            }
+            $apiSyncStatus['success'] = true;
+            $apiSyncStatus['message'] = '女優APIでプロフィールを最新化しました。';
+        } else {
+            $apiSyncStatus['message'] = '女優APIの一致データが見つからなかったため、保存済み情報を表示しています。';
+        }
 
         try {
-            upsert_actress([
-                'dmm_id' => $profile['dmm_id'],
-                'name' => $profile['name'],
-                'ruby' => $profile['ruby'],
-                'birthday' => $profile['birthday'],
-                'prefectures' => $profile['prefectures'],
-                'image_url' => $profile['image_url'],
-                'image_small' => $profile['image_small'],
-                'image_large' => $profile['image_large'],
-            ]);
+            setting_set($profileCacheKey, json_encode([
+                'cached_at' => time(),
+                'profile' => $profile,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '');
         } catch (Throwable $e) {
-            error_log('actress.php upsert_actress failed: ' . $e->getMessage());
+            error_log('actress.php profile cache write failed: ' . $e->getMessage());
         }
-        $apiSyncStatus['success'] = true;
-        $apiSyncStatus['message'] = '女優APIでプロフィールを最新化しました。';
-    } else {
-        $apiSyncStatus['message'] = '女優APIの一致データが見つからなかったため、保存済み情報を表示しています。';
+    } catch (Throwable $e) {
+        $apiSyncStatus['message'] = '女優APIの取得に失敗したため、保存済み情報を表示しています。';
+        error_log('actress.php ActressSearch failed: ' . $e->getMessage());
     }
-} catch (Throwable $e) {
-    $apiSyncStatus['message'] = '女優APIの取得に失敗したため、保存済み情報を表示しています。';
-    error_log('actress.php ActressSearch failed: ' . $e->getMessage());
 }
 
 try {
@@ -206,46 +256,75 @@ if (!isset($accessRankingTabs[$accessRankingPeriod])) {
     $accessRankingPeriod = 'daily';
 }
 $accessRankingRows = [];
+$accessRankingCacheKey = 'public.actress.ranking.v1.' . $accessRankingPeriod;
+$accessRankingCacheTtl = 10 * 60;
+$rankingCacheHit = false;
+
 try {
-    $periodFrom = null;
-    if ($accessRankingPeriod === 'daily') {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
-    } elseif ($accessRankingPeriod === 'weekly') {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-7 days'));
-    } elseif ($accessRankingPeriod === 'monthly') {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-1 month'));
-    } elseif ($accessRankingPeriod === 'yearly') {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-1 year'));
-    }
-
-    if ($periodFrom === null) {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
-    }
-
-    if (!analytics_ensure_tables()) {
-        throw new RuntimeException('analytics tables are not available');
-    }
-
-    $accessRankingRows = [];
-    try {
-        $rankingStmt = db()->prepare("SELECT a.id, a.dmm_id, a.name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_actresses ia ON i.content_id = ia.content_id INNER JOIN actresses a ON a.id = ia.actress_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY a.id, a.dmm_id, a.name ORDER BY access_count DESC, a.id DESC LIMIT 200");
-        $rankingStmt->execute([':period_from' => $periodFrom]);
-        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
-    } catch (Throwable) {
-        $rankingStmt = db()->prepare("SELECT a.id, a.dmm_id, a.name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_actresses ia ON i.id = ia.item_id INNER JOIN actresses a ON a.dmm_id = ia.dmm_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY a.id, a.dmm_id, a.name ORDER BY access_count DESC, a.id DESC LIMIT 200");
-        $rankingStmt->execute([':period_from' => $periodFrom]);
-        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
-    }
-    $accessRankingRows = array_values(array_filter($accessRankingRows, static function ($rankingRow): bool {
-        if (!is_array($rankingRow)) {
-            return false;
+    $decodedRankingCache = json_decode((string)(setting_get($accessRankingCacheKey, '') ?? ''), true);
+    if (is_array($decodedRankingCache)) {
+        $rankingCachedAt = (int)($decodedRankingCache['cached_at'] ?? 0);
+        $rankingCachedRows = $decodedRankingCache['rows'] ?? null;
+        if ($rankingCachedAt > 0 && $rankingCachedAt >= time() - $accessRankingCacheTtl && is_array($rankingCachedRows)) {
+            $accessRankingRows = $rankingCachedRows;
+            $rankingCacheHit = true;
         }
-        $rankingName = trim((string)($rankingRow['name'] ?? ''));
-        $rankingDmmId = trim((string)($rankingRow['dmm_id'] ?? ''));
-        return $rankingName !== '' && !is_invalid_actress_name($rankingName) && ctype_digit($rankingDmmId);
-    }));
+    }
 } catch (Throwable) {
-    $accessRankingRows = [];
+    $rankingCacheHit = false;
+}
+
+if (!$rankingCacheHit) {
+    try {
+        $periodFrom = null;
+        if ($accessRankingPeriod === 'daily') {
+            $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
+        } elseif ($accessRankingPeriod === 'weekly') {
+            $periodFrom = date('Y-m-d H:i:s', strtotime('-7 days'));
+        } elseif ($accessRankingPeriod === 'monthly') {
+            $periodFrom = date('Y-m-d H:i:s', strtotime('-1 month'));
+        } elseif ($accessRankingPeriod === 'yearly') {
+            $periodFrom = date('Y-m-d H:i:s', strtotime('-1 year'));
+        }
+    
+        if ($periodFrom === null) {
+            $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
+        }
+    
+        if (!analytics_ensure_tables()) {
+            throw new RuntimeException('analytics tables are not available');
+        }
+    
+        $accessRankingRows = [];
+        try {
+            $rankingStmt = db()->prepare("SELECT a.id, a.dmm_id, a.name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_actresses ia ON i.content_id = ia.content_id INNER JOIN actresses a ON a.id = ia.actress_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY a.id, a.dmm_id, a.name ORDER BY access_count DESC, a.id DESC LIMIT 200");
+            $rankingStmt->execute([':period_from' => $periodFrom]);
+            $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+        } catch (Throwable) {
+            $rankingStmt = db()->prepare("SELECT a.id, a.dmm_id, a.name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_actresses ia ON i.id = ia.item_id INNER JOIN actresses a ON a.dmm_id = ia.dmm_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY a.id, a.dmm_id, a.name ORDER BY access_count DESC, a.id DESC LIMIT 200");
+            $rankingStmt->execute([':period_from' => $periodFrom]);
+            $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+        }
+        $accessRankingRows = array_values(array_filter($accessRankingRows, static function ($rankingRow): bool {
+            if (!is_array($rankingRow)) {
+                return false;
+            }
+            $rankingName = trim((string)($rankingRow['name'] ?? ''));
+            $rankingDmmId = trim((string)($rankingRow['dmm_id'] ?? ''));
+            return $rankingName !== '' && !is_invalid_actress_name($rankingName) && ctype_digit($rankingDmmId);
+        }));
+    } catch (Throwable) {
+        $accessRankingRows = [];
+    }
+
+    try {
+        setting_set($accessRankingCacheKey, json_encode([
+            'cached_at' => time(),
+            'rows' => $accessRankingRows,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '');
+    } catch (Throwable $e) {
+        error_log('actress.php ranking cache write failed: ' . $e->getMessage());
+    }
 }
 
 unset($title, $pageTitle);
