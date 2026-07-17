@@ -69,8 +69,6 @@ if ($ogImage !== '' && !str_starts_with($ogImage, 'http://') && !str_starts_with
 $jsonLdText = isset($jsonLd) && is_string($jsonLd) && $jsonLd !== '' ? $jsonLd : '';
 $relPrevHref = isset($relPrev) && is_string($relPrev) && $relPrev !== '' ? $relPrev : '';
 $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relNext : '';
-$vrSamplePlayerPath = dirname(__DIR__) . '/assets/js/vr-sample-player.js';
-$vrSamplePlayerVersion = is_file($vrSamplePlayerPath) ? (string)filemtime($vrSamplePlayerPath) : '1';
 ?>
 <!doctype html>
 <html lang="ja">
@@ -109,7 +107,7 @@ $vrSamplePlayerVersion = is_file($vrSamplePlayerPath) ? (string)filemtime($vrSam
   <script src="<?= e(asset_url('js/recently-viewed.js')) ?>" defer></script>
   <script src="<?= e(asset_url('js/recommendations.js')) ?>" defer></script>
   <script src="<?= e(asset_url('js/item-detail-fixes.js')) ?>" defer></script>
-  <script src="<?= e(asset_url('js/vr-sample-player.js') . '?v=' . rawurlencode($vrSamplePlayerVersion)) ?>" defer></script>
+  <script src="<?= e(asset_url('js/vr-card-popup-v2.js')) ?>" defer></script>
 </head>
 <body>
 <?php if ($customBodyOpenCode !== ''): ?>
