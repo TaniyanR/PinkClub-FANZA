@@ -21,16 +21,17 @@
   const officialPlayerUrl = (contentId) =>
     `https://www.dmm.co.jp/digital/-/vr-sample-player/=/cid=${encodeURIComponent(contentId)}/`;
 
-  const localPlayerUrlFromCard = (card) => {
-    const itemLink = Array.from(card.querySelectorAll('a[href]')).find((link) => {
-      try {
-        const url = new URL(link.href, window.location.href);
-        return /\/item\.php$/i.test(url.pathname) && /^\d+$/.test(url.searchParams.get('id') || '');
-      } catch (_) {
-        return false;
-      }
-    });
+  const itemLinkFromCard = (card) => Array.from(card.querySelectorAll('a[href]')).find((link) => {
+    try {
+      const url = new URL(link.href, window.location.href);
+      return /\/item\.php$/i.test(url.pathname) && /^\d+$/.test(url.searchParams.get('id') || '');
+    } catch (_) {
+      return false;
+    }
+  });
 
+  const localPlayerUrlFromCard = (card) => {
+    const itemLink = itemLinkFromCard(card);
     if (!itemLink) {
       return '';
     }
@@ -48,17 +49,27 @@
     }
   };
 
+  const cardTitle = (card) => (
+    card.querySelector('.rail-card__title, .pcf-dm-card__title')?.textContent || ''
+  ).trim();
+
+  const findMovieControl = (card) => Array.from(card.querySelectorAll(
+    '.sample-movie-trigger, .pcf-dm-card__button.is-disabled'
+  )).find((element) => (element.textContent || '').trim() === 'サンプル動画');
+
   const enableVrCardMovies = () => {
-    document.querySelectorAll('.rail-card').forEach((card) => {
-      const titleElement = card.querySelector('.rail-card__title');
-      const title = (titleElement?.textContent || '').trim();
+    document.querySelectorAll('.rail-card, .pcf-dm-card').forEach((card) => {
+      const title = cardTitle(card);
       if (!VR_TITLE_PATTERN.test(title)) {
         return;
       }
 
-      const movieButton = Array.from(card.querySelectorAll('.sample-movie-trigger'))
-        .find((element) => (element.textContent || '').trim() === 'サンプル動画');
-      if (!movieButton || (!movieButton.disabled && movieButton.dataset.movieUrl)) {
+      const currentControl = findMovieControl(card);
+      if (!currentControl) {
+        return;
+      }
+
+      if (currentControl.dataset.vrPopupPlayer === '1') {
         return;
       }
 
@@ -67,14 +78,66 @@
         return;
       }
 
+      let movieButton = currentControl;
+      if (!(currentControl instanceof HTMLButtonElement)) {
+        movieButton = document.createElement('button');
+        movieButton.type = 'button';
+        movieButton.className = currentControl.className.replace(/\bis-disabled\b/g, '').trim();
+        movieButton.textContent = 'サンプル動画';
+        currentControl.replaceWith(movieButton);
+      }
+
       movieButton.disabled = false;
-      movieButton.classList.remove('sample-button--disabled');
-      movieButton.classList.add('sample-button--enabled');
+      movieButton.classList.remove('is-disabled', 'sample-button--disabled');
+      if (movieButton.classList.contains('sample-button')) {
+        movieButton.classList.add('sample-button--enabled');
+      }
+      movieButton.classList.add('sample-movie-trigger');
       movieButton.dataset.movieUrl = playerUrl;
       movieButton.dataset.movieTitle = title;
-      movieButton.setAttribute('aria-label', `${title}のVRサンプル動画を再生する`);
+      movieButton.dataset.vrPopupPlayer = '1';
+      movieButton.setAttribute('aria-label', `${title}のFANZA公式VRサンプルを別ウィンドウで再生する`);
     });
   };
+
+  const openVrPopup = (playerUrl) => {
+    const availableWidth = Math.max(640, window.screen.availWidth || 1200);
+    const availableHeight = Math.max(480, window.screen.availHeight || 800);
+    const width = Math.min(1200, Math.max(720, availableWidth - 120));
+    const height = Math.min(800, Math.max(540, availableHeight - 120));
+    const left = Math.max(0, Math.round((availableWidth - width) / 2));
+    const top = Math.max(0, Math.round((availableHeight - height) / 2));
+    const features = [
+      `width=${width}`,
+      `height=${height}`,
+      `left=${left}`,
+      `top=${top}`,
+      'resizable=yes',
+      'scrollbars=yes',
+      'noopener=yes',
+    ].join(',');
+
+    const popup = window.open(playerUrl, 'fanzaVrSamplePlayer', features);
+    if (popup) {
+      popup.focus();
+    }
+  };
+
+  document.addEventListener('click', (event) => {
+    const trigger = event.target.closest('.sample-movie-trigger[data-vr-popup-player="1"]');
+    if (!trigger || trigger.disabled) {
+      return;
+    }
+
+    const playerUrl = trigger.dataset.movieUrl || '';
+    if (!playerUrl) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    openVrPopup(playerUrl);
+  }, true);
 
   const enableVrItemMovie = () => {
     if (!/\/item\.php$/i.test(window.location.pathname)) {
@@ -132,6 +195,11 @@
     movieArea.removeAttribute('aria-label');
   };
 
-  enableVrCardMovies();
-  enableVrItemMovie();
+  const apply = () => {
+    enableVrCardMovies();
+    enableVrItemMovie();
+  };
+
+  apply();
+  window.addEventListener('pageshow', apply);
 })();
