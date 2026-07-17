@@ -69,7 +69,7 @@ if (!function_exists('pcf_maybe_decode_json_value')) {
         $decodedJsonCache[$cacheKey] = $result;
         return $result;
     }
-}}
+}
 
 if (!function_exists('pcf_looks_like_image_url')) {
     function pcf_looks_like_image_url(string $value): bool
