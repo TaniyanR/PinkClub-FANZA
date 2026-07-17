@@ -5,6 +5,15 @@ auth_require_admin();
 $title = 'アクセス解析';
 analytics_ensure_tables();
 
+$publicCacheDirectory = dirname(__DIR__) . '/storage/cache/public-pages';
+$publicCacheWritable = is_dir($publicCacheDirectory) && is_writable($publicCacheDirectory);
+$publicCacheFiles = is_dir($publicCacheDirectory) ? glob($publicCacheDirectory . '/*.html') : [];
+$publicCacheFileCount = is_array($publicCacheFiles) ? count($publicCacheFiles) : 0;
+$publicCacheStatusLabel = $publicCacheWritable ? ($publicCacheFileCount > 0 ? '正常に動作中' : '準備完了（キャッシュ未作成）') : '要確認（保存先へ書き込めません）';
+$logRetentionDays = (int)(setting_get('analytics.cleanup.retention_days', '730') ?? '730');
+$lastLogCleanupAt = trim((string)(setting_get('analytics.cleanup.last_success_at', '') ?? ''));
+$lastLogCleanupRows = (int)(setting_get('analytics.cleanup.last_deleted_rows', '0') ?? '0');
+
 $tab = (string)get('tab', 'graph');
 $allowedTabs = ['graph','referrer','destination','engine','keyword','duration'];
 if (!in_array($tab, $allowedTabs, true)) {
@@ -115,6 +124,20 @@ require __DIR__ . '/includes/header.php';
 ?>
 <section class="admin-card">
   <h1>アクセス解析</h1>
+  <?php if ($tab === 'graph'): ?>
+  <div class="admin-status-grid">
+    <article class="admin-card admin-status-card">
+      <strong>公開ページキャッシュ</strong>
+      <p><?= e($publicCacheStatusLabel) ?></p>
+      <small>保存済みページ: <?= e((string)$publicCacheFileCount) ?>件</small>
+    </article>
+    <article class="admin-card admin-status-card">
+      <strong>アクセス生ログ保存期間</strong>
+      <p><?= e((string)$logRetentionDays) ?>日</p>
+      <small>最終整理: <?= e($lastLogCleanupAt !== '' ? $lastLogCleanupAt : '未実行') ?> / 前回削除: <?= e((string)$lastLogCleanupRows) ?>件</small>
+    </article>
+  </div>
+  <?php endif; ?>
   <?php if ($tab === 'graph'): ?>
   <div class="admin-status-grid">
     <article class="admin-card admin-status-card"><strong>ページビュー</strong><p><?= e((string)$sum['pv']) ?></p></article>
