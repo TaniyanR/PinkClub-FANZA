@@ -2,7 +2,7 @@
   'use strict';
 
   const VR_TITLE_PATTERN = /(?:【|\[|［)?\s*VR\s*(?:】|\]|］)?/i;
-  const checkedCards = new WeakSet();
+  const processedCards = new WeakSet();
 
   const itemLinkFromCard = (card) => Array.from(card.querySelectorAll('a[href]')).find((link) => {
     try {
@@ -42,24 +42,6 @@
   const findMovieControl = (card) => Array.from(card.querySelectorAll('button, span, a'))
     .find((element) => (element.textContent || '').trim() === 'サンプル動画');
 
-  const checkAvailability = async (playerUrl) => {
-    try {
-      const checkUrl = new URL(playerUrl, window.location.href);
-      checkUrl.searchParams.set('check', '1');
-      const response = await fetch(checkUrl.toString(), {
-        credentials: 'same-origin',
-        headers: { Accept: 'application/json' },
-      });
-      if (!response.ok) {
-        return false;
-      }
-      const data = await response.json();
-      return data?.available === true;
-    } catch (_) {
-      return false;
-    }
-  };
-
   const enableMovieControl = (currentControl, playerUrl, title) => {
     let movieButton = currentControl;
     if (!(currentControl instanceof HTMLButtonElement)) {
@@ -82,11 +64,11 @@
     movieButton.setAttribute('aria-label', `${title}のFANZA公式VRサンプルを別ウィンドウで再生する`);
   };
 
-  const inspectVrCard = async (card) => {
-    if (checkedCards.has(card)) {
+  const inspectVrCard = (card) => {
+    if (processedCards.has(card)) {
       return;
     }
-    checkedCards.add(card);
+    processedCards.add(card);
 
     const title = cardTitle(card);
     if (!VR_TITLE_PATTERN.test(title)) {
@@ -94,17 +76,8 @@
     }
 
     const currentControl = findMovieControl(card);
-    if (!currentControl) {
-      return;
-    }
-
     const playerUrl = localPlayerUrlFromCard(card);
-    if (!playerUrl) {
-      return;
-    }
-
-    const available = await checkAvailability(playerUrl);
-    if (!available || !card.isConnected) {
+    if (!currentControl || !playerUrl) {
       return;
     }
 
@@ -123,9 +96,7 @@
   };
 
   const inspectAllCards = (root = document) => {
-    findCandidateCards(root).forEach((card) => {
-      void inspectVrCard(card);
-    });
+    findCandidateCards(root).forEach(inspectVrCard);
   };
 
   const openVrPopup = (playerUrl) => {
@@ -167,7 +138,7 @@
     openVrPopup(playerUrl);
   }, true);
 
-  const inspectItemPage = async () => {
+  const enableItemPageButton = () => {
     if (!/\/item\.php$/i.test(window.location.pathname)) {
       return;
     }
@@ -182,17 +153,13 @@
       return;
     }
 
-    const playerUrl = new URL('vr_sample.php', window.location.href);
-    playerUrl.searchParams.set('id', itemId);
-    const available = await checkAvailability(playerUrl.toString());
-    if (!available) {
+    const movieArea = document.querySelector('.pcf-item-sample-movie');
+    if (!movieArea || movieArea.querySelector('[data-vr-popup-player="1"]')) {
       return;
     }
 
-    const movieArea = document.querySelector('.pcf-item-sample-movie');
-    if (!movieArea || movieArea.querySelector('iframe')) {
-      return;
-    }
+    const playerUrl = new URL('vr_sample.php', window.location.href);
+    playerUrl.searchParams.set('id', itemId);
 
     const button = document.createElement('button');
     button.type = 'button';
@@ -205,7 +172,7 @@
   };
 
   inspectAllCards();
-  void inspectItemPage();
+  enableItemPageButton();
 
   let scheduled = false;
   const observer = new MutationObserver((mutations) => {
