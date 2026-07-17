@@ -165,7 +165,7 @@ unset($rowsByAlpha);
   <div class="pcf-actress-directory">
     <?php foreach ($kanaGroups as $kana => $groupRows): ?>
       <?php if ($groupRows === []): continue; endif; ?>
-      <section class="pcf-index-block" id="actress-kana-<?= e(rawurlencode($kana)) ?>">
+      <section class="pcf-index-block" id="actress-kana-<?= e(rawurlencode($kana)) ?>" style="content-visibility:auto;contain-intrinsic-size:700px;">
         <h2 class="pcf-section-title"><?= e($kana) ?>行</h2>
         <div class="pcf-list-card__meta" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;">
           <?php foreach ($groupRows as $r): ?>
@@ -180,7 +180,7 @@ unset($rowsByAlpha);
     <?php endforeach; ?>
 
     <?php if ($alphaGroups !== []): ?>
-      <section class="pcf-index-block" id="actress-alpha">
+      <section class="pcf-index-block" id="actress-alpha" style="content-visibility:auto;contain-intrinsic-size:700px;">
         <h2 class="pcf-section-title">A-Z</h2>
         <?php foreach ($alphaGroups as $letter => $groupRows): ?>
           <div class="pcf-list-card__meta" style="margin-bottom:12px;">
