@@ -69,6 +69,8 @@ if ($ogImage !== '' && !str_starts_with($ogImage, 'http://') && !str_starts_with
 $jsonLdText = isset($jsonLd) && is_string($jsonLd) && $jsonLd !== '' ? $jsonLd : '';
 $relPrevHref = isset($relPrev) && is_string($relPrev) && $relPrev !== '' ? $relPrev : '';
 $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relNext : '';
+$vrAffiliateScriptPath = dirname(__DIR__) . '/assets/js/vr-card-affiliate-v3.js';
+$vrAffiliateScriptVersion = is_file($vrAffiliateScriptPath) ? (string)filemtime($vrAffiliateScriptPath) : '1';
 ?>
 <!doctype html>
 <html lang="ja">
@@ -107,7 +109,7 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
   <script src="<?= e(asset_url('js/recently-viewed.js')) ?>" defer></script>
   <script src="<?= e(asset_url('js/recommendations.js')) ?>" defer></script>
   <script src="<?= e(asset_url('js/item-detail-fixes.js')) ?>" defer></script>
-  <script src="<?= e(asset_url('js/vr-card-popup-v2.js')) ?>" defer></script>
+  <script src="<?= e(asset_url('js/vr-card-affiliate-v3.js') . '?v=' . rawurlencode($vrAffiliateScriptVersion)) ?>" defer></script>
 </head>
 <body>
 <?php if ($customBodyOpenCode !== ''): ?>
