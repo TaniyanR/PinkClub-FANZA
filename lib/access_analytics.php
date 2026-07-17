@@ -66,7 +66,7 @@ function analytics_maybe_cleanup_old_logs(int $retentionDays = 730, int $batchSi
                 continue;
             }
             $sql = sprintf(
-                'DELETE FROM \`%s\` WHERE \`%s\` < :cutoff ORDER BY \`%s\` ASC LIMIT %d',
+                'DELETE FROM `%s` WHERE `%s` < :cutoff ORDER BY `%s` ASC LIMIT %d',
                 $target['table'],
                 $target['column'],
                 $target['column'],
