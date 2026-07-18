@@ -151,6 +151,19 @@ foreach ($alphaGroups as &$rowsByAlpha) {
     $sortByName($rowsByAlpha);
 }
 unset($rowsByAlpha);
+
+$actressLazyGroups = [];
+$actressLazyRow = static function (array $row): array {
+    $image = '';
+    foreach (['image_small', 'image_large', 'image_url'] as $imageKey) {
+        $candidate = trim((string)($row[$imageKey] ?? ''));
+        if ($candidate !== '') {
+            $image = $candidate;
+            break;
+        }
+    }
+    return [(int)($row['id'] ?? 0), (string)($row['name'] ?? ''), $image];
+};
 ?>
 <?php pcf_render_hero('女優一覧', '気になる女優のプロフィールと出演作品へ。'); ?>
 
@@ -167,15 +180,8 @@ unset($rowsByAlpha);
       <?php if ($groupRows === []): continue; endif; ?>
       <section class="pcf-index-block" id="actress-kana-<?= e(rawurlencode($kana)) ?>" style="content-visibility:auto;contain-intrinsic-size:700px;">
         <h2 class="pcf-section-title"><?= e($kana) ?>行</h2>
-        <div class="pcf-list-card__meta" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;">
-          <?php foreach ($groupRows as $r): ?>
-            <?php $name = (string)($r['name'] ?? ''); ?>
-            <a href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>" style="display:flex;align-items:center;gap:8px;padding:6px;border:1px solid #e8e8e8;border-radius:6px;text-decoration:none;color:inherit;">
-              <img src="<?= e(actress_list_image($r)) ?>" alt="<?= e($name) ?>" loading="lazy" decoding="async" fetchpriority="low" style="width:44px;height:44px;object-fit:cover;border-radius:50%;flex:0 0 44px;">
-              <span><?= e($name) ?></span>
-            </a>
-          <?php endforeach; ?>
-        </div>
+        <?php $lazyGroupKey = 'kana:' . $kana; $actressLazyGroups[$lazyGroupKey] = array_map($actressLazyRow, $groupRows); ?>
+        <div class="pcf-list-card__meta" data-actress-lazy-group="<?= e($lazyGroupKey) ?>" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;"></div>
       </section>
     <?php endforeach; ?>
 
@@ -185,15 +191,8 @@ unset($rowsByAlpha);
         <?php foreach ($alphaGroups as $letter => $groupRows): ?>
           <div class="pcf-list-card__meta" style="margin-bottom:12px;">
             <strong><?= e($letter) ?></strong>
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:6px;">
-              <?php foreach ($groupRows as $r): ?>
-                <?php $name = (string)($r['name'] ?? ''); ?>
-                <a href="<?= e(public_url('actress.php?id=' . (int)($r['id'] ?? 0))) ?>" style="display:flex;align-items:center;gap:8px;padding:6px;border:1px solid #e8e8e8;border-radius:6px;text-decoration:none;color:inherit;">
-                  <img src="<?= e(actress_list_image($r)) ?>" alt="<?= e($name) ?>" loading="lazy" decoding="async" fetchpriority="low" style="width:44px;height:44px;object-fit:cover;border-radius:50%;flex:0 0 44px;">
-                  <span><?= e($name) ?></span>
-                </a>
-              <?php endforeach; ?>
-            </div>
+            <?php $lazyGroupKey = 'alpha:' . $letter; $actressLazyGroups[$lazyGroupKey] = array_map($actressLazyRow, $groupRows); ?>
+            <div data-actress-lazy-group="<?= e($lazyGroupKey) ?>" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:6px;"></div>
           </div>
         <?php endforeach; ?>
       </section>
@@ -201,6 +200,75 @@ unset($rowsByAlpha);
   </div>
 <?php else: ?>
   <?php pcf_render_empty('女優データが見つかりませんでした。'); ?>
+<?php endif; ?>
+
+<?php if ($actressLazyGroups !== []): ?>
+<script type="application/json" id="pcf-actress-directory-data"><?= json_encode($actressLazyGroups, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
+<script>
+(() => {
+  const dataNode = document.getElementById('pcf-actress-directory-data');
+  if (!dataNode) return;
+
+  let groups = {};
+  try {
+    groups = JSON.parse(dataNode.textContent || '{}');
+  } catch (_) {
+    return;
+  }
+
+  const detailBase = <?= json_encode(public_url('actress.php') . '?id=', JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
+  const placeholder = <?= json_encode(pcf_placeholder_data_uri('No Photo'), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
+
+  const renderGroup = (container) => {
+    if (!container || container.dataset.actressLoaded === '1') return;
+    container.dataset.actressLoaded = '1';
+    const rows = groups[container.dataset.actressLazyGroup || ''] || [];
+    const fragment = document.createDocumentFragment();
+
+    rows.forEach((row) => {
+      const id = Number(row[0] || 0);
+      const name = String(row[1] || '');
+      if (id <= 0 || name === '') return;
+
+      const link = document.createElement('a');
+      link.href = detailBase + encodeURIComponent(String(id));
+      link.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px;border:1px solid #e8e8e8;border-radius:6px;text-decoration:none;color:inherit;';
+
+      const image = document.createElement('img');
+      image.src = String(row[2] || placeholder);
+      image.alt = name;
+      image.loading = 'lazy';
+      image.decoding = 'async';
+      image.fetchPriority = 'low';
+      image.style.cssText = 'width:44px;height:44px;object-fit:cover;border-radius:50%;flex:0 0 44px;';
+
+      const label = document.createElement('span');
+      label.textContent = name;
+      link.append(image, label);
+      fragment.appendChild(link);
+    });
+
+    container.appendChild(fragment);
+    delete groups[container.dataset.actressLazyGroup || ''];
+  };
+
+  const containers = document.querySelectorAll('[data-actress-lazy-group]');
+  if (!('IntersectionObserver' in window)) {
+    containers.forEach(renderGroup);
+    return;
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      renderGroup(entry.target);
+      observer.unobserve(entry.target);
+    });
+  }, {rootMargin: '800px 0px'});
+
+  containers.forEach((container) => observer.observe(container));
+})();
+</script>
 <?php endif; ?>
 
 <?php require __DIR__ . '/partials/footer.php'; ?>
