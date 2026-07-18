@@ -54,43 +54,6 @@ function sanitize_page_html(string $html): string
     return trim($html);
 }
 
-function user_current_email(): ?string
-{
-    app_session_start();
-    $email = $_SESSION['front_user_email'] ?? null;
-    return is_string($email) && $email !== '' ? $email : null;
-}
-
-function user_current_id(): ?int
-{
-    app_session_start();
-    $id = $_SESSION['front_user_id'] ?? null;
-    return is_int($id) ? $id : null;
-}
-
-function user_login(string $email, string $password): bool
-{
-    $pdo = db();
-    $stmt = $pdo->prepare('SELECT id,email,password_hash FROM users WHERE email=:email AND is_active=1 LIMIT 1');
-    $stmt->execute([':email' => $email]);
-    $u = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!is_array($u) || !password_verify($password, (string)$u['password_hash'])) {
-        return false;
-    }
-    app_session_start();
-    session_regenerate_id(true);
-    $_SESSION['front_user_id'] = (int)$u['id'];
-    $_SESSION['front_user_email'] = (string)$u['email'];
-    $pdo->prepare('UPDATE users SET last_login_at=NOW() WHERE id=:id')->execute([':id' => (int)$u['id']]);
-    return true;
-}
-
-function user_logout(): void
-{
-    app_session_start();
-    unset($_SESSION['front_user_id'], $_SESSION['front_user_email']);
-}
-
 function rss_extract_first_image_url(SimpleXMLElement $item): string
 {
     $namespaces = $item->getNameSpaces(true);

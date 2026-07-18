@@ -189,7 +189,6 @@ php /path/to/PinkClub-FANZA/scripts/auto_import.php
 **機能 / Features**:
 - `content_id`ベースで重複チェック
 - 既存の`upsert`ロジックで最新データのみ反映
-- 72時間キャッシュ（`lib/dmm_api.php`で実装済み）
 - すべてのAPI呼び出しを`api_logs`テーブルに記録
 
 ---
