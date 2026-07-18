@@ -68,6 +68,10 @@ if (headers_sent() === false) {
     header('X-Robots-Tag: noindex, nofollow');
 }
 
+$faviconPath = trim(site_setting_get('site.favicon_path', ''));
+$faviconUrl = $faviconPath !== '' ? public_url($faviconPath) : '';
+$faviconType = strtolower((string)pathinfo($faviconPath, PATHINFO_EXTENSION)) === 'png' ? 'image/png' : 'image/x-icon';
+
 ?>
 <!doctype html>
 <html lang="ja">
@@ -76,6 +80,11 @@ if (headers_sent() === false) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
   <title>パスワード再発行 | PinkClub-FANZA</title>
+  <?php if ($faviconUrl !== ''): ?>
+    <link rel="icon" href="<?= e($faviconUrl) ?>" sizes="any" type="<?= e($faviconType) ?>">
+    <link rel="shortcut icon" href="<?= e($faviconUrl) ?>" type="<?= e($faviconType) ?>">
+    <link rel="apple-touch-icon" href="<?= e($faviconUrl) ?>">
+  <?php endif; ?>
   <link rel="stylesheet" href="../assets/css/style.css">
 </head>
 <body class="login-page">
