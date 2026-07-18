@@ -14,6 +14,9 @@ if ($siteTitle === '') {
 }
 $rawPageTitle = isset($pageTitle) && $pageTitle !== '' ? (string)$pageTitle : 'ログイン';
 $fullTitle = $rawPageTitle . ' | ' . $siteTitle;
+$faviconPath = trim(site_setting_get('site.favicon_path', ''));
+$faviconUrl = $faviconPath !== '' ? public_url($faviconPath) : '';
+$faviconType = strtolower((string)pathinfo($faviconPath, PATHINFO_EXTENSION)) === 'png' ? 'image/png' : 'image/x-icon';
 ?>
 <!DOCTYPE html>
 <html lang="ja">
@@ -22,6 +25,11 @@ $fullTitle = $rawPageTitle . ' | ' . $siteTitle;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title><?php echo e($fullTitle); ?></title>
+    <?php if ($faviconUrl !== '') : ?>
+        <link rel="icon" href="<?php echo e($faviconUrl); ?>" sizes="any" type="<?php echo e($faviconType); ?>">
+        <link rel="shortcut icon" href="<?php echo e($faviconUrl); ?>" type="<?php echo e($faviconType); ?>">
+        <link rel="apple-touch-icon" href="<?php echo e($faviconUrl); ?>">
+    <?php endif; ?>
     <link rel="stylesheet" href="<?php echo e(asset_url('css/style.css')); ?>">
 </head>
 <body>

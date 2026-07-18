@@ -44,6 +44,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 csrf_token();
+$faviconPath = trim(site_setting_get('site.favicon_path', ''));
+$faviconUrl = $faviconPath !== '' ? public_url($faviconPath) : '';
+$faviconType = strtolower((string)pathinfo($faviconPath, PATHINFO_EXTENSION)) === 'png' ? 'image/png' : 'image/x-icon';
 ?>
 <!doctype html>
 <html lang="ja">
@@ -51,6 +54,11 @@ csrf_token();
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= e(APP_NAME) ?> 管理ログイン</title>
+  <?php if ($faviconUrl !== ''): ?>
+    <link rel="icon" href="<?= e($faviconUrl) ?>" sizes="any" type="<?= e($faviconType) ?>">
+    <link rel="shortcut icon" href="<?= e($faviconUrl) ?>" type="<?= e($faviconType) ?>">
+    <link rel="apple-touch-icon" href="<?= e($faviconUrl) ?>">
+  <?php endif; ?>
   <link rel="stylesheet" href="<?= e(asset_url('css/style.css')) ?>">
 </head>
 <body class="login-page">

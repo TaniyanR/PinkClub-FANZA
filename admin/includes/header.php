@@ -41,6 +41,9 @@ $menuGroups = [
 
 $flash = function_exists('flash_get') ? flash_get() : null;
 $titleText = (string)($title ?? APP_NAME);
+$faviconPath = trim(site_setting_get('site.favicon_path', ''));
+$faviconUrl = $faviconPath !== '' ? public_url($faviconPath) : '';
+$faviconType = strtolower((string)pathinfo($faviconPath, PATHINFO_EXTENSION)) === 'png' ? 'image/png' : 'image/x-icon';
 ?>
 <!doctype html>
 <html lang="ja">
@@ -48,6 +51,11 @@ $titleText = (string)($title ?? APP_NAME);
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= e($titleText) ?></title>
+  <?php if ($faviconUrl !== ''): ?>
+    <link rel="icon" href="<?= e($faviconUrl) ?>" sizes="any" type="<?= e($faviconType) ?>">
+    <link rel="shortcut icon" href="<?= e($faviconUrl) ?>" type="<?= e($faviconType) ?>">
+    <link rel="apple-touch-icon" href="<?= e($faviconUrl) ?>">
+  <?php endif; ?>
   <link rel="stylesheet" href="<?= e(asset_url('css/style.css')) ?>">
 </head>
 <body class="admin-page">
