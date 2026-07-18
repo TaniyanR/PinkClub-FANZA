@@ -105,12 +105,12 @@ require __DIR__ . '/partials/header.php';
 
   const renderGroup = (container) => {
     if (!container || container.dataset.actressLoaded === '1' || container.dataset.actressLoading === '1') {
-      return;
+      return Promise.resolve(false);
     }
 
     container.dataset.actressLoading = '1';
     const key = container.dataset.actressLazyGroup || '';
-    fetch(groupEndpoint + encodeURIComponent(key), {
+    return fetch(groupEndpoint + encodeURIComponent(key), {
       credentials: 'same-origin',
       headers: {'Accept': 'application/json'}
     })
@@ -121,26 +121,58 @@ require __DIR__ . '/partials/header.php';
         }
         appendRows(container, data.rows);
         container.dataset.actressLoaded = '1';
+        delete container.dataset.actressLoading;
+        return true;
       })
       .catch(() => {
         delete container.dataset.actressLoading;
-        window.setTimeout(() => renderGroup(container), 3000);
+        return false;
       });
   };
 
-  const containers = document.querySelectorAll('[data-actress-lazy-group]');
+  const containers = Array.from(document.querySelectorAll('[data-actress-lazy-group]'));
   if (!('IntersectionObserver' in window)) {
-    containers.forEach(renderGroup);
+    containers.reduce(
+      (previous, container) => previous.then(() => renderGroup(container)),
+      Promise.resolve()
+    );
     return;
   }
 
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-      renderGroup(entry.target);
-      observer.unobserve(entry.target);
+  let activeContainer = null;
+  const observer = new IntersectionObserver(() => {
+    if (activeContainer) return;
+
+    const next = containers.find((container) => {
+      if (container.dataset.actressLoaded === '1') return false;
+      const rect = container.getBoundingClientRect();
+      return rect.top < window.innerHeight + 800 && rect.bottom > -800;
+    });
+    if (!next) return;
+
+    activeContainer = next;
+    renderGroup(next).then((success) => {
+      if (success) {
+        observer.unobserve(next);
+      }
+      activeContainer = null;
+      window.setTimeout(() => {
+        if (!success) {
+          observer.unobserve(next);
+          observer.observe(next);
+        }
+        window.dispatchEvent(new Event('pcf-actress-group-ready'));
+      }, success ? 0 : 3000);
     });
   }, {rootMargin: '800px 0px'});
+
+  window.addEventListener('pcf-actress-group-ready', () => {
+    const firstPending = containers.find((container) => container.dataset.actressLoaded !== '1');
+    if (firstPending) {
+      observer.unobserve(firstPending);
+      observer.observe(firstPending);
+    }
+  });
 
   containers.forEach((container) => observer.observe(container));
 })();

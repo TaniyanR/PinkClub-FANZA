@@ -7,8 +7,12 @@ require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/partials/public_ui.php';
 require_once __DIR__ . '/../lib/actress_directory_cache.php';
 
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
+
 header('Content-Type: application/json; charset=UTF-8');
-header('Cache-Control: public, max-age=600');
+header('Cache-Control: public, max-age=3600');
 
 $key = trim((string)get('group', ''));
 if (!preg_match('/\A(?:kana:[あかさたなはまやらわ]|alpha:[A-Z])\z/u', $key)) {

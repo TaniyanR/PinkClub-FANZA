@@ -93,7 +93,7 @@ function pcf_actress_directory_cache_rebuild(): array
         }
 
         $manifestPath = pcf_actress_directory_cache_manifest_path();
-        if (is_file($manifestPath) && filemtime($manifestPath) >= time() - 600) {
+        if (is_file($manifestPath) && filemtime($manifestPath) >= time() - 3600) {
             $existing = pcf_actress_directory_cache_read_manifest();
             if (is_array($existing)) {
                 return $existing;
@@ -193,7 +193,7 @@ function pcf_actress_directory_cache_rebuild(): array
 function pcf_actress_directory_cache_manifest(): array
 {
     $manifestPath = pcf_actress_directory_cache_manifest_path();
-    if (is_file($manifestPath) && filemtime($manifestPath) >= time() - 600) {
+    if (is_file($manifestPath) && filemtime($manifestPath) >= time() - 3600) {
         $manifest = pcf_actress_directory_cache_read_manifest();
         if (is_array($manifest)) {
             return $manifest;
