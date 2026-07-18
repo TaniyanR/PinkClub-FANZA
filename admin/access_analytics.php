@@ -14,6 +14,17 @@ $logRetentionDays = (int)(setting_get('analytics.cleanup.retention_days', '730')
 $lastLogCleanupAt = trim((string)(setting_get('analytics.cleanup.last_success_at', '') ?? ''));
 $lastLogCleanupRows = (int)(setting_get('analytics.cleanup.last_deleted_rows', '0') ?? '0');
 
+$migrationNotice = '';
+try {
+    $appliedMigrationCount = installer_apply_migrations(dirname(__DIR__) . '/sql/migrations', 'admin_access_analytics');
+    $migrationNotice = $appliedMigrationCount > 0
+        ? '高速化用DB更新を' . $appliedMigrationCount . '件適用しました。'
+        : '高速化用DB更新は適用済みです。';
+} catch (Throwable $e) {
+    $migrationNotice = '高速化用DB更新を適用できませんでした。logs/install.log を確認してください。';
+    installer_log_exception('admin_access_analytics', $e);
+}
+
 $tab = (string)get('tab', 'graph');
 $allowedTabs = ['graph','referrer','destination','engine','keyword','duration'];
 if (!in_array($tab, $allowedTabs, true)) {
@@ -124,6 +135,9 @@ require __DIR__ . '/includes/header.php';
 ?>
 <section class="admin-card">
   <h1>アクセス解析</h1>
+  <?php if ($tab === 'graph' && $migrationNotice !== ''): ?>
+    <p><?= e($migrationNotice) ?></p>
+  <?php endif; ?>
   <?php if ($tab === 'graph'): ?>
   <div class="admin-status-grid">
     <article class="admin-card admin-status-card">
