@@ -58,7 +58,10 @@ $titleText = (string)($title ?? APP_NAME);
   <div class="admin-topbar__right">
     <a href="<?= e(public_url('')) ?>" target="_blank" rel="noopener noreferrer">フロント表示</a>
     <span class="admin-topbar__separator" aria-hidden="true"> | </span>
-    <a href="<?= e(admin_url('logout.php')) ?>">ログアウト</a>
+    <form method="post" action="<?= e(admin_url('logout.php')) ?>" style="display:inline;margin:0;">
+      <?= csrf_input() ?>
+      <button type="submit" style="appearance:none;border:0;background:none;color:inherit;font:inherit;font-weight:700;padding:0;cursor:pointer;">ログアウト</button>
+    </form>
   </div>
 </header>
 <div class="admin-shell">

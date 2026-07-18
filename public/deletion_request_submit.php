@@ -13,14 +13,6 @@ function deletion_request_destination_email(): string
         return $settingsEmail;
     }
 
-    if (db_table_exists('admin_users')) {
-        $stmt = db()->query('SELECT email FROM admin_users WHERE email IS NOT NULL AND email <> "" ORDER BY id ASC LIMIT 1');
-        $email = (string)($stmt ? $stmt->fetchColumn() : '');
-        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return $email;
-        }
-    }
-
     return '';
 }
 

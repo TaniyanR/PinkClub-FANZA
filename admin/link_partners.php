@@ -7,15 +7,6 @@ analytics_ensure_tables();
 $title = '相互リンク管理';
 $message = null;
 
-try {
-    db()->exec('ALTER TABLE partner_sites ADD COLUMN show_link TINYINT(1) NOT NULL DEFAULT 1');
-} catch (Throwable $e) {
-}
-try {
-    db()->exec('ALTER TABLE partner_rss ADD COLUMN show_rss TINYINT(1) NOT NULL DEFAULT 1');
-} catch (Throwable $e) {
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate_or_fail((string)post('_csrf', ''));
     $action = (string)post('action', 'create');

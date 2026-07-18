@@ -2,12 +2,8 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../lib/config.php';
-require_once __DIR__ . '/../lib/db.php';
-require_once __DIR__ . '/../lib/site_settings.php';
+require_once __DIR__ . '/../lib/bootstrap.php';
 require_once __DIR__ . '/../lib/rate_limit.php';
-require_once __DIR__ . '/../lib/csrf.php';
-require_once __DIR__ . '/../lib/admin_auth.php';
 require_once __DIR__ . '/partials/_helpers.php';
 
 if (!function_exists('e')) {
@@ -17,7 +13,6 @@ if (!function_exists('e')) {
     }
 }
 
-admin_session_start();
 $message = '';
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     rate_limit_check('password_reset');
@@ -29,12 +24,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $message = 'メールアドレスの形式が正しくありません。';
         } else {
             $u = null;
-            if (admin_users_table_available()) {
-                $stmt = db()->prepare('SELECT id, username, email FROM admin_users WHERE email=:email AND is_active=1 LIMIT 1');
-                $stmt->execute([':email' => $email]);
-                $u = $stmt->fetch(PDO::FETCH_ASSOC);
-            }
-            if (!is_array($u) && $email === setting_admin_email('')) {
+            if (hash_equals(setting_admin_email(''), $email)) {
                 $stmt = db()->query('SELECT id, username FROM admins ORDER BY id ASC LIMIT 1');
                 $admin = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
                 if (is_array($admin)) {
@@ -51,7 +41,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 db()->prepare('INSERT INTO admin_password_resets(admin_user_id,token_hash,expires_at) VALUES (:admin_user_id,:token_hash,DATE_ADD(NOW(), INTERVAL 1 HOUR))')
                     ->execute([':admin_user_id' => (int)$u['id'], ':token_hash' => hash('sha256', $token)]);
 
-                $resetUrl = url('/public/reset_password.php?token=' . rawurlencode($token));
+                $resetUrl = public_url('reset_password.php') . '?token=' . rawurlencode($token);
                 $body = "管理者パスワード再設定の申請を受け付けました。\n"
                     . "ユーザー名: " . (string)$u['username'] . "\n"
                     . "メールアドレス: " . (string)$u['email'] . "\n"

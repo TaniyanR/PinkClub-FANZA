@@ -5,34 +5,14 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/db.php';
 require_once __DIR__ . '/../lib/csrf.php';
 require_once __DIR__ . '/../lib/rate_limit.php';
-require_once __DIR__ . '/../lib/admin_auth.php';
 require_once __DIR__ . '/../lib/contact_page_slug.php';
 require_once __DIR__ . '/partials/_helpers.php';
 
-function contact_destination_email(?int $currentUserId): array
+function contact_destination_email(): array
 {
     $settingsEmail = setting_admin_email('');
     if ($settingsEmail !== '' && filter_var($settingsEmail, FILTER_VALIDATE_EMAIL)) {
         return [$settingsEmail, ''];
-    }
-
-    if (!admin_users_table_available()) {
-        return ['', 'admin_users table not found'];
-    }
-
-    if ($currentUserId !== null) {
-        $stmt = db()->prepare('SELECT email FROM admin_users WHERE id=:id AND email IS NOT NULL AND email <> "" LIMIT 1');
-        $stmt->execute([':id' => $currentUserId]);
-        $email = (string)($stmt->fetchColumn() ?: '');
-        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return [$email, ''];
-        }
-    }
-
-    $stmt = db()->query('SELECT email FROM admin_users WHERE email IS NOT NULL AND email <> "" ORDER BY id ASC LIMIT 1');
-    $fallback = (string)($stmt->fetchColumn() ?: '');
-    if ($fallback !== '' && filter_var($fallback, FILTER_VALIDATE_EMAIL)) {
-        return [$fallback, ''];
     }
 
     return ['', 'admin email not found'];
@@ -363,9 +343,7 @@ if ($isContactPage && (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST')) {
         $contactSuccess = true;
         $contactForm = ['subject' => '', 'message' => '', 'name' => '', 'email' => ''];
     } elseif ($formErrors === []) {
-        $currentUser = admin_current_user();
-        $currentUserId = is_array($currentUser) ? (int)($currentUser['id'] ?? 0) : 0;
-        [$toEmail, $toEmailError] = contact_destination_email($currentUserId > 0 ? $currentUserId : null);
+        [$toEmail, $toEmailError] = contact_destination_email();
 
         $logId = null;
         if (db_table_exists('mail_logs')) {
