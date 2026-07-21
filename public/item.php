@@ -718,7 +718,6 @@ require __DIR__ . '/partials/header.php';
         <img class="pcf-detail__package" data-package-image="1" src="<?= e($packageImage) ?>" alt="<?= e((string)($item['title'] ?? '')) ?>" style="display:block; width:100%; height:auto;">
       </a>
       <?php endif; ?>
-      <?php if ($desc !== ''): ?><p><?= nl2br(e($desc)) ?></p><?php endif; ?>
     </div>
 
     <div class="pcf-item-main__info">
@@ -740,6 +739,13 @@ require __DIR__ . '/partials/header.php';
       </table>
     </div>
   </section>
+
+  <?php if ($desc !== ''): ?>
+    <section>
+      <h2 class="pcf-section-title">作品コメント</h2>
+      <p><?= nl2br(e($desc)) ?></p>
+    </section>
+  <?php endif; ?>
 
   <?php if ($affiliateUrl !== ''): ?>
     <p><a class="pcf-btn" style="display:block; text-align:center; border:2px solid #9aa0ab; font-weight:700; font-size:18px; padding:12px 14px;" href="<?= e($affiliateOutUrl) ?>" target="_blank" rel="noopener noreferrer">購入ボタン</a></p>
