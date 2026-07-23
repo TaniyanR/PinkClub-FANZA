@@ -272,7 +272,14 @@ $searchRows = search_fetch_items($searchQuery, $limit, $offset);
 
 $title = '検索結果';
 $pageDescription = $searchQuery !== '' ? mb_strimwidth('「' . $searchQuery . '」の商品検索結果です。', 0, 150, '…', 'UTF-8') : 'キーワードを入力して商品を検索できます。';
-$canonicalUrl = public_url('search.php') . ($searchQuery !== '' ? '?' . http_build_query(['q' => $searchQuery]) : '');
+$canonicalQuery = [];
+if ($searchQuery !== '') {
+    $canonicalQuery['q'] = $searchQuery;
+}
+if ($page > 1) {
+    $canonicalQuery['page'] = $page;
+}
+$canonicalUrl = public_url('search.php') . ($canonicalQuery !== [] ? '?' . http_build_query($canonicalQuery) : '');
 if ($page > 1) {
     $relPrev = public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $page - 1]);
 }

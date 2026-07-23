@@ -56,6 +56,11 @@ function auth_require_admin(): void
     if ((installer_status()['completed'] ?? false) !== true) {
         app_redirect('/public/setup_check.php');
     }
+
+    if (!headers_sent()) {
+        header('Cache-Control: private, no-store, max-age=0');
+        header('Pragma: no-cache');
+    }
 }
 
 function auth_logout(): void

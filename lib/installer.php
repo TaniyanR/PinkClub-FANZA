@@ -55,7 +55,7 @@ function installer_user_error_message(Throwable $exception): string
 
 function installer_request_host(): string { $h=strtolower(trim((string)($_SERVER['HTTP_HOST']??''))); return $h===''?'':explode(':',$h,2)[0]; }
 function installer_request_remote_addr(): string { return strtolower(trim((string)($_SERVER['REMOTE_ADDR'] ?? ''))); }
-function installer_is_local_request(): bool { return in_array(installer_request_remote_addr(), ['127.0.0.1','::1','localhost'], true) || in_array(installer_request_host(), ['localhost','127.0.0.1'], true); }
+function installer_is_local_request(): bool { return in_array(installer_request_remote_addr(), ['127.0.0.1','::1'], true); }
 function installer_can_auto_run(): bool { return installer_is_local_request(); }
 
 function installer_auto_run_if_needed(): array

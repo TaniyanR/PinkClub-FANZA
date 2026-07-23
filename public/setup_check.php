@@ -5,6 +5,12 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/local_config_writer.php';
 
+if (!installer_is_local_request() && !auth_user()) {
+    http_response_code(403);
+    header('Content-Type: text/plain; charset=UTF-8');
+    exit('この画面はローカル環境またはログイン済み管理者のみ利用できます。');
+}
+
 $dbConfigError = null;
 $dbConfigNotice = null;
 

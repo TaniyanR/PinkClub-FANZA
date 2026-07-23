@@ -74,7 +74,6 @@ $perSitemap = 10000;
 $staticUrls = [
     [public_url('index.php'), 'daily', '1.0'],
     [public_url('items.php'), 'daily', '0.9'],
-    [public_url('search.php'), 'daily', '0.9'],
 ];
 $tables = [
     ['items', 'item.php', 'weekly', '0.8', items_front_release_where()],

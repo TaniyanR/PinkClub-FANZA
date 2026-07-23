@@ -141,13 +141,19 @@ if ($configuredBaseUrl !== '') {
     );
 } else {
     $requestScheme = trim((string) ($_SERVER['REQUEST_SCHEME'] ?? ''));
-    if ($requestScheme !== '') {
+    if (in_array($requestScheme, ['http', 'https'], true)) {
         $scheme = $requestScheme;
     } else {
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     }
 
-    $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    $host = trim((string) ($_SERVER['SERVER_NAME'] ?? ''));
+    if ($host === '' || preg_match('/\A(?:[a-z0-9.-]+|\[[0-9a-f:]+\])\z/i', $host) !== 1) {
+        $host = trim((string) ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+    }
+    if (preg_match('/\A(?:[a-z0-9.-]+|\[[0-9a-f:]+\])(?::\d{1,5})?\z/i', $host) !== 1) {
+        $host = 'localhost';
+    }
     $baseUrl = rtrim("{$scheme}://{$host}{$basePath}", '/');
 }
 

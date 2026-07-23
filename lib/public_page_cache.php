@@ -20,13 +20,27 @@ function pcf_public_page_cache_start(int $ttlSeconds = 120): void
     $requestUri = (string)($_SERVER['REQUEST_URI'] ?? '/');
     $requestPath = (string)(parse_url($requestUri, PHP_URL_PATH) ?: '/');
     $scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
+    $excludedScripts = [
+        'login0718.php',
+        'forgot_password.php',
+        'reset_password.php',
+        'setup_check.php',
+        'link_apply.php',
+        'deletion_request_submit.php',
+        'page.php',
+    ];
 
     if (
         str_contains($requestPath, '/admin/')
         || str_contains($requestPath, '/api/')
         || $scriptName === 'page_view_beacon.php'
+        || in_array($scriptName, $excludedScripts, true)
         || isset($_GET['pcf_nocache'])
     ) {
+        if (in_array($scriptName, $excludedScripts, true)) {
+            header('Cache-Control: private, no-store, max-age=0');
+            header('Pragma: no-cache');
+        }
         return;
     }
 
@@ -48,7 +62,22 @@ function pcf_public_page_cache_start(int $ttlSeconds = 120): void
 
     $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
     $variant = $isMobile ? 'sp' : 'pc';
-    $cacheKey = hash('sha256', 'v1|' . $host . '|' . $variant . '|' . $requestUri);
+    $cacheQuery = [];
+    parse_str((string)(parse_url($requestUri, PHP_URL_QUERY) ?? ''), $cacheQuery);
+    foreach (array_keys($cacheQuery) as $queryKey) {
+        if (str_starts_with(strtolower((string)$queryKey), 'utm_')
+            || in_array(strtolower((string)$queryKey), ['gclid', 'fbclid', 'yclid', 'ref'], true)
+        ) {
+            unset($cacheQuery[$queryKey]);
+        }
+    }
+    ksort($cacheQuery);
+    $normalizedRequestUri = $requestPath;
+    $normalizedQuery = http_build_query($cacheQuery);
+    if ($normalizedQuery !== '') {
+        $normalizedRequestUri .= '?' . $normalizedQuery;
+    }
+    $cacheKey = hash('sha256', 'v2|' . $host . '|' . $variant . '|' . $normalizedRequestUri);
     $cacheFile = $cacheDirectory . '/' . $cacheKey . '.html';
 
     if (is_file($cacheFile) && (time() - (int)filemtime($cacheFile)) < $ttlSeconds) {
