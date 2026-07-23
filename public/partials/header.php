@@ -182,7 +182,18 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
     convertVrCards();
     replaceVrNoMovieWithPackage();
 
-    const observer = new MutationObserver(() => convertVrCards());
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (!(node instanceof Element)) return;
+          if (node.matches('a[href*="item.php"]')) {
+            convertVrCards(node.parentElement || node);
+            return;
+          }
+          convertVrCards(node);
+        });
+      });
+    });
     observer.observe(document.body, { childList: true, subtree: true });
   });
   </script>
