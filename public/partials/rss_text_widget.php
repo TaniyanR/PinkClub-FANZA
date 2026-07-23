@@ -5,7 +5,7 @@ require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/app_features.php';
 require_once __DIR__ . '/../../lib/db.php';
 
-rss_widget_bootstrap();
+rss_widget_bootstrap(false);
 
 $items = [];
 try {
