@@ -8,7 +8,6 @@ require_once __DIR__ . '/../../lib/db.php';
 $items = [];
 try {
     rss_widget_bootstrap();
-    rss_refresh_stale_sources(1, 900, 2);
     $items = array_merge(rss_widget_direct_items(20, true), rss_pick_display_items(20, true, 14));
     if (count($items) > 1) {
         shuffle($items);
