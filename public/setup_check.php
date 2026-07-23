@@ -5,10 +5,12 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/local_config_writer.php';
 
-if (!installer_is_local_request() && !auth_user()) {
+$remoteSetupMarker = dirname(__DIR__) . '/config/setup.enabled';
+$remoteSetupAllowed = is_file($remoteSetupMarker);
+if (!installer_is_local_request() && !auth_user() && !$remoteSetupAllowed) {
     http_response_code(403);
     header('Content-Type: text/plain; charset=UTF-8');
-    exit('この画面はローカル環境またはログイン済み管理者のみ利用できます。');
+    exit('セットアップ画面は無効です。復旧時のみ config/setup.enabled を作成してください。');
 }
 
 $dbConfigError = null;
@@ -117,6 +119,9 @@ if (!$csrfFailed && $_SERVER['REQUEST_METHOD'] === 'POST' && (string)post('actio
     try {
         $setupResult = installer_run();
         if (($setupResult['success'] ?? false) === true) {
+            if ($remoteSetupAllowed) {
+                @unlink($remoteSetupMarker);
+            }
             app_redirect(LOGIN_PATH);
         }
         $dbConfigError = (string)($setupResult['error'] ?? 'セットアップに失敗しました。install.log を確認してください。');
@@ -197,6 +202,9 @@ $configErrors = db_validate_config($currentDbConfig, true);
 if ($configErrors === []) {
     $status = installer_status();
     if (($status['completed'] ?? false) === true) {
+        if ($remoteSetupAllowed) {
+            @unlink($remoteSetupMarker);
+        }
         app_redirect(LOGIN_PATH);
     }
 } else {
