@@ -280,23 +280,6 @@ if (!$item) {
     require __DIR__ . '/404.php';
 }
 
-$pageViewUserAgent = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
-if (!auth_user() && !pcf_crawler_guard_is_known_crawler($pageViewUserAgent)) {
-    try {
-        $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
-        $ipHash = $ip !== '' ? hash('sha256', $ip . date('Y-m-d')) : null;
-        $ua = mb_substr($pageViewUserAgent, 0, 255);
-        $viewStmt = db()->prepare('SELECT id FROM page_views WHERE item_id = :item_id AND ip_hash = :ip_hash AND viewed_at >= CURDATE() AND viewed_at < CURDATE() + INTERVAL 1 DAY LIMIT 1');
-        $viewStmt->execute([':item_id' => (int)$item['id'], ':ip_hash' => $ipHash]);
-        if (!$viewStmt->fetch()) {
-            $insertView = db()->prepare('INSERT INTO page_views (item_id, viewed_at, ip_hash, user_agent) VALUES (:item_id, NOW(), :ip_hash, :user_agent)');
-            $insertView->execute([':item_id' => (int)$item['id'], ':ip_hash' => $ipHash, ':user_agent' => $ua]);
-        }
-    } catch (Throwable $e) {
-        error_log('page view logging failed: ' . $e->getMessage());
-    }
-}
-
 $relatedItems = [];
 $actresses = [];
 $genres = [];
@@ -652,27 +635,56 @@ if (!isset($accessRankingTabs[$accessRankingPeriod])) {
     $accessRankingPeriod = 'daily';
 }
 $accessRankingRows = [];
+$accessRankingCacheKey = 'public.item.ranking.v1.' . $accessRankingPeriod;
+$accessRankingCacheTtl = 10 * 60;
+$rankingCacheHit = false;
+
 try {
-    $periodFrom = null;
-    if ($accessRankingPeriod === 'daily') {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
-    } elseif ($accessRankingPeriod === 'weekly') {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-7 days'));
-    } elseif ($accessRankingPeriod === 'monthly') {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-1 month'));
-    } elseif ($accessRankingPeriod === 'yearly') {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-1 year'));
+    $decodedRankingCache = json_decode((string)(setting_get($accessRankingCacheKey, '') ?? ''), true);
+    if (is_array($decodedRankingCache)) {
+        $rankingCachedAt = (int)($decodedRankingCache['cached_at'] ?? 0);
+        $rankingCachedRows = $decodedRankingCache['rows'] ?? null;
+        if ($rankingCachedAt > 0 && $rankingCachedAt >= time() - $accessRankingCacheTtl && is_array($rankingCachedRows)) {
+            $accessRankingRows = $rankingCachedRows;
+            $rankingCacheHit = true;
+        }
     }
-
-    if ($periodFrom === null) {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
-    }
-
-    $rankingStmt = db()->prepare("SELECT i.id, i.content_id, i.title, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY i.id, i.content_id, i.title ORDER BY access_count DESC, i.id DESC LIMIT 200");
-    $rankingStmt->execute([':period_from' => $periodFrom]);
-    $accessRankingRows = $rankingStmt->fetchAll() ?: [];
 } catch (Throwable) {
-    $accessRankingRows = [];
+    $rankingCacheHit = false;
+}
+
+if (!$rankingCacheHit) {
+    try {
+        $periodFrom = null;
+        if ($accessRankingPeriod === 'daily') {
+            $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
+        } elseif ($accessRankingPeriod === 'weekly') {
+            $periodFrom = date('Y-m-d H:i:s', strtotime('-7 days'));
+        } elseif ($accessRankingPeriod === 'monthly') {
+            $periodFrom = date('Y-m-d H:i:s', strtotime('-1 month'));
+        } elseif ($accessRankingPeriod === 'yearly') {
+            $periodFrom = date('Y-m-d H:i:s', strtotime('-1 year'));
+        }
+
+        if ($periodFrom === null) {
+            $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
+        }
+
+        $rankingStmt = db()->prepare("SELECT i.id, i.content_id, i.title, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY i.id, i.content_id, i.title ORDER BY access_count DESC, i.id DESC LIMIT 200");
+        $rankingStmt->execute([':period_from' => $periodFrom]);
+        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        $accessRankingRows = [];
+    }
+
+    try {
+        setting_set($accessRankingCacheKey, json_encode([
+            'cached_at' => time(),
+            'rows' => $accessRankingRows,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '');
+    } catch (Throwable $e) {
+        error_log('item.php ranking cache write failed: ' . $e->getMessage());
+    }
 }
 
 require __DIR__ . '/partials/header.php';
