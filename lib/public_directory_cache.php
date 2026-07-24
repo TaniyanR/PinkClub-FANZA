@@ -67,7 +67,24 @@ function pcf_public_directory_cache_rebuild(string $kind): ?array
 
     try {
         $table = $config['table'];
-        $stmt = db()->query("SELECT id, dmm_id, name FROM {$table} WHERE name IS NOT NULL AND name <> '' ORDER BY name ASC, id ASC");
+        if ($kind === 'genres') {
+            $stmt = db()->query(
+                "SELECT genres.id, genres.dmm_id, genres.name
+                 FROM genres
+                 WHERE genres.name IS NOT NULL
+                   AND genres.name <> ''
+                   AND EXISTS (
+                     SELECT 1
+                     FROM item_genres
+                     INNER JOIN items ON items.id = item_genres.item_id
+                     WHERE item_genres.dmm_id = genres.dmm_id
+                       AND " . items_product_source_where('items') . "
+                   )
+                 ORDER BY genres.name ASC, genres.id ASC"
+            );
+        } else {
+            $stmt = db()->query("SELECT id, dmm_id, name FROM {$table} WHERE name IS NOT NULL AND name <> '' ORDER BY name ASC, id ASC");
+        }
         $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
         if (!is_array($rows)) {
             $rows = [];
@@ -163,7 +180,8 @@ function pcf_public_directory_cache_read(string $cacheFile): ?array
 
 function pcf_public_directory_cache_file(string $kind): string
 {
-    return dirname(__DIR__) . '/storage/cache/public-directories/' . $kind . '.json';
+    $suffix = $kind === 'genres' ? '-public-v2' : '';
+    return dirname(__DIR__) . '/storage/cache/public-directories/' . $kind . $suffix . '.json';
 }
 
 function pcf_public_directory_cache_config(string $kind): ?array
