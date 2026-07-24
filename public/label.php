@@ -26,6 +26,9 @@ if ($labelName === '') {
 
 $rows = dedupe_items_by_key(fetch_items_by_label_name($labelName, $limit + 1, $offset));
 [$list, $hasNext] = paginate_items($rows, $limit);
+if ($labelPage === 1 && $list === []) {
+    require __DIR__ . '/404.php';
+}
 
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
 $accessRankingTabs = [
