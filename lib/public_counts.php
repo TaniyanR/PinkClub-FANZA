@@ -32,15 +32,14 @@ function pcf_public_counts(): array
 
     try {
         $manifest = pcf_actress_directory_cache_read_manifest();
-        if (!is_array($manifest)) {
-            $manifest = pcf_actress_directory_cache_manifest();
+        if (!is_array($manifest) || ($manifest['groups'] ?? []) === []) {
+            $manifest = pcf_actress_directory_cache_rebuild(true);
         }
 
-        $actressCount = 0;
-        foreach (($manifest['groups'] ?? []) as $group) {
-            if (is_array($group)) {
-                $actressCount += max(0, (int)($group['count'] ?? 0));
-            }
+        $actressCount = pcf_actress_directory_cache_count($manifest);
+        if ($actressCount === null) {
+            $manifest = pcf_actress_directory_cache_rebuild(true);
+            $actressCount = pcf_actress_directory_cache_count($manifest);
         }
         $counts['actresses'] = $actressCount;
     } catch (Throwable $e) {

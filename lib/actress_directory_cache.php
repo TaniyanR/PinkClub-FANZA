@@ -75,7 +75,7 @@ function pcf_actress_directory_group_key(array $row): string
     return preg_match('/^[A-Za-z]/', $first) ? 'alpha:' . strtoupper($first) : '';
 }
 
-function pcf_actress_directory_cache_rebuild(): array
+function pcf_actress_directory_cache_rebuild(bool $force = false): array
 {
     $directory = pcf_actress_directory_cache_dir();
     if (!is_dir($directory) && !@mkdir($directory, 0755, true) && !is_dir($directory)) {
@@ -93,7 +93,7 @@ function pcf_actress_directory_cache_rebuild(): array
         }
 
         $manifestPath = pcf_actress_directory_cache_manifest_path();
-        if (is_file($manifestPath) && filemtime($manifestPath) >= time() - 3600) {
+        if (!$force && is_file($manifestPath) && filemtime($manifestPath) >= time() - 3600) {
             $existing = pcf_actress_directory_cache_read_manifest();
             if (is_array($existing)) {
                 return $existing;
@@ -188,6 +188,32 @@ function pcf_actress_directory_cache_rebuild(): array
         flock($lock, LOCK_UN);
         fclose($lock);
     }
+}
+
+function pcf_actress_directory_cache_count(array $manifest): ?int
+{
+    $count = 0;
+    foreach (($manifest['groups'] ?? []) as $group) {
+        if (!is_array($group)) {
+            continue;
+        }
+        if (array_key_exists('count', $group)) {
+            $count += max(0, (int)$group['count']);
+            continue;
+        }
+
+        $filename = basename((string)($group['file'] ?? ''));
+        if ($filename === '') {
+            return null;
+        }
+        $rows = json_decode((string)@file_get_contents(pcf_actress_directory_cache_dir() . '/' . $filename), true);
+        if (!is_array($rows)) {
+            return null;
+        }
+        $count += count($rows);
+    }
+
+    return $count;
 }
 
 function pcf_actress_directory_cache_manifest(): array
