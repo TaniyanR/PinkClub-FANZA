@@ -512,11 +512,15 @@ function fetch_labels(int $limit = 50, int $offset = 0): array
     $sql = db_column_exists('item_labels', 'item_id')
         ? 'SELECT COALESCE(NULLIF(dmm_id, ""), label_name) AS id, label_name AS name, "" AS ruby, COUNT(*) AS item_count
            FROM item_labels
+           INNER JOIN items ON items.id = item_labels.item_id
+           WHERE ' . items_product_source_where('items') . '
            GROUP BY COALESCE(NULLIF(dmm_id, ""), label_name), label_name
            ORDER BY label_name ASC
            LIMIT :limit OFFSET :offset'
         : 'SELECT label_id AS id, label_name AS name, MAX(label_ruby) AS ruby, COUNT(*) AS item_count
            FROM item_labels
+           INNER JOIN items ON items.content_id = item_labels.content_id
+           WHERE ' . items_product_source_where('items') . '
            GROUP BY label_id, label_name
            ORDER BY label_name ASC
            LIMIT :limit OFFSET :offset';
@@ -582,14 +586,14 @@ function fetch_items_by_label_name(string $labelName, int $limit, int $offset = 
            FROM items
            INNER JOIN item_labels ON items.id = item_labels.item_id
            WHERE item_labels.label_name = :label_name
-             AND ' . items_front_release_where('items') . '
+             AND ' . items_product_source_where('items') . '
            ORDER BY items.release_date DESC, items.id DESC
            LIMIT :limit OFFSET :offset'
         : 'SELECT DISTINCT items.*
            FROM items
            INNER JOIN item_labels ON items.content_id = item_labels.content_id
            WHERE item_labels.label_name = :label_name
-             AND ' . items_front_release_where('items') . '
+             AND ' . items_product_source_where('items') . '
            ORDER BY items.date_published DESC
            LIMIT :limit OFFSET :offset';
     try {
@@ -617,14 +621,14 @@ function fetch_items_by_actress(int $actressId, int $limit, int $offset = 0): ar
                INNER JOIN actresses      ON actresses.id           = :id
                INNER JOIN item_actresses ON item_actresses.dmm_id  = actresses.dmm_id
                WHERE items.id = item_actresses.item_id
-                 AND ' . items_front_release_where('items') . '
+                 AND ' . items_product_source_where('items') . '
                ORDER BY items.release_date DESC, items.id DESC
                LIMIT :limit OFFSET :offset'
             : 'SELECT DISTINCT items.*
                FROM items
                INNER JOIN item_actresses ON items.content_id = item_actresses.content_id
                WHERE item_actresses.actress_id = :id
-                 AND ' . items_front_release_where('items') . '
+                 AND ' . items_product_source_where('items') . '
                ORDER BY date_published DESC
                LIMIT :limit OFFSET :offset';
         $stmt = db()->prepare($sql);
@@ -651,14 +655,14 @@ function fetch_items_by_genre(int $genreId, int $limit, int $offset = 0): array
                INNER JOIN genres      ON genres.id          = :id
                INNER JOIN item_genres ON item_genres.dmm_id = genres.dmm_id
                WHERE items.id = item_genres.item_id
-                 AND ' . items_front_release_where('items') . '
+                 AND ' . items_product_source_where('items') . '
                ORDER BY items.release_date DESC, items.id DESC
                LIMIT :limit OFFSET :offset'
             : 'SELECT DISTINCT items.*
                FROM items
                INNER JOIN item_genres ON items.content_id = item_genres.content_id
                WHERE item_genres.genre_id = :id
-                 AND ' . items_front_release_where('items') . '
+                 AND ' . items_product_source_where('items') . '
                ORDER BY date_published DESC
                LIMIT :limit OFFSET :offset';
         $stmt = db()->prepare($sql);
@@ -685,14 +689,14 @@ function fetch_items_by_maker(int $makerId, int $limit, int $offset = 0): array
                INNER JOIN makers      ON makers.id          = :id
                INNER JOIN item_makers ON item_makers.dmm_id = makers.dmm_id
                WHERE items.id = item_makers.item_id
-                 AND ' . items_front_release_where('items') . '
+                 AND ' . items_product_source_where('items') . '
                ORDER BY items.release_date DESC, items.id DESC
                LIMIT :limit OFFSET :offset'
             : 'SELECT DISTINCT items.*
                FROM items
                INNER JOIN item_makers ON items.content_id = item_makers.content_id
                WHERE item_makers.maker_id = :id
-                 AND ' . items_front_release_where('items') . '
+                 AND ' . items_product_source_where('items') . '
                ORDER BY date_published DESC
                LIMIT :limit OFFSET :offset';
         $stmt = db()->prepare($sql);
@@ -716,11 +720,11 @@ function count_items_by_series(int $seriesId): int
                FROM items
                INNER JOIN series_master ON series_master.id   = :id
                INNER JOIN item_series   ON item_series.dmm_id = series_master.dmm_id
-               WHERE items.id = item_series.item_id AND ' . items_front_release_where('items')
+               WHERE items.id = item_series.item_id AND ' . items_product_source_where('items')
             : 'SELECT COUNT(DISTINCT items.id)
                FROM items
                INNER JOIN item_series ON items.content_id = item_series.content_id
-               WHERE item_series.series_id = :id AND ' . items_front_release_where('items');
+               WHERE item_series.series_id = :id AND ' . items_product_source_where('items');
         $stmt = db()->prepare($sql);
         $stmt->execute([':id' => $seriesId]);
         return (int)$stmt->fetchColumn();
@@ -742,14 +746,14 @@ function fetch_items_by_series(int $seriesId, int $limit, int $offset = 0): arra
                INNER JOIN series_master ON series_master.id   = :id
                INNER JOIN item_series   ON item_series.dmm_id = series_master.dmm_id
                WHERE items.id = item_series.item_id
-                 AND ' . items_front_release_where('items') . '
+                 AND ' . items_product_source_where('items') . '
                ORDER BY items.release_date DESC, items.id DESC
                LIMIT :limit OFFSET :offset'
             : 'SELECT DISTINCT items.*
                FROM items
                INNER JOIN item_series ON items.content_id = item_series.content_id
                WHERE item_series.series_id = :id
-                 AND ' . items_front_release_where('items') . '
+                 AND ' . items_product_source_where('items') . '
                ORDER BY date_published DESC
                LIMIT :limit OFFSET :offset';
         $stmt = db()->prepare($sql);
