@@ -4,45 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
+require_once __DIR__ . '/../lib/public_rankings.php';
 require_once __DIR__ . '/partials/public_ui.php';
-
-function pcf_label_access_period_from(string $period): string
-{
-    if ($period === 'weekly') {
-        return date('Y-m-d H:i:s', strtotime('-7 days'));
-    }
-    if ($period === 'monthly') {
-        return date('Y-m-d H:i:s', strtotime('-1 month'));
-    }
-    if ($period === 'yearly') {
-        return date('Y-m-d H:i:s', strtotime('-1 year'));
-    }
-    return date('Y-m-d H:i:s', strtotime('-24 hours'));
-}
-
-function pcf_fetch_label_access_ranking(string $periodFrom): array
-{
-    try {
-        if (!analytics_ensure_tables()) {
-            throw new RuntimeException('analytics tables are not available');
-        }
-
-        foreach ([
-            "SELECT il.label_id AS id, il.label_name AS name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_labels il ON i.content_id = il.content_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY il.label_id, il.label_name ORDER BY access_count DESC, il.label_name ASC LIMIT 200",
-            "SELECT COALESCE(NULLIF(il.dmm_id, ''), il.label_name) AS id, il.label_name AS name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_labels il ON i.id = il.item_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY COALESCE(NULLIF(il.dmm_id, ''), il.label_name), il.label_name ORDER BY access_count DESC, il.label_name ASC LIMIT 200",
-        ] as $sql) {
-            try {
-                $stmt = db()->prepare($sql);
-                $stmt->execute([':period_from' => $periodFrom]);
-                return $stmt->fetchAll() ?: [];
-            } catch (Throwable) {
-            }
-        }
-    } catch (Throwable) {
-    }
-
-    return [];
-}
 
 $id = trim((string)get('id', ''));
 $name = trim((string)get('name', ''));
@@ -66,7 +29,7 @@ $rows = dedupe_items_by_key(fetch_items_by_label_name($labelName, $limit + 1, $o
 
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
 $accessRankingTabs = [
-    'daily' => ['label' => '24時間'],
+    'daily' => ['label' => '本日'],
     'weekly' => ['label' => '週間'],
     'monthly' => ['label' => '月間'],
     'yearly' => ['label' => '年間'],
@@ -74,7 +37,7 @@ $accessRankingTabs = [
 if (!isset($accessRankingTabs[$accessRankingPeriod])) {
     $accessRankingPeriod = 'daily';
 }
-$accessRankingRows = pcf_fetch_label_access_ranking(pcf_label_access_period_from($accessRankingPeriod));
+$accessRankingRows = pcf_public_weighted_ranking('labels', $accessRankingPeriod);
 $accessRankingRows = array_values(array_filter($accessRankingRows, static function (array $row): bool {
     $name = trim((string)($row['name'] ?? ''));
     if ($name === '' || pcf_is_noise_name($name)) {
@@ -136,7 +99,7 @@ require __DIR__ . '/partials/header.php';
           <tr>
             <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
             <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">レーベル名</th>
-            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">クリック数</th>
+            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">ランキング点</th>
           </tr>
         </thead>
         <tbody>
