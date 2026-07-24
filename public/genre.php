@@ -95,6 +95,9 @@ try {
 if ($row === null) {
     require __DIR__ . '/404.php';
 }
+if ($total === 0) {
+    require __DIR__ . '/404.php';
+}
 
 $genreName = pcf_genre_display_name($row);
 try {
