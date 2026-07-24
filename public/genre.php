@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
+require_once __DIR__ . '/../lib/public_rankings.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
 function pcf_genre_count_items(int $genreId): int
@@ -108,7 +109,7 @@ try {
 
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
 $accessRankingTabs = [
-    'daily' => ['label' => '24時間'],
+    'daily' => ['label' => '本日'],
     'weekly' => ['label' => '週間'],
     'monthly' => ['label' => '月間'],
     'yearly' => ['label' => '年間'],
@@ -116,39 +117,7 @@ $accessRankingTabs = [
 if (!isset($accessRankingTabs[$accessRankingPeriod])) {
     $accessRankingPeriod = 'daily';
 }
-$accessRankingRows = [];
-try {
-    $periodFrom = null;
-    if ($accessRankingPeriod === 'daily') {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
-    } elseif ($accessRankingPeriod === 'weekly') {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-7 days'));
-    } elseif ($accessRankingPeriod === 'monthly') {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-1 month'));
-    } elseif ($accessRankingPeriod === 'yearly') {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-1 year'));
-    }
-
-    if ($periodFrom === null) {
-        $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
-    }
-
-    if (!analytics_ensure_tables()) {
-        throw new RuntimeException('analytics tables are not available');
-    }
-
-    try {
-        $rankingStmt = db()->prepare("SELECT g.id, g.dmm_id, g.name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_genres ig ON i.content_id = ig.content_id INNER JOIN genres g ON g.id = ig.genre_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY g.id, g.dmm_id, g.name ORDER BY access_count DESC, g.id DESC LIMIT 200");
-        $rankingStmt->execute([':period_from' => $periodFrom]);
-        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
-    } catch (Throwable) {
-        $rankingStmt = db()->prepare("SELECT g.id, g.dmm_id, g.name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_genres ig ON i.id = ig.item_id INNER JOIN genres g ON g.dmm_id = ig.dmm_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY g.id, g.dmm_id, g.name ORDER BY access_count DESC, g.id DESC LIMIT 200");
-        $rankingStmt->execute([':period_from' => $periodFrom]);
-        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
-    }
-} catch (Throwable) {
-    $accessRankingRows = [];
-}
+$accessRankingRows = pcf_public_weighted_ranking('genres', $accessRankingPeriod);
 
 $title = $genreName;
 $pageDescription = mb_strimwidth($genreName . 'のAV・成人向け動画作品一覧。FANZAアフィリエイト最新作を紹介。', 0, 150, '…', 'UTF-8');
@@ -201,7 +170,7 @@ require __DIR__ . '/partials/header.php';
           <tr>
             <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
             <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">ジャンル名</th>
-            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">クリック数</th>
+            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">ランキング点</th>
           </tr>
         </thead>
         <tbody>
