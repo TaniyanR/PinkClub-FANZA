@@ -246,6 +246,35 @@ function fetch_actresses(int $limit = 50, int $offset = 0, string $order = 'name
     }
 }
 
+function fetch_public_actresses(int $limit = 10000, int $offset = 0, string $order = 'name'): array
+{
+    $orderBy = normalize_order($order, ['name', 'created_at', 'updated_at'], 'name');
+    $limit = normalize_int($limit, 1, 10000);
+    $offset = max(0, $offset);
+
+    try {
+        $stmt = db()->prepare(
+            "SELECT actresses.*
+             FROM actresses
+             WHERE EXISTS (
+               SELECT 1
+               FROM item_actresses
+               INNER JOIN items ON items.id = item_actresses.item_id
+               WHERE item_actresses.dmm_id = actresses.dmm_id
+                 AND " . items_product_source_where('items') . "
+             )
+             ORDER BY actresses.{$orderBy} ASC
+             LIMIT :limit OFFSET :offset"
+        );
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
+    }
+}
+
 function fetch_actress(int $id): ?array
 {
     $id   = max(1, $id);
@@ -349,7 +378,7 @@ function fetch_series_one(int $seriesId): ?array
     $seriesId = max(1, $seriesId);
 
     try {
-        $stmt = db()->prepare('SELECT * FROM series WHERE id = :id LIMIT 1');
+        $stmt = db()->prepare('SELECT * FROM series_master WHERE id = :id LIMIT 1');
         $stmt->execute([':id' => $seriesId]);
         $series = $stmt->fetch();
         if ($series) {
@@ -359,7 +388,7 @@ function fetch_series_one(int $seriesId): ?array
     }
 
     try {
-        $stmt = db()->prepare('SELECT * FROM series_master WHERE id = :id LIMIT 1');
+        $stmt = db()->prepare('SELECT * FROM series WHERE id = :id LIMIT 1');
         $stmt->execute([':id' => $seriesId]);
         $series = $stmt->fetch();
         return $series ?: null;
@@ -437,7 +466,19 @@ function fetch_series(int $limit = 50, int $offset = 0, string $order = 'name'):
     $offset  = max(0, $offset);
 
     try {
-        $stmt = db()->prepare("SELECT * FROM series ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare(
+            "SELECT series_master.*
+             FROM series_master
+             WHERE EXISTS (
+               SELECT 1
+               FROM item_series
+               INNER JOIN items ON items.id = item_series.item_id
+               WHERE item_series.dmm_id = series_master.dmm_id
+                 AND " . items_product_source_where('items') . "
+             )
+             ORDER BY series_master.{$orderBy} ASC
+             LIMIT :limit OFFSET :offset"
+        );
         $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -449,7 +490,19 @@ function fetch_series(int $limit = 50, int $offset = 0, string $order = 'name'):
     }
 
     try {
-        $stmt = db()->prepare("SELECT * FROM series_master ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
+        $stmt = db()->prepare(
+            "SELECT series.*
+             FROM series
+             WHERE EXISTS (
+               SELECT 1
+               FROM item_series
+               INNER JOIN items ON items.content_id = item_series.content_id
+               WHERE item_series.series_id = series.id
+                 AND " . items_product_source_where('items') . "
+             )
+             ORDER BY series.{$orderBy} ASC
+             LIMIT :limit OFFSET :offset"
+        );
         $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -460,17 +513,7 @@ function fetch_series(int $limit = 50, int $offset = 0, string $order = 'name'):
     } catch (Throwable) {
     }
 
-    backfill_master_from_relation('series_master', 'item_series', 'series_name');
-
-    try {
-        $stmt = db()->prepare("SELECT * FROM series_master ORDER BY {$orderBy} ASC LIMIT :limit OFFSET :offset");
-        $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll() ?: [];
-    } catch (Throwable) {
-        return [];
-    }
+    return [];
 }
 
 function fetch_labels(int $limit = 50, int $offset = 0): array
@@ -726,8 +769,9 @@ function count_items_by_series(int $seriesId): int
         $stmt = db()->prepare(
             'SELECT COUNT(DISTINCT items.id)
              FROM items
-             INNER JOIN item_series ON items.content_id = item_series.content_id
-             WHERE item_series.series_id = :id AND ' . items_front_release_where('items') . ''
+             INNER JOIN series_master ON series_master.id       = :id
+             INNER JOIN item_series   ON item_series.dmm_id     = series_master.dmm_id
+             WHERE items.id = item_series.item_id AND ' . items_front_release_where('items') . ''
         );
         $stmt->execute([':id' => $seriesId]);
         $count = (int)$stmt->fetchColumn();
@@ -741,9 +785,8 @@ function count_items_by_series(int $seriesId): int
         $stmt = db()->prepare(
             'SELECT COUNT(DISTINCT items.id)
              FROM items
-             INNER JOIN series_master ON series_master.id       = :id
-             INNER JOIN item_series   ON item_series.dmm_id     = series_master.dmm_id
-             WHERE items.id = item_series.item_id AND ' . items_front_release_where('items') . ''
+             INNER JOIN item_series ON items.content_id = item_series.content_id
+             WHERE item_series.series_id = :id AND ' . items_front_release_where('items') . ''
         );
         $stmt->execute([':id' => $seriesId]);
         return (int)$stmt->fetchColumn();
@@ -762,10 +805,11 @@ function fetch_items_by_series(int $seriesId, int $limit, int $offset = 0): arra
         $stmt = db()->prepare(
             'SELECT DISTINCT items.*
              FROM items
-             INNER JOIN item_series ON items.content_id = item_series.content_id
-             WHERE item_series.series_id = :id
+             INNER JOIN series_master ON series_master.id       = :id
+             INNER JOIN item_series   ON item_series.dmm_id     = series_master.dmm_id
+             WHERE items.id = item_series.item_id
                AND ' . items_front_release_where('items') . '
-             ORDER BY date_published DESC
+             ORDER BY items.release_date DESC, items.id DESC
              LIMIT :limit OFFSET :offset'
         );
         $stmt->bindValue(':id',     $seriesId, PDO::PARAM_INT);
@@ -783,11 +827,10 @@ function fetch_items_by_series(int $seriesId, int $limit, int $offset = 0): arra
         $stmt = db()->prepare(
             'SELECT DISTINCT items.*
              FROM items
-             INNER JOIN series_master ON series_master.id       = :id
-             INNER JOIN item_series   ON item_series.dmm_id     = series_master.dmm_id
-             WHERE items.id = item_series.item_id
+             INNER JOIN item_series ON items.content_id = item_series.content_id
+             WHERE item_series.series_id = :id
                AND ' . items_front_release_where('items') . '
-             ORDER BY items.release_date DESC, items.id DESC
+             ORDER BY date_published DESC
              LIMIT :limit OFFSET :offset'
         );
         $stmt->bindValue(':id',     $seriesId, PDO::PARAM_INT);
@@ -980,11 +1023,12 @@ function fetch_item_series(string $contentId): array
 
     try {
         $stmt = db()->prepare(
-            'SELECT series.*
-             FROM series
-             INNER JOIN item_series ON series.id = item_series.series_id
-             WHERE item_series.content_id = :cid
-             ORDER BY series.name ASC'
+            'SELECT DISTINCT series_master.id, series_master.name, series_master.ruby
+             FROM items
+             INNER JOIN item_series   ON items.id              = item_series.item_id
+             INNER JOIN series_master ON series_master.dmm_id  = item_series.dmm_id
+             WHERE items.content_id = :cid
+             ORDER BY series_master.name ASC'
         );
         $stmt->execute([':cid' => $cid]);
         $rows = $stmt->fetchAll() ?: [];
@@ -996,12 +1040,11 @@ function fetch_item_series(string $contentId): array
 
     try {
         $stmt = db()->prepare(
-            'SELECT DISTINCT series_master.id, series_master.name, series_master.ruby
-             FROM items
-             INNER JOIN item_series   ON items.id              = item_series.item_id
-             INNER JOIN series_master ON series_master.dmm_id  = item_series.dmm_id
-             WHERE items.content_id = :cid
-             ORDER BY series_master.name ASC'
+            'SELECT series.*
+             FROM series
+             INNER JOIN item_series ON series.id = item_series.series_id
+             WHERE item_series.content_id = :cid
+             ORDER BY series.name ASC'
         );
         $stmt->execute([':cid' => $cid]);
         return $stmt->fetchAll() ?: [];
