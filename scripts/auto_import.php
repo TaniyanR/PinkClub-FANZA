@@ -9,7 +9,7 @@ function main(): int
     try {
         maybe_run_scheduled_jobs();
         rss_widget_bootstrap();
-        rss_refresh_stale_sources(1000, 3600, 2);
+        rss_refresh_stale_sources(1000, 1800, 2);
         echo '[' . date('Y-m-d H:i:s') . "] maybe_run_scheduled_jobs() executed\n";
         return 0;
     } catch (Throwable $e) {
