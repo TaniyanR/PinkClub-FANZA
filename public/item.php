@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
+require_once __DIR__ . '/../lib/public_rankings.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
 function item_normalize_movie_url(string $url): string
@@ -626,66 +627,15 @@ $jsonLd = (string)json_encode($productJsonLd, JSON_UNESCAPED_UNICODE | JSON_UNES
 
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
 $accessRankingTabs = [
-    'daily' => ['label' => '24時間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 1 DAY)'],
-    'weekly' => ['label' => '週間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 7 DAY)'],
-    'monthly' => ['label' => '月間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 1 MONTH)'],
-    'yearly' => ['label' => '年間', 'where' => 'pv.viewed_at >= (NOW() - INTERVAL 1 YEAR)'],
+    'daily' => ['label' => '本日'],
+    'weekly' => ['label' => '週間'],
+    'monthly' => ['label' => '月間'],
+    'yearly' => ['label' => '年間'],
 ];
 if (!isset($accessRankingTabs[$accessRankingPeriod])) {
     $accessRankingPeriod = 'daily';
 }
-$accessRankingRows = [];
-$accessRankingCacheKey = 'public.item.ranking.v1.' . $accessRankingPeriod;
-$accessRankingCacheTtl = 10 * 60;
-$rankingCacheHit = false;
-
-try {
-    $decodedRankingCache = json_decode((string)(setting_get($accessRankingCacheKey, '') ?? ''), true);
-    if (is_array($decodedRankingCache)) {
-        $rankingCachedAt = (int)($decodedRankingCache['cached_at'] ?? 0);
-        $rankingCachedRows = $decodedRankingCache['rows'] ?? null;
-        if ($rankingCachedAt > 0 && $rankingCachedAt >= time() - $accessRankingCacheTtl && is_array($rankingCachedRows)) {
-            $accessRankingRows = $rankingCachedRows;
-            $rankingCacheHit = true;
-        }
-    }
-} catch (Throwable) {
-    $rankingCacheHit = false;
-}
-
-if (!$rankingCacheHit) {
-    try {
-        $periodFrom = null;
-        if ($accessRankingPeriod === 'daily') {
-            $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
-        } elseif ($accessRankingPeriod === 'weekly') {
-            $periodFrom = date('Y-m-d H:i:s', strtotime('-7 days'));
-        } elseif ($accessRankingPeriod === 'monthly') {
-            $periodFrom = date('Y-m-d H:i:s', strtotime('-1 month'));
-        } elseif ($accessRankingPeriod === 'yearly') {
-            $periodFrom = date('Y-m-d H:i:s', strtotime('-1 year'));
-        }
-
-        if ($periodFrom === null) {
-            $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
-        }
-
-        $rankingStmt = db()->prepare("SELECT i.id, i.content_id, i.title, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY i.id, i.content_id, i.title ORDER BY access_count DESC, i.id DESC LIMIT 200");
-        $rankingStmt->execute([':period_from' => $periodFrom]);
-        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
-    } catch (Throwable) {
-        $accessRankingRows = [];
-    }
-
-    try {
-        setting_set($accessRankingCacheKey, json_encode([
-            'cached_at' => time(),
-            'rows' => $accessRankingRows,
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '');
-    } catch (Throwable $e) {
-        error_log('item.php ranking cache write failed: ' . $e->getMessage());
-    }
-}
+$accessRankingRows = pcf_public_weighted_ranking('items', $accessRankingPeriod);
 
 require __DIR__ . '/partials/header.php';
 ?>
@@ -795,7 +745,7 @@ require __DIR__ . '/partials/header.php';
             <tr>
               <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
               <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">作品タイトル</th>
-              <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">クリック数</th>
+              <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">ランキング点</th>
             </tr>
           </thead>
           <tbody>
