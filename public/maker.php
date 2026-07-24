@@ -24,6 +24,9 @@ try {
     $row = null;
     $list = [];
 }
+if ($row !== null && $makerPage === 1 && $list === []) {
+    require __DIR__ . '/404.php';
+}
 $makerName = trim((string)($row['name'] ?? ''));
 $makerNameSql = db_column_exists('item_makers', 'item_id')
     ? "SELECT im.maker_name FROM item_makers im INNER JOIN makers m ON m.id = :id AND im.dmm_id = m.dmm_id WHERE TRIM(COALESCE(im.maker_name, '')) <> '' GROUP BY im.maker_name ORDER BY COUNT(*) DESC, im.maker_name ASC LIMIT 1"
