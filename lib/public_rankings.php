@@ -16,7 +16,7 @@ function pcf_public_ranking_period_start(string $period): string
     };
 }
 
-function pcf_public_weighted_ranking(string $type, string $period, int $limit = 200): array
+function pcf_public_weighted_ranking(string $type, string $period, int $limit = 200, bool $forceRefresh = false): array
 {
     $allowedTypes = ['items', 'actresses', 'genres', 'makers', 'labels', 'series'];
     if (!in_array($type, $allowedTypes, true)) {
@@ -32,12 +32,17 @@ function pcf_public_weighted_ranking(string $type, string $period, int $limit = 
 
     try {
         $cached = json_decode((string)(setting_get($cacheKey, '') ?? ''), true);
-        if (
-            is_array($cached)
-            && (int)($cached['cached_at'] ?? 0) >= time() - $cacheTtl
-            && is_array($cached['rows'] ?? null)
-        ) {
-            return $cached['rows'];
+        if (is_array($cached) && is_array($cached['rows'] ?? null)) {
+            if (!$forceRefresh && (int)($cached['cached_at'] ?? 0) >= time() - $cacheTtl) {
+                return $cached['rows'];
+            }
+            if (!$forceRefresh) {
+                $GLOBALS['__pcf_public_ranking_refresh'][$type . '|' . $period] = [
+                    'type' => $type,
+                    'period' => $period,
+                ];
+                return $cached['rows'];
+            }
         }
     } catch (Throwable) {
     }
@@ -68,6 +73,12 @@ function pcf_public_weighted_ranking(string $type, string $period, int $limit = 
     }
 
     return $rows;
+}
+
+function pcf_public_ranking_refresh_queue(): array
+{
+    $queue = $GLOBALS['__pcf_public_ranking_refresh'] ?? [];
+    return is_array($queue) ? array_values($queue) : [];
 }
 
 function pcf_public_ranking_item_score_sql(): string

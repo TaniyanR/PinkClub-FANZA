@@ -25,20 +25,17 @@ try {
     $list = [];
 }
 $makerName = trim((string)($row['name'] ?? ''));
-foreach ([
-    "SELECT maker_name FROM item_makers WHERE maker_id = :id AND TRIM(COALESCE(maker_name, '')) <> '' GROUP BY maker_name ORDER BY COUNT(*) DESC, maker_name ASC LIMIT 1",
-    "SELECT im.maker_name FROM item_makers im INNER JOIN makers m ON m.id = :id AND im.dmm_id = m.dmm_id WHERE TRIM(COALESCE(im.maker_name, '')) <> '' GROUP BY im.maker_name ORDER BY COUNT(*) DESC, im.maker_name ASC LIMIT 1",
-] as $makerNameSql) {
-    try {
-        $makerNameStmt = db()->prepare($makerNameSql);
-        $makerNameStmt->execute([':id' => $id]);
-        $makerNameCandidate = trim((string)($makerNameStmt->fetchColumn() ?: ''));
-        if ($makerNameCandidate !== '' && !pcf_is_noise_name($makerNameCandidate)) {
-            $makerName = $makerNameCandidate;
-            break;
-        }
-    } catch (Throwable) {
+$makerNameSql = db_column_exists('item_makers', 'item_id')
+    ? "SELECT im.maker_name FROM item_makers im INNER JOIN makers m ON m.id = :id AND im.dmm_id = m.dmm_id WHERE TRIM(COALESCE(im.maker_name, '')) <> '' GROUP BY im.maker_name ORDER BY COUNT(*) DESC, im.maker_name ASC LIMIT 1"
+    : "SELECT maker_name FROM item_makers WHERE maker_id = :id AND TRIM(COALESCE(maker_name, '')) <> '' GROUP BY maker_name ORDER BY COUNT(*) DESC, maker_name ASC LIMIT 1";
+try {
+    $makerNameStmt = db()->prepare($makerNameSql);
+    $makerNameStmt->execute([':id' => $id]);
+    $makerNameCandidate = trim((string)($makerNameStmt->fetchColumn() ?: ''));
+    if ($makerNameCandidate !== '' && !pcf_is_noise_name($makerNameCandidate)) {
+        $makerName = $makerNameCandidate;
     }
+} catch (Throwable) {
 }
 $makerNameIsMutualLink = false;
 if ($makerName !== '') {

@@ -315,37 +315,25 @@ function fetch_related_makers_by_actress(int $actressId, int $limit = 50): array
     $limit     = normalize_int($limit, 1, 200);
 
     try {
-        $stmt = db()->prepare(
-            'SELECT DISTINCT makers.*
-             FROM makers
-             INNER JOIN item_makers    ON makers.id = item_makers.maker_id
-             INNER JOIN item_actresses ON item_makers.content_id = item_actresses.content_id
-             WHERE item_actresses.actress_id = :id
-               AND ' . items_front_release_where('items') . '
-             ORDER BY makers.name ASC
-             LIMIT :limit'
-        );
-        $stmt->bindValue(':id',    $actressId, PDO::PARAM_INT);
-        $stmt->bindValue(':limit', $limit,     PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll() ?: [];
-        if ($rows !== []) {
-            return $rows;
-        }
-    } catch (Throwable) {
-    }
-
-    try {
-        $stmt = db()->prepare(
-            'SELECT DISTINCT makers.id, makers.name, makers.ruby
-             FROM actresses
-             INNER JOIN item_actresses ON item_actresses.dmm_id = actresses.dmm_id
-             INNER JOIN item_makers    ON item_makers.item_id   = item_actresses.item_id
-             INNER JOIN makers         ON makers.dmm_id         = item_makers.dmm_id
-             WHERE actresses.id = :id
-             ORDER BY makers.name ASC
-             LIMIT :limit'
-        );
+        $sql = db_column_exists('item_makers', 'item_id')
+            ? 'SELECT DISTINCT makers.id, makers.name, makers.ruby
+               FROM actresses
+               INNER JOIN item_actresses ON item_actresses.dmm_id = actresses.dmm_id
+               INNER JOIN item_makers    ON item_makers.item_id   = item_actresses.item_id
+               INNER JOIN makers         ON makers.dmm_id         = item_makers.dmm_id
+               WHERE actresses.id = :id
+               ORDER BY makers.name ASC
+               LIMIT :limit'
+            : 'SELECT DISTINCT makers.*
+               FROM makers
+               INNER JOIN item_makers    ON makers.id = item_makers.maker_id
+               INNER JOIN item_actresses ON item_makers.content_id = item_actresses.content_id
+               INNER JOIN items          ON items.content_id = item_makers.content_id
+               WHERE item_actresses.actress_id = :id
+                 AND ' . items_front_release_where('items') . '
+               ORDER BY makers.name ASC
+               LIMIT :limit';
+        $stmt = db()->prepare($sql);
         $stmt->bindValue(':id',    $actressId, PDO::PARAM_INT);
         $stmt->bindValue(':limit', $limit,     PDO::PARAM_INT);
         $stmt->execute();
@@ -521,29 +509,26 @@ function fetch_labels(int $limit = 50, int $offset = 0): array
     $limit  = normalize_int($limit, 1, 200);
     $offset = max(0, $offset);
 
-    foreach ([
-        'SELECT label_id AS id, label_name AS name, MAX(label_ruby) AS ruby, COUNT(*) AS item_count
-         FROM item_labels
-         GROUP BY label_id, label_name
-         ORDER BY label_name ASC
-         LIMIT :limit OFFSET :offset',
-        'SELECT COALESCE(NULLIF(dmm_id, ""), label_name) AS id, label_name AS name, "" AS ruby, COUNT(*) AS item_count
-         FROM item_labels
-         GROUP BY COALESCE(NULLIF(dmm_id, ""), label_name), label_name
-         ORDER BY label_name ASC
-         LIMIT :limit OFFSET :offset',
-    ] as $sql) {
-        try {
-            $stmt = db()->prepare($sql);
-            $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
-            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-            $stmt->execute();
-            return $stmt->fetchAll() ?: [];
-        } catch (Throwable) {
-        }
+    $sql = db_column_exists('item_labels', 'item_id')
+        ? 'SELECT COALESCE(NULLIF(dmm_id, ""), label_name) AS id, label_name AS name, "" AS ruby, COUNT(*) AS item_count
+           FROM item_labels
+           GROUP BY COALESCE(NULLIF(dmm_id, ""), label_name), label_name
+           ORDER BY label_name ASC
+           LIMIT :limit OFFSET :offset'
+        : 'SELECT label_id AS id, label_name AS name, MAX(label_ruby) AS ruby, COUNT(*) AS item_count
+           FROM item_labels
+           GROUP BY label_id, label_name
+           ORDER BY label_name ASC
+           LIMIT :limit OFFSET :offset';
+    try {
+        $stmt = db()->prepare($sql);
+        $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
     }
-
-    return [];
 }
 
 function fetch_label(string $labelId, string $labelName = ''): ?array
@@ -554,12 +539,17 @@ function fetch_label(string $labelId, string $labelName = ''): ?array
         return null;
     }
 
-    foreach ([
-        ['sql' => 'SELECT label_id AS id, label_name AS name, MAX(label_ruby) AS ruby, COUNT(*) AS item_count FROM item_labels WHERE label_id = :label_id GROUP BY label_id, label_name ORDER BY item_count DESC LIMIT 1', 'params' => [':label_id' => $labelId]],
-        ['sql' => 'SELECT COALESCE(NULLIF(dmm_id, ""), label_name) AS id, label_name AS name, "" AS ruby, COUNT(*) AS item_count FROM item_labels WHERE dmm_id = :label_id OR label_name = :label_id GROUP BY COALESCE(NULLIF(dmm_id, ""), label_name), label_name ORDER BY item_count DESC LIMIT 1', 'params' => [':label_id' => $labelId]],
-        ['sql' => 'SELECT label_id AS id, label_name AS name, MAX(label_ruby) AS ruby, COUNT(*) AS item_count FROM item_labels WHERE label_name = :label_name GROUP BY label_id, label_name ORDER BY item_count DESC LIMIT 1', 'params' => [':label_name' => $labelName]],
-        ['sql' => 'SELECT COALESCE(NULLIF(dmm_id, ""), label_name) AS id, label_name AS name, "" AS ruby, COUNT(*) AS item_count FROM item_labels WHERE label_name = :label_name GROUP BY COALESCE(NULLIF(dmm_id, ""), label_name), label_name ORDER BY item_count DESC LIMIT 1', 'params' => [':label_name' => $labelName]],
-    ] as $query) {
+    $usesItemId = db_column_exists('item_labels', 'item_id');
+    $queries = $usesItemId
+        ? [
+            ['sql' => 'SELECT COALESCE(NULLIF(dmm_id, ""), label_name) AS id, label_name AS name, "" AS ruby, COUNT(*) AS item_count FROM item_labels WHERE dmm_id = :label_id OR label_name = :label_id GROUP BY COALESCE(NULLIF(dmm_id, ""), label_name), label_name ORDER BY item_count DESC LIMIT 1', 'params' => [':label_id' => $labelId]],
+            ['sql' => 'SELECT COALESCE(NULLIF(dmm_id, ""), label_name) AS id, label_name AS name, "" AS ruby, COUNT(*) AS item_count FROM item_labels WHERE label_name = :label_name GROUP BY COALESCE(NULLIF(dmm_id, ""), label_name), label_name ORDER BY item_count DESC LIMIT 1', 'params' => [':label_name' => $labelName]],
+        ]
+        : [
+            ['sql' => 'SELECT label_id AS id, label_name AS name, MAX(label_ruby) AS ruby, COUNT(*) AS item_count FROM item_labels WHERE label_id = :label_id GROUP BY label_id, label_name ORDER BY item_count DESC LIMIT 1', 'params' => [':label_id' => $labelId]],
+            ['sql' => 'SELECT label_id AS id, label_name AS name, MAX(label_ruby) AS ruby, COUNT(*) AS item_count FROM item_labels WHERE label_name = :label_name GROUP BY label_id, label_name ORDER BY item_count DESC LIMIT 1', 'params' => [':label_name' => $labelName]],
+        ];
+    foreach ($queries as $query) {
         if (in_array('', $query['params'], true)) {
             continue;
         }
@@ -587,34 +577,31 @@ function fetch_items_by_label_name(string $labelName, int $limit, int $offset = 
     $limit  = normalize_int($limit, 1, 100);
     $offset = max(0, $offset);
 
-    foreach ([
-        'SELECT DISTINCT items.*
-         FROM items
-         INNER JOIN item_labels ON items.content_id = item_labels.content_id
-         WHERE item_labels.label_name = :label_name
-           AND ' . items_front_release_where('items') . '
-         ORDER BY items.date_published DESC
-         LIMIT :limit OFFSET :offset',
-        'SELECT DISTINCT items.*
-         FROM items
-         INNER JOIN item_labels ON items.id = item_labels.item_id
-         WHERE item_labels.label_name = :label_name
-           AND ' . items_front_release_where('items') . '
-         ORDER BY items.release_date DESC, items.id DESC
-         LIMIT :limit OFFSET :offset',
-    ] as $sql) {
-        try {
-            $stmt = db()->prepare($sql);
-            $stmt->bindValue(':label_name', $labelName, PDO::PARAM_STR);
-            $stmt->bindValue(':limit',      $limit,     PDO::PARAM_INT);
-            $stmt->bindValue(':offset',     $offset,    PDO::PARAM_INT);
-            $stmt->execute();
-            return $stmt->fetchAll() ?: [];
-        } catch (Throwable) {
-        }
+    $sql = db_column_exists('item_labels', 'item_id')
+        ? 'SELECT DISTINCT items.*
+           FROM items
+           INNER JOIN item_labels ON items.id = item_labels.item_id
+           WHERE item_labels.label_name = :label_name
+             AND ' . items_front_release_where('items') . '
+           ORDER BY items.release_date DESC, items.id DESC
+           LIMIT :limit OFFSET :offset'
+        : 'SELECT DISTINCT items.*
+           FROM items
+           INNER JOIN item_labels ON items.content_id = item_labels.content_id
+           WHERE item_labels.label_name = :label_name
+             AND ' . items_front_release_where('items') . '
+           ORDER BY items.date_published DESC
+           LIMIT :limit OFFSET :offset';
+    try {
+        $stmt = db()->prepare($sql);
+        $stmt->bindValue(':label_name', $labelName, PDO::PARAM_STR);
+        $stmt->bindValue(':limit',      $limit,     PDO::PARAM_INT);
+        $stmt->bindValue(':offset',     $offset,    PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll() ?: [];
+    } catch (Throwable) {
+        return [];
     }
-
-    return [];
 }
 
 function fetch_items_by_actress(int $actressId, int $limit, int $offset = 0): array
@@ -624,37 +611,23 @@ function fetch_items_by_actress(int $actressId, int $limit, int $offset = 0): ar
     $offset    = max(0, $offset);
 
     try {
-        $stmt = db()->prepare(
-            'SELECT DISTINCT items.*
-             FROM items
-             INNER JOIN item_actresses ON items.content_id = item_actresses.content_id
-             WHERE item_actresses.actress_id = :id
-               AND ' . items_front_release_where('items') . '
-             ORDER BY date_published DESC
-             LIMIT :limit OFFSET :offset'
-        );
-        $stmt->bindValue(':id',     $actressId, PDO::PARAM_INT);
-        $stmt->bindValue(':limit',  $limit,     PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset,    PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll() ?: [];
-        if ($rows !== []) {
-            return $rows;
-        }
-    } catch (Throwable) {
-    }
-
-    try {
-        $stmt = db()->prepare(
-            'SELECT DISTINCT items.*
-             FROM items
-             INNER JOIN actresses     ON actresses.id          = :id
-             INNER JOIN item_actresses ON item_actresses.dmm_id = actresses.dmm_id
-             WHERE items.id = item_actresses.item_id
-               AND ' . items_front_release_where('items') . '
-             ORDER BY items.release_date DESC, items.id DESC
-             LIMIT :limit OFFSET :offset'
-        );
+        $sql = db_column_exists('item_actresses', 'item_id')
+            ? 'SELECT DISTINCT items.*
+               FROM items
+               INNER JOIN actresses      ON actresses.id           = :id
+               INNER JOIN item_actresses ON item_actresses.dmm_id  = actresses.dmm_id
+               WHERE items.id = item_actresses.item_id
+                 AND ' . items_front_release_where('items') . '
+               ORDER BY items.release_date DESC, items.id DESC
+               LIMIT :limit OFFSET :offset'
+            : 'SELECT DISTINCT items.*
+               FROM items
+               INNER JOIN item_actresses ON items.content_id = item_actresses.content_id
+               WHERE item_actresses.actress_id = :id
+                 AND ' . items_front_release_where('items') . '
+               ORDER BY date_published DESC
+               LIMIT :limit OFFSET :offset';
+        $stmt = db()->prepare($sql);
         $stmt->bindValue(':id',     $actressId, PDO::PARAM_INT);
         $stmt->bindValue(':limit',  $limit,     PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset,    PDO::PARAM_INT);
@@ -672,37 +645,23 @@ function fetch_items_by_genre(int $genreId, int $limit, int $offset = 0): array
     $offset  = max(0, $offset);
 
     try {
-        $stmt = db()->prepare(
-            'SELECT DISTINCT items.*
-             FROM items
-             INNER JOIN item_genres ON items.content_id = item_genres.content_id
-             WHERE item_genres.genre_id = :id
-               AND ' . items_front_release_where('items') . '
-             ORDER BY date_published DESC
-             LIMIT :limit OFFSET :offset'
-        );
-        $stmt->bindValue(':id',     $genreId, PDO::PARAM_INT);
-        $stmt->bindValue(':limit',  $limit,   PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset,  PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll() ?: [];
-        if ($rows !== []) {
-            return $rows;
-        }
-    } catch (Throwable) {
-    }
-
-    try {
-        $stmt = db()->prepare(
-            'SELECT DISTINCT items.*
-             FROM items
-             INNER JOIN genres      ON genres.id          = :id
-             INNER JOIN item_genres ON item_genres.dmm_id = genres.dmm_id
-             WHERE items.id = item_genres.item_id
-               AND ' . items_front_release_where('items') . '
-             ORDER BY items.release_date DESC, items.id DESC
-             LIMIT :limit OFFSET :offset'
-        );
+        $sql = db_column_exists('item_genres', 'item_id')
+            ? 'SELECT DISTINCT items.*
+               FROM items
+               INNER JOIN genres      ON genres.id          = :id
+               INNER JOIN item_genres ON item_genres.dmm_id = genres.dmm_id
+               WHERE items.id = item_genres.item_id
+                 AND ' . items_front_release_where('items') . '
+               ORDER BY items.release_date DESC, items.id DESC
+               LIMIT :limit OFFSET :offset'
+            : 'SELECT DISTINCT items.*
+               FROM items
+               INNER JOIN item_genres ON items.content_id = item_genres.content_id
+               WHERE item_genres.genre_id = :id
+                 AND ' . items_front_release_where('items') . '
+               ORDER BY date_published DESC
+               LIMIT :limit OFFSET :offset';
+        $stmt = db()->prepare($sql);
         $stmt->bindValue(':id',     $genreId, PDO::PARAM_INT);
         $stmt->bindValue(':limit',  $limit,   PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset,  PDO::PARAM_INT);
@@ -720,37 +679,23 @@ function fetch_items_by_maker(int $makerId, int $limit, int $offset = 0): array
     $offset  = max(0, $offset);
 
     try {
-        $stmt = db()->prepare(
-            'SELECT DISTINCT items.*
-             FROM items
-             INNER JOIN item_makers ON items.content_id = item_makers.content_id
-             WHERE item_makers.maker_id = :id
-               AND ' . items_front_release_where('items') . '
-             ORDER BY date_published DESC
-             LIMIT :limit OFFSET :offset'
-        );
-        $stmt->bindValue(':id',     $makerId, PDO::PARAM_INT);
-        $stmt->bindValue(':limit',  $limit,   PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset,  PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll() ?: [];
-        if ($rows !== []) {
-            return $rows;
-        }
-    } catch (Throwable) {
-    }
-
-    try {
-        $stmt = db()->prepare(
-            'SELECT DISTINCT items.*
-             FROM items
-             INNER JOIN makers      ON makers.id          = :id
-             INNER JOIN item_makers ON item_makers.dmm_id = makers.dmm_id
-             WHERE items.id = item_makers.item_id
-               AND ' . items_front_release_where('items') . '
-             ORDER BY items.release_date DESC, items.id DESC
-             LIMIT :limit OFFSET :offset'
-        );
+        $sql = db_column_exists('item_makers', 'item_id')
+            ? 'SELECT DISTINCT items.*
+               FROM items
+               INNER JOIN makers      ON makers.id          = :id
+               INNER JOIN item_makers ON item_makers.dmm_id = makers.dmm_id
+               WHERE items.id = item_makers.item_id
+                 AND ' . items_front_release_where('items') . '
+               ORDER BY items.release_date DESC, items.id DESC
+               LIMIT :limit OFFSET :offset'
+            : 'SELECT DISTINCT items.*
+               FROM items
+               INNER JOIN item_makers ON items.content_id = item_makers.content_id
+               WHERE item_makers.maker_id = :id
+                 AND ' . items_front_release_where('items') . '
+               ORDER BY date_published DESC
+               LIMIT :limit OFFSET :offset';
+        $stmt = db()->prepare($sql);
         $stmt->bindValue(':id',     $makerId, PDO::PARAM_INT);
         $stmt->bindValue(':limit',  $limit,   PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset,  PDO::PARAM_INT);
@@ -766,28 +711,17 @@ function count_items_by_series(int $seriesId): int
     $seriesId = max(1, $seriesId);
 
     try {
-        $stmt = db()->prepare(
-            'SELECT COUNT(DISTINCT items.id)
-             FROM items
-             INNER JOIN series_master ON series_master.id       = :id
-             INNER JOIN item_series   ON item_series.dmm_id     = series_master.dmm_id
-             WHERE items.id = item_series.item_id AND ' . items_front_release_where('items') . ''
-        );
-        $stmt->execute([':id' => $seriesId]);
-        $count = (int)$stmt->fetchColumn();
-        if ($count > 0) {
-            return $count;
-        }
-    } catch (Throwable) {
-    }
-
-    try {
-        $stmt = db()->prepare(
-            'SELECT COUNT(DISTINCT items.id)
-             FROM items
-             INNER JOIN item_series ON items.content_id = item_series.content_id
-             WHERE item_series.series_id = :id AND ' . items_front_release_where('items') . ''
-        );
+        $sql = db_column_exists('item_series', 'item_id')
+            ? 'SELECT COUNT(DISTINCT items.id)
+               FROM items
+               INNER JOIN series_master ON series_master.id   = :id
+               INNER JOIN item_series   ON item_series.dmm_id = series_master.dmm_id
+               WHERE items.id = item_series.item_id AND ' . items_front_release_where('items')
+            : 'SELECT COUNT(DISTINCT items.id)
+               FROM items
+               INNER JOIN item_series ON items.content_id = item_series.content_id
+               WHERE item_series.series_id = :id AND ' . items_front_release_where('items');
+        $stmt = db()->prepare($sql);
         $stmt->execute([':id' => $seriesId]);
         return (int)$stmt->fetchColumn();
     } catch (Throwable) {
@@ -802,37 +736,23 @@ function fetch_items_by_series(int $seriesId, int $limit, int $offset = 0): arra
     $offset   = max(0, $offset);
 
     try {
-        $stmt = db()->prepare(
-            'SELECT DISTINCT items.*
-             FROM items
-             INNER JOIN series_master ON series_master.id       = :id
-             INNER JOIN item_series   ON item_series.dmm_id     = series_master.dmm_id
-             WHERE items.id = item_series.item_id
-               AND ' . items_front_release_where('items') . '
-             ORDER BY items.release_date DESC, items.id DESC
-             LIMIT :limit OFFSET :offset'
-        );
-        $stmt->bindValue(':id',     $seriesId, PDO::PARAM_INT);
-        $stmt->bindValue(':limit',  $limit,    PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset,   PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll() ?: [];
-        if ($rows !== []) {
-            return $rows;
-        }
-    } catch (Throwable) {
-    }
-
-    try {
-        $stmt = db()->prepare(
-            'SELECT DISTINCT items.*
-             FROM items
-             INNER JOIN item_series ON items.content_id = item_series.content_id
-             WHERE item_series.series_id = :id
-               AND ' . items_front_release_where('items') . '
-             ORDER BY date_published DESC
-             LIMIT :limit OFFSET :offset'
-        );
+        $sql = db_column_exists('item_series', 'item_id')
+            ? 'SELECT DISTINCT items.*
+               FROM items
+               INNER JOIN series_master ON series_master.id   = :id
+               INNER JOIN item_series   ON item_series.dmm_id = series_master.dmm_id
+               WHERE items.id = item_series.item_id
+                 AND ' . items_front_release_where('items') . '
+               ORDER BY items.release_date DESC, items.id DESC
+               LIMIT :limit OFFSET :offset'
+            : 'SELECT DISTINCT items.*
+               FROM items
+               INNER JOIN item_series ON items.content_id = item_series.content_id
+               WHERE item_series.series_id = :id
+                 AND ' . items_front_release_where('items') . '
+               ORDER BY date_published DESC
+               LIMIT :limit OFFSET :offset';
+        $stmt = db()->prepare($sql);
         $stmt->bindValue(':id',     $seriesId, PDO::PARAM_INT);
         $stmt->bindValue(':limit',  $limit,    PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset,   PDO::PARAM_INT);
@@ -862,18 +782,28 @@ function fetch_related_items(string $contentId, int $limit = 12): array
     $limit = normalize_int($limit, 1, 50);
 
     try {
-        $stmt = db()->prepare(
-            'SELECT i2.*
-             FROM items i1
-             INNER JOIN item_genres ig1 ON ig1.content_id = i1.content_id
-             INNER JOIN item_genres ig2 ON ig2.genre_id = ig1.genre_id
-             INNER JOIN items i2 ON i2.content_id = ig2.content_id
-             WHERE i1.content_id = :cid AND i2.content_id <> :cid
-               AND ' . items_front_release_where('i2') . '
-             GROUP BY i2.id
-             ORDER BY i2.release_date DESC, i2.id DESC
-             LIMIT :limit'
-        );
+        $sql = db_column_exists('item_genres', 'item_id')
+            ? 'SELECT i2.*
+               FROM items i1
+               INNER JOIN item_genres ig1 ON ig1.item_id = i1.id
+               INNER JOIN item_genres ig2 ON ig2.dmm_id = ig1.dmm_id
+               INNER JOIN items i2 ON i2.id = ig2.item_id
+               WHERE i1.content_id = :cid AND i2.content_id <> :cid
+                 AND ' . items_front_release_where('i2') . '
+               GROUP BY i2.id
+               ORDER BY i2.release_date DESC, i2.id DESC
+               LIMIT :limit'
+            : 'SELECT i2.*
+               FROM items i1
+               INNER JOIN item_genres ig1 ON ig1.content_id = i1.content_id
+               INNER JOIN item_genres ig2 ON ig2.genre_id = ig1.genre_id
+               INNER JOIN items i2 ON i2.content_id = ig2.content_id
+               WHERE i1.content_id = :cid AND i2.content_id <> :cid
+                 AND ' . items_front_release_where('i2') . '
+               GROUP BY i2.id
+               ORDER BY i2.release_date DESC, i2.id DESC
+               LIMIT :limit';
+        $stmt = db()->prepare($sql);
         $stmt->bindValue(':cid', $cid, PDO::PARAM_STR);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
@@ -905,30 +835,19 @@ function fetch_item_actresses(string $contentId): array
     }
 
     try {
-        $stmt = db()->prepare(
-            'SELECT actresses.*
-             FROM actresses
-             INNER JOIN item_actresses ON actresses.id = item_actresses.actress_id
-             WHERE item_actresses.content_id = :cid
-             ORDER BY actresses.name ASC'
-        );
-        $stmt->execute([':cid' => $cid]);
-        $rows = $stmt->fetchAll() ?: [];
-        if ($rows !== []) {
-            return $rows;
-        }
-    } catch (Throwable) {
-    }
-
-    try {
-        $stmt = db()->prepare(
-            'SELECT DISTINCT actresses.id, actresses.name, actresses.ruby, actresses.birthday, actresses.prefectures, actresses.image_url
-             FROM items
-             INNER JOIN item_actresses ON items.id              = item_actresses.item_id
-             INNER JOIN actresses      ON actresses.dmm_id      = item_actresses.dmm_id
-             WHERE items.content_id = :cid
-             ORDER BY actresses.name ASC'
-        );
+        $sql = db_column_exists('item_actresses', 'item_id')
+            ? 'SELECT DISTINCT actresses.id, actresses.name, actresses.ruby, actresses.birthday, actresses.prefectures, actresses.image_url
+               FROM items
+               INNER JOIN item_actresses ON items.id         = item_actresses.item_id
+               INNER JOIN actresses      ON actresses.dmm_id = item_actresses.dmm_id
+               WHERE items.content_id = :cid
+               ORDER BY actresses.name ASC'
+            : 'SELECT actresses.*
+               FROM actresses
+               INNER JOIN item_actresses ON actresses.id = item_actresses.actress_id
+               WHERE item_actresses.content_id = :cid
+               ORDER BY actresses.name ASC';
+        $stmt = db()->prepare($sql);
         $stmt->execute([':cid' => $cid]);
         return $stmt->fetchAll() ?: [];
     } catch (Throwable) {
@@ -944,30 +863,19 @@ function fetch_item_genres(string $contentId): array
     }
 
     try {
-        $stmt = db()->prepare(
-            'SELECT genres.*
-             FROM genres
-             INNER JOIN item_genres ON genres.id = item_genres.genre_id
-             WHERE item_genres.content_id = :cid
-             ORDER BY genres.name ASC'
-        );
-        $stmt->execute([':cid' => $cid]);
-        $rows = $stmt->fetchAll() ?: [];
-        if ($rows !== []) {
-            return $rows;
-        }
-    } catch (Throwable) {
-    }
-
-    try {
-        $stmt = db()->prepare(
-            'SELECT DISTINCT genres.id, genres.name, genres.ruby
-             FROM items
-             INNER JOIN item_genres ON items.id         = item_genres.item_id
-             INNER JOIN genres      ON genres.dmm_id    = item_genres.dmm_id
-             WHERE items.content_id = :cid
-             ORDER BY genres.name ASC'
-        );
+        $sql = db_column_exists('item_genres', 'item_id')
+            ? 'SELECT DISTINCT genres.id, genres.name, genres.ruby
+               FROM items
+               INNER JOIN item_genres ON items.id      = item_genres.item_id
+               INNER JOIN genres      ON genres.dmm_id = item_genres.dmm_id
+               WHERE items.content_id = :cid
+               ORDER BY genres.name ASC'
+            : 'SELECT genres.*
+               FROM genres
+               INNER JOIN item_genres ON genres.id = item_genres.genre_id
+               WHERE item_genres.content_id = :cid
+               ORDER BY genres.name ASC';
+        $stmt = db()->prepare($sql);
         $stmt->execute([':cid' => $cid]);
         return $stmt->fetchAll() ?: [];
     } catch (Throwable) {
@@ -983,30 +891,19 @@ function fetch_item_makers(string $contentId): array
     }
 
     try {
-        $stmt = db()->prepare(
-            'SELECT makers.*
-             FROM makers
-             INNER JOIN item_makers ON makers.id = item_makers.maker_id
-             WHERE item_makers.content_id = :cid
-             ORDER BY makers.name ASC'
-        );
-        $stmt->execute([':cid' => $cid]);
-        $rows = $stmt->fetchAll() ?: [];
-        if ($rows !== []) {
-            return $rows;
-        }
-    } catch (Throwable) {
-    }
-
-    try {
-        $stmt = db()->prepare(
-            'SELECT DISTINCT makers.id, makers.name, makers.ruby
-             FROM items
-             INNER JOIN item_makers ON items.id       = item_makers.item_id
-             INNER JOIN makers      ON makers.dmm_id  = item_makers.dmm_id
-             WHERE items.content_id = :cid
-             ORDER BY makers.name ASC'
-        );
+        $sql = db_column_exists('item_makers', 'item_id')
+            ? 'SELECT DISTINCT makers.id, makers.name, makers.ruby
+               FROM items
+               INNER JOIN item_makers ON items.id      = item_makers.item_id
+               INNER JOIN makers      ON makers.dmm_id = item_makers.dmm_id
+               WHERE items.content_id = :cid
+               ORDER BY makers.name ASC'
+            : 'SELECT makers.*
+               FROM makers
+               INNER JOIN item_makers ON makers.id = item_makers.maker_id
+               WHERE item_makers.content_id = :cid
+               ORDER BY makers.name ASC';
+        $stmt = db()->prepare($sql);
         $stmt->execute([':cid' => $cid]);
         return $stmt->fetchAll() ?: [];
     } catch (Throwable) {
@@ -1022,30 +919,19 @@ function fetch_item_series(string $contentId): array
     }
 
     try {
-        $stmt = db()->prepare(
-            'SELECT DISTINCT series_master.id, series_master.name, series_master.ruby
-             FROM items
-             INNER JOIN item_series   ON items.id              = item_series.item_id
-             INNER JOIN series_master ON series_master.dmm_id  = item_series.dmm_id
-             WHERE items.content_id = :cid
-             ORDER BY series_master.name ASC'
-        );
-        $stmt->execute([':cid' => $cid]);
-        $rows = $stmt->fetchAll() ?: [];
-        if ($rows !== []) {
-            return $rows;
-        }
-    } catch (Throwable) {
-    }
-
-    try {
-        $stmt = db()->prepare(
-            'SELECT series.*
-             FROM series
-             INNER JOIN item_series ON series.id = item_series.series_id
-             WHERE item_series.content_id = :cid
-             ORDER BY series.name ASC'
-        );
+        $sql = db_column_exists('item_series', 'item_id')
+            ? 'SELECT DISTINCT series_master.id, series_master.name, series_master.ruby
+               FROM items
+               INNER JOIN item_series   ON items.id             = item_series.item_id
+               INNER JOIN series_master ON series_master.dmm_id = item_series.dmm_id
+               WHERE items.content_id = :cid
+               ORDER BY series_master.name ASC'
+            : 'SELECT series.*
+               FROM series
+               INNER JOIN item_series ON series.id = item_series.series_id
+               WHERE item_series.content_id = :cid
+               ORDER BY series.name ASC';
+        $stmt = db()->prepare($sql);
         $stmt->execute([':cid' => $cid]);
         return $stmt->fetchAll() ?: [];
     } catch (Throwable) {

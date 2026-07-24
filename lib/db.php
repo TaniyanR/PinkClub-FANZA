@@ -154,3 +154,36 @@ function db_table_exists($pdoOrTable, ?string $table = null): bool
         return false;
     }
 }
+
+function db_column_exists(string $table, string $column): bool
+{
+    static $cache = [];
+
+    if (!preg_match('/\A[a-zA-Z0-9_]+\z/', $table) || !preg_match('/\A[a-zA-Z0-9_]+\z/', $column)) {
+        return false;
+    }
+
+    try {
+        $cfg = app_config()['db'];
+        $cacheKey = (string)$cfg['dbname'] . '.' . $table . '.' . $column;
+        if (array_key_exists($cacheKey, $cache)) {
+            return $cache[$cacheKey];
+        }
+
+        $stmt = db()->prepare(
+            'SELECT COUNT(*)
+             FROM information_schema.columns
+             WHERE table_schema = :schema AND table_name = :table AND column_name = :column
+             LIMIT 1'
+        );
+        $stmt->execute([
+            'schema' => (string)$cfg['dbname'],
+            'table' => $table,
+            'column' => $column,
+        ]);
+        $cache[$cacheKey] = (int)$stmt->fetchColumn() > 0;
+        return $cache[$cacheKey];
+    } catch (Throwable) {
+        return false;
+    }
+}
