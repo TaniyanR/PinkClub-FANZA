@@ -95,6 +95,7 @@ $actressPage = max(1, (int)get('page', 1));
 $limit = 24;
 $offset = ($actressPage - 1) * $limit;
 $hasNext = false;
+$actressItemsLoaded = false;
 
 $profile = [
     'dmm_id' => $dmmId,
@@ -145,9 +146,13 @@ if (is_array($cachedProfilePayload)) {
 
 try {
     [$list, $hasNext] = paginate_items(dedupe_items_by_key(fetch_items_by_actress((int)$row['id'], $limit + 1, $offset)), $limit);
+    $actressItemsLoaded = true;
 } catch (Throwable) {
     $list = [];
     $hasNext = false;
+}
+if ($actressItemsLoaded && $actressPage === 1 && $list === []) {
+    require __DIR__ . '/404.php';
 }
 
 $profileImage = actress_profile_image($profile);
