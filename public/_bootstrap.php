@@ -61,6 +61,7 @@ $readOnlyPublicPages = [
     'article.php',
     'sample_images.php',
     'recommendations.php',
+    'ranking_refresh.php',
     'analytics.php',
     'page_view_beacon.php',
     'out.php',

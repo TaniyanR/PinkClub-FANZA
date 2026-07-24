@@ -320,7 +320,18 @@ try {
 
 if (db_table_exists('item_authors')) {
     try {
-        $authorStmt = db()->prepare('SELECT author_id AS id, author_name AS name FROM item_authors WHERE content_id = ? ORDER BY author_name');
+        $authorSql = db_column_exists('item_authors', 'item_id')
+            ? 'SELECT DISTINCT authors.id, authors.name
+               FROM items
+               INNER JOIN item_authors ON item_authors.item_id = items.id
+               INNER JOIN authors ON authors.dmm_id = item_authors.dmm_id
+               WHERE items.content_id = ?
+               ORDER BY authors.name'
+            : 'SELECT author_id AS id, author_name AS name
+               FROM item_authors
+               WHERE content_id = ?
+               ORDER BY author_name';
+        $authorStmt = db()->prepare($authorSql);
         $authorStmt->execute([(string)$item['content_id']]);
         $authors = $authorStmt->fetchAll() ?: [];
     } catch (Throwable) {
@@ -421,7 +432,7 @@ if ($desc === '') {
 if ($desc === '') {
     $desc = item_pick_raw_text((array)($raw['iteminfo'] ?? []), ['comment', 'description', 'caption', 'story', 'introduction']);
 }
-if ($desc === '') {
+if ($desc === '' && db_table_exists('articles')) {
     try {
         $articleStmt = db()->prepare('SELECT description FROM articles WHERE product_id IN (?, ?) ORDER BY id DESC LIMIT 1');
         $articleStmt->execute([(string)($item['content_id'] ?? ''), (string)($item['product_id'] ?? '')]);

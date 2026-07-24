@@ -255,5 +255,21 @@ $copyrightYears = $copyrightStartYear >= $currentYear
   navigator.sendBeacon('<?= e(public_url('analytics.php')) ?>', data);
 }());
 </script>
+<?php $rankingRefreshQueue = function_exists('pcf_public_ranking_refresh_queue') ? pcf_public_ranking_refresh_queue() : []; ?>
+<?php if ($rankingRefreshQueue !== []): ?>
+<script>
+(function () {
+  if (!navigator.sendBeacon) return;
+  var endpoint = <?= json_encode(public_url('ranking_refresh.php'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+  var queue = <?= json_encode($rankingRefreshQueue, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+  queue.forEach(function (entry) {
+    var data = new FormData();
+    data.append('type', entry.type || '');
+    data.append('period', entry.period || '');
+    navigator.sendBeacon(endpoint, data);
+  });
+}());
+</script>
+<?php endif; ?>
 </body>
 </html>
