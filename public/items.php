@@ -409,7 +409,8 @@ try {
 }
 
 $pageDescription = 'FANZA商品一覧。最新作・人気作品を掲載。';
-$canonicalUrl = public_url('items.php');
+$canonicalUrl = public_url('items.php')
+    . ((int)($pg['page'] ?? 1) > 1 ? '?' . http_build_query(['page' => (int)$pg['page']]) : '');
 if ((int)($pg['page'] ?? 1) > 1) {
     $relPrev = public_url('items.php') . '?' . http_build_query(['page' => (int)$pg['page'] - 1]);
 }

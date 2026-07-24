@@ -5,16 +5,15 @@ require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/app_features.php';
 require_once __DIR__ . '/../../lib/db.php';
 
-rss_widget_bootstrap();
-rss_refresh_stale_sources(1, 900, 2);
-
 $items = [];
 try {
+    rss_widget_bootstrap(false);
     $items = array_merge(rss_widget_direct_items(20, true), rss_pick_display_items(20, true, 14));
     if (count($items) > 1) {
         shuffle($items);
     }
 } catch (Throwable $e) {
+    error_log('[rss] image widget skipped: ' . $e->getMessage());
     $items = [];
 }
 

@@ -6,8 +6,7 @@ require_once __DIR__ . '/../lib/db.php';
 require_once __DIR__ . '/../lib/app_features.php';
 require_once __DIR__ . '/partials/_helpers.php';
 
-rss_widget_bootstrap();
-rss_refresh_stale_sources(1, 900, 2);
+rss_widget_bootstrap(false);
 
 $rows = [];
 try {

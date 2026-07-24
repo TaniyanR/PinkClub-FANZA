@@ -6,6 +6,7 @@ require_once __DIR__ . '/_bootstrap.php';
 $to = trim((string)($_GET['to'] ?? ''));
 $ref = trim((string)($_GET['ref'] ?? ''));
 $path = (string)($_SERVER['REQUEST_URI'] ?? '/out.php');
+$resolvedMutualLink = false;
 
 // backward compatibility: ?id=nnn
 $id = (int)($_GET['id'] ?? 0);
@@ -15,6 +16,7 @@ if ($to === '' && $id > 0) {
     $row = $st->fetch(PDO::FETCH_ASSOC);
     if (is_array($row)) {
         $to = (string)($row['link_url'] ?? $row['site_url'] ?? '');
+        $resolvedMutualLink = true;
         if ($ref === '') {
             $ref = (string)($row['ref_code'] ?? '');
         }
@@ -23,7 +25,14 @@ if ($to === '' && $id > 0) {
 
 $valid = filter_var($to, FILTER_VALIDATE_URL) !== false;
 $scheme = strtolower((string)parse_url($to, PHP_URL_SCHEME));
-if (!$valid || !in_array($scheme, ['http', 'https'], true)) {
+$host = strtolower((string)parse_url($to, PHP_URL_HOST));
+$isFanzaDestination = $host === 'dmm.co.jp'
+    || $host === 'dmm.com'
+    || $host === 'fanza.co.jp'
+    || str_ends_with($host, '.dmm.co.jp')
+    || str_ends_with($host, '.dmm.com')
+    || str_ends_with($host, '.fanza.co.jp');
+if (!$valid || !in_array($scheme, ['http', 'https'], true) || (!$resolvedMutualLink && !$isFanzaDestination)) {
     header('Location: ' . app_url('/'), true, 302);
     exit;
 }

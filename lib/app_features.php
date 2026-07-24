@@ -302,7 +302,7 @@ function rss_refresh_stale_sources(int $maxSources = 1, int $staleAfterSec = 900
     }
 }
 
-function rss_widget_bootstrap(): void
+function rss_widget_bootstrap(bool $syncSources = true): void
 {
     static $bootstrapped = false;
     if ($bootstrapped) {
@@ -312,7 +312,9 @@ function rss_widget_bootstrap(): void
 
     try {
         rss_ensure_tables();
-        rss_sync_partner_sources();
+        if ($syncSources) {
+            rss_sync_partner_sources();
+        }
     } catch (Throwable $e) {
         error_log('[rss] sidebar bootstrap skipped: ' . $e->getMessage());
     }
