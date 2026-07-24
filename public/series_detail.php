@@ -4,42 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
+require_once __DIR__ . '/../lib/public_rankings.php';
 require_once __DIR__ . '/partials/public_ui.php';
-
-function pcf_series_access_period_from(string $period): string
-{
-    if ($period === 'weekly') {
-        return date('Y-m-d H:i:s', strtotime('-7 days'));
-    }
-    if ($period === 'monthly') {
-        return date('Y-m-d H:i:s', strtotime('-1 month'));
-    }
-    if ($period === 'yearly') {
-        return date('Y-m-d H:i:s', strtotime('-1 year'));
-    }
-    return date('Y-m-d H:i:s', strtotime('-24 hours'));
-}
-
-function pcf_fetch_series_access_ranking(string $periodFrom): array
-{
-    try {
-        if (!analytics_ensure_tables()) {
-            throw new RuntimeException('analytics tables are not available');
-        }
-
-        try {
-            $stmt = db()->prepare("SELECT sm.id, sm.dmm_id, sm.name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_series isr ON i.id = isr.item_id INNER JOIN series_master sm ON sm.dmm_id = isr.dmm_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY sm.id, sm.dmm_id, sm.name ORDER BY access_count DESC, sm.id DESC LIMIT 200");
-            $stmt->execute([':period_from' => $periodFrom]);
-            return $stmt->fetchAll() ?: [];
-        } catch (Throwable) {
-            $stmt = db()->prepare("SELECT s.id, s.dmm_id, s.name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_series isr ON i.content_id = isr.content_id INNER JOIN series s ON s.id = isr.series_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY s.id, s.dmm_id, s.name ORDER BY access_count DESC, s.id DESC LIMIT 200");
-            $stmt->execute([':period_from' => $periodFrom]);
-            return $stmt->fetchAll() ?: [];
-        }
-    } catch (Throwable) {
-        return [];
-    }
-}
 
 $id = (int)get('id', 0);
 $page = max(1, (int)get('page', 1));
@@ -83,7 +49,7 @@ try {
 }
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
 $accessRankingTabs = [
-    'daily' => ['label' => '24時間'],
+    'daily' => ['label' => '本日'],
     'weekly' => ['label' => '週間'],
     'monthly' => ['label' => '月間'],
     'yearly' => ['label' => '年間'],
@@ -91,7 +57,7 @@ $accessRankingTabs = [
 if (!isset($accessRankingTabs[$accessRankingPeriod])) {
     $accessRankingPeriod = 'daily';
 }
-$accessRankingRows = pcf_fetch_series_access_ranking(pcf_series_access_period_from($accessRankingPeriod));
+$accessRankingRows = pcf_public_weighted_ranking('series', $accessRankingPeriod);
 
 $title = $seriesName;
 $pageDescription = mb_strimwidth($seriesName . 'シリーズの作品一覧。全' . (int)$total . '作品を掲載。', 0, 150, '…', 'UTF-8');
@@ -154,7 +120,7 @@ require __DIR__ . '/partials/header.php';
           <tr>
             <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
             <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">シリーズ名</th>
-            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">クリック数</th>
+            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">ランキング点</th>
           </tr>
         </thead>
         <tbody>

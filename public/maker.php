@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
+require_once __DIR__ . '/../lib/public_rankings.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
 $id = (int)get('id', 0);
@@ -61,7 +62,7 @@ try {
 
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
 $accessRankingTabs = [
-    'daily' => ['label' => '24時間'],
+    'daily' => ['label' => '本日'],
     'weekly' => ['label' => '週間'],
     'monthly' => ['label' => '月間'],
     'yearly' => ['label' => '年間'],
@@ -69,37 +70,7 @@ $accessRankingTabs = [
 if (!isset($accessRankingTabs[$accessRankingPeriod])) {
     $accessRankingPeriod = 'daily';
 }
-$accessRankingRows = [];
-$periodFrom = null;
-if ($accessRankingPeriod === 'daily') {
-    $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
-} elseif ($accessRankingPeriod === 'weekly') {
-    $periodFrom = date('Y-m-d H:i:s', strtotime('-7 days'));
-} elseif ($accessRankingPeriod === 'monthly') {
-    $periodFrom = date('Y-m-d H:i:s', strtotime('-1 month'));
-} elseif ($accessRankingPeriod === 'yearly') {
-    $periodFrom = date('Y-m-d H:i:s', strtotime('-1 year'));
-}
-if ($periodFrom === null) {
-    $periodFrom = date('Y-m-d H:i:s', strtotime('-24 hours'));
-}
-try {
-    if (!analytics_ensure_tables()) {
-        throw new RuntimeException('analytics tables are not available');
-    }
-
-    try {
-        $rankingStmt = db()->prepare("SELECT m.id, m.dmm_id, m.name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_makers im ON i.content_id = im.content_id INNER JOIN makers m ON m.id = im.maker_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY m.id, m.dmm_id, m.name ORDER BY access_count DESC, m.id DESC LIMIT 200");
-        $rankingStmt->execute([':period_from' => $periodFrom]);
-        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
-    } catch (Throwable) {
-        $rankingStmt = db()->prepare("SELECT m.id, m.dmm_id, m.name, COUNT(ol.id) AS access_count FROM out_logs ol INNER JOIN items i ON i.affiliate_url = ol.target_url INNER JOIN item_makers im ON i.id = im.item_id INNER JOIN makers m ON m.dmm_id = im.dmm_id WHERE ol.created_at >= :period_from AND TRIM(COALESCE(i.affiliate_url, '')) <> '' GROUP BY m.id, m.dmm_id, m.name ORDER BY access_count DESC, m.id DESC LIMIT 200");
-        $rankingStmt->execute([':period_from' => $periodFrom]);
-        $accessRankingRows = $rankingStmt->fetchAll() ?: [];
-    }
-} catch (Throwable) {
-    $accessRankingRows = [];
-}
+$accessRankingRows = pcf_public_weighted_ranking('makers', $accessRankingPeriod);
 
 $title = $makerName;
 $pageDescription = mb_strimwidth($makerName . 'の作品一覧。FANZAで販売中の最新作・人気作品を紹介。', 0, 150, '…', 'UTF-8');
@@ -160,7 +131,7 @@ require __DIR__ . '/partials/header.php';
           <tr>
             <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
             <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">メーカー名</th>
-            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">クリック数</th>
+            <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">ランキング点</th>
           </tr>
         </thead>
         <tbody>

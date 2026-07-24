@@ -56,6 +56,7 @@ function analytics_maybe_cleanup_old_logs(int $retentionDays = 730, int $batchSi
             ['table' => 'site_events', 'column' => 'created_at', 'cutoff' => $cutoffDateTime],
             ['table' => 'in_logs', 'column' => 'created_at', 'cutoff' => $cutoffDateTime],
             ['table' => 'out_logs', 'column' => 'created_at', 'cutoff' => $cutoffDateTime],
+            ['table' => 'item_out_click_daily', 'column' => 'clicked_at', 'cutoff' => $cutoffDateTime],
             ['table' => 'page_views', 'column' => 'viewed_at', 'cutoff' => $cutoffDateTime],
             ['table' => 'visit_sessions', 'column' => 'stat_date', 'cutoff' => $cutoffDate],
         ];
@@ -159,6 +160,24 @@ function analytics_log_out(string $targetUrl, string $refCode, string $path): vo
         ':path' => mb_substr($path, 0, 255),
     ]);
     $pdo->prepare('INSERT INTO daily_stats(stat_date,pv,uu,in_count,out_count,updated_at) VALUES(:d,0,0,0,1,NOW()) ON DUPLICATE KEY UPDATE out_count = out_count + 1, updated_at = NOW()')->execute([':d' => $today]);
+
+    if (db_table_exists('item_out_click_daily')) {
+        $itemStmt = $pdo->prepare('SELECT id FROM items WHERE affiliate_url = :url LIMIT 1');
+        $itemStmt->execute([':url' => $targetUrl]);
+        $itemId = (int)($itemStmt->fetchColumn() ?: 0);
+        if ($itemId > 0) {
+            $visitorHash = analytics_visitor_hash((string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+            $clickStmt = $pdo->prepare(
+                'INSERT IGNORE INTO item_out_click_daily(item_id, click_date, visitor_hash, clicked_at)
+                 VALUES(:item_id, :click_date, :visitor_hash, NOW())'
+            );
+            $clickStmt->execute([
+                ':item_id' => $itemId,
+                ':click_date' => $today,
+                ':visitor_hash' => $visitorHash,
+            ]);
+        }
+    }
     } catch (Throwable $e) {
         analytics_disable_for_request($e);
     }
