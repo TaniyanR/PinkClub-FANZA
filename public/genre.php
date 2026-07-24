@@ -12,28 +12,17 @@ function pcf_genre_count_items(int $genreId): int
     $genreId = max(1, $genreId);
 
     try {
-        $stmt = db()->prepare(
-            'SELECT COUNT(DISTINCT items.id)
-             FROM items
-             INNER JOIN item_genres ON items.content_id = item_genres.content_id
-             WHERE item_genres.genre_id = :id AND ' . items_front_release_where('items') . ''
-        );
-        $stmt->execute([':id' => $genreId]);
-        $count = (int)$stmt->fetchColumn();
-        if ($count > 0) {
-            return $count;
-        }
-    } catch (Throwable) {
-    }
-
-    try {
-        $stmt = db()->prepare(
-            'SELECT COUNT(DISTINCT items.id)
-             FROM items
-             INNER JOIN genres      ON genres.id          = :id
-             INNER JOIN item_genres ON item_genres.dmm_id = genres.dmm_id
-             WHERE items.id = item_genres.item_id AND ' . items_front_release_where('items') . ''
-        );
+        $sql = db_column_exists('item_genres', 'item_id')
+            ? 'SELECT COUNT(DISTINCT items.id)
+               FROM items
+               INNER JOIN genres      ON genres.id          = :id
+               INNER JOIN item_genres ON item_genres.dmm_id = genres.dmm_id
+               WHERE items.id = item_genres.item_id AND ' . items_front_release_where('items')
+            : 'SELECT COUNT(DISTINCT items.id)
+               FROM items
+               INNER JOIN item_genres ON items.content_id = item_genres.content_id
+               WHERE item_genres.genre_id = :id AND ' . items_front_release_where('items');
+        $stmt = db()->prepare($sql);
         $stmt->execute([':id' => $genreId]);
         return (int)$stmt->fetchColumn();
     } catch (Throwable) {
@@ -51,14 +40,21 @@ function pcf_genre_display_name(array $row): string
     $genreId = (int)($row['id'] ?? 0);
     if ($genreId > 0) {
         try {
-            $stmt = db()->prepare(
-                'SELECT genre_name, COUNT(*) AS item_count
-                 FROM item_genres
-                 WHERE genre_id = :id AND TRIM(COALESCE(genre_name, \'\')) <> \'\'
-                 GROUP BY genre_name
-                 ORDER BY item_count DESC
-                 LIMIT 10'
-            );
+            $sql = db_column_exists('item_genres', 'item_id')
+                ? 'SELECT ig.genre_name, COUNT(*) AS item_count
+                   FROM item_genres ig
+                   INNER JOIN genres g ON g.id = :id AND ig.dmm_id = g.dmm_id
+                   WHERE TRIM(COALESCE(ig.genre_name, \'\')) <> \'\'
+                   GROUP BY ig.genre_name
+                   ORDER BY item_count DESC
+                   LIMIT 10'
+                : 'SELECT genre_name, COUNT(*) AS item_count
+                   FROM item_genres
+                   WHERE genre_id = :id AND TRIM(COALESCE(genre_name, \'\')) <> \'\'
+                   GROUP BY genre_name
+                   ORDER BY item_count DESC
+                   LIMIT 10';
+            $stmt = db()->prepare($sql);
             $stmt->execute([':id' => $genreId]);
             foreach (($stmt->fetchAll() ?: []) as $candidate) {
                 $candidateName = trim((string)($candidate['genre_name'] ?? ''));
