@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/contact_page_slug.php';
+require_once __DIR__ . '/../../lib/public_counts.php';
 
 $path = (string)parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
 $searchQuery = trim((string)($_GET['q'] ?? ''));
@@ -26,23 +27,9 @@ $mobileInfoItems = [
 $sitePostCount = null;
 $siteActressCount = null;
 
-try {
-    if (db_table_exists('items')) {
-        $stmt = db()->query('SELECT COUNT(*) FROM items');
-        $sitePostCount = $stmt ? (int)$stmt->fetchColumn() : null;
-    }
-} catch (Throwable $e) {
-    $sitePostCount = null;
-}
-
-try {
-    if (db_table_exists('actresses')) {
-        $stmt = db()->query('SELECT COUNT(*) FROM actresses');
-        $siteActressCount = $stmt ? (int)$stmt->fetchColumn() : null;
-    }
-} catch (Throwable $e) {
-    $siteActressCount = null;
-}
+$publicCounts = pcf_public_counts();
+$sitePostCount = $publicCounts['posts'];
+$siteActressCount = $publicCounts['actresses'];
 
 try {
     $stmt = db()->query('SELECT slug,title FROM fixed_pages WHERE is_published = 1 ORDER BY id ASC');
