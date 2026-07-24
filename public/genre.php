@@ -17,11 +17,11 @@ function pcf_genre_count_items(int $genreId): int
                FROM items
                INNER JOIN genres      ON genres.id          = :id
                INNER JOIN item_genres ON item_genres.dmm_id = genres.dmm_id
-               WHERE items.id = item_genres.item_id AND ' . items_front_release_where('items')
+               WHERE items.id = item_genres.item_id AND ' . items_product_source_where('items')
             : 'SELECT COUNT(DISTINCT items.id)
                FROM items
                INNER JOIN item_genres ON items.content_id = item_genres.content_id
-               WHERE item_genres.genre_id = :id AND ' . items_front_release_where('items');
+               WHERE item_genres.genre_id = :id AND ' . items_product_source_where('items');
         $stmt = db()->prepare($sql);
         $stmt->execute([':id' => $genreId]);
         return (int)$stmt->fetchColumn();
