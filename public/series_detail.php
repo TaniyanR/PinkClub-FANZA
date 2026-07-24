@@ -71,6 +71,9 @@ try {
 if ($series === null) {
     require __DIR__ . '/404.php';
 }
+if ($total === 0) {
+    require __DIR__ . '/404.php';
+}
 
 $seriesName = (string)($series['name'] ?? 'シリーズ詳細');
 try {
