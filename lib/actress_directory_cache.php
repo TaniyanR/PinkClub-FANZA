@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 function pcf_actress_directory_cache_dir(): string
 {
-    return dirname(__DIR__) . '/storage/cache/actress-directory';
+    return dirname(__DIR__) . '/storage/cache/actress-directory-public-v2';
 }
 
 function pcf_actress_directory_cache_manifest_path(): string
@@ -100,7 +100,7 @@ function pcf_actress_directory_cache_rebuild(): array
             }
         }
 
-        $rows = fetch_actresses(10000, 0, 'name');
+        $rows = fetch_public_actresses(10000, 0, 'name');
         $groups = [];
         $seen = [];
 
