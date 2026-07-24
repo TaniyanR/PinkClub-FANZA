@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../lib/db.php';
 require_once __DIR__ . '/../../lib/app_features.php';
 require_once __DIR__ . '/../../lib/contact_page_slug.php';
+require_once __DIR__ . '/../../lib/public_counts.php';
 require_once __DIR__ . '/_helpers.php';
 
 $sortMode = site_setting_get('link.sort_mode', 'registered');
@@ -22,23 +23,9 @@ $defaultFixedPages = [
     ['slug' => CONTACT_PAGE_SLUG, 'title' => 'お問い合わせ', 'href' => public_url('page.php?slug=que')],
 ];
 
-try {
-    if (db_table_exists('items')) {
-        $stmt = db()->query('SELECT COUNT(*) FROM items');
-        $sitePostCount = $stmt ? (int)$stmt->fetchColumn() : null;
-    }
-} catch (Throwable $e) {
-    $sitePostCount = null;
-}
-
-try {
-    if (db_table_exists('actresses')) {
-        $stmt = db()->query('SELECT COUNT(*) FROM actresses');
-        $siteActressCount = $stmt ? (int)$stmt->fetchColumn() : null;
-    }
-} catch (Throwable $e) {
-    $siteActressCount = null;
-}
+$publicCounts = pcf_public_counts();
+$sitePostCount = $publicCounts['posts'];
+$siteActressCount = $publicCounts['actresses'];
 
 try {
     $stmt = db()->query("SELECT ps.id, ps.name, ps.url, COALESCE(ps.show_link, ps.is_enabled, 1) AS show_link FROM partner_sites ps WHERE COALESCE(ps.show_link, ps.is_enabled, 1) = 1 ORDER BY {$orderBy}");
