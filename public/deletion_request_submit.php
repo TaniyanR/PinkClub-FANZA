@@ -155,39 +155,6 @@ try {
         throw new RuntimeException('削除依頼メールの送信に失敗しました。時間をおいて再度お試しください。');
     }
 
-    $pdo = db();
-    $pdo->exec('CREATE TABLE IF NOT EXISTS deletion_requests (
-        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        receipt_number VARCHAR(40) NOT NULL UNIQUE,
-        site_code VARCHAR(50) NOT NULL DEFAULT "pinkclub-fanza",
-        requester_name VARCHAR(100) NOT NULL,
-        requester_email VARCHAR(254) NOT NULL,
-        requester_phone VARCHAR(30) NULL,
-        page_urls TEXT NOT NULL,
-        reason TEXT NOT NULL,
-        document_mime VARCHAR(100) NOT NULL,
-        document_original_name VARCHAR(255) NULL,
-        document_delivery VARCHAR(30) NOT NULL DEFAULT "email_only",
-        status VARCHAR(30) NOT NULL DEFAULT "received",
-        ip_hash CHAR(64) NULL,
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_deletion_requests_status_created (status, created_at)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
-
-    $stmt = $pdo->prepare('INSERT INTO deletion_requests(receipt_number,requester_name,requester_email,requester_phone,page_urls,reason,document_mime,document_original_name,document_delivery,ip_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,"email_only",?,NOW(),NOW())');
-    $stmt->execute([
-        $receipt,
-        $name,
-        $email,
-        $phone !== '' ? $phone : null,
-        $pageUrls,
-        $reason,
-        $mime,
-        mb_substr(basename((string)($upload['name'] ?? 'document')), 0, 255),
-        hash('sha256', rate_limit_client_ip()),
-    ]);
-
     header('Location: ' . $backUrl . '&receipt=' . rawurlencode($receipt));
     exit;
 } catch (Throwable $e) {

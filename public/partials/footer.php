@@ -196,7 +196,7 @@ $copyrightYears = $copyrightStartYear >= $currentYear
     contactHeading.textContent = isContact ? '一般のお問い合わせ' : '掲載削除依頼';
     contactDescription.textContent = isContact
       ? 'ご不明な点やご意見・ご要望などをお送りください。'
-      : '出演者ご本人、正当な代理人または権利者からの掲載削除依頼を受け付けています。';
+      : '出演者ご本人、正当な代理人または権利者から受け付けます。入力内容と本人確認書類は管理画面・データベースに保存せず、受付用メールにのみ送信します。';
     buttons.forEach(function (button) {
       var active = button.getAttribute('data-form') === type;
       button.classList.toggle('is-active', active);
