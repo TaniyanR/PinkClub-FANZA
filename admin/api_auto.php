@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../public/_bootstrap.php';
 require_once __DIR__ . '/../lib/app.php';
 require_once __DIR__ . '/../lib/scheduler.php';
+require_once __DIR__ . '/../lib/repository.php';
 
 auth_require_admin();
 
@@ -77,6 +78,28 @@ scheduler_apply_auto_settings($pdo);
 $stateStmt = $pdo->query("SELECT job_key, last_run_at, last_success, last_message, next_offset, lock_until FROM sync_job_state WHERE job_key IN ('items','actresses') ORDER BY FIELD(job_key, 'items','actresses')");
 $autoStates = $stateStmt ? $stateStmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
+$storedItemCount = null;
+$publicItemCount = null;
+$nonPublicItemCount = null;
+try {
+    if (db_table_exists('items')) {
+        $storedStmt = $pdo->query('SELECT COUNT(*) FROM items');
+        $storedItemCount = $storedStmt ? (int)$storedStmt->fetchColumn() : null;
+
+        $publicWhere = items_product_source_where('items');
+        $publicStmt = $pdo->query('SELECT COUNT(*) FROM items WHERE ' . $publicWhere);
+        $publicItemCount = $publicStmt ? (int)$publicStmt->fetchColumn() : null;
+
+        if ($storedItemCount !== null && $publicItemCount !== null) {
+            $nonPublicItemCount = max(0, $storedItemCount - $publicItemCount);
+        }
+    }
+} catch (Throwable) {
+    $storedItemCount = null;
+    $publicItemCount = null;
+    $nonPublicItemCount = null;
+}
+
 require __DIR__ . '/includes/header.php';
 ?>
 <section class="card">
@@ -140,6 +163,18 @@ require __DIR__ . '/includes/header.php';
   </form>
 
 
+  <h2 style="margin-top:24px;">商品数の内訳</h2>
+  <?php if ($storedItemCount !== null && $publicItemCount !== null && $nonPublicItemCount !== null): ?>
+    <div class="admin-status-grid">
+      <article class="admin-card admin-status-card"><strong>保存済み商品</strong><p><?= e(number_format($storedItemCount)) ?>件</p></article>
+      <article class="admin-card admin-status-card"><strong>公開作品</strong><p><?= e(number_format($publicItemCount)) ?>件</p></article>
+      <article class="admin-card admin-status-card"><strong>公開前・除外</strong><p><?= e(number_format($nonPublicItemCount)) ?>件</p></article>
+    </div>
+    <p class="admin-form-note">「公開前・除外」には、発売日前の商品や公開対象外の商品などが含まれます。保存済み商品と公開作品の件数が異なるのは正常です。</p>
+  <?php else: ?>
+    <p class="admin-form-note">商品数の内訳を取得できませんでした。</p>
+  <?php endif; ?>
+
   <h2 style="margin-top:24px;">自動更新状態</h2>
   <table class="admin-table">
     <tr><th>ジョブ</th><th>最終実行日時</th><th>成功</th><th>メッセージ</th><th>次回offset</th><th>ロック期限</th></tr>
@@ -154,6 +189,7 @@ require __DIR__ . '/includes/header.php';
       </tr>
     <?php endforeach; ?>
   </table>
+  <p class="admin-form-note">「新規: 0件 / 更新: ○件」は、cronが正常に動作し、取得した商品がすべて登録済みだったことを表します。新しい商品が見つかった回だけ保存済み商品数が増えます。</p>
 
   <?php if ($enabled): ?>
     <div class="admin-notice admin-notice--success" id="auto-timer-status">
