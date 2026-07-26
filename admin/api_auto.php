@@ -6,6 +6,7 @@ require_once __DIR__ . '/../public/_bootstrap.php';
 require_once __DIR__ . '/../lib/app.php';
 require_once __DIR__ . '/../lib/scheduler.php';
 require_once __DIR__ . '/../lib/repository.php';
+require_once __DIR__ . '/../lib/public_counts.php';
 
 auth_require_admin();
 
@@ -100,6 +101,29 @@ try {
     $nonPublicItemCount = null;
 }
 
+$storedActressCount = null;
+$publicActressCount = null;
+$nonPublicActressCount = null;
+try {
+    if (db_table_exists('actresses')) {
+        $storedActressStmt = $pdo->query('SELECT COUNT(*) FROM actresses');
+        $storedActressCount = $storedActressStmt ? (int)$storedActressStmt->fetchColumn() : null;
+
+        $publicCounts = pcf_public_counts();
+        $publicActressCount = isset($publicCounts['actresses']) && $publicCounts['actresses'] !== null
+            ? (int)$publicCounts['actresses']
+            : null;
+
+        if ($storedActressCount !== null && $publicActressCount !== null) {
+            $nonPublicActressCount = max(0, $storedActressCount - $publicActressCount);
+        }
+    }
+} catch (Throwable) {
+    $storedActressCount = null;
+    $publicActressCount = null;
+    $nonPublicActressCount = null;
+}
+
 require __DIR__ . '/includes/header.php';
 ?>
 <section class="card">
@@ -173,6 +197,18 @@ require __DIR__ . '/includes/header.php';
     <p class="admin-form-note">「公開前・除外」には、発売日前の商品や公開対象外の商品などが含まれます。保存済み商品と公開作品の件数が異なるのは正常です。</p>
   <?php else: ?>
     <p class="admin-form-note">商品数の内訳を取得できませんでした。</p>
+  <?php endif; ?>
+
+  <h2 style="margin-top:24px;">女優数の内訳</h2>
+  <?php if ($storedActressCount !== null && $publicActressCount !== null && $nonPublicActressCount !== null): ?>
+    <div class="admin-status-grid">
+      <article class="admin-card admin-status-card"><strong>保存済み女優</strong><p><?= e(number_format($storedActressCount)) ?>人</p></article>
+      <article class="admin-card admin-status-card"><strong>公開女優</strong><p><?= e(number_format($publicActressCount)) ?>人</p></article>
+      <article class="admin-card admin-status-card"><strong>公開前・除外</strong><p><?= e(number_format($nonPublicActressCount)) ?>人</p></article>
+    </div>
+    <p class="admin-form-note">「公開女優」は、フロントの女優一覧に表示される人数です。保存済み女優との差には、公開作品に関連付いていない女優などが含まれます。</p>
+  <?php else: ?>
+    <p class="admin-form-note">女優数の内訳を取得できませんでした。</p>
   <?php endif; ?>
 
   <h2 style="margin-top:24px;">自動更新状態</h2>
