@@ -21,7 +21,6 @@ $menuGroups = [
     ]],
     ['label' => 'API設定', 'children' => [
         ['label' => '商品情報API設定', 'file' => 'api_items.php'],
-        ['label' => 'サンプル動画再取得', 'file' => 'movie_repair.php'],
         ['label' => '自動設定', 'file' => 'api_auto.php'],
     ]],
     ['label' => 'アクセス解析', 'children' => [
@@ -37,6 +36,12 @@ $menuGroups = [
         ['label' => '固定ページ一覧', 'file' => 'pages.php'],
     ]],
 ];
+
+$menuGroups = array_values(array_filter(
+    $menuGroups,
+    static fn(array $group): bool => (string)($group['label'] ?? '') !== '削除依頼'
+        && basename((string)($group['file'] ?? '')) !== 'deletion_requests.php'
+));
 
 $flash = function_exists('flash_get') ? flash_get() : null;
 $titleText = (string)($title ?? APP_NAME);
