@@ -38,6 +38,12 @@ $menuGroups = [
     ]],
 ];
 
+$menuGroups = array_values(array_filter(
+    $menuGroups,
+    static fn(array $group): bool => (string)($group['label'] ?? '') !== '削除依頼'
+        && basename((string)($group['file'] ?? '')) !== 'deletion_requests.php'
+));
+
 $flash = function_exists('flash_get') ? flash_get() : null;
 $titleText = (string)($title ?? APP_NAME);
 $faviconPath = trim(site_setting_get('site.favicon_path', ''));
