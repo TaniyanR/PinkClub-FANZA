@@ -83,7 +83,7 @@ if ($fixedPages === []) {
             <p class="sidebar-empty">固定ページ（未設定）</p>
         <?php else: ?>
             <ul class="sidebar-links sidebar-links--pages">
-                <?php if ($sitePostCount !== null): ?><li><a style="color:#000;">投稿数：<strong><?= e(number_format($sitePostCount)) ?></strong></a></li><?php endif; ?>
+                <?php if ($sitePostCount !== null): ?><li><a style="color:#000;">公開作品数：<strong><?= e(number_format($sitePostCount)) ?></strong></a></li><?php endif; ?>
                 <?php if ($siteActressCount !== null): ?><li><a style="color:#000;">女優数：<strong><?= e(number_format($siteActressCount)) ?></strong></a></li><?php endif; ?>
                 <?php foreach ($fixedPages as $page): ?>
                     <?php $pageHref = trim((string)($page['href'] ?? '')); ?>
