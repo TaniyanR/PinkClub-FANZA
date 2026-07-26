@@ -213,9 +213,15 @@ function rss_table_column_exists(string $table, string $column): bool
     }
 
     try {
-        $stmt = db()->prepare('SHOW COLUMNS FROM ' . $table . ' LIKE :column');
-        $stmt->execute([':column' => $column]);
-        return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt = db()->prepare(
+            'SELECT COUNT(*)
+             FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = :table
+               AND COLUMN_NAME = :column'
+        );
+        $stmt->execute([':table' => $table, ':column' => $column]);
+        return (int)$stmt->fetchColumn() > 0;
     } catch (Throwable) {
         return false;
     }
