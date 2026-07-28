@@ -43,44 +43,39 @@ $from = $to->sub(new DateInterval('P' . ($days - 1) . 'D'));
 $prevFrom = $from->sub(new DateInterval('P' . $days . 'D'));
 $prevTo = $from->sub(new DateInterval('P1D'));
 
-$analyticsBeaconMarker = analytics_beacon_marker_hash();
-
 $rowsByDate = [];
 for ($day = $from; $day <= $to; $day = $day->add(new DateInterval('P1D'))) {
     $rowsByDate[$day->format('Y-m-d')] = ['stat_date' => $day->format('Y-m-d'), 'pv' => 0, 'uu' => 0, 'in_count' => 0, 'out_count' => 0];
 }
 
-$pvStmt = db()->prepare("SELECT DATE(created_at) stat_date, COUNT(*) pv, COUNT(DISTINCT ip_hash) uu FROM site_events WHERE event_type = 'pv' AND session_id_hash = :marker AND created_at BETWEEN :from AND :to GROUP BY DATE(created_at)");
-$pvStmt->execute([':marker' => $analyticsBeaconMarker, ':from' => $from->format('Y-m-d 00:00:00'), ':to' => $to->format('Y-m-d 23:59:59')]);
-foreach ($pvStmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+$dailyStmt = db()->prepare('SELECT stat_date,pv,uu,in_count,out_count FROM daily_stats WHERE stat_date BETWEEN :from AND :to ORDER BY stat_date');
+$dailyStmt->execute([':from' => $from->format('Y-m-d'), ':to' => $to->format('Y-m-d')]);
+foreach ($dailyStmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
     $d = (string)($r['stat_date'] ?? '');
-    if (isset($rowsByDate[$d])) { $rowsByDate[$d]['pv'] = (int)$r['pv']; $rowsByDate[$d]['uu'] = (int)$r['uu']; }
-}
-$inStmt = db()->prepare('SELECT DATE(created_at) stat_date, COUNT(*) in_count FROM in_logs WHERE created_at BETWEEN :from AND :to GROUP BY DATE(created_at)');
-$inStmt->execute([':from' => $from->format('Y-m-d 00:00:00'), ':to' => $to->format('Y-m-d 23:59:59')]);
-foreach ($inStmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
-    $d = (string)($r['stat_date'] ?? '');
-    if (isset($rowsByDate[$d])) { $rowsByDate[$d]['in_count'] = (int)$r['in_count']; }
-}
-$outCountStmt = db()->prepare('SELECT DATE(created_at) stat_date, COUNT(*) out_count FROM out_logs WHERE created_at BETWEEN :from AND :to GROUP BY DATE(created_at)');
-$outCountStmt->execute([':from' => $from->format('Y-m-d 00:00:00'), ':to' => $to->format('Y-m-d 23:59:59')]);
-foreach ($outCountStmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
-    $d = (string)($r['stat_date'] ?? '');
-    if (isset($rowsByDate[$d])) { $rowsByDate[$d]['out_count'] = (int)$r['out_count']; }
+    if (isset($rowsByDate[$d])) {
+        $rowsByDate[$d] = [
+            'stat_date' => $d,
+            'pv' => (int)$r['pv'],
+            'uu' => (int)$r['uu'],
+            'in_count' => (int)$r['in_count'],
+            'out_count' => (int)$r['out_count'],
+        ];
+    }
 }
 $rows = array_values($rowsByDate);
 
-$prevPvStmt = db()->prepare("SELECT COALESCE(SUM(pv),0) pv, COALESCE(SUM(uu),0) uu FROM (SELECT DATE(created_at) stat_date, COUNT(*) pv, COUNT(DISTINCT ip_hash) uu FROM site_events WHERE event_type = 'pv' AND session_id_hash = :marker AND created_at BETWEEN :from AND :to GROUP BY DATE(created_at)) t");
-$prevPvStmt->execute([':marker' => $analyticsBeaconMarker, ':from' => $prevFrom->format('Y-m-d 00:00:00'), ':to' => $prevTo->format('Y-m-d 23:59:59')]);
-$prevPv = $prevPvStmt->fetch(PDO::FETCH_ASSOC) ?: ['pv'=>0,'uu'=>0];
-$prevInStmt = db()->prepare('SELECT COUNT(*) FROM in_logs WHERE created_at BETWEEN :from AND :to');
-$prevInStmt->execute([':from' => $prevFrom->format('Y-m-d 00:00:00'), ':to' => $prevTo->format('Y-m-d 23:59:59')]);
-$prevOutStmt = db()->prepare('SELECT COUNT(*) FROM out_logs WHERE created_at BETWEEN :from AND :to');
-$prevOutStmt->execute([':from' => $prevFrom->format('Y-m-d 00:00:00'), ':to' => $prevTo->format('Y-m-d 23:59:59')]);
-$prev = ['pv'=>(int)($prevPv['pv'] ?? 0),'uu'=>(int)($prevPv['uu'] ?? 0),'in_count'=>(int)$prevInStmt->fetchColumn(),'out_count'=>(int)$prevOutStmt->fetchColumn()];
+$prevStmt = db()->prepare('SELECT COALESCE(SUM(pv),0) pv,COALESCE(SUM(in_count),0) in_count,COALESCE(SUM(out_count),0) out_count FROM daily_stats WHERE stat_date BETWEEN :from AND :to');
+$prevStmt->execute([':from' => $prevFrom->format('Y-m-d'), ':to' => $prevTo->format('Y-m-d')]);
+$prev = $prevStmt->fetch(PDO::FETCH_ASSOC) ?: ['pv'=>0,'in_count'=>0,'out_count'=>0];
+$periodUuStmt = db()->prepare('SELECT COUNT(DISTINCT visitor_hash) FROM visit_sessions WHERE stat_date BETWEEN :from AND :to');
+$periodUuStmt->execute([':from' => $from->format('Y-m-d'), ':to' => $to->format('Y-m-d')]);
+$periodUu = (int)$periodUuStmt->fetchColumn();
+$periodUuStmt->execute([':from' => $prevFrom->format('Y-m-d'), ':to' => $prevTo->format('Y-m-d')]);
+$prev['uu'] = (int)$periodUuStmt->fetchColumn();
 
 $sum = ['pv'=>0,'uu'=>0,'in_count'=>0,'out_count'=>0];
 foreach ($rows as $r) { $sum['pv']+=(int)$r['pv']; $sum['uu']+=(int)$r['uu']; $sum['in_count']+=(int)$r['in_count']; $sum['out_count']+=(int)$r['out_count']; }
+$sum['uu'] = $periodUu;
 
 $refRows = [];
 $outRows = [];
@@ -113,7 +108,7 @@ if ($tab === 'engine') {
 }
 if ($tab === 'keyword') {
     $kwStmt = db()->prepare("SELECT path, COUNT(*) cnt FROM site_events WHERE event_type = 'pv' AND session_id_hash = :marker AND path LIKE '/search.php?%' AND created_at BETWEEN :from AND :to GROUP BY path ORDER BY cnt DESC, path ASC LIMIT 500");
-    $kwStmt->execute([':marker' => $analyticsBeaconMarker, ':from' => $from->format('Y-m-d 00:00:00'), ':to' => $to->format('Y-m-d 23:59:59')]);
+    $kwStmt->execute([':marker' => analytics_beacon_marker_hash(), ':from' => $from->format('Y-m-d 00:00:00'), ':to' => $to->format('Y-m-d 23:59:59')]);
     $kwRaw = $kwStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     $kwCounts = [];
     foreach ($kwRaw as $kwRow) {
@@ -155,7 +150,7 @@ require __DIR__ . '/includes/header.php';
   <?php if ($tab === 'graph'): ?>
   <div class="admin-status-grid">
     <article class="admin-card admin-status-card"><strong>ページビュー</strong><p><?= e((string)$sum['pv']) ?></p></article>
-    <article class="admin-card admin-status-card"><strong>ユニークユーザー</strong><p><?= e((string)$sum['uu']) ?></p></article>
+    <article class="admin-card admin-status-card"><strong>推定ユニークユーザー</strong><p><?= e((string)$sum['uu']) ?></p><small>選択期間内のIPハッシュ重複を除外</small></article>
     <article class="admin-card admin-status-card"><strong>流入数</strong><p><?= e((string)$sum['in_count']) ?></p></article>
     <article class="admin-card admin-status-card"><strong>流出数</strong><p><?= e((string)$sum['out_count']) ?></p></article>
   </div>
