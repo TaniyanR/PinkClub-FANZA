@@ -243,6 +243,8 @@ $copyrightYears = $copyrightStartYear >= $currentYear
 <script>
 (function () {
   if (!navigator.sendBeacon) return;
+  if (window.__pcfAnalyticsSent === true) return;
+  window.__pcfAnalyticsSent = true;
   var data = new FormData();
   data.append('path', window.location.pathname + window.location.search);
   data.append('referrer', document.referrer || '');
