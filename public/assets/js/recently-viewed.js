@@ -197,17 +197,6 @@
     return node;
   };
 
-  const moveAfterLatest = (element) => {
-    const body = element.closest('.site-main__body');
-    if (!body) return;
-    const sections = Array.from(body.querySelectorAll('.rail-section')).filter((candidate) => {
-      const heading = candidate.querySelector('h2');
-      return heading && heading.textContent.trim() === '新着作品';
-    });
-    const target = sections.length ? sections[sections.length - 1] : null;
-    if (target && target.nextSibling !== element) target.after(element);
-  };
-
   const renderHistory = () => {
     const section = document.getElementById('pcf-recently-viewed');
     const list = document.getElementById('pcf-recent-list');
@@ -243,7 +232,6 @@
 
     if (historyIsHidden()) {
       section.hidden = true;
-      moveAfterLatest(restore);
       restore.hidden = false;
       return;
     }
@@ -282,7 +270,6 @@
       list.appendChild(article);
     });
 
-    moveAfterLatest(section);
     section.hidden = false;
 
     list.querySelectorAll('[data-recent-remove-id]').forEach((button) => {
