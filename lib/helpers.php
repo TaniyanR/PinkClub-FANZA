@@ -39,6 +39,9 @@ function asset_url(string $path): string
     $url = rtrim(BASE_URL, '/') . '/assets/' . $normalized;
 
     $assetPath = __DIR__ . '/../assets/' . $normalized;
+    if (!is_file($assetPath)) {
+        $assetPath = __DIR__ . '/../public/assets/' . $normalized;
+    }
     if (is_file($assetPath)) {
         $version = (string)filemtime($assetPath);
         if ($version !== '') {
