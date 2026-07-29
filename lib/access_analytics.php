@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/crawler_guard.php';
 require_once __DIR__ . '/site_settings.php';
 
 function analytics_beacon_marker_hash(): string
@@ -11,28 +13,17 @@ function analytics_beacon_marker_hash(): string
 
 function analytics_visitor_hash(string $ua): string
 {
-    $cookieName = 'pcf_visitor_id';
-    $visitorId = (string)($_COOKIE[$cookieName] ?? '');
-    if (!preg_match('/\A[a-f0-9]{32}\z/', $visitorId)) {
-        try {
-            $visitorId = bin2hex(random_bytes(16));
-        } catch (Throwable) {
-            $visitorId = hash('sha256', ((string)($_SERVER['REMOTE_ADDR'] ?? '')) . '|' . $ua . '|' . microtime(true));
-            $visitorId = substr($visitorId, 0, 32);
-        }
-        if (!headers_sent()) {
-            setcookie($cookieName, $visitorId, [
-                'expires' => time() + 60 * 60 * 24 * 400,
-                'path' => '/',
-                'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
-                'httponly' => true,
-                'samesite' => 'Lax',
-            ]);
-        }
-        $_COOKIE[$cookieName] = $visitorId;
+    $ip = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+    if ($ip === '') {
+        $ip = 'unknown';
+    }
+    $salt = trim((string)config_get('security.ip_hash_salt', ''));
+    if ($salt === '') {
+        $dbName = (string)config_get('db.name', config_get('db.dbname', 'pinkclub'));
+        $salt = hash('sha256', __DIR__ . '|' . $dbName . '|pinkclub-analytics');
     }
 
-    return hash('sha256', $visitorId . '|pinkclub');
+    return hash_hmac('sha256', $ip, $salt);
 }
 
 function analytics_maybe_cleanup_old_logs(int $retentionDays = 730, int $batchSize = 2000): void
@@ -98,6 +89,9 @@ function analytics_track_beacon(): void
 
     try {
     $ua = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
+    if (pcf_crawler_guard_is_known_crawler($ua)) {
+        return;
+    }
     $hash = analytics_visitor_hash($ua);
     $rawPath = (string)($_POST['path'] ?? '/');
     $path = (string)parse_url($rawPath, PHP_URL_PATH);

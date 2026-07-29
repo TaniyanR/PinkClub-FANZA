@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/public/_bootstrap.php';
 require_once __DIR__ . '/lib/repository.php';
+require_once __DIR__ . '/lib/home_rotation_cache.php';
 
 function redirect_canonical_home_url(): void
 {
@@ -419,6 +420,7 @@ $authorSection = ['name' => '', 'url' => '', 'items' => []];
 
 try {
     $pdo = db();
+    $homeRotationCache = pcf_home_rotation_load();
     $sourceWhere = items_product_source_where();
     $sourceWhereSql = $sourceWhere !== '' ? ' WHERE ' . $sourceWhere : '';
     $itemExistsStmt = $pdo->query('SELECT 1 FROM items' . $sourceWhereSql . ' LIMIT 1');
@@ -451,25 +453,31 @@ try {
         $popularRows = query_all_safe($pdo, 'SELECT * FROM items' . $popularWhereSql . ' ORDER BY view_count DESC, release_date DESC, id DESC LIMIT 40');
         $popularRows = take_unique_items_for_home($popularRows, $usedHomeItemKeys, 20);
         if (count($popularRows) < 20) {
-            $randomRows = fetch_items_with_order_fallback($pdo, [
-                'RAND()',
-            ], 40);
+            $randomRows = pcf_home_rotation_current_set($homeRotationCache, 'items');
+            if ($randomRows === []) {
+                $randomRows = fetch_items_with_order_fallback($pdo, ['created_at DESC,id DESC'], 40);
+            }
             $popularRows = array_merge($popularRows, take_unique_items_for_home($randomRows, $usedHomeItemKeys, 20 - count($popularRows)));
         }
         $pickupTop = array_slice($popularRows, 0, 5);
         $pickupBottom = array_slice($popularRows, 5, 15);
 
         if (db_table_exists($pdo, 'actresses')) {
-            $actressCandidates = $pdo->query('SELECT id,name,image_small,image_large,image_url FROM actresses ORDER BY (CASE WHEN COALESCE(NULLIF(image_small, ""), NULLIF(image_large, ""), NULLIF(image_url, ""), "") = "" THEN 1 ELSE 0 END), RAND() LIMIT 30')->fetchAll();
-            $actresses = array_slice($actressCandidates ?: [], 0, 15);
+            $actresses = pcf_home_rotation_current_set($homeRotationCache, 'actresses');
+            if ($actresses === []) {
+                $actressCandidates = $pdo->query('SELECT id,name,image_small,image_large,image_url FROM actresses ORDER BY updated_at DESC,id DESC LIMIT 30')->fetchAll();
+                $actresses = array_slice($actressCandidates ?: [], 0, 15);
+            }
         }
 
         if (db_table_exists($pdo, 'genres') && db_table_exists($pdo, 'item_genres')) {
-            $genreCandidates = query_all_safe($pdo, 'SELECT g.id,g.name,COUNT(ig.id) AS item_count FROM genres g INNER JOIN item_genres ig ON ig.genre_id = g.id GROUP BY g.id,g.name HAVING COUNT(ig.id) > 0 ORDER BY item_count DESC,g.id DESC LIMIT 120');
+            $genreCandidates = pcf_home_rotation_current_set($homeRotationCache, 'genres');
             if ($genreCandidates === []) {
-                $genreCandidates = query_all_safe($pdo, 'SELECT g.id,g.name,COUNT(*) AS item_count FROM genres g INNER JOIN item_genres ig ON ig.dmm_id = g.dmm_id GROUP BY g.id,g.name HAVING COUNT(*) > 0 ORDER BY item_count DESC,g.id DESC LIMIT 120');
+                $genreCandidates = query_all_safe($pdo, 'SELECT g.id,g.name,COUNT(ig.id) AS item_count FROM genres g INNER JOIN item_genres ig ON ig.genre_id = g.id GROUP BY g.id,g.name HAVING COUNT(ig.id) > 0 ORDER BY item_count DESC,g.id DESC LIMIT 3');
+                if ($genreCandidates === []) {
+                    $genreCandidates = query_all_safe($pdo, 'SELECT g.id,g.name,COUNT(*) AS item_count FROM genres g INNER JOIN item_genres ig ON ig.dmm_id = g.dmm_id GROUP BY g.id,g.name HAVING COUNT(*) > 0 ORDER BY item_count DESC,g.id DESC LIMIT 3');
+                }
             }
-            $genreCandidates = seeded_shuffle($genreCandidates, $seedBase + 20);
             foreach (array_slice($genreCandidates, 0, 3) as $index => $genre) {
                 $genreItems = [];
                 foreach ([

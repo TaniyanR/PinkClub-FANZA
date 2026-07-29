@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/scheduler.php';
 require_once __DIR__ . '/../lib/app_features.php';
+require_once __DIR__ . '/../lib/home_rotation_cache.php';
 
 function main(): int
 {
@@ -10,6 +11,7 @@ function main(): int
         maybe_run_scheduled_jobs();
         rss_widget_bootstrap();
         rss_refresh_stale_sources(1000, 1800, 2);
+        pcf_home_rotation_refresh();
         echo '[' . date('Y-m-d H:i:s') . "] maybe_run_scheduled_jobs() executed\n";
         return 0;
     } catch (Throwable $e) {
