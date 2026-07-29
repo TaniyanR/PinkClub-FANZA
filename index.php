@@ -439,7 +439,9 @@ try {
         $newReleaseBottom = array_slice($newReleaseRows, 5, 15);
 
         $latestRows = fetch_items_with_order_fallback($pdo, [
-            'created_at DESC, id DESC',
+            'release_date DESC, updated_at DESC, id DESC',
+            'date_published DESC, updated_at DESC, id DESC',
+            'updated_at DESC, id DESC',
             'id DESC',
         ], 40);
         $latestRows = take_unique_items_for_home($latestRows, $usedHomeItemKeys, 20);
