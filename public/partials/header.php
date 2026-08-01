@@ -48,7 +48,7 @@ $titleBaseText = trim($titleText);
 $isHomeTitle = $titleBaseText === '' || $titleBaseText === 'トップ' || $titleBaseText === $siteName;
 $titleText = $isHomeTitle ? ($tagline !== '' ? $siteName . ' - ' . $tagline : $siteName) : $titleBaseText . ' | ' . $siteName;
 $logoUrl = $logoPath !== '' ? public_url($logoPath) : '';
-$faviconUrl = $faviconPath !== '' ? public_url($faviconPath) : '';
+$faviconUrl = $faviconPath !== '' ? public_versioned_url($faviconPath) : '';
 $faviconExt = strtolower((string)pathinfo($faviconPath, PATHINFO_EXTENSION));
 $faviconType = $faviconExt === 'png' ? 'image/png' : 'image/x-icon';
 $canRenderAd = function_exists('render_ad');

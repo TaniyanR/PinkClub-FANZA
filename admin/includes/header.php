@@ -46,7 +46,7 @@ $menuGroups = array_values(array_filter(
 $flash = function_exists('flash_get') ? flash_get() : null;
 $titleText = (string)($title ?? APP_NAME);
 $faviconPath = trim(site_setting_get('site.favicon_path', ''));
-$faviconUrl = $faviconPath !== '' ? public_url($faviconPath) : '';
+$faviconUrl = $faviconPath !== '' ? public_versioned_url($faviconPath) : '';
 $faviconType = strtolower((string)pathinfo($faviconPath, PATHINFO_EXTENSION)) === 'png' ? 'image/png' : 'image/x-icon';
 ?>
 <!doctype html>
