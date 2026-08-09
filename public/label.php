@@ -52,7 +52,11 @@ $accessRankingRows = array_values(array_filter($accessRankingRows, static functi
 
 $title = $labelName;
 $pageDescription = mb_strimwidth($labelName . 'レーベルの作品一覧。FANZAで販売中の最新作・人気作品を紹介。', 0, 150, '…', 'UTF-8');
-$canonicalUrl = public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? $id), 'name' => $labelName]);
+$canonicalUrl = public_url('label.php') . '?' . http_build_query([
+    'id' => (string)($label['id'] ?? $id),
+    'name' => $labelName,
+    'page' => $labelPage > 1 ? $labelPage : null,
+]);
 if ($labelPage > 1) {
     $relPrev = public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? $id), 'name' => $labelName, 'page' => $labelPage - 1]);
 }
@@ -92,7 +96,7 @@ require __DIR__ . '/partials/header.php';
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php $tabUrl = public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? $id), 'name' => $labelName, 'rank_period' => (string)$tabKey]) . '#access-ranking'; ?>
       <?php $tabStyle = $accessRankingPeriod === $tabKey ? 'display:inline-block; padding:6px 12px; border:1px solid #0b5ed7; border-radius:6px; background:#0b5ed7; color:#fff; font-weight:700; text-decoration:none;' : 'display:inline-block; padding:6px 12px; border:1px solid #0b5ed7; border-radius:6px; background:#fff; color:#0b5ed7; font-weight:700; text-decoration:none;'; ?>
-      <a href="<?= e($tabUrl) ?>" style="<?= e($tabStyle) ?>"><?= e((string)$tabConfig['label']) ?></a>
+      <a href="<?= e($tabUrl) ?>" rel="nofollow" style="<?= e($tabStyle) ?>"><?= e((string)$tabConfig['label']) ?></a>
     <?php endforeach; ?>
   </div>
   <?php if ($accessRankingRows !== []): ?>

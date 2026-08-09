@@ -9,6 +9,11 @@ require_once __DIR__ . '/partials/public_ui.php';
 
 $id = (int)get('id', 0);
 $page = max(1, (int)get('page', 1));
+$canonicalMakerId = series_canonical_maker_redirects()[$id] ?? 0;
+if ($canonicalMakerId > 0) {
+    header('Location: ' . public_url('maker.php') . '?id=' . rawurlencode((string)$canonicalMakerId), true, 301);
+    exit;
+}
 $per = 24;
 $viewport = (string)($_COOKIE['pcf_viewport'] ?? '');
 $clientHintMobile = trim((string)($_SERVER['HTTP_SEC_CH_UA_MOBILE'] ?? ''));
@@ -110,7 +115,7 @@ require __DIR__ . '/partials/header.php';
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php $tabUrl = public_url('series_detail.php') . '?' . http_build_query(['id' => (int)$series['id'], 'rank_period' => (string)$tabKey]) . '#access-ranking'; ?>
       <?php $tabStyle = $accessRankingPeriod === $tabKey ? 'display:inline-block; padding:6px 12px; border:1px solid #0b5ed7; border-radius:6px; background:#0b5ed7; color:#fff; font-weight:700; text-decoration:none;' : 'display:inline-block; padding:6px 12px; border:1px solid #0b5ed7; border-radius:6px; background:#fff; color:#0b5ed7; font-weight:700; text-decoration:none;'; ?>
-      <a href="<?= e($tabUrl) ?>" style="<?= e($tabStyle) ?>"><?= e((string)$tabConfig['label']) ?></a>
+      <a href="<?= e($tabUrl) ?>" rel="nofollow" style="<?= e($tabStyle) ?>"><?= e((string)$tabConfig['label']) ?></a>
     <?php endforeach; ?>
   </div>
   <?php if ($accessRankingRows !== []): ?>
