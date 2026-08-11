@@ -24,7 +24,7 @@ if (!$row) {
 $list = [];
 if (db_table_exists('item_authors')) {
     try {
-        $itemStmt = db()->prepare('SELECT items.* FROM items INNER JOIN item_authors ia ON items.content_id = ia.content_id WHERE ia.author_id = :id AND ' . items_front_release_where('items') . ' ORDER BY items.date_published DESC LIMIT 100');
+        $itemStmt = db()->prepare('SELECT items.* FROM items INNER JOIN item_authors ia ON items.content_id = ia.content_id WHERE ia.author_id = :id AND ' . items_product_source_where('items') . ' ORDER BY items.date_published DESC LIMIT 100');
         $itemStmt->bindValue(':id', (int)$id, PDO::PARAM_INT);
         $itemStmt->execute();
         $list = $itemStmt->fetchAll() ?: [];
@@ -34,7 +34,7 @@ if (db_table_exists('item_authors')) {
 
     if ($list === []) {
         try {
-            $itemStmt = db()->prepare('SELECT items.* FROM items INNER JOIN item_authors ia ON items.id = ia.item_id WHERE ia.author_id = :id AND ' . items_front_release_where('items') . ' ORDER BY items.date_published DESC LIMIT 100');
+            $itemStmt = db()->prepare('SELECT items.* FROM items INNER JOIN item_authors ia ON items.id = ia.item_id WHERE ia.author_id = :id AND ' . items_product_source_where('items') . ' ORDER BY items.date_published DESC LIMIT 100');
             $itemStmt->bindValue(':id', (int)$id, PDO::PARAM_INT);
             $itemStmt->execute();
             $list = $itemStmt->fetchAll() ?: [];
@@ -45,7 +45,7 @@ if (db_table_exists('item_authors')) {
 
     if ($list === [] && trim((string)($row['dmm_id'] ?? '')) !== '') {
         try {
-            $itemStmt = db()->prepare('SELECT items.* FROM items INNER JOIN item_authors ia ON ia.item_id = items.id WHERE ia.dmm_id = :dmm_id AND ' . items_front_release_where('items') . ' ORDER BY items.release_date DESC, items.id DESC LIMIT 100');
+            $itemStmt = db()->prepare('SELECT items.* FROM items INNER JOIN item_authors ia ON ia.item_id = items.id WHERE ia.dmm_id = :dmm_id AND ' . items_product_source_where('items') . ' ORDER BY items.release_date DESC, items.id DESC LIMIT 100');
             $itemStmt->bindValue(':dmm_id', (string)($row['dmm_id'] ?? ''), PDO::PARAM_STR);
             $itemStmt->execute();
             $list = $itemStmt->fetchAll() ?: [];
@@ -56,7 +56,7 @@ if (db_table_exists('item_authors')) {
 
     if ($list === []) {
         try {
-            $itemStmt = db()->prepare('SELECT items.* FROM items INNER JOIN item_authors ia ON ia.item_id = items.id WHERE ia.author_name = :name AND ' . items_front_release_where('items') . ' ORDER BY items.release_date DESC, items.id DESC LIMIT 100');
+            $itemStmt = db()->prepare('SELECT items.* FROM items INNER JOIN item_authors ia ON ia.item_id = items.id WHERE ia.author_name = :name AND ' . items_product_source_where('items') . ' ORDER BY items.release_date DESC, items.id DESC LIMIT 100');
             $itemStmt->bindValue(':name', (string)($row['name'] ?? ''), PDO::PARAM_STR);
             $itemStmt->execute();
             $list = $itemStmt->fetchAll() ?: [];

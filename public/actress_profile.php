@@ -10,6 +10,7 @@ pcf_crawler_guard_check();
 
 header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: private, max-age=300');
+header('X-Robots-Tag: noindex, nofollow', true);
 
 function actress_profile_json_response(array $payload, int $status = 200): void
 {

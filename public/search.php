@@ -272,6 +272,7 @@ $searchRows = search_fetch_items($searchQuery, $limit, $offset);
 
 $title = '検索結果';
 $pageDescription = $searchQuery !== '' ? mb_strimwidth('「' . $searchQuery . '」の商品検索結果です。', 0, 150, '…', 'UTF-8') : 'キーワードを入力して商品を検索できます。';
+$robotsMeta = 'noindex,follow';
 $canonicalQuery = [];
 if ($searchQuery !== '') {
     $canonicalQuery['q'] = $searchQuery;
