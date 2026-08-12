@@ -8,6 +8,16 @@ function pcf_home_rotation_cache_file(): string
     return dirname(__DIR__) . '/storage/cache/home-rotation.json';
 }
 
+function pcf_home_rotation_read(): array
+{
+    $file = pcf_home_rotation_cache_file();
+    if (!is_file($file)) {
+        return [];
+    }
+    $decoded = json_decode((string)@file_get_contents($file), true);
+    return is_array($decoded) ? $decoded : [];
+}
+
 function pcf_home_rotation_query(PDO $pdo, string $sql): array
 {
     try {
@@ -64,64 +74,77 @@ function pcf_home_rotation_window_sets(PDO $pdo, string $columns, string $table,
 
 function pcf_home_rotation_refresh(?PDO $pdo = null): array
 {
-    $pdo ??= db();
-    $seed = (int)floor(time() / 600);
+    $directory = dirname(pcf_home_rotation_cache_file());
+    if (!is_dir($directory) && !@mkdir($directory, 0775, true) && !is_dir($directory)) {
+        return pcf_home_rotation_read();
+    }
+    $lockHandle = @fopen($directory . '/home-rotation.lock', 'c');
+    if (!is_resource($lockHandle) || !@flock($lockHandle, LOCK_EX | LOCK_NB)) {
+        if (is_resource($lockHandle)) {
+            fclose($lockHandle);
+        }
+        return pcf_home_rotation_read();
+    }
 
-    $actressSets = pcf_home_rotation_window_sets(
-        $pdo,
-        'id,name,image_small,image_large,image_url',
-        'actresses',
-        'COALESCE(NULLIF(image_small, ""),NULLIF(image_large, ""),NULLIF(image_url, "")) IS NOT NULL',
-        15
-    );
-    $itemSets = pcf_home_rotation_window_sets(
-        $pdo,
-        'id,content_id,title,image_small,image_large,image_list,affiliate_url,
-         sample_movie_url_720,sample_movie_url_644,sample_movie_url_560,sample_movie_url_476,
-         release_date,created_at,updated_at',
-        'items',
-        'item_source="fanza_product" AND (release_date IS NULL OR release_date="" OR release_date<=CURDATE())',
-        40
-    );
-    $genres = pcf_home_rotation_query(
-        $pdo,
-        'SELECT g.id,g.name,COUNT(ig.id) AS item_count
-         FROM genres g INNER JOIN item_genres ig ON ig.genre_id=g.id
-         GROUP BY g.id,g.name HAVING COUNT(ig.id)>0
-         ORDER BY item_count DESC,g.id DESC LIMIT 120'
-    );
-    if ($genres === []) {
+    try {
+        $pdo ??= db();
+        $seed = (int)floor(time() / 600);
+
+        $actressSets = pcf_home_rotation_window_sets(
+            $pdo,
+            'id,name,image_small,image_large,image_url',
+            'actresses',
+            'COALESCE(NULLIF(image_small, ""),NULLIF(image_large, ""),NULLIF(image_url, "")) IS NOT NULL',
+            15
+        );
+        $itemSets = pcf_home_rotation_window_sets(
+            $pdo,
+            'id,content_id,title,image_small,image_large,image_list,affiliate_url,
+             sample_movie_url_720,sample_movie_url_644,sample_movie_url_560,sample_movie_url_476,
+             release_date,created_at,updated_at',
+            'items',
+            'item_source="fanza_product" AND (release_date IS NULL OR release_date="" OR release_date<=CURDATE())',
+            40
+        );
         $genres = pcf_home_rotation_query(
             $pdo,
             'SELECT g.id,g.name,COUNT(ig.id) AS item_count
-             FROM genres g INNER JOIN item_genres ig ON ig.dmm_id=g.dmm_id
+             FROM genres g INNER JOIN item_genres ig ON ig.genre_id=g.id
              GROUP BY g.id,g.name HAVING COUNT(ig.id)>0
              ORDER BY item_count DESC,g.id DESC LIMIT 120'
         );
-    }
+        if ($genres === []) {
+            $genres = pcf_home_rotation_query(
+                $pdo,
+                'SELECT g.id,g.name,COUNT(ig.id) AS item_count
+                 FROM genres g INNER JOIN item_genres ig ON ig.dmm_id=g.dmm_id
+                 GROUP BY g.id,g.name HAVING COUNT(ig.id)>0
+                 ORDER BY item_count DESC,g.id DESC LIMIT 120'
+            );
+        }
 
-    $payload = [
-        'generated_at' => date(DATE_ATOM),
-        'items' => $itemSets,
-        'actresses' => $actressSets,
-        'genres' => pcf_home_rotation_pick_sets($genres, 3, $seed + 20),
-    ];
+        $payload = [
+            'generated_at' => date(DATE_ATOM),
+            'items' => $itemSets,
+            'actresses' => $actressSets,
+            'genres' => pcf_home_rotation_pick_sets($genres, 3, $seed + 20),
+        ];
 
-    $directory = dirname(pcf_home_rotation_cache_file());
-    if (!is_dir($directory) && !@mkdir($directory, 0775, true) && !is_dir($directory)) {
-        return [];
-    }
-    $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    if (!is_string($json)) {
-        return [];
-    }
-    $temporary = pcf_home_rotation_cache_file() . '.' . getmypid() . '.tmp';
-    if (@file_put_contents($temporary, $json, LOCK_EX) === false || !@rename($temporary, pcf_home_rotation_cache_file())) {
-        @unlink($temporary);
-        return [];
-    }
+        $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if (!is_string($json)) {
+            return [];
+        }
+        $temporary = pcf_home_rotation_cache_file() . '.' . getmypid() . '.tmp';
+        if (@file_put_contents($temporary, $json, LOCK_EX) === false || !@rename($temporary, pcf_home_rotation_cache_file())) {
+            @unlink($temporary);
+            return [];
+        }
 
-    return $payload;
+        return $payload;
+    } finally {
+        @flock($lockHandle, LOCK_UN);
+        fclose($lockHandle);
+    }
 }
 
 function pcf_home_rotation_load(int $maxAgeSeconds = 900): array
@@ -134,8 +157,7 @@ function pcf_home_rotation_load(int $maxAgeSeconds = 900): array
             return [];
         }
     }
-    $decoded = json_decode((string)@file_get_contents($file), true);
-    return is_array($decoded) ? $decoded : [];
+    return pcf_home_rotation_read();
 }
 
 function pcf_home_rotation_current_set(array $cache, string $key): array
