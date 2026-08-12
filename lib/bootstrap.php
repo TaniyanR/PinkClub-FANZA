@@ -13,6 +13,45 @@ if (!is_array($config)) {
 }
 $GLOBALS['app_config'] = $config;
 
+function pcf_session_start(): void
+{
+    if (session_status() === PHP_SESSION_ACTIVE || PHP_SAPI === 'cli') {
+        return;
+    }
+
+    session_start();
+}
+
+function pcf_session_is_required(): bool
+{
+    if (PHP_SAPI === 'cli') {
+        return false;
+    }
+
+    $sessionName = session_name();
+    if ($sessionName !== '' && isset($_COOKIE[$sessionName])) {
+        return true;
+    }
+
+    $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    if (!in_array($method, ['GET', 'HEAD'], true)) {
+        return true;
+    }
+
+    $requestPath = (string)(parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/');
+    if (str_contains($requestPath, '/admin/')) {
+        return true;
+    }
+
+    $scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
+    return in_array($scriptName, [
+        'login0718.php',
+        'forgot_password.php',
+        'reset_password.php',
+        'setup_check.php',
+    ], true);
+}
+
 if (session_status() !== PHP_SESSION_ACTIVE) {
     $sessionLifetime = (int)($config['security']['session_lifetime'] ?? 86400);
     ini_set('session.gc_maxlifetime', (string)$sessionLifetime);
@@ -27,7 +66,9 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
         'httponly' => true,
         'samesite' => 'Lax',
     ]);
-    session_start();
+    if (pcf_session_is_required()) {
+        pcf_session_start();
+    }
 }
 
 date_default_timezone_set('Asia/Tokyo');
