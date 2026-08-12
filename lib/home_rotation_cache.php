@@ -109,15 +109,15 @@ function pcf_home_rotation_refresh(?PDO $pdo = null): array
         $genres = pcf_home_rotation_query(
             $pdo,
             'SELECT g.id,g.name,COUNT(ig.id) AS item_count
-             FROM genres g INNER JOIN item_genres ig ON ig.genre_id=g.id
+             FROM genres g INNER JOIN item_genres ig ON ig.dmm_id=g.dmm_id
              GROUP BY g.id,g.name HAVING COUNT(ig.id)>0
              ORDER BY item_count DESC,g.id DESC LIMIT 120'
         );
-        if ($genres === []) {
+        if ($genres === [] && db_column_exists('item_genres', 'genre_id')) {
             $genres = pcf_home_rotation_query(
                 $pdo,
                 'SELECT g.id,g.name,COUNT(ig.id) AS item_count
-                 FROM genres g INNER JOIN item_genres ig ON ig.dmm_id=g.dmm_id
+                 FROM genres g INNER JOIN item_genres ig ON ig.genre_id=g.id
                  GROUP BY g.id,g.name HAVING COUNT(ig.id)>0
                  ORDER BY item_count DESC,g.id DESC LIMIT 120'
             );
