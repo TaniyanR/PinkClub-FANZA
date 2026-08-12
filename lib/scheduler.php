@@ -30,15 +30,13 @@ function scheduler_tick(): array
         try {
             $result = scheduler_run_schedule($schedule);
             $jobStatus = scheduler_schedule_result_status($result);
-            if ($jobStatus === 'success') {
-                $pdo->prepare('UPDATE api_schedules SET last_run_at = NOW(), lock_until = NULL WHERE id = ?')->execute([$schedule['id']]);
-            } else {
-                $pdo->prepare('UPDATE api_schedules SET lock_until = NULL WHERE id = ?')->execute([$schedule['id']]);
-            }
+            // Record every acquired execution attempt, including a handled
+            // skip, so one unhealthy schedule cannot starve the other job.
+            $pdo->prepare('UPDATE api_schedules SET last_run_at = NOW(), lock_until = NULL WHERE id = ?')->execute([$schedule['id']]);
             $jobs[] = array_merge(['schedule_type' => $scheduleType, 'status' => $jobStatus], $result);
             break;
         } catch (Throwable $e) {
-            $pdo->prepare('UPDATE api_schedules SET lock_until = NULL WHERE id = ?')->execute([$schedule['id']]);
+            $pdo->prepare('UPDATE api_schedules SET last_run_at = NOW(), lock_until = NULL WHERE id = ?')->execute([$schedule['id']]);
             $jobs[] = ['schedule_type' => $scheduleType, 'status' => 'error', 'synced_count' => 0, 'message' => $e->getMessage()];
             break;
         }
