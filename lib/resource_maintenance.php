@@ -27,15 +27,22 @@ function pcf_resource_cleanup(?PDO $pdo = null, int $batchSize = 500): array
     $cacheDirectory = dirname(__DIR__) . '/storage/cache/public-pages';
     $cutoff = time() - 86400;
     if (is_dir($cacheDirectory)) {
-        $files = glob($cacheDirectory . '/*.html') ?: [];
-        foreach ($files as $file) {
-            if ($deleted['cache_files'] >= $batchSize || !is_file($file)) {
-                break;
+        try {
+            $files = new FilesystemIterator($cacheDirectory, FilesystemIterator::SKIP_DOTS);
+            foreach ($files as $file) {
+                if ($deleted['cache_files'] >= $batchSize) {
+                    break;
+                }
+                if ($file->isLink() || !$file->isFile() || strtolower($file->getExtension()) !== 'html') {
+                    continue;
+                }
+                $modifiedAt = $file->getMTime();
+                if ($modifiedAt < $cutoff && @unlink($file->getPathname())) {
+                    $deleted['cache_files']++;
+                }
             }
-            $modifiedAt = @filemtime($file);
-            if ($modifiedAt !== false && $modifiedAt < $cutoff && @unlink($file)) {
-                $deleted['cache_files']++;
-            }
+        } catch (Throwable $e) {
+            error_log('[resource_cleanup] public page cache: ' . $e->getMessage());
         }
     }
 
