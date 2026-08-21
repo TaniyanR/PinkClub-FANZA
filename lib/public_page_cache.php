@@ -2,6 +2,23 @@
 
 declare(strict_types=1);
 
+function pcf_public_request_is_mobile(): bool
+{
+    static $isMobile = null;
+    if (is_bool($isMobile)) {
+        return $isMobile;
+    }
+
+    $viewportCookie = (string)($_COOKIE['pcf_viewport'] ?? '');
+    $clientHintMobile = (string)($_SERVER['HTTP_SEC_CH_UA_MOBILE'] ?? '');
+    $userAgent = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
+    $isMobile = $viewportCookie === 'sp'
+        || $clientHintMobile === '?1'
+        || ($userAgent !== '' && preg_match('/Android.*Mobile|iPhone|iPod|Windows Phone|BlackBerry|webOS/i', $userAgent) === 1);
+
+    return $isMobile;
+}
+
 function pcf_public_page_cache_start(int $ttlSeconds = 120): void
 {
     if (PHP_SAPI === 'cli' || headers_sent()) {
@@ -57,15 +74,8 @@ function pcf_public_page_cache_start(int $ttlSeconds = 120): void
         return;
     }
 
-    $viewportCookie = (string)($_COOKIE['pcf_viewport'] ?? '');
-    $clientHintMobile = (string)($_SERVER['HTTP_SEC_CH_UA_MOBILE'] ?? '');
-    $userAgent = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
-    $isMobile = $viewportCookie === 'sp'
-        || $clientHintMobile === '?1'
-        || ($userAgent !== '' && preg_match('/Android.*Mobile|iPhone|iPod|Windows Phone|BlackBerry|webOS/i', $userAgent));
-
     $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
-    $variant = $isMobile ? 'sp' : 'pc';
+    $variant = pcf_public_request_is_mobile() ? 'sp' : 'pc';
     $cacheQuery = [];
     parse_str((string)(parse_url($requestUri, PHP_URL_QUERY) ?? ''), $cacheQuery);
     $allowedCacheQueryKeys = [
@@ -103,7 +113,7 @@ function pcf_public_page_cache_start(int $ttlSeconds = 120): void
     if ($normalizedQuery !== '') {
         $normalizedRequestUri .= '?' . $normalizedQuery;
     }
-    $cacheKey = hash('sha256', 'v3|' . $host . '|' . $variant . '|' . $normalizedRequestUri);
+    $cacheKey = hash('sha256', 'v4|' . $host . '|' . $variant . '|' . $normalizedRequestUri);
     $cacheFile = $cacheDirectory . '/' . $cacheKey . '.html';
     // Sixteen lock shards prevent a cache stampede without creating one lock file per URL.
     $cacheLockFile = $cacheDirectory . '/.regenerate-' . substr($cacheKey, 0, 1) . '.lock';

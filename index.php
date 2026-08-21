@@ -36,6 +36,7 @@ function redirect_canonical_home_url(): void
 }
 
 redirect_canonical_home_url();
+$isMobileRequest = function_exists('pcf_public_request_is_mobile') && pcf_public_request_is_mobile();
 
 function seeded_shuffle(array $rows, int $seed): array
 {
@@ -636,34 +637,40 @@ $hasHomeContent = $newReleaseTop !== []
     </section>
   <?php endif; ?>
 <?php else: ?>
+  <?php if (!$isMobileRequest): ?>
   <section class="rail-section only-pc home-feature-section">
     <h2>新作作品</h2>
     <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift rail-row--between-gap"><?php foreach ($newReleaseTop as $item) { render_item_card($item, 210, null, false, false); } ?></div>
     <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal rail-row--home-taxonomy"><?php foreach ($newReleaseBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
+  <?php endif; ?>
   <section class="rail-section only-sp">
     <h2>新作作品</h2>
-    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($newReleaseTop as $item) { render_item_card($item, 210, null, true, false); } ?></div>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($newReleaseTop as $item) { render_item_card($item, 210, null, true, true); } ?></div>
   </section>
 
+  <?php if (!$isMobileRequest): ?>
   <section class="rail-section only-pc home-feature-section">
     <h2>新着作品</h2>
     <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift rail-row--between-gap"><?php foreach ($latestTop as $item) { render_item_card($item, 210, null, false, false); } ?></div>
     <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal rail-row--home-taxonomy"><?php foreach ($latestBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
+  <?php endif; ?>
   <section class="rail-section only-sp">
     <h2>新着作品</h2>
-    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($latestTop as $item) { render_item_card($item, 210, null, true, false); } ?></div>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($latestTop as $item) { render_item_card($item, 210, null, true, true); } ?></div>
   </section>
 
+  <?php if (!$isMobileRequest): ?>
   <section class="rail-section only-pc home-feature-section">
     <h2>ピックアップ</h2>
     <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift rail-row--between-gap"><?php foreach ($pickupTop as $item) { render_item_card($item, 210, null, false, false); } ?></div>
     <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal rail-row--home-taxonomy"><?php foreach ($pickupBottom as $item) { render_item_card($item, 200, null, true); } ?></div>
   </section>
+  <?php endif; ?>
   <section class="rail-section only-sp">
     <h2>ピックアップ</h2>
-    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($pickupTop as $item) { render_item_card($item, 210, null, true, false); } ?></div>
+    <div class="rail-row rail-row--210 rail-row--no-scroll rail-row--top-shift"><?php foreach ($pickupTop as $item) { render_item_card($item, 210, null, true, true); } ?></div>
   </section>
 
   <section class="rail-section">
@@ -672,7 +679,7 @@ $hasHomeContent = $newReleaseTop !== []
       <?php foreach ($actresses as $actress): ?>
         <?php $actressImage = actress_index_image(is_array($actress) ? $actress : []); ?>
         <article class="card rail-card rail-card--180">
-          <?php if ($actressImage !== ''): ?><img class="thumb" src="<?= e($actressImage) ?>" alt="<?= e((string)$actress['name']) ?>"><?php else: ?><div class="rail-card__noimage" style="width:180px;height:180px;">画像なし</div><?php endif; ?>
+          <?php if ($actressImage !== ''): ?><img class="thumb" src="<?= e($actressImage) ?>" alt="<?= e((string)$actress['name']) ?>" loading="lazy" decoding="async"><?php else: ?><div class="rail-card__noimage" style="width:180px;height:180px;">画像なし</div><?php endif; ?>
           <a class="rail-card__title" href="<?= e(app_url('public/actress.php?id=' . (int)$actress['id'])) ?>"><?= e((string)$actress['name']) ?></a>
         </article>
       <?php endforeach; ?>

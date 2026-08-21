@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/_helpers.php';
 
 $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home';
+$isMobileRequest = function_exists('pcf_public_request_is_mobile') && pcf_public_request_is_mobile();
 $safeTextSetting = static function (string $key, string $default = ''): string {
     if (function_exists('front_safe_text_setting')) {
         return front_safe_text_setting($key, $default);
@@ -228,9 +229,9 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
       <div class="site-disclaimer"><strong>当サイトはアフィリエイト広告を利用しています。</strong></div>
     </div>
     <div class="header-right site-header__right">
-      <?php if ($headerAdHtml !== '') : ?>
+      <?php if (!$isMobileRequest && $headerAdHtml !== '') : ?>
         <div class="site-ad"><?= $headerAdHtml ?></div>
-      <?php elseif ($canRenderAd && (!function_exists('should_show_ad') || should_show_ad('header_left_728x90', $pageType, 'pc'))) : ?>
+      <?php elseif (!$isMobileRequest && $canRenderAd && (!function_exists('should_show_ad') || should_show_ad('header_left_728x90', $pageType, 'pc'))) : ?>
         <div class="site-ad"><?php render_ad('header_left_728x90', $pageType, 'pc'); ?></div>
       <?php endif; ?>
     </div>
@@ -247,7 +248,9 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
 </div>
 <?php endif; ?>
 <div class="layout site-layout">
-  <?php require __DIR__ . '/sidebar.php'; ?>
+  <?php if (!$isMobileRequest): ?>
+    <?php require __DIR__ . '/sidebar.php'; ?>
+  <?php endif; ?>
   <main class="content site-main site-main--legacy">
     <?php $scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? '')); ?>
     <?php $autoBreadcrumbSkip = ['item.php', 'genre.php', 'series_detail.php', 'series_one.php', 'author.php', 'maker.php', 'actress.php', 'label.php']; ?>
