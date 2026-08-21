@@ -104,6 +104,10 @@ body.admin-page .admin-menu__badge{display:inline-block;margin-left:8px;padding:
   body.admin-page .admin-main{margin-left:0;padding:12px;overflow-x:auto}
   body.admin-page input,body.admin-page select,body.admin-page textarea{box-sizing:border-box;max-width:100%}
   body.admin-page .admin-table{display:block;overflow-x:auto}
+  body.admin-page .admin-auto-grid{grid-template-columns:minmax(0,1fr) !important;gap:6px !important;min-width:0;width:100%}
+  body.admin-page .admin-auto-grid > *{min-width:0;max-width:100%}
+  body.admin-page .admin-auto-grid input,body.admin-page .admin-auto-grid select{width:100% !important;max-width:100% !important}
+  body.admin-page .admin-auto-toggle input[type="checkbox"]{width:auto !important;max-width:none !important;margin:0;flex:0 0 auto}
 }
 
 /* Shared public/login/setup styles */
