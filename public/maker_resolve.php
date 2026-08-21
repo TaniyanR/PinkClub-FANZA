@@ -31,5 +31,6 @@ if ($makerId > 0) {
     exit;
 }
 
-header('Location: ' . public_url('search.php') . '?' . http_build_query(['q' => $name]), true, 301);
-exit;
+// This URL is only a compatibility resolver. Redirecting an unknown maker to
+// the expensive free-text search creates a crawl loop of non-canonical URLs.
+require __DIR__ . '/404.php';

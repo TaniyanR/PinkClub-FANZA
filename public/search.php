@@ -196,15 +196,16 @@ function search_fetch_items(string $query, int $limit, int $offset): array
     $termWhere = [];
     foreach ($terms as $index => $term) {
         $titleParam = ':q_title_' . $index;
-        $rawParam = ':q_raw_json_' . $index;
         $contentParam = ':q_content_id_' . $index;
         $productParam = ':q_product_id_' . $index;
         $like = '%' . addcslashes($term, '\%_') . '%';
         $params[$titleParam] = $like;
-        $params[$rawParam] = $like;
         $params[$contentParam] = $term;
         $params[$productParam] = $term;
-        $termWhere[] = "(title LIKE {$titleParam} ESCAPE '\\\\' OR raw_json LIKE {$rawParam} ESCAPE '\\\\' OR content_id = {$contentParam} OR product_id = {$productParam})";
+        // raw_json is a large, unindexed column. Searching it for every public
+        // request caused some crawler requests to exceed the PHP execution
+        // limit and surface as 5xx in Search Console.
+        $termWhere[] = "(title LIKE {$titleParam} ESCAPE '\\\\' OR content_id = {$contentParam} OR product_id = {$productParam})";
     }
     $whereSql = '(' . implode(' OR ', $termWhere) . ')';
     $sourceWhere = function_exists('items_product_source_where') ? items_product_source_where() : '';
@@ -226,10 +227,14 @@ function search_fetch_items(string $query, int $limit, int $offset): array
             $chunkSize = max($limit + 1, 25);
             $cursor = 0;
             $targetCount = $offset + $limit + 1;
-            $maxLoops = 30;
+            $maxLoops = 8;
+            $deadline = microtime(true) + 2.5;
             $collected = [];
 
             for ($i = 0; $i < $maxLoops; $i++) {
+                if (microtime(true) >= $deadline) {
+                    break;
+                }
                 $stmt = db()->prepare('SELECT * FROM items WHERE ' . $whereSql . ' ORDER BY ' . $orderSql . ' LIMIT :l OFFSET :o');
                 foreach ($params as $paramName => $paramValue) {
                     $stmt->bindValue($paramName, $paramValue, PDO::PARAM_STR);
