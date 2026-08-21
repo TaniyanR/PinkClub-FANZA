@@ -28,22 +28,22 @@ function pcf_session_is_required(): bool
         return false;
     }
 
-    // These browser beacons never read or write session data. Keeping them
-    // stateless prevents an anonymous page view from creating a session cookie
-    // immediately after the cached HTML response has been delivered.
     $scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
     $requestPath = (string)(parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/');
+
+    $sessionName = session_name();
+    if ($sessionName !== '' && isset($_COOKIE[$sessionName])) {
+        return true;
+    }
+
+    // Anonymous browser beacons remain stateless. If a session cookie exists,
+    // however, load it so administrator page views can be excluded.
     if (!str_contains($requestPath, '/admin/') && in_array($scriptName, [
         'analytics.php',
         'page_view_beacon.php',
         'ranking_refresh.php',
     ], true)) {
         return false;
-    }
-
-    $sessionName = session_name();
-    if ($sessionName !== '' && isset($_COOKIE[$sessionName])) {
-        return true;
     }
 
     $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));

@@ -119,6 +119,7 @@ $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relN
   <script src="<?= e(asset_url('js/recently-viewed.js')) ?>" defer></script>
   <script src="<?= e(asset_url('js/recommendations.js')) ?>" defer></script>
   <script src="<?= e(asset_url('js/item-detail-fixes.js')) ?>" defer></script>
+  <script src="<?= e(asset_url('js/sample-image-modal.js')) ?>" defer></script>
   <script>
   document.addEventListener('DOMContentLoaded', () => {
     const vrPattern = /(?:【|\[|［)?\s*VR\s*(?:】|\]|］)?/i;
