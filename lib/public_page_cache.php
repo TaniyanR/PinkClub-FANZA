@@ -29,17 +29,19 @@ function pcf_public_page_cache_start(int $ttlSeconds = 120): void
         'ranking_refresh.php',
         'link_apply.php',
         'deletion_request_submit.php',
-        'page.php',
     ];
+    $pageSlug = trim((string)($_GET['slug'] ?? ''));
+    $isContactPage = $scriptName === 'page.php' && in_array($pageSlug, ['que', 'contact'], true);
+    $isExcludedScript = in_array($scriptName, $excludedScripts, true) || $isContactPage;
 
     if (
         str_contains($requestPath, '/admin/')
         || str_contains($requestPath, '/api/')
         || $scriptName === 'page_view_beacon.php'
-        || in_array($scriptName, $excludedScripts, true)
+        || $isExcludedScript
         || isset($_GET['pcf_nocache'])
     ) {
-        if (in_array($scriptName, $excludedScripts, true)) {
+        if ($isExcludedScript) {
             header('Cache-Control: private, no-store, max-age=0');
             header('Pragma: no-cache');
         }
