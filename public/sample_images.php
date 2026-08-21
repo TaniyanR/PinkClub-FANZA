@@ -105,6 +105,20 @@ $images = array_values(array_unique($images));
 if ($images === []) {
     $images = array_values(array_unique(array_filter(sample_images_parse_list((string)($item['image_list'] ?? '')), static fn($url) => !sample_images_is_self_hosted_fanza_image_url((string)$url))));
 }
+$images = array_values(array_filter($images, static function (string $url): bool {
+    $scheme = strtolower((string)parse_url($url, PHP_URL_SCHEME));
+    return in_array($scheme, ['http', 'https'], true);
+}));
+
+if (strtolower(trim((string)get('format', ''))) === 'json') {
+    header('Content-Type: application/json; charset=UTF-8');
+    header('Cache-Control: public, max-age=300');
+    echo json_encode([
+        'title' => (string)$item['title'],
+        'images' => $images,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
+    exit;
+}
 ?>
 <!doctype html>
 <html lang="ja">

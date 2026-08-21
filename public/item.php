@@ -735,9 +735,15 @@ require __DIR__ . '/partials/header.php';
   <?php endif; ?>
 
 
-  <section id="access-ranking" class="block" style="margin-top:24px;">
-    <h2 class="section-title">人気の作品ランキング！</h2>
-  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+  <section id="access-ranking" class="block pcf-item-ranking">
+    <div class="pcf-item-ranking__heading">
+      <div>
+        <p class="pcf-item-ranking__eyebrow">ACCESS RANKING</p>
+        <h2 class="section-title">人気の作品ランキング</h2>
+      </div>
+      <p class="pcf-item-ranking__description">閲覧数と元サイトへのアクセスをもとに集計しています。</p>
+    </div>
+  <nav class="pcf-item-ranking__tabs" aria-label="ランキング期間">
     <?php foreach ($accessRankingTabs as $tabKey => $tabConfig): ?>
       <?php
       $tabQuery = ['rank_period' => (string)$tabKey];
@@ -752,36 +758,24 @@ require __DIR__ . '/partials/header.php';
       }
       $tabUrl = public_url(basename(__FILE__)) . '?' . http_build_query($tabQuery) . '#access-ranking';
       ?>
-      <?php $tabStyle = $accessRankingPeriod === $tabKey ? 'display:inline-block; padding:6px 12px; border:1px solid #0b5ed7; border-radius:6px; background:#0b5ed7; color:#fff; font-weight:700; text-decoration:none;' : 'display:inline-block; padding:6px 12px; border:1px solid #0b5ed7; border-radius:6px; background:#fff; color:#0b5ed7; font-weight:700; text-decoration:none;'; ?>
-      <a href="<?= e($tabUrl) ?>" rel="nofollow" style="<?= e($tabStyle) ?>"><?= e((string)$tabConfig['label']) ?></a>
+      <a href="<?= e($tabUrl) ?>" rel="nofollow" class="pcf-item-ranking__tab<?= $accessRankingPeriod === $tabKey ? ' is-active' : '' ?>"<?= $accessRankingPeriod === $tabKey ? ' aria-current="page"' : '' ?>><?= e((string)$tabConfig['label']) ?></a>
     <?php endforeach; ?>
-  </div>
+  </nav>
     <?php if ($accessRankingRows !== []): ?>
-      <div style="max-height:800px; overflow-y:auto; border:1px solid #ddd;">
-        <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
-          <thead>
-            <tr>
-              <th style="width:80px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">順位</th>
-              <th style="width:auto; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">作品タイトル</th>
-              <th style="width:120px; text-align:center; padding:8px; border-bottom:1px solid #ddd; background:#0b5ed7; color:#fff;">ランキング点</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php foreach ($accessRankingRows as $index => $rankingRow): ?>
-              <tr>
-                <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><?= e((string)($index + 1)) ?></td>
-                <td style="padding:8px; border-bottom:1px solid #eee; text-align:left;">
-                <?php
-                $rankingItemUrl = public_url('item.php') . '?id=' . rawurlencode((string)($rankingRow['id'] ?? ''));
-                ?>
-                <a href="<?= e($rankingItemUrl) ?>"><?= e((string)($rankingRow['title'] ?? '')) ?></a>
-              </td>
-                <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><?= e((string)((int)($rankingRow['access_count'] ?? 0))) ?></td>
-              </tr>
-            <?php endforeach; ?>
-          </tbody>
-        </table>
-      </div>
+      <ol class="pcf-item-ranking__list">
+        <?php foreach ($accessRankingRows as $index => $rankingRow): ?>
+          <?php $rankingItemUrl = public_url('item.php') . '?id=' . rawurlencode((string)($rankingRow['id'] ?? '')); ?>
+          <li class="pcf-item-ranking__row<?= $index < 3 ? ' is-top' : '' ?>">
+            <span class="pcf-item-ranking__position"><?= e((string)($index + 1)) ?></span>
+            <a class="pcf-item-ranking__title" href="<?= e($rankingItemUrl) ?>"><?= e((string)($rankingRow['title'] ?? '')) ?></a>
+            <span class="pcf-item-ranking__metrics">
+              <span>閲覧 <?= e((string)((int)($rankingRow['page_view_count'] ?? 0))) ?></span>
+              <span>移動 <?= e((string)((int)($rankingRow['out_click_count'] ?? 0))) ?></span>
+              <strong><?= e((string)((int)($rankingRow['access_count'] ?? 0))) ?> pt</strong>
+            </span>
+          </li>
+        <?php endforeach; ?>
+      </ol>
     <?php else: ?>
       <?php pcf_render_empty('人気の作品ランキング！のデータがありません。'); ?>
     <?php endif; ?>

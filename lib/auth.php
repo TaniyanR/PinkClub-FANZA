@@ -20,7 +20,40 @@ function auth_last_error(): ?string
 
 function auth_credentials_are_personalized(): bool
 {
-    return function_exists('setting_get') && setting_get('auth.credentials_personalized', '0') === '1';
+    if (function_exists('setting_get') && setting_get('auth.credentials_personalized', '0') === '1') {
+        return true;
+    }
+
+    // Older releases saved the username, email and password without the
+    // credentials_personalized flag. Recognize that completed configuration
+    // instead of showing a false "initial credentials" warning.
+    $user = auth_user();
+    $userId = is_array($user) ? (int)($user['id'] ?? 0) : 0;
+    if ($userId <= 0 || !function_exists('setting_admin_email')) {
+        return false;
+    }
+
+    $email = trim(setting_admin_email(''));
+    if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+        return false;
+    }
+
+    try {
+        $stmt = db()->prepare('SELECT username, password_hash FROM admins WHERE id=:id LIMIT 1');
+        $stmt->execute([':id' => $userId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            return false;
+        }
+        $username = trim((string)($row['username'] ?? ''));
+        $passwordHash = (string)($row['password_hash'] ?? '');
+        return $username !== ''
+            && strcasecmp($username, 'admin') !== 0
+            && $passwordHash !== ''
+            && !password_verify('password', $passwordHash);
+    } catch (Throwable) {
+        return false;
+    }
 }
 
 function auth_default_username_is_disabled(): bool
