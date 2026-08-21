@@ -56,9 +56,6 @@ return [
         'floor' => 'videoa',
     ],
 
-    'admin' => [
-        'username' => 'admin',
-        // config.local.php で bcrypt ハッシュを設定してください
-        'password_hash' => '',
-    ],
+    // 管理画面のログインID・パスワードは admins テーブルで一元管理し、
+    // 管理画面「個人設定」からのみ変更します。
 ];
