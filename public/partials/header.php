@@ -26,6 +26,18 @@ $safeTextSetting = static function (string $key, string $default = ''): string {
 
     return $default;
 };
+$conformEmbeddedHtml = static function (string $html): string {
+    $html = preg_replace('/\s+type\s*=\s*(["\'])text\/javascript\1/i', '', $html) ?? $html;
+
+    return preg_replace_callback('/<img\b[^>]*>/i', static function (array $match): string {
+        $tag = (string)($match[0] ?? '');
+        if ($tag === '' || preg_match('/\balt\s*=/i', $tag) === 1) {
+            return $tag;
+        }
+
+        return preg_replace('/\s*\/?>$/', ' alt="">', $tag) ?? $tag;
+    }, $html) ?? $html;
+};
 
 $siteName = trim($safeTextSetting('site_name', ''));
 if ($siteName === '') {
@@ -40,9 +52,9 @@ $keywords = trim($safeTextSetting('site.keywords', ''));
 $logoPath = trim($safeTextSetting('site.logo_path', ''));
 $faviconPath = trim($safeTextSetting('site.favicon_path', ''));
 
-$headerAdHtml = trim($safeTextSetting('header_ad_html', ''));
-$customHeadCode = trim($safeTextSetting('site.custom_head_code', ''));
-$customBodyOpenCode = trim($safeTextSetting('site.custom_body_open_code', ''));
+$headerAdHtml = $conformEmbeddedHtml(trim($safeTextSetting('header_ad_html', '')));
+$customHeadCode = $conformEmbeddedHtml(trim($safeTextSetting('site.custom_head_code', '')));
+$customBodyOpenCode = $conformEmbeddedHtml(trim($safeTextSetting('site.custom_body_open_code', '')));
 $titleText = (string)($title ?? $pageTitle ?? $siteName);
 $titleBaseText = trim($titleText);
 $isHomeTitle = $titleBaseText === '' || $titleBaseText === 'トップ' || $titleBaseText === $siteName;
