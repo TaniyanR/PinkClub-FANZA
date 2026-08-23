@@ -11,6 +11,49 @@ function analytics_beacon_marker_hash(): string
     return hash('sha256', 'pinkclub-browser-beacon');
 }
 
+function analytics_beacon_token(string $path, ?int $issuedAt = null): string
+{
+    $issuedAt ??= time();
+    $path = analytics_normalize_beacon_path($path);
+    $visitor = analytics_visitor_hash((string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+    $secret = (string)config_get('security.ip_hash_salt', '');
+    if ($secret === '') {
+        $secret = hash('sha256', __DIR__ . '|' . (string)config_get('db.name', 'pinkclub') . '|pinkclub-beacon-token');
+    }
+    $signature = hash_hmac('sha256', $issuedAt . "\n" . $path . "\n" . $visitor, $secret);
+
+    return $issuedAt . '.' . $signature;
+}
+
+function analytics_normalize_beacon_path(string $rawPath): string
+{
+    $path = (string)parse_url($rawPath, PHP_URL_PATH);
+    if ($path === '' || $path[0] !== '/') {
+        $path = '/';
+    }
+    $queryParams = [];
+    parse_str((string)(parse_url($rawPath, PHP_URL_QUERY) ?? ''), $queryParams);
+    unset($queryParams['rank_period']);
+    $query = http_build_query($queryParams);
+
+    return mb_substr($path . ($query !== '' ? '?' . $query : ''), 0, 255);
+}
+
+function analytics_beacon_token_is_valid(string $token, string $path): bool
+{
+    if (preg_match('/^(\d{10})\.([a-f0-9]{64})$/', $token, $matches) !== 1) {
+        return false;
+    }
+    $issuedAt = (int)$matches[1];
+    // A real page keeps the beacon for a short dwell time. Reject immediate
+    // endpoint probes and stale tokens copied by traffic generators.
+    if ($issuedAt > time() - 2 || $issuedAt < time() - 1800) {
+        return false;
+    }
+
+    return hash_equals(analytics_beacon_token($path, $issuedAt), $token);
+}
+
 
 function analytics_request_is_automated(?string $userAgent = null): bool
 {
@@ -166,19 +209,14 @@ function analytics_track_beacon(): void
     if (analytics_request_is_automated($ua)) {
         return;
     }
-    $hash = analytics_visitor_hash($ua);
     $rawPath = (string)($_POST['path'] ?? '/');
-    $path = (string)parse_url($rawPath, PHP_URL_PATH);
-    if ($path === '' || $path[0] !== '/') {
-        $path = '/';
+    $token = trim((string)($_POST['token'] ?? ''));
+    if (!analytics_beacon_token_is_valid($token, $rawPath)) {
+        return;
     }
-
-    $queryParams = [];
-    parse_str((string)(parse_url($rawPath, PHP_URL_QUERY) ?? ''), $queryParams);
-    unset($queryParams['rank_period']);
-    $requestQuery = http_build_query($queryParams);
-    $pageKey = $path . ($requestQuery !== '' ? '?' . $requestQuery : '');
-    $pathForStats = mb_substr($pageKey, 0, 255);
+    $hash = analytics_visitor_hash($ua);
+    $path = (string)parse_url($rawPath, PHP_URL_PATH) ?: '/';
+    $pathForStats = analytics_normalize_beacon_path($rawPath);
     $today = date('Y-m-d');
     $referrer = (string)($_POST['referrer'] ?? '');
     $refererHost = parse_url($referrer, PHP_URL_HOST) ?: '';
