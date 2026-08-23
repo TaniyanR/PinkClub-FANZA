@@ -43,13 +43,12 @@
 - `/admin/api_genres.php`（ジャンルAPI設定）
 - `/admin/api_actresses.php`（女優API設定）
 - `/admin/api_series.php`（シリーズAPI設定）
-- `/admin/api_timer.php`（タイマー実行API）
-- `/admin/auto_timer.php`（タイマー稼働ページ）
+- `/admin/api_auto.php`（自動取得設定）
+- `/admin/cron_settings.php`（cron設定）
 - `/admin/site_settings.php`
-- `/admin/account_settings.php`
-- `/admin/design_settings.php`
+- `/admin/personal_settings.php`
 - `/admin/links_partner.php`
-- `/admin/links_rss.php`
+- `/admin/link_rss_display.php`
 - `/admin/analytics.php`
 - `/admin/affiliate_ads.php`
 - `/admin/pages.php`
@@ -88,7 +87,7 @@
 ## 新規/更新された管理画面URL
 - `/admin/site_settings.php`（サイト名/URL/キャッチフレーズ/キーワード）
 - `/admin/links.php`（相互リンク管理）
-- `/admin/rss.php`（RSS管理）
+- `/admin/link_rss_display.php`（相互リンク表示設定）
 - `/admin/analytics.php`（アクセス解析）
 - `/admin/affiliate_api.php`（API設定/手動10件取得/タイマー状態）
 
@@ -105,7 +104,7 @@
 
 # 統合ドキュメント
 
-このREADMEに、リポジトリ内に分かれていたMarkdown文書を統合しています。
+このREADMEに、リポジトリ内に分かれていたMarkdown文書を統合しています。以下の「統合元」セクションは過去リリース時点の記録であり、現行URLと操作手順は上記のセットアップおよび管理画面一覧を参照してください。
 
 
 ---

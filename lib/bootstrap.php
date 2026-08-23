@@ -91,6 +91,17 @@ if (!headers_sent()) {
     header('X-Frame-Options: SAMEORIGIN');
     header('Referrer-Policy: strict-origin-when-cross-origin');
     header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+
+    $requestPath = (string)(parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/');
+    $scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
+    if (str_contains($requestPath, '/admin/') || in_array($scriptName, [
+        'login0718.php',
+        'forgot_password.php',
+        'reset_password.php',
+        'setup_check.php',
+    ], true)) {
+        header('X-Robots-Tag: noindex, nofollow', true);
+    }
 }
 
 require_once __DIR__ . '/db.php';
