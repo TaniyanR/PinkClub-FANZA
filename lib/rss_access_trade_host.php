@@ -158,6 +158,21 @@ function rss_trade_select_host_aware(array $items, int $maxTotal, int $hardPerSi
     }
     unset($bucket);
 
+    // Access-trade priority must not turn into visual domination.
+    // Scale the per-site ceiling to the number of active sites. With six
+    // active sites this yields about 4-5 of 20 and 8-9 of 40, while still
+    // allowing fewer-site installations to fill their widget.
+    $activeSiteCount = count($buckets);
+    $balancedCap = (int)ceil(($maxTotal / max(1, $activeSiteCount)) * 1.35);
+    $balancedCap = max(2, $balancedCap);
+    $effectivePerSiteCap = min($hardPerSiteCap, $balancedCap);
+
+    // Never make the cap so tight that the available sites cannot fill the
+    // requested widget. This matters when only a few partner sites have RSS.
+    if (($effectivePerSiteCap * $activeSiteCount) < $maxTotal) {
+        $effectivePerSiteCap = min($hardPerSiteCap, (int)ceil($maxTotal / $activeSiteCount));
+    }
+
     $flat = [];
     foreach ($buckets as $bucket) {
         foreach ($bucket as $item) {
@@ -198,7 +213,7 @@ function rss_trade_select_host_aware(array $items, int $maxTotal, int $hardPerSi
         $active = [];
         $totalWeight = 0.0;
         foreach ($buckets as $siteKey => $bucket) {
-            if ($bucket === [] || $state[$siteKey]['picked'] >= $hardPerSiteCap) {
+            if ($bucket === [] || $state[$siteKey]['picked'] >= $effectivePerSiteCap) {
                 continue;
             }
             $state[$siteKey]['current'] += $state[$siteKey]['weight'];
