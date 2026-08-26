@@ -29,13 +29,14 @@ if (isset($GLOBALS['pcf_rss_widget_max_items'])) {
 }
 
 $filteredItems = [];
-$deferredItems = [];
 $sourceCounts = [];
+$seenTitles = [];
 $maxItemsSourceLimit = 5;
 foreach ($items as $item) {
     if (!is_array($item)) {
         continue;
     }
+
     $key = rss_normalize_display_key($item);
     if ($key === '') {
         $key = mb_strtolower(trim((string)($item['title'] ?? '')));
@@ -43,41 +44,30 @@ foreach ($items as $item) {
     if ($key !== '' && isset($rssUsedKeys[$key])) {
         continue;
     }
-    $sourceKey = rss_partner_display_source_key($item);
-    if ($maxItemsSourceLimit > 0 && $sourceKey !== '' && ($sourceCounts[$sourceKey] ?? 0) >= $maxItemsSourceLimit) {
-        if ($maxItems > 0) {
-            $deferredItems[] = $item;
-        }
+
+    $titleKey = mb_strtolower(preg_replace('/\s+/u', ' ', trim((string)($item['title'] ?? ''))) ?? '');
+    if ($titleKey !== '' && isset($seenTitles[$titleKey])) {
         continue;
     }
+
+    $sourceKey = rss_partner_display_source_key($item);
+    if ($maxItemsSourceLimit > 0 && $sourceKey !== '' && ($sourceCounts[$sourceKey] ?? 0) >= $maxItemsSourceLimit) {
+        continue;
+    }
+
     if ($key !== '') {
         $rssUsedKeys[$key] = true;
+    }
+    if ($titleKey !== '') {
+        $seenTitles[$titleKey] = true;
     }
     if ($sourceKey !== '') {
         $sourceCounts[$sourceKey] = ($sourceCounts[$sourceKey] ?? 0) + 1;
     }
+
     $filteredItems[] = $item;
     if ($maxItems > 0 && count($filteredItems) >= $maxItems) {
         break;
-    }
-}
-
-if ($maxItems > 0 && count($filteredItems) < $maxItems && $deferredItems !== []) {
-    foreach ($deferredItems as $item) {
-        $key = rss_normalize_display_key($item);
-        if ($key === '') {
-            $key = mb_strtolower(trim((string)($item['title'] ?? '')));
-        }
-        if ($key !== '' && isset($rssUsedKeys[$key])) {
-            continue;
-        }
-        if ($key !== '') {
-            $rssUsedKeys[$key] = true;
-        }
-        $filteredItems[] = $item;
-        if (count($filteredItems) >= $maxItems) {
-            break;
-        }
     }
 }
 
