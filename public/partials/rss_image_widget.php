@@ -6,12 +6,13 @@ require_once __DIR__ . '/../../lib/app_features.php';
 require_once __DIR__ . '/../../lib/rss_display_balance.php';
 require_once __DIR__ . '/../../lib/rss_access_trade.php';
 require_once __DIR__ . '/../../lib/rss_access_trade_host.php';
+require_once __DIR__ . '/../../lib/rss_access_trade_candidate.php';
 require_once __DIR__ . '/../../lib/db.php';
 
 $items = [];
 try {
     rss_widget_bootstrap(false);
-    $candidates = rss_pick_display_items(120, true, 14);
+    $candidates = rss_trade_candidate_pool(20, true, 14);
     $items = rss_trade_select_host_aware($candidates, 5, 2, 30);
 } catch (Throwable $e) {
     error_log('[rss] image access-trade selection skipped: ' . $e->getMessage());
