@@ -123,3 +123,89 @@ function rss_partner_display_source_key(array $item): string
 
     return 'name:' . mb_strtolower(trim((string)($item['source_name'] ?? '')));
 }
+
+/**
+ * Spread already-selected items so the same partner site is kept apart as much
+ * as mathematically possible. This is intentionally applied after filtering,
+ * because URL/title deduplication can otherwise collapse a balanced sequence
+ * back into visible source clusters.
+ */
+function rss_spread_items_by_partner_site(array $items): array
+{
+    if (count($items) <= 2) {
+        return $items;
+    }
+
+    $buckets = [];
+    foreach ($items as $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+        $key = rss_partner_display_source_key($item);
+        if ($key === '') {
+            $key = 'unknown';
+        }
+        $buckets[$key][] = $item;
+    }
+
+    if (count($buckets) <= 1) {
+        return $items;
+    }
+
+    foreach ($buckets as &$bucket) {
+        if (count($bucket) > 1) {
+            shuffle($bucket);
+        }
+    }
+    unset($bucket);
+
+    $result = [];
+    $lastKey = null;
+
+    while ($buckets !== []) {
+        $eligible = [];
+        foreach ($buckets as $key => $bucket) {
+            if ($bucket === []) {
+                unset($buckets[$key]);
+                continue;
+            }
+            if ($key !== $lastKey) {
+                $eligible[$key] = count($bucket);
+            }
+        }
+
+        if ($eligible === []) {
+            // Only the previously used site remains. From here adjacency is
+            // unavoidable, so append the remaining items in random order.
+            $remaining = [];
+            foreach ($buckets as $bucket) {
+                foreach ($bucket as $item) {
+                    $remaining[] = $item;
+                }
+            }
+            if (count($remaining) > 1) {
+                shuffle($remaining);
+            }
+            array_push($result, ...$remaining);
+            break;
+        }
+
+        $maxCount = max($eligible);
+        $candidates = array_keys(array_filter(
+            $eligible,
+            static fn(int $count): bool => $count === $maxCount
+        ));
+        $chosenKey = $candidates[random_int(0, count($candidates) - 1)];
+
+        $item = array_shift($buckets[$chosenKey]);
+        if (is_array($item)) {
+            $result[] = $item;
+            $lastKey = $chosenKey;
+        }
+        if ($buckets[$chosenKey] === []) {
+            unset($buckets[$chosenKey]);
+        }
+    }
+
+    return $result;
+}
