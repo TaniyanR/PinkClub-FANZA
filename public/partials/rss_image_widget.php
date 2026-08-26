@@ -4,74 +4,18 @@ declare(strict_types=1);
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/app_features.php';
 require_once __DIR__ . '/../../lib/rss_display_balance.php';
+require_once __DIR__ . '/../../lib/rss_access_trade.php';
 require_once __DIR__ . '/../../lib/db.php';
 
 $items = [];
 try {
     rss_widget_bootstrap(false);
-    $items = rss_pick_display_items(100, true, 14);
-    if (count($items) > 1) {
-        $items = rss_balance_items_by_partner_site($items);
-    }
+    $candidates = rss_pick_display_items(120, true, 14);
+    $items = rss_trade_select($candidates, 5, 2, 30);
 } catch (Throwable $e) {
-    error_log('[rss] image widget skipped: ' . $e->getMessage());
+    error_log('[rss] image access-trade selection skipped: ' . $e->getMessage());
     $items = [];
 }
-
-$rssUsedKeys = [];
-if (isset($GLOBALS['pcf_rss_widget_used_keys']) && is_array($GLOBALS['pcf_rss_widget_used_keys'])) {
-    $rssUsedKeys = $GLOBALS['pcf_rss_widget_used_keys'];
-}
-if ($items !== []) {
-    $filteredItems = [];
-    $sourceCounts = [];
-    $seenTitles = [];
-    $maxItems = 5;
-    $maxItemsSourceLimit = 2;
-    foreach ($items as $item) {
-        if (!is_array($item)) {
-            continue;
-        }
-        if (trim((string)($item['image_url'] ?? '')) === '') {
-            continue;
-        }
-
-        $key = rss_normalize_display_key($item);
-        if ($key === '') {
-            $key = mb_strtolower(trim((string)($item['title'] ?? '')));
-        }
-        if ($key !== '' && isset($rssUsedKeys[$key])) {
-            continue;
-        }
-
-        $titleKey = mb_strtolower(preg_replace('/\s+/u', ' ', trim((string)($item['title'] ?? ''))) ?? '');
-        if ($titleKey !== '' && isset($seenTitles[$titleKey])) {
-            continue;
-        }
-
-        $sourceKey = rss_partner_display_source_key($item);
-        if ($maxItemsSourceLimit > 0 && $sourceKey !== '' && ($sourceCounts[$sourceKey] ?? 0) >= $maxItemsSourceLimit) {
-            continue;
-        }
-
-        if ($key !== '') {
-            $rssUsedKeys[$key] = true;
-        }
-        if ($titleKey !== '') {
-            $seenTitles[$titleKey] = true;
-        }
-        if ($sourceKey !== '') {
-            $sourceCounts[$sourceKey] = ($sourceCounts[$sourceKey] ?? 0) + 1;
-        }
-
-        $filteredItems[] = $item;
-        if (count($filteredItems) >= $maxItems) {
-            break;
-        }
-    }
-    $items = rss_spread_items_by_partner_site($filteredItems);
-}
-$GLOBALS['pcf_rss_widget_used_keys'] = $rssUsedKeys;
 ?>
 <div class="rss-widget rss-widget--image">
     <?php if ($items !== []) : ?>
@@ -81,7 +25,7 @@ $GLOBALS['pcf_rss_widget_used_keys'] = $rssUsedKeys;
                 <?php if (trim((string)($item['image_url'] ?? '')) !== '') : ?>
                     <img src="<?php echo e((string)$item['image_url']); ?>" alt="" loading="lazy" onerror="this.closest('li').remove();">
                 <?php endif; ?>
-                <a href="<?php echo e((string)($item['link'] ?? '')); ?>" target="_blank" rel="noopener noreferrer"><?php echo e((string)($item['title'] ?? '')); ?></a>
+                <a href="<?php echo e(rss_trade_out_url($item)); ?>" target="_blank" rel="noopener noreferrer"><?php echo e((string)($item['title'] ?? '')); ?></a>
             </li>
         <?php endforeach; ?>
     </ul>
