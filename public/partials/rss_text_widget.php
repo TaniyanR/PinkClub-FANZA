@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/app_features.php';
+require_once __DIR__ . '/../../lib/rss_display_balance.php';
 require_once __DIR__ . '/../../lib/db.php';
 
 rss_widget_bootstrap(false);
@@ -10,12 +11,12 @@ rss_widget_bootstrap(false);
 $items = [];
 try {
     $items = rss_pick_display_items(250, false, 14);
+    if (is_array($items) && count($items) > 1) {
+        $items = rss_balance_items_by_partner_site($items);
+    }
 } catch (Throwable $e) {
+    error_log('[rss] text widget balancing skipped: ' . $e->getMessage());
     $items = [];
-}
-
-if (is_array($items) && count($items) > 1) {
-    shuffle($items);
 }
 
 $rssUsedKeys = [];
@@ -42,7 +43,7 @@ foreach ($items as $item) {
     if ($key !== '' && isset($rssUsedKeys[$key])) {
         continue;
     }
-    $sourceKey = mb_strtolower(trim((string)($item['source_name'] ?? '')));
+    $sourceKey = rss_partner_display_source_key($item);
     if ($maxItemsSourceLimit > 0 && $sourceKey !== '' && ($sourceCounts[$sourceKey] ?? 0) >= $maxItemsSourceLimit) {
         if ($maxItems > 0) {
             $deferredItems[] = $item;
