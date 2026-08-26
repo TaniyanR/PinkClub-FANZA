@@ -3,6 +3,30 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
 
+/** Disable stale rss_sources left behind after a partner RSS URL edit. */
+function rss_trade_disable_stale_sources(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        db()->exec(
+            'UPDATE rss_sources rs '
+            . 'INNER JOIN partner_rss pr ON pr.id = rs.source_ref_id '
+            . 'SET rs.is_enabled = 0, rs.updated_at = NOW() '
+            . 'WHERE rs.source_type = "partner_link" '
+            . 'AND rs.is_enabled = 1 '
+            . 'AND TRIM(COALESCE(pr.feed_url, "")) <> "" '
+            . 'AND rs.feed_url <> pr.feed_url'
+        );
+    } catch (Throwable $e) {
+        error_log('[rss] stale partner source cleanup skipped: ' . $e->getMessage());
+    }
+}
+
 /**
  * Build a candidate pool per partner site.
  *
@@ -16,6 +40,7 @@ function rss_trade_candidate_pool(int $perSiteLimit = 40, bool $requireImage = f
 {
     $perSiteLimit = max(1, min(200, $perSiteLimit));
     $days = max(1, min(365, $days));
+    rss_trade_disable_stale_sources();
 
     try {
         $rows = db()->query(
@@ -68,8 +93,6 @@ function rss_trade_candidate_pool(int $perSiteLimit = 40, bool $requireImage = f
         }
 
         try {
-            // Match both source_ref_id and the CURRENT feed URL. This excludes
-            // old rss_sources that can remain enabled after editing the RSS URL.
             $sourceStmt = db()->prepare(
                 'SELECT id FROM rss_sources '
                 . 'WHERE source_type = "partner_link" '
