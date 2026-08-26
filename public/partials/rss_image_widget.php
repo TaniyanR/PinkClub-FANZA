@@ -24,8 +24,8 @@ if (isset($GLOBALS['pcf_rss_widget_used_keys']) && is_array($GLOBALS['pcf_rss_wi
 }
 if ($items !== []) {
     $filteredItems = [];
-    $deferredItems = [];
     $sourceCounts = [];
+    $seenTitles = [];
     $maxItems = 5;
     $maxItemsSourceLimit = 2;
     foreach ($items as $item) {
@@ -35,6 +35,7 @@ if ($items !== []) {
         if (trim((string)($item['image_url'] ?? '')) === '') {
             continue;
         }
+
         $key = rss_normalize_display_key($item);
         if ($key === '') {
             $key = mb_strtolower(trim((string)($item['title'] ?? '')));
@@ -42,41 +43,30 @@ if ($items !== []) {
         if ($key !== '' && isset($rssUsedKeys[$key])) {
             continue;
         }
-        $sourceKey = rss_partner_display_source_key($item);
-        if ($maxItemsSourceLimit > 0 && $sourceKey !== '' && ($sourceCounts[$sourceKey] ?? 0) >= $maxItemsSourceLimit) {
-            $deferredItems[] = $item;
+
+        $titleKey = mb_strtolower(preg_replace('/\s+/u', ' ', trim((string)($item['title'] ?? ''))) ?? '');
+        if ($titleKey !== '' && isset($seenTitles[$titleKey])) {
             continue;
         }
+
+        $sourceKey = rss_partner_display_source_key($item);
+        if ($maxItemsSourceLimit > 0 && $sourceKey !== '' && ($sourceCounts[$sourceKey] ?? 0) >= $maxItemsSourceLimit) {
+            continue;
+        }
+
         if ($key !== '') {
             $rssUsedKeys[$key] = true;
+        }
+        if ($titleKey !== '') {
+            $seenTitles[$titleKey] = true;
         }
         if ($sourceKey !== '') {
             $sourceCounts[$sourceKey] = ($sourceCounts[$sourceKey] ?? 0) + 1;
         }
+
         $filteredItems[] = $item;
         if (count($filteredItems) >= $maxItems) {
             break;
-        }
-    }
-    if (count($filteredItems) < $maxItems && $deferredItems !== []) {
-        foreach ($deferredItems as $item) {
-            if (trim((string)($item['image_url'] ?? '')) === '') {
-                continue;
-            }
-            $key = rss_normalize_display_key($item);
-            if ($key === '') {
-                $key = mb_strtolower(trim((string)($item['title'] ?? '')));
-            }
-            if ($key !== '' && isset($rssUsedKeys[$key])) {
-                continue;
-            }
-            if ($key !== '') {
-                $rssUsedKeys[$key] = true;
-            }
-            $filteredItems[] = $item;
-            if (count($filteredItems) >= $maxItems) {
-                break;
-            }
         }
     }
     $items = $filteredItems;
