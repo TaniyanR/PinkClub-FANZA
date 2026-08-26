@@ -74,11 +74,12 @@ if (!function_exists('render_shared_content_ad_row')) {
         require_once __DIR__ . '/../../lib/rss_display_balance.php';
         require_once __DIR__ . '/../../lib/rss_access_trade.php';
         require_once __DIR__ . '/../../lib/rss_access_trade_host.php';
+        require_once __DIR__ . '/../../lib/rss_access_trade_candidate.php';
 
         $items = [];
         try {
             rss_widget_bootstrap(false);
-            $candidates = rss_pick_display_items(600, false, 14);
+            $candidates = rss_trade_candidate_pool(60, false, 14);
             $items = rss_trade_select_host_aware($candidates, 40, 12, 30);
         } catch (Throwable $e) {
             error_log('[rss] bottom access-trade widget skipped: ' . $e->getMessage());
