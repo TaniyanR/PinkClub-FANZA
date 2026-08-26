@@ -6,13 +6,14 @@ require_once __DIR__ . '/../../lib/app_features.php';
 require_once __DIR__ . '/../../lib/rss_display_balance.php';
 require_once __DIR__ . '/../../lib/rss_access_trade.php';
 require_once __DIR__ . '/../../lib/rss_access_trade_host.php';
+require_once __DIR__ . '/../../lib/rss_access_trade_candidate.php';
 require_once __DIR__ . '/../../lib/db.php';
 
 rss_widget_bootstrap(false);
 
 $items = [];
 try {
-    $candidates = rss_pick_display_items(300, false, 14);
+    $candidates = rss_trade_candidate_pool(40, false, 14);
     $maxItems = 20;
     if (isset($GLOBALS['pcf_rss_widget_max_items'])) {
         $maxItems = min(40, max(0, (int)$GLOBALS['pcf_rss_widget_max_items']));
