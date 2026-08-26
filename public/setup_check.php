@@ -100,6 +100,23 @@ function setup_test_db_config(array $db): void
 }
 
 $localConfigStatus = setup_local_config_status();
+
+// The setup endpoint must stop accepting configuration changes as soon as a
+// working installation exists.  This check intentionally runs before any POST
+// action; the later redirect was too late and allowed an unauthenticated
+// request with its own CSRF token to replace config.local.php.
+$configuredDb = app_config()['db'] ?? [];
+if (is_array($configuredDb) && db_validate_config($configuredDb, true) === []) {
+    try {
+        if ((installer_status()['completed'] ?? false) === true) {
+            app_redirect(LOGIN_PATH);
+        }
+    } catch (Throwable) {
+        // An incomplete or unavailable database still needs the diagnostics
+        // and recovery form below.
+    }
+}
+
 $csrfFailed = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !csrf_verify(post('_csrf'))) {
     unset($_SESSION['_csrf']);
