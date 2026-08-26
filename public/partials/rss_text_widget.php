@@ -25,7 +25,7 @@ try {
     $items = [];
 }
 ?>
-<div class="rss-widget rss-widget--text block">
+<div class="rss-widget rss-widget--text block" data-rss-fragment="text">
     <div class="rss-box">
         <?php if ($items !== []) : ?>
             <ul class="rss-list">
@@ -40,3 +40,4 @@ try {
         <?php endif; ?>
     </div>
 </div>
+<?php rss_fragment_loader_script(); ?>
