@@ -3,14 +3,15 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/app_features.php';
+require_once __DIR__ . '/../../lib/rss_display_balance.php';
 require_once __DIR__ . '/../../lib/db.php';
 
 $items = [];
 try {
     rss_widget_bootstrap(false);
-    $items = rss_pick_display_items(20, true, 14);
+    $items = rss_pick_display_items(100, true, 14);
     if (count($items) > 1) {
-        shuffle($items);
+        $items = rss_balance_items_by_partner_site($items);
     }
 } catch (Throwable $e) {
     error_log('[rss] image widget skipped: ' . $e->getMessage());
@@ -41,7 +42,7 @@ if ($items !== []) {
         if ($key !== '' && isset($rssUsedKeys[$key])) {
             continue;
         }
-        $sourceKey = mb_strtolower(trim((string)($item['source_name'] ?? '')));
+        $sourceKey = rss_partner_display_source_key($item);
         if ($maxItemsSourceLimit > 0 && $sourceKey !== '' && ($sourceCounts[$sourceKey] ?? 0) >= $maxItemsSourceLimit) {
             $deferredItems[] = $item;
             continue;
