@@ -19,7 +19,7 @@ try {
     $items = [];
 }
 ?>
-<div class="rss-widget rss-widget--image">
+<div class="rss-widget rss-widget--image" data-rss-fragment="image">
     <?php if ($items !== []) : ?>
     <ul class="rss-image-list">
         <?php foreach ($items as $item) : ?>
@@ -35,3 +35,4 @@ try {
         <p class="sidebar-empty">画像RSSの記事がありません。</p>
     <?php endif; ?>
 </div>
+<?php rss_fragment_loader_script(); ?>
