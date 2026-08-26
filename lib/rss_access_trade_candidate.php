@@ -4,9 +4,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/db.php';
 
 /**
- * Build the access-trade candidate pool per partner site, not from one global
- * newest-first LIMIT. This prevents high-volume feeds or registration order
- * from crowding other partner sites out before the IN/OUT weighting runs.
+ * Build a candidate pool per partner site.
+ *
+ * Important rules:
+ * - one logical RSS feed per partner site for display purposes
+ * - ignore stale rss_sources left behind after an RSS URL edit
+ * - never let registration order or update volume crowd out another site
+ * - keep each site's candidate limit independent
  */
 function rss_trade_candidate_pool(int $perSiteLimit = 40, bool $requireImage = false, int $days = 14): array
 {
@@ -14,62 +18,84 @@ function rss_trade_candidate_pool(int $perSiteLimit = 40, bool $requireImage = f
     $days = max(1, min(365, $days));
 
     try {
-        $sites = db()->query(
-            'SELECT DISTINCT ps.id AS partner_site_id '
+        $rows = db()->query(
+            'SELECT ps.id AS partner_site_id, pr.id AS partner_rss_id, pr.feed_url, pr.updated_at '
             . 'FROM partner_sites ps '
             . 'INNER JOIN partner_rss pr ON pr.partner_site_id = ps.id '
-            . 'INNER JOIN rss_sources rs ON rs.source_ref_id = pr.id AND rs.source_type = "partner_link" '
-            . 'WHERE ps.is_enabled = 1 AND COALESCE(pr.show_rss, pr.is_enabled, 1) = 1 AND rs.is_enabled = 1'
+            . 'WHERE ps.is_enabled = 1 '
+            . 'AND COALESCE(pr.show_rss, pr.is_enabled, 1) = 1 '
+            . 'AND TRIM(COALESCE(pr.feed_url, "")) <> "" '
+            . 'ORDER BY ps.id ASC, pr.updated_at DESC, pr.id DESC'
         )->fetchAll(PDO::FETCH_ASSOC) ?: [];
     } catch (Throwable $e) {
-        error_log('[rss] per-site candidate list failed: ' . $e->getMessage());
+        error_log('[rss] canonical partner RSS list failed: ' . $e->getMessage());
         return [];
     }
 
-    if ($sites === []) {
+    // The admin UI exposes one RSS URL per partner. Historical duplicate rows
+    // may still exist, so use only the most recently updated enabled row.
+    $feedBySite = [];
+    foreach ($rows as $row) {
+        $siteId = (int)($row['partner_site_id'] ?? 0);
+        if ($siteId <= 0 || isset($feedBySite[$siteId])) {
+            continue;
+        }
+        $feedBySite[$siteId] = [
+            'rss_id' => (int)($row['partner_rss_id'] ?? 0),
+            'feed_url' => trim((string)($row['feed_url'] ?? '')),
+        ];
+    }
+
+    if ($feedBySite === []) {
         return [];
     }
 
-    $siteIds = array_values(array_filter(array_map(
-        static fn(array $row): int => (int)($row['partner_site_id'] ?? 0),
-        $sites
-    ), static fn(int $id): bool => $id > 0));
-    if ($siteIds === []) {
-        return [];
-    }
+    $siteIds = array_keys($feedBySite);
     shuffle($siteIds);
 
     $all = [];
     $seen = [];
+
     foreach ($siteIds as $partnerSiteId) {
+        $feed = $feedBySite[$partnerSiteId] ?? null;
+        if (!is_array($feed)) {
+            continue;
+        }
+        $rssId = (int)($feed['rss_id'] ?? 0);
+        $feedUrl = trim((string)($feed['feed_url'] ?? ''));
+        if ($rssId <= 0 || $feedUrl === '') {
+            continue;
+        }
+
         try {
+            // Match both source_ref_id and the CURRENT feed URL. This excludes
+            // old rss_sources that can remain enabled after editing the RSS URL.
             $sourceStmt = db()->prepare(
-                'SELECT rs.id '
-                . 'FROM rss_sources rs '
-                . 'INNER JOIN partner_rss pr ON pr.id = rs.source_ref_id '
-                . 'WHERE pr.partner_site_id = :site_id '
-                . 'AND rs.source_type = "partner_link" AND rs.is_enabled = 1 '
-                . 'AND COALESCE(pr.show_rss, pr.is_enabled, 1) = 1'
+                'SELECT id FROM rss_sources '
+                . 'WHERE source_type = "partner_link" '
+                . 'AND source_ref_id = :rss_id '
+                . 'AND feed_url = :feed_url '
+                . 'AND is_enabled = 1 '
+                . 'ORDER BY id DESC LIMIT 1'
             );
-            $sourceStmt->execute([':site_id' => $partnerSiteId]);
-            $sourceIds = array_values(array_filter(array_map('intval', $sourceStmt->fetchAll(PDO::FETCH_COLUMN) ?: []), static fn(int $id): bool => $id > 0));
-            if ($sourceIds === []) {
+            $sourceStmt->execute([':rss_id' => $rssId, ':feed_url' => $feedUrl]);
+            $sourceId = (int)($sourceStmt->fetchColumn() ?: 0);
+            if ($sourceId <= 0) {
                 continue;
             }
 
-            $placeholders = implode(',', array_fill(0, count($sourceIds), '?'));
             $imageClause = $requireImage ? " AND COALESCE(NULLIF(TRIM(ri.image_url), ''), '') <> ''" : '';
             $sql = 'SELECT ri.source_id, rs.name AS source_name, ri.title, ri.url, ri.guid, ri.published_at, ri.image_url '
                 . 'FROM rss_items ri INNER JOIN rss_sources rs ON rs.id = ri.source_id '
-                . 'WHERE ri.source_id IN (' . $placeholders . ') '
+                . 'WHERE ri.source_id = :source_id '
                 . 'AND ri.published_at >= DATE_SUB(NOW(), INTERVAL ' . $days . ' DAY)'
                 . $imageClause
                 . ' ORDER BY ri.published_at DESC, ri.id DESC LIMIT ' . $perSiteLimit;
             $stmt = db()->prepare($sql);
-            $stmt->execute($sourceIds);
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $stmt->execute([':source_id' => $sourceId]);
+            $items = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-            foreach ($rows as $row) {
+            foreach ($items as $row) {
                 $url = trim((string)($row['url'] ?? ''));
                 $guid = trim((string)($row['guid'] ?? ''));
                 $dedupe = $url !== '' ? 'url|' . mb_strtolower($url) : ($guid !== '' ? 'guid|' . mb_strtolower($guid) : '');
@@ -85,13 +111,13 @@ function rss_trade_candidate_pool(int $perSiteLimit = 40, bool $requireImage = f
                     'guid' => $guid,
                     'published_at' => (string)($row['published_at'] ?? ''),
                     'image_url' => trim((string)($row['image_url'] ?? '')),
-                    'source_id' => (int)($row['source_id'] ?? 0),
+                    'source_id' => $sourceId,
                     'source_name' => (string)($row['source_name'] ?? ''),
-                    'partner_site_id' => $partnerSiteId,
+                    'partner_site_id' => (int)$partnerSiteId,
                 ];
             }
         } catch (Throwable $e) {
-            error_log('[rss] per-site candidate fetch failed for partner ' . $partnerSiteId . ': ' . $e->getMessage());
+            error_log('[rss] canonical candidate fetch failed for partner ' . $partnerSiteId . ': ' . $e->getMessage());
         }
     }
 
