@@ -18,8 +18,10 @@ try {
     if (isset($GLOBALS['pcf_rss_widget_max_items'])) {
         $maxItems = min(40, max(0, (int)$GLOBALS['pcf_rss_widget_max_items']));
     }
-    $hardPerSiteCap = max(2, min(8, (int)ceil(max(1, $maxItems) / 3)));
-    $items = rss_trade_select_host_aware($candidates, $maxItems, $hardPerSiteCap, 30);
+    // The selector calculates the real per-site ceiling from the active site
+    // count. Keep only this absolute safety ceiling here so every text widget
+    // follows the same access-trade rule.
+    $items = rss_trade_select_host_aware($candidates, $maxItems, max(1, $maxItems), 30);
 } catch (Throwable $e) {
     error_log('[rss] text access-trade selection skipped: ' . $e->getMessage());
     $items = [];
