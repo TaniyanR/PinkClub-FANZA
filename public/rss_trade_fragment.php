@@ -22,8 +22,8 @@ if (!in_array($type, ['text', 'image', 'bottom'], true)) {
 
 $cacheDir = dirname(__DIR__) . '/storage/cache/rss-fragments';
 $ttl = 180;
-$cacheFile = $cacheDir . '/v1-' . $type . '.html';
-$lockFile = $cacheDir . '/.' . $type . '.lock';
+$cacheFile = $cacheDir . '/v2-' . $type . '.html';
+$lockFile = $cacheDir . '/.v2-' . $type . '.lock';
 
 if (!is_dir($cacheDir)) {
     @mkdir($cacheDir, 0775, true);
