@@ -11,6 +11,7 @@ pcf_crawler_guard_check();
 
 $publicScriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
 $longCachePublicPages = [
+    'index.php',
     'items.php',
     'item.php',
     'search.php',
@@ -32,9 +33,7 @@ $longCachePublicPages = [
     'post.php',
     'page.php',
 ];
-$publicPageCacheTtl = $publicScriptName === 'index.php'
-    ? 60
-    : (in_array($publicScriptName, $longCachePublicPages, true) ? 600 : 120);
+$publicPageCacheTtl = in_array($publicScriptName, $longCachePublicPages, true) ? 600 : 120;
 pcf_public_page_cache_start($publicPageCacheTtl);
 
 $readOnlyPublicPages = [
