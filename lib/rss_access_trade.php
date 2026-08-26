@@ -108,13 +108,21 @@ function rss_trade_metrics_by_ref(array $refs, int $days = 30): array
 
 function rss_trade_weight(int $inCount, int $outCount): float
 {
+    $inCount = max(0, $inCount);
+    $outCount = max(0, $outCount);
+
     if ($inCount === 0 && $outCount === 0) {
-        return 1.0;
+        return 0.5;
     }
-    $ratio = ($inCount + 3.0) / ($outCount + 3.0);
+
     $debt = max(0, $inCount - $outCount);
-    $debtBoost = 1.0 + min(2.0, $debt / 10.0);
-    return max(0.35, min(5.0, $ratio * $debtBoost));
+    if ($debt > 0) {
+        $volumeBonus = min(10.0, sqrt((float)$inCount) / 2.0);
+        return min(120.0, 1.0 + (float)$debt + $volumeBonus);
+    }
+
+    $overReturn = max(0, $outCount - $inCount);
+    return max(0.15, 0.5 / (1.0 + ($overReturn / 10.0)));
 }
 
 function rss_trade_select(array $items, int $maxTotal, int $hardPerSiteCap, int $days = 30): array
