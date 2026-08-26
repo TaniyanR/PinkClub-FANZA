@@ -100,7 +100,7 @@ if (!function_exists('render_shared_content_ad_row')) {
         $prevUsedKeys = $GLOBALS['pcf_rss_widget_used_keys'] ?? null;
         $prevMaxItems = $GLOBALS['pcf_rss_widget_max_items'] ?? null;
 
-        // Reset widget tracking so this row can render independently from sidebar/top widgets.
+        // Start a fresh shared pool for the bottom row, but keep it shared between columns.
         $GLOBALS['pcf_rss_widget_used_keys'] = [];
         $GLOBALS['pcf_rss_widget_max_items'] = 50;
 
@@ -108,9 +108,7 @@ if (!function_exists('render_shared_content_ad_row')) {
         include __DIR__ . '/rss_text_widget.php';
         $leftRssHtml = trim((string)ob_get_clean());
 
-        // Render right column independently so both columns can fill to max count.
-        $GLOBALS['pcf_rss_widget_used_keys'] = [];
-
+        // Do not reset used keys here: the right column must not repeat left-column items.
         ob_start();
         include __DIR__ . '/rss_text_widget.php';
         $rightRssHtml = trim((string)ob_get_clean());
