@@ -49,26 +49,46 @@ if (!function_exists('rss_fragment_loader_script')) {
 (function () {
   var endpoint = <?= json_encode($endpoint, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
   var refresh = function () {
+    var groups = {};
     document.querySelectorAll('[data-rss-fragment]').forEach(function (node) {
-      if (node.dataset.rssLoading === '1') return;
       var type = node.getAttribute('data-rss-fragment');
       if (!type) return;
-      node.dataset.rssLoading = '1';
+      if (!groups[type]) groups[type] = [];
+      groups[type].push(node);
+    });
+
+    Object.keys(groups).forEach(function (type) {
+      var nodes = groups[type];
+      if (!nodes.length) return;
+      nodes.forEach(function (node) { node.dataset.rssLoading = '1'; });
+
       fetch(endpoint + '?type=' + encodeURIComponent(type), { credentials: 'same-origin', cache: 'no-store' })
-        .then(function (response) { if (!response.ok) throw new Error('HTTP ' + response.status); return response.text(); })
+        .then(function (response) {
+          if (!response.ok) throw new Error('HTTP ' + response.status);
+          return response.text();
+        })
         .then(function (html) {
           if (!html) return;
           var holder = document.createElement('div');
           holder.innerHTML = html.trim();
           var replacement = holder.firstElementChild;
-          if (replacement) node.replaceWith(replacement);
+          if (!replacement) return;
+          nodes.forEach(function (node) {
+            node.replaceWith(replacement.cloneNode(true));
+          });
         })
         .catch(function () {})
-        .finally(function () { node.dataset.rssLoading = '0'; });
+        .finally(function () {
+          nodes.forEach(function (node) { node.dataset.rssLoading = '0'; });
+        });
     });
   };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', refresh, { once: true });
-  else refresh();
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', refresh, { once: true });
+  } else {
+    refresh();
+  }
 }());
 </script>
         <?php
