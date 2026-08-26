@@ -69,7 +69,7 @@ if ($items !== []) {
             break;
         }
     }
-    $items = $filteredItems;
+    $items = rss_spread_items_by_partner_site($filteredItems);
 }
 $GLOBALS['pcf_rss_widget_used_keys'] = $rssUsedKeys;
 ?>

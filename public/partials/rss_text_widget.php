@@ -71,7 +71,7 @@ foreach ($items as $item) {
     }
 }
 
-$items = $filteredItems;
+$items = rss_spread_items_by_partner_site($filteredItems);
 $GLOBALS['pcf_rss_widget_used_keys'] = $rssUsedKeys;
 ?>
 <div class="rss-widget rss-widget--text block">
