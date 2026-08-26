@@ -191,7 +191,6 @@ function rss_trade_select(array $items, int $maxTotal, int $hardPerSiteCap, int 
     $siteOrder = array_keys($buckets);
     shuffle($siteOrder);
 
-    // Minimum guarantee: every site with an available article gets one turn first.
     foreach ($siteOrder as $siteKey) {
         if (count($result) >= $maxTotal) {
             break;
