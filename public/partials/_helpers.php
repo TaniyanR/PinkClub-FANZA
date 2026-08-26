@@ -35,6 +35,46 @@ if (!function_exists('should_show_ad')) {
     }
 }
 
+if (!function_exists('rss_fragment_loader_script')) {
+    function rss_fragment_loader_script(): void
+    {
+        static $rendered = false;
+        if ($rendered || !empty($GLOBALS['pcf_rss_fragment_request'])) {
+            return;
+        }
+        $rendered = true;
+        $endpoint = function_exists('public_url') ? public_url('rss_trade_fragment.php') : '/rss_trade_fragment.php';
+        ?>
+<script>
+(function () {
+  var endpoint = <?= json_encode($endpoint, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
+  var refresh = function () {
+    document.querySelectorAll('[data-rss-fragment]').forEach(function (node) {
+      if (node.dataset.rssLoading === '1') return;
+      var type = node.getAttribute('data-rss-fragment');
+      if (!type) return;
+      node.dataset.rssLoading = '1';
+      fetch(endpoint + '?type=' + encodeURIComponent(type), { credentials: 'same-origin', cache: 'no-store' })
+        .then(function (response) { if (!response.ok) throw new Error('HTTP ' + response.status); return response.text(); })
+        .then(function (html) {
+          if (!html) return;
+          var holder = document.createElement('div');
+          holder.innerHTML = html.trim();
+          var replacement = holder.firstElementChild;
+          if (replacement) node.replaceWith(replacement);
+        })
+        .catch(function () {})
+        .finally(function () { node.dataset.rssLoading = '0'; });
+    });
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', refresh, { once: true });
+  else refresh();
+}());
+</script>
+        <?php
+    }
+}
+
 if (!function_exists('render_shared_text_rss_widget')) {
     function render_shared_text_rss_widget(): void
     {
@@ -105,9 +145,10 @@ if (!function_exists('render_shared_content_ad_row')) {
             return (string)ob_get_clean();
         };
 
-        echo '<div class="content-ad-row content-ad-row--rss-split" style="margin-top:20px;">';
+        echo '<div class="content-ad-row content-ad-row--rss-split" data-rss-fragment="bottom" style="margin-top:20px;">';
         echo '<div class="content-ad-row__rss">' . $renderColumn($leftItems) . '</div>';
         echo '<div class="content-ad-row__rss">' . $renderColumn($rightItems) . '</div>';
         echo '</div>';
+        rss_fragment_loader_script();
     }
 }
