@@ -162,7 +162,12 @@ try {
     header('Location: ' . $backUrl . '&receipt=' . rawurlencode($receipt));
     exit;
 } catch (Throwable $e) {
-    $message = mb_substr($e->getMessage(), 0, 200);
+    if ($e instanceof RuntimeException) {
+        $message = mb_substr($e->getMessage(), 0, 200);
+    } else {
+        error_log('deletion request failed: ' . $e->getMessage());
+        $message = '削除依頼の処理中にエラーが発生しました。時間をおいて再度お試しください。';
+    }
     header('Location: ' . $backUrl . '&deletion_error=' . rawurlencode($message));
     exit;
 }
