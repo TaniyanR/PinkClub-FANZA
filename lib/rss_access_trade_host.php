@@ -17,11 +17,51 @@ function rss_trade_normalize_host(string $value): string
     return preg_replace('/^www\./', '', $value) ?? $value;
 }
 
+/**
+ * Canonical key for one RSS article.
+ * Keep identity-bearing query parameters. Only common tracking parameters are
+ * removed. The old generic normalizer discarded the whole query string, which
+ * collapsed distinct ?id=... / ?p=... articles on some partner sites.
+ */
+function rss_trade_item_key(array $item): string
+{
+    $url = trim((string)($item['link'] ?? ''));
+    if ($url !== '') {
+        $parts = parse_url($url);
+        if (is_array($parts)) {
+            $scheme = strtolower((string)($parts['scheme'] ?? ''));
+            $host = rss_trade_normalize_host((string)($parts['host'] ?? ''));
+            $path = (string)($parts['path'] ?? '/');
+            if ($path === '') {
+                $path = '/';
+            }
+            $query = [];
+            parse_str((string)($parts['query'] ?? ''), $query);
+            foreach (array_keys($query) as $name) {
+                $key = strtolower((string)$name);
+                if (str_starts_with($key, 'utm_') || in_array($key, ['fbclid', 'gclid', 'yclid', 'ref', 'referrer'], true)) {
+                    unset($query[$name]);
+                }
+            }
+            ksort($query);
+            $normalizedQuery = http_build_query($query);
+            return 'url|' . $scheme . '|' . $host . '|' . $path . ($normalizedQuery !== '' ? '?' . $normalizedQuery : '');
+        }
+        return 'url|' . mb_strtolower($url);
+    }
+
+    $guid = trim((string)($item['guid'] ?? ''));
+    if ($guid !== '') {
+        return 'guid|' . mb_strtolower($guid);
+    }
+
+    return 'title|' . mb_strtolower(trim((string)($item['title'] ?? '')));
+}
+
 function rss_trade_metrics_host_aware(array $items, int $days = 30): array
 {
     $days = max(1, min(365, $days));
     $refs = [];
-    $hostsByRef = [];
     $refByHost = [];
 
     foreach ($items as $item) {
@@ -33,12 +73,15 @@ function rss_trade_metrics_host_aware(array $items, int $days = 30): array
             continue;
         }
         $refs[$ref] = true;
-        foreach (['partner_site_url', 'link'] as $field) {
-            $host = rss_trade_normalize_host((string)($item[$field] ?? ''));
-            if ($host === '') {
-                continue;
-            }
-            $hostsByRef[$ref][$host] = true;
+
+        // Prefer the registered partner URL for ref-less IN attribution.
+        // The RSS article host may be a redirect/CDN/shared host and is only a
+        // fallback when the registered URL has no usable host.
+        $host = rss_trade_normalize_host((string)($item['partner_site_url'] ?? ''));
+        if ($host === '') {
+            $host = rss_trade_normalize_host((string)($item['link'] ?? ''));
+        }
+        if ($host !== '') {
             $refByHost[$host][$ref] = true;
         }
     }
@@ -70,14 +113,13 @@ function rss_trade_metrics_host_aware(array $items, int $days = 30): array
             if ($ref !== '') {
                 continue;
             }
+
             $host = rss_trade_normalize_host((string)($row['referer_host'] ?? ''));
-            if ($host === '' || !isset($refByHost[$host])) {
-                continue;
-            }
-            foreach (array_keys($refByHost[$host]) as $matchedRef) {
-                if (isset($metrics[$matchedRef])) {
-                    $metrics[$matchedRef]['in'] += $count;
-                }
+            $matchedRefs = $host !== '' ? array_keys($refByHost[$host] ?? []) : [];
+            // Never double-credit one ref-less IN to multiple partners. If a
+            // host is ambiguous, leave it unattributed instead of inflating it.
+            if (count($matchedRefs) === 1 && isset($metrics[$matchedRefs[0]])) {
+                $metrics[$matchedRefs[0]]['in'] += $count;
             }
         }
 
@@ -120,15 +162,12 @@ function rss_trade_select_host_aware(array $items, int $maxTotal, int $hardPerSi
         if (!is_array($item)) {
             continue;
         }
-        $key = function_exists('rss_normalize_display_key')
-            ? rss_normalize_display_key($item)
-            : trim((string)($item['link'] ?? ''));
-        if ($key === '') {
-            $key = mb_strtolower(trim((string)($item['title'] ?? '')));
-        }
+
+        $key = rss_trade_item_key($item);
         if ($key !== '' && isset($seenKeys[$key])) {
             continue;
         }
+
         $titleKey = mb_strtolower(preg_replace('/\s+/u', ' ', trim((string)($item['title'] ?? ''))) ?? '');
         if ($titleKey !== '' && isset($seenTitles[$titleKey])) {
             continue;
@@ -158,20 +197,12 @@ function rss_trade_select_host_aware(array $items, int $maxTotal, int $hardPerSi
     }
     unset($bucket);
 
-    // Access-trade priority must not turn into visual domination.
-    // Scale the per-site ceiling to the number of active sites. With six
-    // active sites this yields about 4-5 of 20 and 8-9 of 40, while still
-    // allowing fewer-site installations to fill their widget.
     $activeSiteCount = count($buckets);
-    $balancedCap = (int)ceil(($maxTotal / max(1, $activeSiteCount)) * 1.35);
-    $balancedCap = max(2, $balancedCap);
-    $effectivePerSiteCap = min($hardPerSiteCap, $balancedCap);
-
-    // Never make the cap so tight that the available sites cannot fill the
-    // requested widget. This matters when only a few partner sites have RSS.
-    if (($effectivePerSiteCap * $activeSiteCount) < $maxTotal) {
-        $effectivePerSiteCap = min($hardPerSiteCap, (int)ceil($maxTotal / $activeSiteCount));
-    }
+    // Access-trade decides who gets the extra slots, but it must not create a
+    // wall of one site's articles. Give each site roughly its fair share plus
+    // one bonus slot. With 6 sites: 20 items => max 5/site, 40 => max 8/site.
+    $fairShare = (int)ceil($maxTotal / max(1, $activeSiteCount));
+    $effectivePerSiteCap = min($hardPerSiteCap, max(1, $fairShare + 1));
 
     $flat = [];
     foreach ($buckets as $bucket) {
@@ -193,6 +224,7 @@ function rss_trade_select_host_aware(array $items, int $maxTotal, int $hardPerSi
         ];
     }
 
+    // Minimum guarantee: one slot per site that actually has candidates.
     $result = [];
     $siteOrder = array_keys($buckets);
     shuffle($siteOrder);
