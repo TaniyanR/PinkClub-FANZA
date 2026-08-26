@@ -5,6 +5,7 @@ require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/app_features.php';
 require_once __DIR__ . '/../../lib/rss_display_balance.php';
 require_once __DIR__ . '/../../lib/rss_access_trade.php';
+require_once __DIR__ . '/../../lib/rss_access_trade_host.php';
 require_once __DIR__ . '/../../lib/db.php';
 
 rss_widget_bootstrap(false);
@@ -17,7 +18,7 @@ try {
         $maxItems = min(40, max(0, (int)$GLOBALS['pcf_rss_widget_max_items']));
     }
     $hardPerSiteCap = max(2, min(8, (int)ceil(max(1, $maxItems) / 3)));
-    $items = rss_trade_select($candidates, $maxItems, $hardPerSiteCap, 30);
+    $items = rss_trade_select_host_aware($candidates, $maxItems, $hardPerSiteCap, 30);
 } catch (Throwable $e) {
     error_log('[rss] text access-trade selection skipped: ' . $e->getMessage());
     $items = [];
