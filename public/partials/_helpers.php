@@ -140,7 +140,9 @@ if (!function_exists('render_shared_content_ad_row')) {
         try {
             rss_widget_bootstrap(false);
             $candidates = rss_trade_candidate_pool(60, false, 14);
-            $items = rss_trade_select_host_aware($candidates, 40, 12, 30);
+            // The selector computes the effective per-site ceiling from the
+            // active site count. Use total size only as an absolute safety cap.
+            $items = rss_trade_select_host_aware($candidates, 40, 40, 30);
         } catch (Throwable $e) {
             error_log('[rss] bottom access-trade widget skipped: ' . $e->getMessage());
             $items = [];
