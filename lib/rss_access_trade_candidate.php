@@ -3,7 +3,14 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
 
-/** Disable stale rss_sources left behind after a partner RSS URL edit. */
+/**
+ * Disable stale/legacy partner RSS sources without deleting stored data.
+ *
+ * A partner is treated as having one current RSS row: the latest enabled row
+ * by updated_at/id. Sources for an edited old URL or an older duplicate
+ * partner_rss row are disabled so they cannot consume refresh slots or leak
+ * old articles back into display selection.
+ */
 function rss_trade_disable_stale_sources(): void
 {
     static $done = false;
@@ -19,8 +26,18 @@ function rss_trade_disable_stale_sources(): void
             . 'SET rs.is_enabled = 0, rs.updated_at = NOW() '
             . 'WHERE rs.source_type = "partner_link" '
             . 'AND rs.is_enabled = 1 '
-            . 'AND TRIM(COALESCE(pr.feed_url, "")) <> "" '
-            . 'AND rs.feed_url <> pr.feed_url'
+            . 'AND ( '
+            . 'TRIM(COALESCE(pr.feed_url, "")) = "" '
+            . 'OR COALESCE(pr.show_rss, pr.is_enabled, 1) <> 1 '
+            . 'OR rs.feed_url <> pr.feed_url '
+            . 'OR EXISTS ( '
+            . 'SELECT 1 FROM partner_rss newer '
+            . 'WHERE newer.partner_site_id = pr.partner_site_id '
+            . 'AND COALESCE(newer.show_rss, newer.is_enabled, 1) = 1 '
+            . 'AND TRIM(COALESCE(newer.feed_url, "")) <> "" '
+            . 'AND (newer.updated_at > pr.updated_at OR (newer.updated_at = pr.updated_at AND newer.id > pr.id)) '
+            . ') '
+            . ')'
         );
     } catch (Throwable $e) {
         error_log('[rss] stale partner source cleanup skipped: ' . $e->getMessage());
