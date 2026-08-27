@@ -108,5 +108,10 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/csrf.php';
 require_once __DIR__ . '/installer.php';
+require_once __DIR__ . '/setup_guard.php';
 require_once __DIR__ . '/paginator.php';
 require_once __DIR__ . '/app.php';
+
+// Existing installations create a non-secret marker while the DB is healthy.
+// This prevents a later DB outage from making setup look like a fresh install.
+setup_guard_bootstrap_installed_marker();

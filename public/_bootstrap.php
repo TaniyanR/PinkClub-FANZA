@@ -10,6 +10,10 @@ require_once __DIR__ . '/../lib/public_page_cache.php';
 pcf_crawler_guard_check();
 
 $publicScriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
+if ($publicScriptName === 'setup_check.php' && function_exists('setup_guard_enforce_for_setup_page')) {
+    setup_guard_enforce_for_setup_page();
+}
+
 $longCachePublicPages = [
     'index.php',
     'items.php',
@@ -34,7 +38,15 @@ $longCachePublicPages = [
     'page.php',
 ];
 $publicPageCacheTtl = in_array($publicScriptName, $longCachePublicPages, true) ? 600 : 120;
-pcf_public_page_cache_start($publicPageCacheTtl);
+$userAgent = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
+$isSocialCardCrawler = $publicScriptName === 'item.php'
+    && preg_match('/(?:Twitterbot|facebookexternalhit|LinkedInBot|Discordbot|Slackbot)/i', $userAgent) === 1;
+if ($isSocialCardCrawler) {
+    header('Cache-Control: public, max-age=0, must-revalidate');
+    header('X-PCF-Page-Cache: BYPASS-SOCIAL');
+} else {
+    pcf_public_page_cache_start($publicPageCacheTtl);
+}
 
 $readOnlyPublicPages = [
     'index.php',
