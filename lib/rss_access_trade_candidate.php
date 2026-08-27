@@ -3,6 +3,26 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
 
+function rss_trade_candidate_http_url(string $value): string
+{
+    if (function_exists('rss_http_url')) {
+        return rss_http_url($value);
+    }
+
+    $url = trim($value);
+    if ($url === '' || str_contains($url, "\r") || str_contains($url, "\n")) {
+        return '';
+    }
+    if (str_starts_with($url, '//')) {
+        $url = 'https:' . $url;
+    }
+    if (filter_var($url, FILTER_VALIDATE_URL) === false) {
+        return '';
+    }
+    $scheme = strtolower((string)(parse_url($url, PHP_URL_SCHEME) ?: ''));
+    return in_array($scheme, ['http', 'https'], true) ? $url : '';
+}
+
 /**
  * Disable stale/legacy partner RSS sources without deleting stored data.
  *
@@ -136,21 +156,26 @@ function rss_trade_candidate_pool(int $perSiteLimit = 40, bool $requireImage = f
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
             foreach ($items as $row) {
-                $url = trim((string)($row['url'] ?? ''));
-                $guid = trim((string)($row['guid'] ?? ''));
-                $dedupe = $url !== '' ? 'url|' . mb_strtolower($url) : ($guid !== '' ? 'guid|' . mb_strtolower($guid) : '');
-                if ($dedupe !== '' && isset($seen[$dedupe])) {
+                $url = rss_trade_candidate_http_url((string)($row['url'] ?? ''));
+                if ($url === '') {
                     continue;
                 }
-                if ($dedupe !== '') {
-                    $seen[$dedupe] = true;
+                $imageUrl = rss_trade_candidate_http_url((string)($row['image_url'] ?? ''));
+                if ($requireImage && $imageUrl === '') {
+                    continue;
                 }
+                $guid = trim((string)($row['guid'] ?? ''));
+                $dedupe = 'url|' . mb_strtolower($url);
+                if (isset($seen[$dedupe])) {
+                    continue;
+                }
+                $seen[$dedupe] = true;
                 $all[] = [
                     'title' => (string)($row['title'] ?? ''),
                     'link' => $url,
                     'guid' => $guid,
                     'published_at' => (string)($row['published_at'] ?? ''),
-                    'image_url' => trim((string)($row['image_url'] ?? '')),
+                    'image_url' => $imageUrl,
                     'source_id' => $sourceId,
                     'source_name' => (string)($row['source_name'] ?? ''),
                     'partner_site_id' => (int)$partnerSiteId,
