@@ -128,6 +128,33 @@ function apply_detected_path_to_base_url(string $configuredUrl, string $detected
     return $trimmed . $detectedPath;
 }
 
+/**
+ * Build a safe fallback URL when BASE_URL is not configured.
+ * Production URLs never reflect an arbitrary Host header. Localhost remains
+ * dynamic so XAMPP/subdirectory development continues to work.
+ */
+function trusted_fallback_base_url(string $detectedPath): string
+{
+    $rawHost = trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
+    $parsed = $rawHost !== '' ? parse_url('http://' . $rawHost) : false;
+    $host = is_array($parsed) ? strtolower(trim((string) ($parsed['host'] ?? ''), '[]')) : '';
+    $port = is_array($parsed) && isset($parsed['port']) ? (int) $parsed['port'] : null;
+    $isLocal = in_array($host, ['localhost', '127.0.0.1', '::1'], true);
+
+    if ($isLocal) {
+        $requestScheme = strtolower(trim((string) ($_SERVER['REQUEST_SCHEME'] ?? '')));
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+        $scheme = $requestScheme === 'https' || $isHttps ? 'https' : 'http';
+        $displayHost = $host === '::1' ? '[::1]' : $host;
+        if ($port !== null && $port >= 1 && $port <= 65535) {
+            $displayHost .= ':' . $port;
+        }
+        return rtrim($scheme . '://' . $displayHost . $detectedPath, '/');
+    }
+
+    return rtrim('https://pinkclub-fanza.com' . $detectedPath, '/');
+}
+
 $scriptName = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? '/'));
 $basePath = detect_base_path($scriptName);
 if ($basePath === '') {
@@ -140,15 +167,7 @@ if ($configuredBaseUrl !== '') {
         $basePath
     );
 } else {
-    $requestScheme = trim((string) ($_SERVER['REQUEST_SCHEME'] ?? ''));
-    if ($requestScheme !== '') {
-        $scheme = $requestScheme;
-    } else {
-        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    }
-
-    $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
-    $baseUrl = rtrim("{$scheme}://{$host}{$basePath}", '/');
+    $baseUrl = trusted_fallback_base_url($basePath);
 }
 
 if (!defined('APP_NAME')) {
