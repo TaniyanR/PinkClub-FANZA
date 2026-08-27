@@ -74,7 +74,13 @@ function pcf_public_page_cache_start(int $ttlSeconds = 120): void
         return;
     }
 
-    $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
+    $baseParts = parse_url(defined('BASE_URL') ? (string)BASE_URL : '');
+    $cacheHost = is_array($baseParts) ? strtolower((string)($baseParts['host'] ?? '')) : '';
+    $cachePort = is_array($baseParts) && isset($baseParts['port']) ? (int)$baseParts['port'] : null;
+    if ($cacheHost === '') {
+        $cacheHost = 'pinkclub-fanza.com';
+    }
+    $cacheAuthority = $cacheHost . ($cachePort !== null ? ':' . $cachePort : '');
     $variant = pcf_public_request_is_mobile() ? 'sp' : 'pc';
     $cacheQuery = [];
     parse_str((string)(parse_url($requestUri, PHP_URL_QUERY) ?? ''), $cacheQuery);
@@ -113,7 +119,7 @@ function pcf_public_page_cache_start(int $ttlSeconds = 120): void
     if ($normalizedQuery !== '') {
         $normalizedRequestUri .= '?' . $normalizedQuery;
     }
-    $cacheKey = hash('sha256', 'v4|' . $host . '|' . $variant . '|' . $normalizedRequestUri);
+    $cacheKey = hash('sha256', 'v5|' . $cacheAuthority . '|' . $variant . '|' . $normalizedRequestUri);
     $cacheFile = $cacheDirectory . '/' . $cacheKey . '.html';
     // Sixteen lock shards prevent a cache stampede without creating one lock file per URL.
     $cacheLockFile = $cacheDirectory . '/.regenerate-' . substr($cacheKey, 0, 1) . '.lock';
