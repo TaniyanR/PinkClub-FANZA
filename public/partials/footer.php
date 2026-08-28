@@ -64,7 +64,8 @@ $copyrightYears = $copyrightStartYear >= $currentYear
 ?>
   <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
   </div>
-  <?php if (!$isMobileRequest): ?>
+  <?php require __DIR__ . '/partner_links_bottom.php'; ?>
+  <?php if (!$isMobileRequest && site_setting_get('link.rss_display.pc_text_bottom', '1') === '1'): ?>
   <div class="site-main__rss only-pc">
     <?php render_shared_content_ad_row('content_bottom', $pageType); ?>
   </div>
@@ -75,9 +76,11 @@ $copyrightYears = $copyrightStartYear >= $currentYear
 <?php if (function_exists('render_ad') && (!function_exists('should_show_ad') || should_show_ad('sp_footer_above', $pageType, 'sp'))): ?>
 <div class="only-sp site-ad site-ad--sp-footer-above"><?php render_ad('sp_footer_above', $pageType, 'sp'); ?></div>
 <?php endif; ?>
+<?php if (site_setting_get('link.rss_display.sp_footer_above', '1') === '1'): ?>
 <div class="site-main__rss only-sp">
   <?php render_shared_mobile_rss_widget(); ?>
 </div>
+<?php endif; ?>
 <footer class="site-footer">
   <div class="site-footer__credit">
     <a href="https://affiliate.dmm.com/api/"><img src="https://p.dmm.co.jp/p/affiliate/web_service/r18_135_17.gif" width="135" height="17" alt="WEB SERVICE BY FANZA"></a>
