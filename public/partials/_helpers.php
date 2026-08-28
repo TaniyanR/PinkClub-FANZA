@@ -95,9 +95,26 @@ if (!function_exists('rss_fragment_loader_script')) {
     }
 }
 
+if (!function_exists('rss_should_defer_for_search_page')) {
+    function rss_should_defer_for_search_page(): bool
+    {
+        if (!empty($GLOBALS['pcf_rss_fragment_request'])) {
+            return false;
+        }
+
+        return basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'search.php';
+    }
+}
+
 if (!function_exists('render_shared_text_rss_widget')) {
     function render_shared_text_rss_widget(): void
     {
+        if (rss_should_defer_for_search_page()) {
+            echo '<div class="rss-widget rss-widget--text block" data-rss-fragment="text"></div>';
+            rss_fragment_loader_script();
+            return;
+        }
+
         $prevMaxItems = $GLOBALS['pcf_rss_widget_max_items'] ?? null;
         unset($GLOBALS['pcf_rss_widget_max_items']);
         include __DIR__ . '/rss_text_widget.php';
@@ -112,6 +129,12 @@ if (!function_exists('render_shared_text_rss_widget')) {
 if (!function_exists('render_shared_mobile_rss_widget')) {
     function render_shared_mobile_rss_widget(): void
     {
+        if (rss_should_defer_for_search_page()) {
+            echo '<div class="rss-widget rss-widget--text block" data-rss-fragment="text"></div>';
+            rss_fragment_loader_script();
+            return;
+        }
+
         $prevMaxItems = $GLOBALS['pcf_rss_widget_max_items'] ?? null;
         unset($GLOBALS['pcf_rss_widget_max_items']);
         include __DIR__ . '/rss_text_widget.php';
@@ -130,6 +153,12 @@ if (!function_exists('render_shared_content_ad_row')) {
             return;
         }
 
+        if (rss_should_defer_for_search_page()) {
+            echo '<div class="content-ad-row content-ad-row--rss-split" data-rss-fragment="bottom" style="margin-top:20px;"></div>';
+            rss_fragment_loader_script();
+            return;
+        }
+
         require_once __DIR__ . '/../../lib/app_features.php';
         require_once __DIR__ . '/../../lib/rss_display_balance.php';
         require_once __DIR__ . '/../../lib/rss_access_trade.php';
@@ -140,11 +169,9 @@ if (!function_exists('render_shared_content_ad_row')) {
         try {
             rss_widget_bootstrap(false);
             $candidates = rss_trade_candidate_pool(60, false, 14);
-            // The selector computes the effective per-site ceiling from the
-            // active site count. Use total size only as an absolute safety cap.
             $items = rss_trade_select_host_aware($candidates, 40, 40, 30);
-        } catch (Throwable $e) {
-            error_log('[rss] bottom access-trade widget skipped: ' . $e->getMessage());
+        } catch (Throwable) {
+            error_log('[rss] bottom access-trade widget skipped');
             $items = [];
         }
 
