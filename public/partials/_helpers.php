@@ -167,10 +167,9 @@ if (!function_exists('render_shared_content_ad_row')) {
             return (string)ob_get_clean();
         };
 
-        echo '<div class="content-ad-row content-ad-row--rss-split" data-rss-fragment="bottom" style="margin-top:20px;">';
+        echo '<div class="content-ad-row content-ad-row--rss-split" style="margin-top:20px;">';
         echo '<div class="content-ad-row__rss">' . $renderColumn($leftItems) . '</div>';
         echo '<div class="content-ad-row__rss">' . $renderColumn($rightItems) . '</div>';
         echo '</div>';
-        rss_fragment_loader_script();
     }
 }
