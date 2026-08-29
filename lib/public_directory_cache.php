@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * ジャンル・メーカーなどの公開ディレクトリ一覧をJSONへ事前生成する。
+ * ジャンル・メーカー・シリーズなどの公開ディレクトリ一覧をJSONへ事前生成する。
  * キャッシュが期限切れ、または元データが更新済みでも古い内容を先に返し、
  * 終了処理で安全に新しいJSONへ差し替える。
  */
@@ -67,8 +67,19 @@ function pcf_public_directory_cache_rebuild(string $kind): ?array
 
     try {
         $table = $config['table'];
-        if (in_array($kind, ['genres', 'makers'], true)) {
-            $relation = $kind === 'genres' ? 'item_genres' : 'item_makers';
+        if (in_array($kind, ['genres', 'makers', 'series'], true)) {
+            $relation = match ($kind) {
+                'genres' => 'item_genres',
+                'makers' => 'item_makers',
+                'series' => 'item_series',
+            };
+            $redirectWhere = '';
+            if ($kind === 'series' && function_exists('series_canonical_maker_redirects')) {
+                $redirectIds = array_map('intval', array_keys(series_canonical_maker_redirects()));
+                if ($redirectIds !== []) {
+                    $redirectWhere = " AND {$table}.id NOT IN (" . implode(',', $redirectIds) . ')';
+                }
+            }
             $stmt = db()->query(
                 "SELECT {$table}.id, {$table}.dmm_id, {$table}.name
                  FROM {$table}
@@ -81,6 +92,7 @@ function pcf_public_directory_cache_rebuild(string $kind): ?array
                      WHERE {$relation}.dmm_id = {$table}.dmm_id
                        AND " . items_product_source_where('items') . "
                    )
+                 {$redirectWhere}
                  ORDER BY {$table}.name ASC, {$table}.id ASC"
             );
         } else {
@@ -181,7 +193,7 @@ function pcf_public_directory_cache_read(string $cacheFile): ?array
 
 function pcf_public_directory_cache_file(string $kind): string
 {
-    $suffix = in_array($kind, ['genres', 'makers'], true) ? '-public-v2' : '';
+    $suffix = in_array($kind, ['genres', 'makers', 'series'], true) ? '-public-v2' : '';
     return dirname(__DIR__) . '/storage/cache/public-directories/' . $kind . $suffix . '.json';
 }
 
@@ -190,6 +202,7 @@ function pcf_public_directory_cache_config(string $kind): ?array
     return match ($kind) {
         'genres' => ['table' => 'genres'],
         'makers' => ['table' => 'makers'],
+        'series' => ['table' => 'series_master'],
         default => null,
     };
 }
