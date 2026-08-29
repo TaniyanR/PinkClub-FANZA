@@ -130,7 +130,8 @@ if (!function_exists('render_shared_content_ad_row')) {
             return;
         }
 
-        $isSearchRequest = basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'search.php';
+        $isSearchRequest = !empty($GLOBALS['pcf_search_bottom_fast_mode'])
+            || basename((string)($_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? '')) === 'search.php';
         $items = [];
 
         try {
