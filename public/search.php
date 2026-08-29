@@ -269,9 +269,9 @@ function search_fetch_items(string $query, int $limit, int $offset): array
 }
 
 $searchQuery = safe_str($_GET['q'] ?? '', 200);
-$page = normalize_int((int)($_GET['page'] ?? 1), 1, 100000);
+$searchPage = normalize_int((int)($_GET['page'] ?? 1), 1, 100000);
 $limit = (int)(app_config()['pagination']['per_page'] ?? 24);
-$offset = ($page - 1) * $limit;
+$offset = ($searchPage - 1) * $limit;
 $searchRows = search_fetch_items($searchQuery, $limit, $offset);
 [$searchItems, $searchHasNext] = paginate_items($searchRows, $limit);
 
@@ -282,15 +282,15 @@ $canonicalQuery = [];
 if ($searchQuery !== '') {
     $canonicalQuery['q'] = $searchQuery;
 }
-if ($page > 1) {
-    $canonicalQuery['page'] = $page;
+if ($searchPage > 1) {
+    $canonicalQuery['page'] = $searchPage;
 }
 $canonicalUrl = public_url('search.php') . ($canonicalQuery !== [] ? '?' . http_build_query($canonicalQuery) : '');
-if ($page > 1) {
-    $relPrev = public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $page - 1]);
+if ($searchPage > 1) {
+    $relPrev = public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $searchPage - 1]);
 }
 if ($searchHasNext) {
-    $relNext = public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $page + 1]);
+    $relNext = public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $searchPage + 1]);
 }
 require __DIR__ . '/partials/header.php';
 ?>
@@ -305,16 +305,17 @@ require __DIR__ . '/partials/header.php';
     <?php endforeach; ?>
   </section>
   <nav class="pcf-pagination" aria-label="ページネーション">
-    <?php if ($page > 1): ?>
-      <a class="pcf-pagination__link" href="<?= e(public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $page - 1])) ?>">前へ</a>
+    <?php if ($searchPage > 1): ?>
+      <a class="pcf-pagination__link" href="<?= e(public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $searchPage - 1])) ?>">前へ</a>
     <?php endif; ?>
-    <span class="pcf-pagination__link is-current"><?= e((string)$page) ?></span>
+    <span class="pcf-pagination__link is-current"><?= e((string)$searchPage) ?></span>
     <?php if ($searchHasNext): ?>
-      <a class="pcf-pagination__link" href="<?= e(public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $page + 1])) ?>">次へ</a>
+      <a class="pcf-pagination__link" href="<?= e(public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $searchPage + 1])) ?>">次へ</a>
     <?php endif; ?>
   </nav>
 <?php else: ?>
   <?php pcf_render_empty('検索条件に一致する商品がありません。'); ?>
 <?php endif; ?>
 
+<?php pcf_render_sample_movie_modal(); ?>
 <?php require __DIR__ . '/partials/footer.php'; ?>
