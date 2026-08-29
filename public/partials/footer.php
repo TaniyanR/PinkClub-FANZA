@@ -3,8 +3,6 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_helpers.php';
-$isMobileRequest = function_exists('pcf_public_request_is_mobile') && pcf_public_request_is_mobile();
-
 $safeTextSetting = static function (string $key, string $default = ''): string {
     if (function_exists('front_safe_text_setting')) {
         return front_safe_text_setting($key, $default);
@@ -64,11 +62,9 @@ $copyrightYears = $copyrightStartYear >= $currentYear
 ?>
   <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
   </div>
-  <?php if (!$isMobileRequest): ?>
   <div class="site-main__rss only-pc">
     <?php render_shared_content_ad_row('content_bottom', $pageType); ?>
   </div>
-  <?php endif; ?>
   </main>
 </div>
 <button type="button" class="page-top-button" aria-label="トップに戻る">↑ トップへ</button>
