@@ -130,25 +130,57 @@ if (!function_exists('render_shared_content_ad_row')) {
             return;
         }
 
+        $isSearchRequest = !empty($GLOBALS['pcf_search_bottom_fast_mode'])
+            || basename((string)($_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? '')) === 'search.php';
+
         require_once __DIR__ . '/../../lib/app_features.php';
         require_once __DIR__ . '/../../lib/rss_display_balance.php';
         require_once __DIR__ . '/../../lib/rss_access_trade.php';
-        require_once __DIR__ . '/../../lib/rss_access_trade_host.php';
-        require_once __DIR__ . '/../../lib/rss_access_trade_candidate.php';
 
         $items = [];
         try {
             rss_widget_bootstrap(false);
-            $candidates = rss_trade_candidate_pool(60, false, 14);
-            // The selector computes the effective per-site ceiling from the
-            // active site count. Use total size only as an absolute safety cap.
-            $items = rss_trade_select_host_aware($candidates, 40, 40, 30);
+
+            if ($isSearchRequest) {
+                // Search already uses the database to build its product grid.
+                // Read the stored RSS rows in one bounded query and skip the
+                // per-partner candidate/traffic calculations at page end.
+                $items = rss_pick_display_items(40, false, 14);
+                $items = rss_trade_enrich_items($items);
+                $items = rss_spread_items_by_partner_site($items);
+                $items = array_slice($items, 0, 40);
+            } else {
+                require_once __DIR__ . '/../../lib/rss_access_trade_host.php';
+                require_once __DIR__ . '/../../lib/rss_access_trade_candidate.php';
+                $candidates = rss_trade_candidate_pool(60, false, 14);
+                // The selector computes the effective per-site ceiling from the
+                // active site count. Use total size only as an absolute safety cap.
+                $items = rss_trade_select_host_aware($candidates, 40, 40, 30);
+            }
         } catch (Throwable $e) {
             error_log('[rss] bottom access-trade widget skipped: ' . $e->getMessage());
             $items = [];
         }
 
-        [$leftItems, $rightItems] = rss_trade_split_columns($items);
+        $leftItems = [];
+        $rightItems = [];
+        if ($items !== []) {
+            try {
+                [$leftItems, $rightItems] = rss_trade_split_columns($items);
+            } catch (Throwable $e) {
+                error_log('[rss] bottom column split fallback: ' . $e->getMessage());
+                foreach ($items as $index => $item) {
+                    if (!is_array($item)) {
+                        continue;
+                    }
+                    if ($index % 2 === 0) {
+                        $leftItems[] = $item;
+                    } else {
+                        $rightItems[] = $item;
+                    }
+                }
+            }
+        }
 
         $renderColumn = static function (array $columnItems): string {
             ob_start();
@@ -158,8 +190,15 @@ if (!function_exists('render_shared_content_ad_row')) {
             } else {
                 echo '<ul class="rss-list">';
                 foreach ($columnItems as $item) {
+                    if (!is_array($item)) {
+                        continue;
+                    }
                     $href = rss_trade_out_url($item);
-                    echo '<li class="rss-list__item"><a href="' . e($href) . '" target="_blank" rel="noopener noreferrer">' . e((string)($item['title'] ?? '')) . '</a></li>';
+                    $title = trim((string)($item['title'] ?? ''));
+                    if ($href === '' || $title === '') {
+                        continue;
+                    }
+                    echo '<li class="rss-list__item"><a href="' . e($href) . '" target="_blank" rel="noopener noreferrer">' . e($title) . '</a></li>';
                 }
                 echo '</ul>';
             }
