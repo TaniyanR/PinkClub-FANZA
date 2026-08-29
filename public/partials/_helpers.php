@@ -153,12 +153,6 @@ if (!function_exists('render_shared_content_ad_row')) {
             return;
         }
 
-        if (rss_should_defer_for_search_page()) {
-            echo '<div class="content-ad-row content-ad-row--rss-split" data-rss-fragment="bottom" style="margin-top:20px;"></div>';
-            rss_fragment_loader_script();
-            return;
-        }
-
         require_once __DIR__ . '/../../lib/app_features.php';
         require_once __DIR__ . '/../../lib/rss_display_balance.php';
         require_once __DIR__ . '/../../lib/rss_access_trade.php';
