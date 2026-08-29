@@ -130,25 +130,52 @@ if (!function_exists('render_shared_content_ad_row')) {
             return;
         }
 
-        require_once __DIR__ . '/../../lib/app_features.php';
-        require_once __DIR__ . '/../../lib/rss_display_balance.php';
-        require_once __DIR__ . '/../../lib/rss_access_trade.php';
-        require_once __DIR__ . '/../../lib/rss_access_trade_host.php';
-        require_once __DIR__ . '/../../lib/rss_access_trade_candidate.php';
-
+        $isSearchRequest = basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'search.php';
         $items = [];
+
         try {
+            require_once __DIR__ . '/../../lib/app_features.php';
+            require_once __DIR__ . '/../../lib/rss_display_balance.php';
+            require_once __DIR__ . '/../../lib/rss_access_trade.php';
+            require_once __DIR__ . '/../../lib/rss_access_trade_host.php';
+            require_once __DIR__ . '/../../lib/rss_access_trade_candidate.php';
+
             rss_widget_bootstrap(false);
-            $candidates = rss_trade_candidate_pool(60, false, 14);
-            // The selector computes the effective per-site ceiling from the
-            // active site count. Use total size only as an absolute safety cap.
+
+            if ($isSearchRequest) {
+                // Search already performs its own database work. Reuse stored
+                // RSS items with one bounded query instead of rebuilding the
+                // per-partner candidate pool at the end of the request.
+                $candidates = rss_pick_display_items(80, false, 14);
+            } else {
+                $candidates = rss_trade_candidate_pool(60, false, 14);
+            }
+
             $items = rss_trade_select_host_aware($candidates, 40, 40, 30);
         } catch (Throwable $e) {
             error_log('[rss] bottom access-trade widget skipped: ' . $e->getMessage());
             $items = [];
         }
 
-        [$leftItems, $rightItems] = rss_trade_split_columns($items);
+        $leftItems = [];
+        $rightItems = [];
+        if ($items !== []) {
+            try {
+                [$leftItems, $rightItems] = rss_trade_split_columns($items);
+            } catch (Throwable $e) {
+                error_log('[rss] bottom column split fallback: ' . $e->getMessage());
+                foreach ($items as $index => $item) {
+                    if (!is_array($item)) {
+                        continue;
+                    }
+                    if ($index % 2 === 0) {
+                        $leftItems[] = $item;
+                    } else {
+                        $rightItems[] = $item;
+                    }
+                }
+            }
+        }
 
         $renderColumn = static function (array $columnItems): string {
             ob_start();
@@ -158,8 +185,17 @@ if (!function_exists('render_shared_content_ad_row')) {
             } else {
                 echo '<ul class="rss-list">';
                 foreach ($columnItems as $item) {
-                    $href = rss_trade_out_url($item);
-                    echo '<li class="rss-list__item"><a href="' . e($href) . '" target="_blank" rel="noopener noreferrer">' . e((string)($item['title'] ?? '')) . '</a></li>';
+                    if (!is_array($item)) {
+                        continue;
+                    }
+                    $href = function_exists('rss_trade_out_url')
+                        ? rss_trade_out_url($item)
+                        : trim((string)($item['link'] ?? ''));
+                    $title = trim((string)($item['title'] ?? ''));
+                    if ($href === '' || $title === '') {
+                        continue;
+                    }
+                    echo '<li class="rss-list__item"><a href="' . e($href) . '" target="_blank" rel="noopener noreferrer">' . e($title) . '</a></li>';
                 }
                 echo '</ul>';
             }
@@ -167,7 +203,8 @@ if (!function_exists('render_shared_content_ad_row')) {
             return (string)ob_get_clean();
         };
 
-        echo '<div class="content-ad-row content-ad-row--rss-split" style="margin-top:20px;">';
+        $mode = $isSearchRequest ? 'search-fast' : 'standard';
+        echo '<div class="content-ad-row content-ad-row--rss-split" data-rss-render-mode="' . e($mode) . '" style="margin-top:20px;">';
         echo '<div class="content-ad-row__rss">' . $renderColumn($leftItems) . '</div>';
         echo '<div class="content-ad-row__rss">' . $renderColumn($rightItems) . '</div>';
         echo '</div>';
