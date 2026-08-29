@@ -407,5 +407,6 @@ require __DIR__ . '/partials/header.php';
   <?php pcf_render_empty('検索条件に一致する商品がありません。'); ?>
 <?php endif; ?>
 
+<?php $GLOBALS['pcf_search_bottom_fast_mode'] = true; ?>
 <?php pcf_render_sample_movie_modal(); ?>
 <?php require __DIR__ . '/partials/footer.php'; ?>
