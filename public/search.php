@@ -55,127 +55,34 @@ function search_item_affiliate_url(array $item): string
     return trim((string)($raw['affiliateURL'] ?? ''));
 }
 
-function search_identity_key(string $value): string
+function search_item_matches_partner_rss(array $item): bool
 {
-    return mb_strtolower(trim($value), 'UTF-8');
-}
+    $title = trim(pcf_item_title($item));
+    $url = trim((string)($item['url'] ?? ''));
+    $affiliateUrl = search_item_affiliate_url($item);
+    $imageSmall = trim((string)($item['image_small'] ?? ''));
+    $imageLarge = trim((string)($item['image_large'] ?? ''));
 
-/**
- * Remove products duplicated in RSS storage with one bounded lookup per chunk.
- *
- * The former per-item check executed up to two SQL queries for every candidate.
- * A single public search could therefore run hundreds of queries and exhaust
- * the request before pagination, bottom text RSS, and the footer were rendered.
- */
-function search_filter_rss_duplicates(array $items): array
-{
-    if ($items === []) {
-        return [];
+    if ($title === '' && $url === '' && $affiliateUrl === '' && $imageSmall === '' && $imageLarge === '') {
+        return false;
     }
-
-    $titles = [];
-    $urls = [];
-    $images = [];
-
-    $remember = static function (array &$values, string $value): void {
-        $value = trim($value);
-        if ($value === '') {
-            return;
-        }
-        $values[search_identity_key($value)] = $value;
-    };
-
-    foreach ($items as $item) {
-        if (!is_array($item)) {
-            continue;
-        }
-        $remember($titles, pcf_item_title($item));
-        $remember($urls, (string)($item['url'] ?? ''));
-        $remember($urls, search_item_affiliate_url($item));
-        $remember($images, (string)($item['image_small'] ?? ''));
-        $remember($images, (string)($item['image_large'] ?? ''));
-    }
-
-    if ($titles === [] && $urls === [] && $images === []) {
-        return $items;
-    }
-
-    $params = [];
-    $clauses = [];
-    $appendInClause = static function (string $column, array $values, string $prefix) use (&$params, &$clauses): void {
-        if ($values === []) {
-            return;
-        }
-        $placeholders = [];
-        foreach (array_values($values) as $index => $value) {
-            $placeholder = ':' . $prefix . '_' . $index;
-            $placeholders[] = $placeholder;
-            $params[$placeholder] = $value;
-        }
-        $clauses[] = $column . ' IN (' . implode(',', $placeholders) . ')';
-    };
-
-    $appendInClause('title', $titles, 'rss_title');
-    $appendInClause('url', $urls, 'rss_url');
-    $appendInClause('image_url', $images, 'rss_image');
 
     try {
-        $stmt = db()->prepare(
-            'SELECT title, url, image_url FROM rss_items WHERE '
-            . implode(' OR ', $clauses)
-            . ' LIMIT 1000'
-        );
-        $stmt->execute($params);
-        $rssRows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-    } catch (Throwable $e) {
-        error_log('[search] RSS duplicate batch lookup skipped: ' . $e->getMessage());
-        return $items;
+        $stmt = db()->prepare('SELECT 1 FROM rss_items ri INNER JOIN rss_sources rs ON rs.id = ri.source_id WHERE rs.source_type = "partner_link" AND (ri.title = :title OR ri.url = :url OR ri.url = :affiliate_url OR ri.image_url = :image_small OR ri.image_url = :image_large) LIMIT 1');
+        $stmt->execute([':title' => $title, ':url' => $url, ':affiliate_url' => $affiliateUrl, ':image_small' => $imageSmall, ':image_large' => $imageLarge]);
+        if ($stmt->fetchColumn()) {
+            return true;
+        }
+    } catch (Throwable) {
     }
 
-    if ($rssRows === []) {
-        return $items;
+    try {
+        $stmt = db()->prepare('SELECT 1 FROM rss_items WHERE title = :title OR url = :url OR url = :affiliate_url OR image_url = :image_small OR image_url = :image_large LIMIT 1');
+        $stmt->execute([':title' => $title, ':url' => $url, ':affiliate_url' => $affiliateUrl, ':image_small' => $imageSmall, ':image_large' => $imageLarge]);
+        return (bool)$stmt->fetchColumn();
+    } catch (Throwable) {
+        return false;
     }
-
-    $matchedTitles = [];
-    $matchedUrls = [];
-    $matchedImages = [];
-    foreach ($rssRows as $row) {
-        $titleKey = search_identity_key((string)($row['title'] ?? ''));
-        if ($titleKey !== '') {
-            $matchedTitles[$titleKey] = true;
-        }
-        $urlKey = search_identity_key((string)($row['url'] ?? ''));
-        if ($urlKey !== '') {
-            $matchedUrls[$urlKey] = true;
-        }
-        $imageKey = search_identity_key((string)($row['image_url'] ?? ''));
-        if ($imageKey !== '') {
-            $matchedImages[$imageKey] = true;
-        }
-    }
-
-    return array_values(array_filter($items, static function (array $item) use ($matchedTitles, $matchedUrls, $matchedImages): bool {
-        $titleKey = search_identity_key(pcf_item_title($item));
-        if ($titleKey !== '' && isset($matchedTitles[$titleKey])) {
-            return false;
-        }
-
-        foreach ([(string)($item['url'] ?? ''), search_item_affiliate_url($item)] as $url) {
-            $urlKey = search_identity_key($url);
-            if ($urlKey !== '' && isset($matchedUrls[$urlKey])) {
-                return false;
-            }
-        }
-
-        foreach ([(string)($item['image_small'] ?? ''), (string)($item['image_large'] ?? '')] as $image) {
-            $imageKey = search_identity_key($image);
-            if ($imageKey !== '' && isset($matchedImages[$imageKey])) {
-                return false;
-            }
-        }
-
-        return true;
-    }));
 }
 
 function search_normalize_query(string $value): string
@@ -254,6 +161,10 @@ function search_item_matches_query(array $item, string $query): bool
 
 function search_item_is_displayable(array $item): bool
 {
+    if (search_item_matches_partner_rss($item)) {
+        return false;
+    }
+
     if (!search_item_has_product_source($item)) {
         return false;
     }
@@ -338,7 +249,6 @@ function search_fetch_items(string $query, int $limit, int $offset): array
 
                 $rawFetched = count($chunk);
                 $chunk = array_values(array_filter($chunk, static fn(array $row): bool => search_item_matches_query($row, $query) && search_item_is_displayable($row)));
-                $chunk = search_filter_rss_duplicates($chunk);
                 $collected = dedupe_items_by_key(array_merge($collected, $chunk));
                 if (count($collected) >= $targetCount) {
                     break;
@@ -359,9 +269,9 @@ function search_fetch_items(string $query, int $limit, int $offset): array
 }
 
 $searchQuery = safe_str($_GET['q'] ?? '', 200);
-$page = normalize_int((int)($_GET['page'] ?? 1), 1, 100000);
+$searchPage = normalize_int((int)($_GET['page'] ?? 1), 1, 100000);
 $limit = (int)(app_config()['pagination']['per_page'] ?? 24);
-$offset = ($page - 1) * $limit;
+$offset = ($searchPage - 1) * $limit;
 $searchRows = search_fetch_items($searchQuery, $limit, $offset);
 [$searchItems, $searchHasNext] = paginate_items($searchRows, $limit);
 
@@ -372,15 +282,15 @@ $canonicalQuery = [];
 if ($searchQuery !== '') {
     $canonicalQuery['q'] = $searchQuery;
 }
-if ($page > 1) {
-    $canonicalQuery['page'] = $page;
+if ($searchPage > 1) {
+    $canonicalQuery['page'] = $searchPage;
 }
 $canonicalUrl = public_url('search.php') . ($canonicalQuery !== [] ? '?' . http_build_query($canonicalQuery) : '');
-if ($page > 1) {
-    $relPrev = public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $page - 1]);
+if ($searchPage > 1) {
+    $relPrev = public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $searchPage - 1]);
 }
 if ($searchHasNext) {
-    $relNext = public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $page + 1]);
+    $relNext = public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $searchPage + 1]);
 }
 require __DIR__ . '/partials/header.php';
 ?>
@@ -395,18 +305,17 @@ require __DIR__ . '/partials/header.php';
     <?php endforeach; ?>
   </section>
   <nav class="pcf-pagination" aria-label="ページネーション">
-    <?php if ($page > 1): ?>
-      <a class="pcf-pagination__link" href="<?= e(public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $page - 1])) ?>">前へ</a>
+    <?php if ($searchPage > 1): ?>
+      <a class="pcf-pagination__link" href="<?= e(public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $searchPage - 1])) ?>">前へ</a>
     <?php endif; ?>
-    <span class="pcf-pagination__link is-current"><?= e((string)$page) ?></span>
+    <span class="pcf-pagination__link is-current"><?= e((string)$searchPage) ?></span>
     <?php if ($searchHasNext): ?>
-      <a class="pcf-pagination__link" href="<?= e(public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $page + 1])) ?>">次へ</a>
+      <a class="pcf-pagination__link" href="<?= e(public_url('search.php') . '?' . http_build_query(['q' => $searchQuery, 'page' => $searchPage + 1])) ?>">次へ</a>
     <?php endif; ?>
   </nav>
 <?php else: ?>
   <?php pcf_render_empty('検索条件に一致する商品がありません。'); ?>
 <?php endif; ?>
 
-<?php $GLOBALS['pcf_search_bottom_fast_mode'] = true; ?>
 <?php pcf_render_sample_movie_modal(); ?>
 <?php require __DIR__ . '/partials/footer.php'; ?>
