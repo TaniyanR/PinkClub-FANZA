@@ -130,6 +130,18 @@ if (!function_exists('render_shared_content_ad_row')) {
             return;
         }
 
+        // A search request already performs a comparatively expensive item
+        // lookup.  Building the access-trade list in the same request can run
+        // into the PHP execution limit before footer.php gets a chance to emit
+        // the closing layout and footer.  Leave a stable container in the
+        // document and populate it through the cached fragment endpoint.
+        if (empty($GLOBALS['pcf_rss_fragment_request'])
+            && basename((string)($_SERVER['SCRIPT_NAME'] ?? '')) === 'search.php') {
+            echo '<div class="content-ad-row content-ad-row--rss-split" data-rss-fragment="bottom" style="margin-top:20px;"></div>';
+            rss_fragment_loader_script();
+            return;
+        }
+
         require_once __DIR__ . '/../../lib/app_features.php';
         require_once __DIR__ . '/../../lib/rss_display_balance.php';
         require_once __DIR__ . '/../../lib/rss_access_trade.php';
