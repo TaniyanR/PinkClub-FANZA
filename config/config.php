@@ -130,8 +130,9 @@ function apply_detected_path_to_base_url(string $configuredUrl, string $detected
 
 /**
  * Build a safe fallback URL when BASE_URL is not configured.
- * Production URLs never reflect an arbitrary Host header. Localhost remains
- * dynamic so XAMPP/subdirectory development continues to work.
+ * Production URLs never reflect an arbitrary Host header. Localhost and the
+ * explicitly trusted staging host remain dynamic so tests do not redirect to
+ * production while Host-header injection protection stays intact.
  */
 function trusted_fallback_base_url(string $detectedPath): string
 {
@@ -140,11 +141,13 @@ function trusted_fallback_base_url(string $detectedPath): string
     $host = is_array($parsed) ? strtolower(trim((string) ($parsed['host'] ?? ''), '[]')) : '';
     $port = is_array($parsed) && isset($parsed['port']) ? (int) $parsed['port'] : null;
     $isLocal = in_array($host, ['localhost', '127.0.0.1', '::1'], true);
+    $isTrustedStaging = $host === 'pinkclubfanza.bichi.xyz';
 
-    if ($isLocal) {
+    if ($isLocal || $isTrustedStaging) {
         $requestScheme = strtolower(trim((string) ($_SERVER['REQUEST_SCHEME'] ?? '')));
+        $forwardedProto = strtolower(trim(explode(',', (string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''))[0] ?? ''));
         $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
-        $scheme = $requestScheme === 'https' || $isHttps ? 'https' : 'http';
+        $scheme = ($requestScheme === 'https' || $forwardedProto === 'https' || $isHttps) ? 'https' : 'http';
         $displayHost = $host === '::1' ? '[::1]' : $host;
         if ($port !== null && $port >= 1 && $port <= 65535) {
             $displayHost .= ':' . $port;
