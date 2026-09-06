@@ -92,7 +92,7 @@ foreach ($alphaGroups as &$groupRows) {
 unset($groupRows);
 
 $pageTitle = 'レーベル一覧';
-$pageDescription = 'レーベル一覧ページです。';
+$pageDescription = 'FANZAのレーベル一覧。レーベル名から関連作品を探せます。';
 $canonicalUrl = canonical_url('/labels.php');
 
 include __DIR__ . '/partials/header.php';
@@ -107,7 +107,7 @@ include __DIR__ . '/partials/header.php';
         <h2 class="pcf-section-title"><?= e($kana) ?>行</h2>
         <div class="pcf-list-card__meta pcf-chip-list">
           <?php foreach ($groupRows as $i => $label): ?>
-            <a class="pcf-chip" href="<?= e(public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? ''), 'name' => (string)($label['name'] ?? '')])) ?>"><?= e((string)($label['name'] ?? '')) ?></a>
+            <a class="pcf-chip" href="<?= e(public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? '')])) ?>"><?= e((string)($label['name'] ?? '')) ?></a>
           <?php endforeach; ?>
         </div>
       </section>
@@ -119,7 +119,7 @@ include __DIR__ . '/partials/header.php';
           <div class="pcf-list-card__meta pcf-chip-list">
             <strong><?= e($letter) ?></strong>
             <?php foreach ($groupRows as $i => $label): ?>
-              <a class="pcf-chip" href="<?= e(public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? ''), 'name' => (string)($label['name'] ?? '')])) ?>"><?= e((string)($label['name'] ?? '')) ?></a>
+              <a class="pcf-chip" href="<?= e(public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? '')])) ?>"><?= e((string)($label['name'] ?? '')) ?></a>
             <?php endforeach; ?>
           </div>
         <?php endforeach; ?>
