@@ -172,6 +172,11 @@ $perSitemap = 10000;
 $staticUrls = [
     [public_url('index.php'), 'daily', '1.0'],
     [public_url('items.php'), 'daily', '0.9'],
+    [public_url('actresses.php'), 'weekly', '0.8'],
+    [public_url('genres.php'), 'weekly', '0.8'],
+    [public_url('makers.php'), 'weekly', '0.8'],
+    [public_url('labels.php'), 'weekly', '0.8'],
+    [public_url('series_list.php'), 'weekly', '0.8'],
 ];
 $sources = sitemap_sources();
 $totalUrls = count($staticUrls);
