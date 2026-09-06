@@ -32,6 +32,8 @@ foreach (($manifest['groups'] ?? []) as $group) {
 ksort($alphaGroups);
 
 $title = '女優一覧';
+$pageDescription = 'FANZAの女優一覧。名前からプロフィールや出演作品を探せます。';
+$canonicalUrl = canonical_url('/actresses.php');
 require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_hero('女優一覧', '気になる女優のプロフィールと出演作品へ。'); ?>
