@@ -20,7 +20,8 @@ if ($label === null) {
 }
 
 $labelName = trim((string)($label['name'] ?? ''));
-if ($labelName === '') {
+$canonicalLabelId = trim((string)($label['id'] ?? $id));
+if ($labelName === '' || $canonicalLabelId === '') {
     require __DIR__ . '/404.php';
 }
 
@@ -53,15 +54,14 @@ $accessRankingRows = array_values(array_filter($accessRankingRows, static functi
 $title = $labelName;
 $pageDescription = mb_strimwidth($labelName . 'レーベルの作品一覧。FANZAで販売中の最新作・人気作品を紹介。', 0, 150, '…', 'UTF-8');
 $canonicalUrl = public_url('label.php') . '?' . http_build_query([
-    'id' => (string)($label['id'] ?? $id),
-    'name' => $labelName,
+    'id' => $canonicalLabelId,
     'page' => $labelPage > 1 ? $labelPage : null,
 ]);
 if ($labelPage > 1) {
-    $relPrev = public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? $id), 'name' => $labelName, 'page' => $labelPage - 1]);
+    $relPrev = public_url('label.php') . '?' . http_build_query(['id' => $canonicalLabelId, 'page' => $labelPage - 1]);
 }
 if ($hasNext) {
-    $relNext = public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? $id), 'name' => $labelName, 'page' => $labelPage + 1]);
+    $relNext = public_url('label.php') . '?' . http_build_query(['id' => $canonicalLabelId, 'page' => $labelPage + 1]);
 }
 require __DIR__ . '/partials/header.php';
 ?>
@@ -74,16 +74,16 @@ require __DIR__ . '/partials/header.php';
 
 <h2 class="pcf-section-title"><?= e($labelName) ?>一覧</h2>
 <?php if ($list !== []): ?>
-  <section class="pcf-related-grid pcf-label-related-grid">
+  <section class="pcf-related-grid pcf-label-related-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));">
     <?php foreach ($list as $item): pcf_render_item_card(is_array($item) ? $item : []); endforeach; ?>
   </section>
   <nav class="pcf-pagination" aria-label="ページネーション">
     <?php if ($labelPage > 1): ?>
-      <a class="pcf-pagination__link" href="<?= e(public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? $id), 'name' => $labelName, 'page' => $labelPage - 1])) ?>">前へ</a>
+      <a class="pcf-pagination__link" href="<?= e(public_url('label.php') . '?' . http_build_query(['id' => $canonicalLabelId, 'page' => $labelPage - 1])) ?>">前へ</a>
     <?php endif; ?>
     <span class="pcf-pagination__link is-current"><?= e((string)$labelPage) ?></span>
     <?php if ($hasNext): ?>
-      <a class="pcf-pagination__link" href="<?= e(public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? $id), 'name' => $labelName, 'page' => $labelPage + 1])) ?>">次へ</a>
+      <a class="pcf-pagination__link" href="<?= e(public_url('label.php') . '?' . http_build_query(['id' => $canonicalLabelId, 'page' => $labelPage + 1])) ?>">次へ</a>
     <?php endif; ?>
   </nav>
 <?php else: ?>
@@ -94,12 +94,11 @@ require __DIR__ . '/partials/header.php';
     '人気のレーベルランキング',
     $accessRankingTabs,
     $accessRankingPeriod,
-    static fn(string $period): string => public_url('label.php') . '?' . http_build_query(['id' => (string)($label['id'] ?? $id), 'name' => $labelName, 'rank_period' => $period]) . '#access-ranking',
+    static fn(string $period): string => public_url('label.php') . '?' . http_build_query(['id' => $canonicalLabelId, 'rank_period' => $period]) . '#access-ranking',
     $accessRankingRows,
-    static fn(array $rankingRow): string => public_url('label.php') . '?' . http_build_query(['id' => (string)($rankingRow['id'] ?? ''), 'name' => (string)($rankingRow['name'] ?? '')]),
+    static fn(array $rankingRow): string => public_url('label.php') . '?' . http_build_query(['id' => (string)($rankingRow['id'] ?? '')]),
     '人気のレーベルランキングのデータがありません。'
 ); ?>
-
 
 <?php pcf_render_sample_movie_modal(); ?>
 <?php require __DIR__ . '/partials/footer.php'; ?>
