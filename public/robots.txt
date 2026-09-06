@@ -2,8 +2,6 @@ User-agent: *
 Disallow: /admin/
 Disallow: /public/forgot_password.php
 Disallow: /public/reset_password.php
-Disallow: /search.php
-Disallow: /public/search.php
 Disallow: /actress_profile.php
 Disallow: /public/actress_profile.php
 Disallow: /maker_resolve.php
@@ -12,5 +10,4 @@ Disallow: /out.php?to=
 Disallow: /public/out.php?to=
 Disallow: /vr_affiliate.php
 Disallow: /public/vr_affiliate.php
-Crawl-delay: 10
 Sitemap: https://pinkclub-fanza.com/sitemap.php
