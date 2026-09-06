@@ -97,12 +97,16 @@ if ($ogImage !== '' && $jsonLdText !== '') {
 }
 $relPrevHref = isset($relPrev) && is_string($relPrev) && $relPrev !== '' ? $relPrev : '';
 $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relNext : '';
+if (!headers_sent()) {
+    header('Referrer-Policy: unsafe-url', true);
+}
 ?>
 <!doctype html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="unsafe-url">
   <title><?= e($titleText) ?></title>
   <?php if ($descriptionText !== ''): ?><meta name="description" content="<?= e($descriptionText) ?>"><?php endif; ?>
   <?php if (isset($robotsMeta) && is_string($robotsMeta) && trim($robotsMeta) !== ''): ?><meta name="robots" content="<?= e(trim($robotsMeta)) ?>"><?php endif; ?>
