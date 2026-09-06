@@ -66,6 +66,9 @@ function pcf_session_is_required(): bool
 if (session_status() !== PHP_SESSION_ACTIVE) {
     $sessionLifetime = (int)($config['security']['session_lifetime'] ?? 86400);
     ini_set('session.gc_maxlifetime', (string)$sessionLifetime);
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
+    ini_set('session.use_trans_sid', '0');
     session_name($config['security']['session_name'] ?? 'pinkclub_fanza_session');
     $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
