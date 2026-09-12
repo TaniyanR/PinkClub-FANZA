@@ -104,10 +104,22 @@ function site_media_public_path(string $key): string
     }
 
     $revision = substr((string)($media['sha256'] ?? ''), 0, 12);
+    $mime = strtolower(trim((string)($media['mime_type'] ?? '')));
+    $extension = match ($mime) {
+        'image/png' => 'png',
+        'image/jpeg' => 'jpg',
+        'image/webp' => 'webp',
+        'image/gif' => 'gif',
+        'image/x-icon', 'image/vnd.microsoft.icon' => 'ico',
+        default => 'bin',
+    };
+    // Keep the harmless filename hint last so legacy pathinfo()-based favicon
+    // code can still infer PNG vs ICO while the endpoint remains ID/key based.
     $query = ['key' => $key];
     if ($revision !== '') {
         $query['v'] = $revision;
     }
+    $query['file'] = $key . '.' . $extension;
     return 'site-media.php?' . http_build_query($query);
 }
 
