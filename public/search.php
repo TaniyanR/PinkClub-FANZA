@@ -294,12 +294,24 @@ if ($searchHasNext) {
 }
 require __DIR__ . '/partials/header.php';
 ?>
+<style>
+.pcf-search-grid{grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr))}
+@media (max-width:768px){
+  .pcf-search-grid{grid-template-columns:1fr;gap:18px}
+  .pcf-search-grid .pcf-dm-card{width:100%;max-width:none;box-sizing:border-box}
+  .pcf-search-grid .pcf-dm-card__image-link{display:block;width:100%;height:auto;min-height:0}
+  .pcf-search-grid .pcf-dm-card__image{display:block;width:100%;height:auto;max-height:none;object-fit:contain}
+  .pcf-search-grid .pcf-dm-card__title{font-size:16px;line-height:1.55;word-break:normal;overflow-wrap:anywhere}
+  .pcf-search-grid .pcf-dm-card__actions{gap:8px}
+  .pcf-search-grid .sample-button,.pcf-search-grid .pcf-btn{min-height:42px;box-sizing:border-box}
+}
+</style>
 <?php pcf_render_hero('検索結果', $searchQuery !== '' ? '「' . $searchQuery . '」の商品検索結果です。' : 'キーワードを入力して商品を検索できます。'); ?>
 
 <?php if ($searchQuery === ''): ?>
   <?php pcf_render_empty('検索キーワードを入力してください。'); ?>
 <?php elseif ($searchItems !== []): ?>
-  <section class="pcf-related-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));">
+  <section class="pcf-related-grid pcf-search-grid">
     <?php foreach ($searchItems as $item): ?>
       <?php pcf_render_item_card(is_array($item) ? $item : []); ?>
     <?php endforeach; ?>
