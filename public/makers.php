@@ -95,6 +95,8 @@ unset($groupRows);
 $sortByName($otherRows);
 
 $title = 'メーカー一覧';
+$pageDescription = 'FANZAのメーカー一覧。メーカー名から関連作品を探せます。';
+$canonicalUrl = canonical_url('/makers.php');
 require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_hero('メーカー一覧'); ?>

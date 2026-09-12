@@ -25,6 +25,18 @@ $resetSuccess = isset($_SESSION['forgot_password_success']) && is_string($_SESSI
     : null;
 unset($_SESSION['forgot_password_success']);
 
+$initialCredentials = isset($_SESSION['installer_initial_credentials']) && is_array($_SESSION['installer_initial_credentials'])
+    ? $_SESSION['installer_initial_credentials']
+    : null;
+unset($_SESSION['installer_initial_credentials']);
+if (is_array($initialCredentials)) {
+    $initialUsername = trim((string)($initialCredentials['username'] ?? ''));
+    $initialPassword = (string)($initialCredentials['password'] ?? '');
+    if ($initialUsername === '' || $initialPassword === '') {
+        $initialCredentials = null;
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_verify(post('_csrf'))) {
         unset($_SESSION['_csrf']);
@@ -70,6 +82,15 @@ $faviconType = strtolower((string)pathinfo($faviconPath, PATHINFO_EXTENSION)) ==
     <section class="login-card">
       <h1 class="login-title"><?= e(APP_NAME) ?></h1>
       <p class="login-subtitle">管理画面ログイン</p>
+
+      <?php if (is_array($initialCredentials)): ?>
+        <div class="alert alert-warning" role="status">
+          <strong>初回ログイン情報</strong><br>
+          ログインID: <code><?= e($initialUsername) ?></code><br>
+          パスワード: <code><?= e($initialPassword) ?></code><br>
+          <small>この表示は一度だけです。ログイン後、個人設定でログインIDとパスワードを変更してください。</small>
+        </div>
+      <?php endif; ?>
 
       <?php if ($setupMessage !== null): ?>
         <div class="alert alert-warning" role="alert">

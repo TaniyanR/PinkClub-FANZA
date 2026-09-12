@@ -85,10 +85,34 @@ if ($headerScriptName === 'item.php' && is_int($itemIdForSocial) && $itemIdForSo
     $ogImage = public_url('social-image.php?id=' . $itemIdForSocial . '&v=3');
 }
 $jsonLdText = isset($jsonLd) && is_string($jsonLd) && $jsonLd !== '' ? $jsonLd : '';
-if ($ogImage !== '' && $jsonLdText !== '') {
+if ($jsonLdText !== '') {
     $jsonLdData = json_decode($jsonLdText, true);
     if (is_array($jsonLdData) && (string)($jsonLdData['@type'] ?? '') === 'Product') {
-        $jsonLdData['image'] = $ogImage;
+        if ($ogImage !== '') {
+            $jsonLdData['image'] = $ogImage;
+        }
+
+        $offers = $jsonLdData['offers'] ?? null;
+        if (is_array($offers)) {
+            $hasOfferPrice = isset($offers['price']) && is_numeric($offers['price']);
+            $hasSpecificationPrice = isset($offers['priceSpecification']['price']) && is_numeric($offers['priceSpecification']['price']);
+            if (!$hasOfferPrice && !$hasSpecificationPrice) {
+                $priceMin = isset($item) && is_array($item) ? trim((string)($item['price_min'] ?? '')) : '';
+                if ($priceMin !== '' && is_numeric($priceMin) && (float)$priceMin > 0) {
+                    $jsonLdData['offers']['price'] = (float)$priceMin;
+                } else {
+                    unset($jsonLdData['offers']);
+                }
+            }
+        }
+
+        if (isset($item) && is_array($item)) {
+            $sku = trim((string)($item['content_id'] ?? $item['product_id'] ?? ''));
+            if ($sku !== '') {
+                $jsonLdData['sku'] = $sku;
+            }
+        }
+
         $encodedJsonLd = json_encode($jsonLdData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
         if (is_string($encodedJsonLd)) {
             $jsonLdText = $encodedJsonLd;
@@ -97,12 +121,16 @@ if ($ogImage !== '' && $jsonLdText !== '') {
 }
 $relPrevHref = isset($relPrev) && is_string($relPrev) && $relPrev !== '' ? $relPrev : '';
 $relNextHref = isset($relNext) && is_string($relNext) && $relNext !== '' ? $relNext : '';
+if (!headers_sent()) {
+    header('Referrer-Policy: unsafe-url', true);
+}
 ?>
 <!doctype html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="unsafe-url">
   <title><?= e($titleText) ?></title>
   <?php if ($descriptionText !== ''): ?><meta name="description" content="<?= e($descriptionText) ?>"><?php endif; ?>
   <?php if (isset($robotsMeta) && is_string($robotsMeta) && trim($robotsMeta) !== ''): ?><meta name="robots" content="<?= e(trim($robotsMeta)) ?>"><?php endif; ?>

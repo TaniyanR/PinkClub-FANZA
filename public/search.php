@@ -299,7 +299,7 @@ require __DIR__ . '/partials/header.php';
 <?php if ($searchQuery === ''): ?>
   <?php pcf_render_empty('検索キーワードを入力してください。'); ?>
 <?php elseif ($searchItems !== []): ?>
-  <section class="pcf-related-grid">
+  <section class="pcf-related-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));">
     <?php foreach ($searchItems as $item): ?>
       <?php pcf_render_item_card(is_array($item) ? $item : []); ?>
     <?php endforeach; ?>

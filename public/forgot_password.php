@@ -41,7 +41,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 }
                 $admin = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
                 if (is_array($admin) && db_table_exists('admin_password_resets')) {
-                    $token = bin2hex(random_bytes(32));
+                    $resetCode = bin2hex(random_bytes(32));
                     $tokenStored = false;
                     $pdo = db();
                     $pdo->beginTransaction();
@@ -51,7 +51,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                         $pdo->prepare('INSERT INTO admin_password_resets(admin_user_id,token_hash,expires_at) VALUES (:admin_user_id,:token_hash,DATE_ADD(NOW(), INTERVAL 1 HOUR))')
                             ->execute([
                                 ':admin_user_id' => (int)$admin['id'],
-                                ':token_hash' => hash('sha256', $token),
+                                ':token_hash' => hash('sha256', $resetCode),
                             ]);
                         $pdo->commit();
                         $tokenStored = true;
@@ -63,11 +63,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     }
 
                     if ($tokenStored) {
-                        $resetUrl = public_url('reset_password.php') . '?token=' . rawurlencode($token);
+                        $resetUrl = public_url('reset_password.php');
                         $body = "管理者パスワード再設定の申請を受け付けました。\n\n"
                             . "ログインID: " . (string)$admin['username'] . "\n"
-                            . "再設定URL: " . $resetUrl . "\n\n"
-                            . "このURLの有効期限は1時間で、一度使用すると無効になります。\n"
+                            . "再設定ページ: " . $resetUrl . "\n"
+                            . "再設定コード: " . $resetCode . "\n\n"
+                            . "コードの有効期限は1時間で、一度使用すると無効になります。\n"
                             . "申請した覚えがない場合は、このメールを破棄してください。";
                         $host = (string)(parse_url(app_url(), PHP_URL_HOST) ?: 'pinkclub-fanza.com');
                         $host = preg_replace('/[^a-z0-9.-]/i', '', $host) ?: 'pinkclub-fanza.com';
@@ -94,7 +95,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                             ':from' => $fromEmailForLog,
                             ':to' => $email,
                             ':subj' => 'Password Reset',
-                            ':body' => preg_replace('/token=[a-f0-9]{64}/', 'token=[REDACTED]', $mailBodyForLog),
+                            ':body' => preg_replace('/再設定コード:\s*[a-f0-9]{64}/u', '再設定コード: [REDACTED]', $mailBodyForLog),
                             ':status' => $mailSent ? 'sent' : 'failed',
                             ':err' => $mailSent ? null : 'mail() returned false',
                         ]);
@@ -118,7 +119,7 @@ include __DIR__ . '/partials/login_header.php';
     <div class="login-brand-mark" aria-hidden="true">鍵</div>
     <p class="login-eyebrow">管理画面の認証</p>
     <h1 id="forgot-password-title" class="login-title">パスワードを再設定</h1>
-    <p class="login-subtitle">個人設定に登録したメールアドレスを入力してください。有効期限1時間・一度限りの再設定URLを送信します。</p>
+    <p class="login-subtitle">個人設定に登録したメールアドレスを入力してください。有効期限1時間・一度限りの再設定コードを送信します。</p>
 
     <?php if ($message !== ''): ?>
       <div class="alert alert-<?= e($messageType) ?>" role="<?= $messageType === 'error' ? 'alert' : 'status' ?>"><?= e($message) ?></div>
@@ -135,8 +136,8 @@ include __DIR__ . '/partials/login_header.php';
 
     <ol class="login-reset-steps" aria-label="再設定の流れ">
       <li>メールを確認</li>
-      <li>再設定URLを開く</li>
-      <li>新しいパスワードを保存</li>
+      <li>再設定ページを開く</li>
+      <li>メールの再設定コードと新しいパスワードを入力</li>
     </ol>
     <p class="login-note">メールが届かない場合は、迷惑メールフォルダと管理画面の「個人設定」に登録したアドレスをご確認ください。</p>
     <p class="login-back"><a href="<?= e(public_url('login0718.php')) ?>">ログイン画面へ戻る</a></p>

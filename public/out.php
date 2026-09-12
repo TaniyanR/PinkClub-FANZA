@@ -4,6 +4,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/_bootstrap.php';
 
 header('X-Robots-Tag: noindex, nofollow', true);
+// out.php is the controlled external redirect used by FANZA/partner links.
+// Keep its redirect response aligned with the public unsafe-url policy so the
+// destination can receive the detailed referral needed for reciprocal-link
+// attribution. Public URLs must therefore never contain secrets.
+header('Referrer-Policy: unsafe-url', true);
 
 $to = trim((string)($_GET['to'] ?? ''));
 $ref = trim((string)($_GET['ref'] ?? ''));

@@ -95,6 +95,8 @@ unset($groupRows);
 $sortByName($otherRows);
 
 $title = 'ジャンル一覧';
+$pageDescription = 'FANZAのジャンル一覧。ジャンル名から関連作品を探せます。';
+$canonicalUrl = canonical_url('/genres.php');
 require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_hero('ジャンル一覧'); ?>

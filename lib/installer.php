@@ -245,7 +245,8 @@ function installer_ensure_admin_user(PDO $pdo, string $stepLabel): bool
     $initialPassword = substr(str_replace(['+', '/', '='], '', base64_encode(random_bytes(18))), 0, 18);
     $insert = $pdo->prepare('INSERT INTO admins (username, password_hash) VALUES (:username, :password_hash)');
     $insert->execute(['username' => 'admin', 'password_hash' => password_hash($initialPassword, PASSWORD_DEFAULT)]);
-    installer_log('step=' . $stepLabel . ' admin_created=true initial_password=' . $initialPassword);
+    $GLOBALS['installer_initial_credentials'] = ['username' => 'admin', 'password' => $initialPassword];
+    installer_log('step=' . $stepLabel . ' admin_created=true initial_password=[REDACTED]');
     return true;
 }
 
@@ -316,10 +317,12 @@ function installer_status(): array
 
 function installer_run(): array
 {
-    installer_log('step=start db=' . (app_config()['db']['dbname'] ?? '')); 
-    $result = ['success'=>false,'steps'=>[],'error'=>null,'error_detail'=>null,'failed_sql'=>null,'error_summary'=>null,'log_tail'=>null];
+    installer_log('step=start db=' . (app_config()['db']['dbname'] ?? ''));
+    $result = ['success'=>false,'steps'=>[],'error'=>null,'error_detail'=>null,'failed_sql'=>null,'error_summary'=>null,'log_tail'=>null,'initial_credentials_created'=>false];
     $currentStep = 'server_connection';
     $step = static function (string $id, bool $ok, string $message = '') use (&$result): void { $result['steps'][]=['id'=>$id,'status'=>$ok?'ok':'ng','message'=>$message]; };
+
+    unset($GLOBALS['installer_initial_credentials']);
 
     try {
         installer_clear_last_error();
@@ -365,6 +368,21 @@ function installer_run(): array
         $result['failed_sql'] = $failedSql;
         $step($currentStep, false, $result['error']);
     }
+
+    $initialCredentials = $GLOBALS['installer_initial_credentials'] ?? null;
+    if (is_array($initialCredentials)
+        && isset($initialCredentials['username'], $initialCredentials['password'])
+        && is_string($initialCredentials['username'])
+        && is_string($initialCredentials['password'])
+    ) {
+        $result['initial_credentials_created'] = true;
+        if (PHP_SAPI === 'cli') {
+            $result['initial_credentials'] = $initialCredentials;
+        } elseif (session_status() === PHP_SESSION_ACTIVE) {
+            $_SESSION['installer_initial_credentials'] = $initialCredentials;
+        }
+    }
+    unset($GLOBALS['installer_initial_credentials']);
 
     $result['error_summary'] = installer_last_error_summary();
     $result['log_tail'] = installer_log_tail(30);

@@ -77,6 +77,8 @@ foreach ($alphaGroups as &$groupRows) {
 unset($groupRows);
 
 $title = 'シリーズ一覧';
+$pageDescription = 'FANZAのシリーズ一覧。シリーズ名から関連作品を探せます。';
+$canonicalUrl = canonical_url('/series_list.php');
 require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_hero('シリーズ一覧'); ?>
