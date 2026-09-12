@@ -14,12 +14,43 @@ function site_media_key_allowed(string $key): bool
 function site_media_cache_clear(?string $key = null): void
 {
     if ($key === null) {
-        unset($GLOBALS['__site_media_cache']);
+        unset($GLOBALS['__site_media_meta_cache'], $GLOBALS['__site_media_blob_cache']);
         return;
     }
-    if (isset($GLOBALS['__site_media_cache']) && is_array($GLOBALS['__site_media_cache'])) {
-        unset($GLOBALS['__site_media_cache'][$key]);
+    foreach (['__site_media_meta_cache', '__site_media_blob_cache'] as $cacheName) {
+        if (isset($GLOBALS[$cacheName]) && is_array($GLOBALS[$cacheName])) {
+            unset($GLOBALS[$cacheName][$key]);
+        }
     }
+}
+
+function site_media_meta_get(string $key): ?array
+{
+    if (!site_media_key_allowed($key)) {
+        return null;
+    }
+
+    if (isset($GLOBALS['__site_media_meta_cache'])
+        && is_array($GLOBALS['__site_media_meta_cache'])
+        && array_key_exists($key, $GLOBALS['__site_media_meta_cache'])) {
+        $cached = $GLOBALS['__site_media_meta_cache'][$key];
+        return is_array($cached) ? $cached : null;
+    }
+
+    try {
+        $stmt = db()->prepare('SELECT media_key, file_name, mime_type, width, height, byte_size, sha256, created_at, updated_at FROM site_media WHERE media_key = :key LIMIT 1');
+        $stmt->execute([':key' => $key]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $value = is_array($row) ? $row : null;
+    } catch (Throwable) {
+        $value = null;
+    }
+
+    if (!isset($GLOBALS['__site_media_meta_cache']) || !is_array($GLOBALS['__site_media_meta_cache'])) {
+        $GLOBALS['__site_media_meta_cache'] = [];
+    }
+    $GLOBALS['__site_media_meta_cache'][$key] = $value;
+    return $value;
 }
 
 function site_media_get(string $key): ?array
@@ -28,10 +59,10 @@ function site_media_get(string $key): ?array
         return null;
     }
 
-    if (isset($GLOBALS['__site_media_cache'])
-        && is_array($GLOBALS['__site_media_cache'])
-        && array_key_exists($key, $GLOBALS['__site_media_cache'])) {
-        $cached = $GLOBALS['__site_media_cache'][$key];
+    if (isset($GLOBALS['__site_media_blob_cache'])
+        && is_array($GLOBALS['__site_media_blob_cache'])
+        && array_key_exists($key, $GLOBALS['__site_media_blob_cache'])) {
+        $cached = $GLOBALS['__site_media_blob_cache'][$key];
         return is_array($cached) ? $cached : null;
     }
 
@@ -44,16 +75,24 @@ function site_media_get(string $key): ?array
         $value = null;
     }
 
-    if (!isset($GLOBALS['__site_media_cache']) || !is_array($GLOBALS['__site_media_cache'])) {
-        $GLOBALS['__site_media_cache'] = [];
+    if (!isset($GLOBALS['__site_media_blob_cache']) || !is_array($GLOBALS['__site_media_blob_cache'])) {
+        $GLOBALS['__site_media_blob_cache'] = [];
     }
-    $GLOBALS['__site_media_cache'][$key] = $value;
+    $GLOBALS['__site_media_blob_cache'][$key] = $value;
+    if (is_array($value)) {
+        $meta = $value;
+        unset($meta['media_data']);
+        if (!isset($GLOBALS['__site_media_meta_cache']) || !is_array($GLOBALS['__site_media_meta_cache'])) {
+            $GLOBALS['__site_media_meta_cache'] = [];
+        }
+        $GLOBALS['__site_media_meta_cache'][$key] = $meta;
+    }
     return $value;
 }
 
 function site_media_exists(string $key): bool
 {
-    return site_media_get($key) !== null;
+    return site_media_meta_get($key) !== null;
 }
 
 function site_media_put(string $key, string $fileName, string $mimeType, int $width, int $height, string $bytes): void
@@ -98,7 +137,7 @@ function site_media_delete(string $key): void
 
 function site_media_public_path(string $key): string
 {
-    $media = site_media_get($key);
+    $media = site_media_meta_get($key);
     if (!is_array($media)) {
         return '';
     }
@@ -114,7 +153,7 @@ function site_media_public_path(string $key): string
         default => 'bin',
     };
     // Keep the harmless filename hint last so legacy pathinfo()-based favicon
-    // code can still infer PNG vs ICO while the endpoint remains ID/key based.
+    // code can still infer PNG vs ICO while the endpoint remains key based.
     $query = ['key' => $key];
     if ($revision !== '') {
         $query['v'] = $revision;
