@@ -11,35 +11,49 @@ function site_media_key_allowed(string $key): bool
     return in_array($key, PCF_SITE_MEDIA_KEYS, true);
 }
 
+function site_media_cache_clear(?string $key = null): void
+{
+    if ($key === null) {
+        unset($GLOBALS['__site_media_cache']);
+        return;
+    }
+    if (isset($GLOBALS['__site_media_cache']) && is_array($GLOBALS['__site_media_cache'])) {
+        unset($GLOBALS['__site_media_cache'][$key]);
+    }
+}
+
 function site_media_get(string $key): ?array
 {
     if (!site_media_key_allowed($key)) {
         return null;
     }
 
+    if (isset($GLOBALS['__site_media_cache'])
+        && is_array($GLOBALS['__site_media_cache'])
+        && array_key_exists($key, $GLOBALS['__site_media_cache'])) {
+        $cached = $GLOBALS['__site_media_cache'][$key];
+        return is_array($cached) ? $cached : null;
+    }
+
     try {
         $stmt = db()->prepare('SELECT media_key, file_name, mime_type, width, height, byte_size, sha256, media_data, created_at, updated_at FROM site_media WHERE media_key = :key LIMIT 1');
         $stmt->execute([':key' => $key]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return is_array($row) ? $row : null;
+        $value = is_array($row) ? $row : null;
     } catch (Throwable) {
-        return null;
+        $value = null;
     }
+
+    if (!isset($GLOBALS['__site_media_cache']) || !is_array($GLOBALS['__site_media_cache'])) {
+        $GLOBALS['__site_media_cache'] = [];
+    }
+    $GLOBALS['__site_media_cache'][$key] = $value;
+    return $value;
 }
 
 function site_media_exists(string $key): bool
 {
-    if (!site_media_key_allowed($key)) {
-        return false;
-    }
-
-    try {
-        $stmt = db()->prepare('SELECT 1 FROM site_media WHERE media_key = :key LIMIT 1');
-        $stmt->execute([':key' => $key]);
-        return (bool)$stmt->fetchColumn();
-    } catch (Throwable) {
-        return false;
-    }
+    return site_media_get($key) !== null;
 }
 
 function site_media_put(string $key, string $fileName, string $mimeType, int $width, int $height, string $bytes): void
@@ -67,6 +81,7 @@ function site_media_put(string $key, string $fileName, string $mimeType, int $wi
     $stmt->bindValue(':sha256', $sha256, PDO::PARAM_STR);
     $stmt->bindValue(':media_data', $bytes, PDO::PARAM_LOB);
     $stmt->execute();
+    site_media_cache_clear($key);
 }
 
 function site_media_delete(string $key): void
@@ -78,21 +93,28 @@ function site_media_delete(string $key): void
         db()->prepare('DELETE FROM site_media WHERE media_key = :key')->execute([':key' => $key]);
     } catch (Throwable) {
     }
+    site_media_cache_clear($key);
 }
 
-function site_media_public_url(string $key): string
+function site_media_public_path(string $key): string
 {
-    if (!site_media_key_allowed($key) || !site_media_exists($key)) {
+    $media = site_media_get($key);
+    if (!is_array($media)) {
         return '';
     }
 
-    $media = site_media_get($key);
-    $revision = is_array($media) ? substr((string)($media['sha256'] ?? ''), 0, 12) : '';
+    $revision = substr((string)($media['sha256'] ?? ''), 0, 12);
     $query = ['key' => $key];
     if ($revision !== '') {
         $query['v'] = $revision;
     }
-    return public_url('site-media.php') . '?' . http_build_query($query);
+    return 'site-media.php?' . http_build_query($query);
+}
+
+function site_media_public_url(string $key): string
+{
+    $path = site_media_public_path($key);
+    return $path !== '' ? public_url($path) : '';
 }
 
 function site_media_url_or_legacy(string $key, string $legacyPath = ''): string
