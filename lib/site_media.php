@@ -13,10 +13,12 @@ function site_media_key_allowed(string $key): bool
 
 function site_media_ensure_table(): bool
 {
-    static $ready = null;
-    if ($ready !== null) {
+    static $attempted = false;
+    static $ready = false;
+    if ($attempted) {
         return $ready;
     }
+    $attempted = true;
 
     try {
         db()->exec(
@@ -37,7 +39,6 @@ function site_media_ensure_table(): bool
         );
         $ready = true;
     } catch (Throwable $e) {
-        $ready = false;
         error_log('[site_media] unable to ensure site_media table: ' . $e->getMessage());
     }
 
@@ -57,9 +58,17 @@ function site_media_cache_clear(?string $key = null): void
     }
 }
 
+function site_media_meta_query(string $key): ?array
+{
+    $stmt = db()->prepare('SELECT media_key, file_name, mime_type, width, height, byte_size, sha256, created_at, updated_at FROM site_media WHERE media_key = :key LIMIT 1');
+    $stmt->execute([':key' => $key]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return is_array($row) ? $row : null;
+}
+
 function site_media_meta_get(string $key): ?array
 {
-    if (!site_media_key_allowed($key) || !site_media_ensure_table()) {
+    if (!site_media_key_allowed($key)) {
         return null;
     }
 
@@ -71,12 +80,9 @@ function site_media_meta_get(string $key): ?array
     }
 
     try {
-        $stmt = db()->prepare('SELECT media_key, file_name, mime_type, width, height, byte_size, sha256, created_at, updated_at FROM site_media WHERE media_key = :key LIMIT 1');
-        $stmt->execute([':key' => $key]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        $value = is_array($row) ? $row : null;
+        $value = site_media_meta_query($key);
     } catch (Throwable) {
-        $value = null;
+        $value = site_media_ensure_table() ? site_media_meta_query($key) : null;
     }
 
     if (!isset($GLOBALS['__site_media_meta_cache']) || !is_array($GLOBALS['__site_media_meta_cache'])) {
@@ -86,9 +92,17 @@ function site_media_meta_get(string $key): ?array
     return $value;
 }
 
+function site_media_blob_query(string $key): ?array
+{
+    $stmt = db()->prepare('SELECT media_key, file_name, mime_type, width, height, byte_size, sha256, media_data, created_at, updated_at FROM site_media WHERE media_key = :key LIMIT 1');
+    $stmt->execute([':key' => $key]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return is_array($row) ? $row : null;
+}
+
 function site_media_get(string $key): ?array
 {
-    if (!site_media_key_allowed($key) || !site_media_ensure_table()) {
+    if (!site_media_key_allowed($key)) {
         return null;
     }
 
@@ -100,12 +114,9 @@ function site_media_get(string $key): ?array
     }
 
     try {
-        $stmt = db()->prepare('SELECT media_key, file_name, mime_type, width, height, byte_size, sha256, media_data, created_at, updated_at FROM site_media WHERE media_key = :key LIMIT 1');
-        $stmt->execute([':key' => $key]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        $value = is_array($row) ? $row : null;
+        $value = site_media_blob_query($key);
     } catch (Throwable) {
-        $value = null;
+        $value = site_media_ensure_table() ? site_media_blob_query($key) : null;
     }
 
     if (!isset($GLOBALS['__site_media_blob_cache']) || !is_array($GLOBALS['__site_media_blob_cache'])) {
@@ -136,6 +147,9 @@ function site_media_put(string $key, string $fileName, string $mimeType, int $wi
     if ($bytes === '') {
         throw new InvalidArgumentException('Site media bytes are empty.');
     }
+    // Existing deployments may not have run the newest migration yet.
+    // Creating the table is done only on the admin write path unless a read
+    // has already proven that the table is missing.
     if (!site_media_ensure_table()) {
         throw new RuntimeException('site_media table is unavailable.');
     }
@@ -161,12 +175,13 @@ function site_media_put(string $key, string $fileName, string $mimeType, int $wi
 
 function site_media_delete(string $key): void
 {
-    if (!site_media_key_allowed($key) || !site_media_ensure_table()) {
+    if (!site_media_key_allowed($key)) {
         return;
     }
     try {
         db()->prepare('DELETE FROM site_media WHERE media_key = :key')->execute([':key' => $key]);
     } catch (Throwable) {
+        return;
     }
     site_media_cache_clear($key);
 }
