@@ -154,9 +154,6 @@ function site_media_put(string $key, string $fileName, string $mimeType, int $wi
     if ($bytes === '') {
         throw new InvalidArgumentException('Site media bytes are empty.');
     }
-    if (!site_media_ensure_table()) {
-        throw new RuntimeException('site_media table is unavailable.');
-    }
 
     $size = strlen($bytes);
     $sha256 = hash('sha256', $bytes);
