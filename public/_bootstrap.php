@@ -9,6 +9,13 @@ require_once __DIR__ . '/../lib/public_page_cache.php';
 
 pcf_crawler_guard_check();
 
+if ((!isset($ogImage) || !is_string($ogImage) || trim($ogImage) === '') && function_exists('site_media_public_url')) {
+    $defaultOgpImage = site_media_public_url('ogp');
+    if ($defaultOgpImage !== '') {
+        $ogImage = $defaultOgpImage;
+    }
+}
+
 $publicScriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
 if ($publicScriptName === 'setup_check.php' && function_exists('setup_guard_enforce_for_setup_page')) {
     setup_guard_enforce_for_setup_page();
