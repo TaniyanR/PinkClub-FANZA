@@ -93,6 +93,10 @@ $inspectUpload = static function (
     ];
 };
 
+// Run schema creation before any explicit transaction. MySQL DDL can commit a
+// transaction implicitly, so it must never be triggered from inside the save.
+$siteMediaSchemaReady = site_media_ensure_table();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate_or_fail((string)post('_csrf', ''));
     $siteName = $normalizePinkClubName((string)post('site_name', ''));
@@ -100,7 +104,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $tagline = trim((string)post('site_tagline', ''));
     $keywords = trim((string)post('site_keywords', ''));
 
-    if ($siteName === '') {
+    if (!$siteMediaSchemaReady) {
+        $error = '画像保存用DBテーブルを準備できませんでした。サーバーのDB権限を確認してください。';
+    } elseif ($siteName === '') {
         $error = 'サイト名を入力してください。';
     } elseif ($siteUrl === '' || filter_var($siteUrl, FILTER_VALIDATE_URL) === false || !str_starts_with(strtolower($siteUrl), 'https://')) {
         $error = 'URLは https:// から始まる正しいURLを入力してください。';
