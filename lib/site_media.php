@@ -20,6 +20,15 @@ function site_media_ensure_table(): bool
     }
     $attempted = true;
 
+    // Existing installations should not need CREATE privilege on every visit.
+    // Probe the table first and only run DDL when it is actually absent.
+    try {
+        db()->query('SELECT 1 FROM site_media LIMIT 1');
+        $ready = true;
+        return true;
+    } catch (Throwable) {
+    }
+
     try {
         db()->exec(
             'CREATE TABLE IF NOT EXISTS site_media ('
