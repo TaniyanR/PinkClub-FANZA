@@ -66,6 +66,31 @@ function site_media_meta_query(string $key): ?array
     return is_array($row) ? $row : null;
 }
 
+function site_media_blob_query(string $key): ?array
+{
+    $stmt = db()->prepare('SELECT media_key, file_name, mime_type, width, height, byte_size, sha256, media_data, created_at, updated_at FROM site_media WHERE media_key = :key LIMIT 1');
+    $stmt->execute([':key' => $key]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return is_array($row) ? $row : null;
+}
+
+function site_media_query_with_repair(string $key, bool $withBlob): ?array
+{
+    try {
+        return $withBlob ? site_media_blob_query($key) : site_media_meta_query($key);
+    } catch (Throwable) {
+        if (!site_media_ensure_table()) {
+            return null;
+        }
+        try {
+            return $withBlob ? site_media_blob_query($key) : site_media_meta_query($key);
+        } catch (Throwable $e) {
+            error_log('[site_media] read failed after schema repair: ' . $e->getMessage());
+            return null;
+        }
+    }
+}
+
 function site_media_meta_get(string $key): ?array
 {
     if (!site_media_key_allowed($key)) {
@@ -79,25 +104,12 @@ function site_media_meta_get(string $key): ?array
         return is_array($cached) ? $cached : null;
     }
 
-    try {
-        $value = site_media_meta_query($key);
-    } catch (Throwable) {
-        $value = site_media_ensure_table() ? site_media_meta_query($key) : null;
-    }
-
+    $value = site_media_query_with_repair($key, false);
     if (!isset($GLOBALS['__site_media_meta_cache']) || !is_array($GLOBALS['__site_media_meta_cache'])) {
         $GLOBALS['__site_media_meta_cache'] = [];
     }
     $GLOBALS['__site_media_meta_cache'][$key] = $value;
     return $value;
-}
-
-function site_media_blob_query(string $key): ?array
-{
-    $stmt = db()->prepare('SELECT media_key, file_name, mime_type, width, height, byte_size, sha256, media_data, created_at, updated_at FROM site_media WHERE media_key = :key LIMIT 1');
-    $stmt->execute([':key' => $key]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    return is_array($row) ? $row : null;
 }
 
 function site_media_get(string $key): ?array
@@ -113,12 +125,7 @@ function site_media_get(string $key): ?array
         return is_array($cached) ? $cached : null;
     }
 
-    try {
-        $value = site_media_blob_query($key);
-    } catch (Throwable) {
-        $value = site_media_ensure_table() ? site_media_blob_query($key) : null;
-    }
-
+    $value = site_media_query_with_repair($key, true);
     if (!isset($GLOBALS['__site_media_blob_cache']) || !is_array($GLOBALS['__site_media_blob_cache'])) {
         $GLOBALS['__site_media_blob_cache'] = [];
     }
@@ -147,9 +154,6 @@ function site_media_put(string $key, string $fileName, string $mimeType, int $wi
     if ($bytes === '') {
         throw new InvalidArgumentException('Site media bytes are empty.');
     }
-    // Existing deployments may not have run the newest migration yet.
-    // Creating the table is done only on the admin write path unless a read
-    // has already proven that the table is missing.
     if (!site_media_ensure_table()) {
         throw new RuntimeException('site_media table is unavailable.');
     }
