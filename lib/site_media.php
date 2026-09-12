@@ -11,6 +11,39 @@ function site_media_key_allowed(string $key): bool
     return in_array($key, PCF_SITE_MEDIA_KEYS, true);
 }
 
+function site_media_ensure_table(): bool
+{
+    static $ready = null;
+    if ($ready !== null) {
+        return $ready;
+    }
+
+    try {
+        db()->exec(
+            'CREATE TABLE IF NOT EXISTS site_media ('
+            . 'media_key VARCHAR(32) NOT NULL,'
+            . 'file_name VARCHAR(255) NOT NULL,'
+            . 'mime_type VARCHAR(64) NOT NULL,'
+            . 'width INT UNSIGNED NOT NULL DEFAULT 0,'
+            . 'height INT UNSIGNED NOT NULL DEFAULT 0,'
+            . 'byte_size INT UNSIGNED NOT NULL DEFAULT 0,'
+            . 'sha256 CHAR(64) NOT NULL,'
+            . 'media_data LONGBLOB NOT NULL,'
+            . 'created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,'
+            . 'updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,'
+            . 'PRIMARY KEY (media_key),'
+            . 'KEY idx_site_media_updated_at (updated_at)'
+            . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+        );
+        $ready = true;
+    } catch (Throwable $e) {
+        $ready = false;
+        error_log('[site_media] unable to ensure site_media table: ' . $e->getMessage());
+    }
+
+    return $ready;
+}
+
 function site_media_cache_clear(?string $key = null): void
 {
     if ($key === null) {
@@ -26,7 +59,7 @@ function site_media_cache_clear(?string $key = null): void
 
 function site_media_meta_get(string $key): ?array
 {
-    if (!site_media_key_allowed($key)) {
+    if (!site_media_key_allowed($key) || !site_media_ensure_table()) {
         return null;
     }
 
@@ -55,7 +88,7 @@ function site_media_meta_get(string $key): ?array
 
 function site_media_get(string $key): ?array
 {
-    if (!site_media_key_allowed($key)) {
+    if (!site_media_key_allowed($key) || !site_media_ensure_table()) {
         return null;
     }
 
@@ -103,6 +136,9 @@ function site_media_put(string $key, string $fileName, string $mimeType, int $wi
     if ($bytes === '') {
         throw new InvalidArgumentException('Site media bytes are empty.');
     }
+    if (!site_media_ensure_table()) {
+        throw new RuntimeException('site_media table is unavailable.');
+    }
 
     $size = strlen($bytes);
     $sha256 = hash('sha256', $bytes);
@@ -125,7 +161,7 @@ function site_media_put(string $key, string $fileName, string $mimeType, int $wi
 
 function site_media_delete(string $key): void
 {
-    if (!site_media_key_allowed($key)) {
+    if (!site_media_key_allowed($key) || !site_media_ensure_table()) {
         return;
     }
     try {
