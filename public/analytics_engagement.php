@@ -14,26 +14,9 @@ if (!analytics_request_is_valid_browser_beacon() || analytics_request_is_automat
 }
 
 $rawPath = (string)($_POST['path'] ?? '/');
-$token = trim((string)($_POST['token'] ?? ''));
 $duration = (int)($_POST['duration'] ?? 0);
 $active = (int)($_POST['active'] ?? 0);
 $scroll = (int)($_POST['scroll'] ?? 0);
-
-if (preg_match('/^(\d{10})\.([a-f0-9]{64})$/', $token, $matches) !== 1) {
-    http_response_code(204);
-    exit;
-}
-
-$issuedAt = (int)$matches[1];
-if ($issuedAt > time() || $issuedAt < time() - 43200) {
-    http_response_code(204);
-    exit;
-}
-
-if (!hash_equals(analytics_beacon_token($rawPath, $issuedAt), $token)) {
-    http_response_code(204);
-    exit;
-}
 
 $duration = max(0, min(43200, $duration));
 $active = max(0, min($duration, $active));
