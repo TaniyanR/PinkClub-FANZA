@@ -298,10 +298,22 @@
   window.__pcfEngagementTrackingStarted = true;
 
   const startedAt = Date.now();
+  const eventKey = (() => {
+    try {
+      if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID().toLowerCase();
+      if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
+        const bytes = new Uint8Array(16);
+        window.crypto.getRandomValues(bytes);
+        return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+      }
+    } catch (_) {}
+    return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`.slice(0, 64);
+  })();
+
   let visibleSince = document.visibilityState === 'visible' ? Date.now() : 0;
   let activeMs = 0;
   let maxScroll = 0;
-  let sent = false;
+  let lastSentDuration = 0;
 
   const updateScroll = () => {
     const doc = document.documentElement;
@@ -312,7 +324,9 @@
       window.innerHeight || 0
     );
     const denominator = Math.max(1, height - (window.innerHeight || 0));
-    const percent = Math.max(0, Math.min(100, Math.round(((window.scrollY || 0) / denominator) * 100)));
+    const percent = denominator <= 1
+      ? 100
+      : Math.max(0, Math.min(100, Math.round(((window.scrollY || 0) / denominator) * 100)));
     if (percent > maxScroll) maxScroll = percent;
   };
 
@@ -333,24 +347,28 @@
     return `${path.slice(0, slash + 1)}analytics_engagement.php`;
   })();
 
-  const send = () => {
-    if (sent) return;
-    sent = true;
-    closeVisibleWindow();
+  const sendSnapshot = () => {
+    const now = Date.now();
+    const wasVisible = visibleSince > 0;
+    if (wasVisible) closeVisibleWindow();
     updateScroll();
 
-    const duration = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
+    const duration = Math.max(0, Math.min(43200, Math.round((now - startedAt) / 1000)));
     const active = Math.max(0, Math.min(duration, Math.round(activeMs / 1000)));
-    if (duration < 2) return;
+    if (duration < 2 || duration === lastSentDuration) {
+      if (wasVisible && document.visibilityState === 'visible') openVisibleWindow();
+      return;
+    }
+    lastSentDuration = duration;
 
     const data = new FormData();
+    data.append('event_key', eventKey);
     data.append('path', window.location.pathname + window.location.search);
     data.append('duration', String(duration));
     data.append('active', String(active));
     data.append('scroll', String(maxScroll));
 
-    if (navigator.sendBeacon && navigator.sendBeacon(endpoint, data)) return;
-    if (window.fetch) {
+    if (!(navigator.sendBeacon && navigator.sendBeacon(endpoint, data)) && window.fetch) {
       window.fetch(endpoint, {
         method: 'POST',
         body: data,
@@ -358,17 +376,23 @@
         keepalive: true
       }).catch(() => {});
     }
+
+    if (wasVisible && document.visibilityState === 'visible') openVisibleWindow();
   };
 
   window.addEventListener('scroll', updateScroll, { passive: true });
-  window.addEventListener('pagehide', send, { once: true });
+  window.addEventListener('pagehide', sendSnapshot);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       closeVisibleWindow();
+      sendSnapshot();
     } else {
       openVisibleWindow();
     }
   });
   window.addEventListener('pageshow', openVisibleWindow);
+  window.setInterval(() => {
+    if (document.visibilityState === 'visible') sendSnapshot();
+  }, 60000);
   updateScroll();
 })();
