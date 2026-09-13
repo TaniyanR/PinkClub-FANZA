@@ -47,7 +47,19 @@ $flash = function_exists('flash_get') ? flash_get() : null;
 $titleText = (string)($title ?? APP_NAME);
 $faviconPath = trim(site_setting_get('site.favicon_path', ''));
 $faviconUrl = $faviconPath !== '' ? public_versioned_url($faviconPath) : '';
-$faviconType = strtolower((string)pathinfo($faviconPath, PATHINFO_EXTENSION)) === 'png' ? 'image/png' : 'image/x-icon';
+$faviconType = 'image/x-icon';
+if (function_exists('site_media_meta_get')) {
+    $faviconMedia = site_media_meta_get('favicon');
+    if (is_array($faviconMedia) && trim((string)($faviconMedia['mime_type'] ?? '')) !== '') {
+        $faviconType = trim((string)$faviconMedia['mime_type']);
+    } else {
+        $faviconExt = strtolower((string)pathinfo($faviconPath, PATHINFO_EXTENSION));
+        $faviconType = $faviconExt === 'png' ? 'image/png' : 'image/x-icon';
+    }
+} else {
+    $faviconExt = strtolower((string)pathinfo($faviconPath, PATHINFO_EXTENSION));
+    $faviconType = $faviconExt === 'png' ? 'image/png' : 'image/x-icon';
+}
 ?>
 <!doctype html>
 <html lang="ja">
@@ -61,6 +73,7 @@ $faviconType = strtolower((string)pathinfo($faviconPath, PATHINFO_EXTENSION)) ==
     <link rel="apple-touch-icon" href="<?= e($faviconUrl) ?>">
   <?php endif; ?>
   <link rel="stylesheet" href="<?= e(asset_url('css/style.css')) ?>">
+  <link rel="stylesheet" href="<?= e(asset_url('css/admin-enhancements.css')) ?>">
 </head>
 <body class="admin-page">
 <input class="admin-menu-toggle" type="checkbox" id="admin-menu-toggle" hidden>

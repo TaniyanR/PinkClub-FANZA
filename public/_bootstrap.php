@@ -48,6 +48,16 @@ if ($isSocialCardCrawler) {
     pcf_public_page_cache_start($publicPageCacheTtl);
 }
 
+// Resolve the default social image only when the request is not already
+// satisfied by the public page cache. This keeps cached page hits from doing
+// an unnecessary database lookup.
+if ((!isset($ogImage) || !is_string($ogImage) || trim($ogImage) === '') && function_exists('site_media_public_url')) {
+    $defaultOgpImage = site_media_public_url('ogp');
+    if ($defaultOgpImage !== '') {
+        $ogImage = $defaultOgpImage;
+    }
+}
+
 $readOnlyPublicPages = [
     'index.php',
     'items.php',
