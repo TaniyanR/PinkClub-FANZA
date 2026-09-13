@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS analytics_page_engagement (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  event_key CHAR(64) NOT NULL,
   viewed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   visitor_hash CHAR(64) NOT NULL,
   path VARCHAR(255) NOT NULL,
@@ -7,6 +8,7 @@ CREATE TABLE IF NOT EXISTS analytics_page_engagement (
   active_seconds INT UNSIGNED NOT NULL DEFAULT 0,
   max_scroll_percent TINYINT UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (id),
+  UNIQUE KEY uq_analytics_engagement_event_key (event_key),
   KEY idx_analytics_engagement_viewed_at (viewed_at),
   KEY idx_analytics_engagement_visitor_date (visitor_hash, viewed_at),
   KEY idx_analytics_engagement_path_date (path(160), viewed_at)
