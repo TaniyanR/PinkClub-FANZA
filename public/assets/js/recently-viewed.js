@@ -288,3 +288,87 @@
     if (event.key === STORAGE_KEY || event.key === VISIBILITY_KEY) renderHistory();
   });
 })();
+
+/* Independent anonymous engagement telemetry. No localStorage/cookie is used here. */
+(() => {
+  'use strict';
+
+  if (navigator.webdriver === true || window.__pcfEngagementTrackingStarted === true) return;
+  if (navigator.doNotTrack === '1' || window.doNotTrack === '1') return;
+  window.__pcfEngagementTrackingStarted = true;
+
+  const startedAt = Date.now();
+  let visibleSince = document.visibilityState === 'visible' ? Date.now() : 0;
+  let activeMs = 0;
+  let maxScroll = 0;
+  let sent = false;
+
+  const updateScroll = () => {
+    const doc = document.documentElement;
+    const body = document.body;
+    const height = Math.max(
+      doc ? doc.scrollHeight : 0,
+      body ? body.scrollHeight : 0,
+      window.innerHeight || 0
+    );
+    const denominator = Math.max(1, height - (window.innerHeight || 0));
+    const percent = Math.max(0, Math.min(100, Math.round(((window.scrollY || 0) / denominator) * 100)));
+    if (percent > maxScroll) maxScroll = percent;
+  };
+
+  const closeVisibleWindow = () => {
+    if (visibleSince > 0) {
+      activeMs += Math.max(0, Date.now() - visibleSince);
+      visibleSince = 0;
+    }
+  };
+
+  const openVisibleWindow = () => {
+    if (visibleSince === 0 && document.visibilityState === 'visible') visibleSince = Date.now();
+  };
+
+  const endpoint = (() => {
+    const path = window.location.pathname;
+    const slash = path.lastIndexOf('/');
+    return `${path.slice(0, slash + 1)}analytics_engagement.php`;
+  })();
+
+  const send = () => {
+    if (sent) return;
+    sent = true;
+    closeVisibleWindow();
+    updateScroll();
+
+    const duration = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
+    const active = Math.max(0, Math.min(duration, Math.round(activeMs / 1000)));
+    if (duration < 2) return;
+
+    const data = new FormData();
+    data.append('path', window.location.pathname + window.location.search);
+    data.append('duration', String(duration));
+    data.append('active', String(active));
+    data.append('scroll', String(maxScroll));
+
+    if (navigator.sendBeacon && navigator.sendBeacon(endpoint, data)) return;
+    if (window.fetch) {
+      window.fetch(endpoint, {
+        method: 'POST',
+        body: data,
+        credentials: 'same-origin',
+        keepalive: true
+      }).catch(() => {});
+    }
+  };
+
+  window.addEventListener('scroll', updateScroll, { passive: true });
+  window.addEventListener('pagehide', send, { once: true });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      closeVisibleWindow();
+    } else {
+      openVisibleWindow();
+    }
+  });
+  window.addEventListener('pageshow', openVisibleWindow);
+  updateScroll();
+})();
