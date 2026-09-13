@@ -40,6 +40,7 @@ function pcf_session_is_required(): bool
     // however, load it so administrator page views can be excluded.
     if (!str_contains($requestPath, '/admin/') && in_array($scriptName, [
         'analytics.php',
+        'analytics_engagement.php',
         'page_view_beacon.php',
         'ranking_refresh.php',
     ], true)) {
@@ -94,6 +95,14 @@ if (!headers_sent()) {
     header('X-Frame-Options: SAMEORIGIN');
     header('Referrer-Policy: strict-origin-when-cross-origin');
     header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+
+    $headerHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+    if ($headerHttps) {
+        // Do not use includeSubDomains/preload here: other subdomains may have
+        // independent TLS lifecycles. One year protects this host safely.
+        header('Strict-Transport-Security: max-age=31536000');
+    }
 
     $requestPath = (string)(parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/');
     $scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
