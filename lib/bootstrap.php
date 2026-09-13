@@ -96,6 +96,14 @@ if (!headers_sent()) {
     header('Referrer-Policy: strict-origin-when-cross-origin');
     header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
 
+    $headerHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+    if ($headerHttps) {
+        // Do not use includeSubDomains/preload here: other subdomains may have
+        // independent TLS lifecycles. One year protects this host safely.
+        header('Strict-Transport-Security: max-age=31536000');
+    }
+
     $requestPath = (string)(parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/');
     $scriptName = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
     if (str_contains($requestPath, '/admin/') || in_array($scriptName, [
