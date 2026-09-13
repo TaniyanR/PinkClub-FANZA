@@ -30,7 +30,10 @@ $path = analytics_normalize_beacon_path($rawPath);
 $visitorHash = analytics_visitor_hash((string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
 
 try {
-    installer_apply_migrations(dirname(__DIR__) . '/sql/migrations', 'analytics_engagement_endpoint');
+    if (!db_table_exists('analytics_page_engagement')) {
+        http_response_code(204);
+        exit;
+    }
 
     $pdo = db();
     $duplicate = $pdo->prepare(
@@ -70,6 +73,14 @@ try {
             ':active' => $active,
             ':scroll' => $scroll,
         ]);
+    }
+
+    if (random_int(1, 200) === 1) {
+        $retentionDays = (int)(setting_get('analytics.cleanup.retention_days', '730') ?? '730');
+        $retentionDays = max(365, min(3650, $retentionDays));
+        $cutoff = date('Y-m-d H:i:s', strtotime('-' . $retentionDays . ' days'));
+        $cleanup = $pdo->prepare('DELETE FROM analytics_page_engagement WHERE viewed_at < :cutoff ORDER BY viewed_at ASC LIMIT 2000');
+        $cleanup->execute([':cutoff' => $cutoff]);
     }
 } catch (Throwable $e) {
     error_log('analytics engagement failed: ' . $e->getMessage());
