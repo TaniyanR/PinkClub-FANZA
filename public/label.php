@@ -14,7 +14,33 @@ $limit = 20;
 $offset = ($labelPage - 1) * $limit;
 $list = [];
 $hasNext = false;
+
 $label = fetch_label($id, $name);
+
+// 現行item_labelsは dmm_id / label_name を保持している。
+// 既存のマスター取得で見つからない場合も、関連テーブル自体から安全に解決する。
+if ($label === null && db_column_exists('item_labels', 'item_id')) {
+    try {
+        $stmt = db()->prepare(
+            'SELECT COALESCE(NULLIF(TRIM(dmm_id), ""), TRIM(label_name)) AS id, '
+            . 'TRIM(label_name) AS name '
+            . 'FROM item_labels '
+            . 'WHERE TRIM(label_name) <> "" '
+            . 'AND ('
+            . '(:id <> "" AND (TRIM(dmm_id) = :id OR TRIM(label_name) = :id)) '
+            . 'OR (:name <> "" AND TRIM(label_name) = :name)'
+            . ') '
+            . 'LIMIT 1'
+        );
+        $stmt->execute([':id' => $id, ':name' => $name]);
+        $resolved = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (is_array($resolved)) {
+            $label = $resolved;
+        }
+    } catch (Throwable) {
+    }
+}
+
 if ($label === null) {
     require __DIR__ . '/404.php';
 }
@@ -25,7 +51,40 @@ if ($labelName === '' || $canonicalLabelId === '') {
     require __DIR__ . '/404.php';
 }
 
-$rows = dedupe_items_by_key(fetch_items_by_label_name($labelName, $limit + 1, $offset));
+$rows = [];
+
+// 名前だけで結ぶと表記揺れで0件になるため、現行DBではレーベルIDを最優先して取得する。
+if (db_column_exists('item_labels', 'item_id')) {
+    try {
+        $stmt = db()->prepare(
+            'SELECT DISTINCT items.* '
+            . 'FROM items '
+            . 'INNER JOIN item_labels ON item_labels.item_id = items.id '
+            . 'WHERE ('
+            . 'TRIM(COALESCE(item_labels.dmm_id, "")) = :label_id '
+            . 'OR TRIM(item_labels.label_name) = :label_name'
+            . ') '
+            . 'AND ' . items_product_source_where('items') . ' '
+            . 'ORDER BY items.release_date DESC, items.id DESC '
+            . 'LIMIT :limit OFFSET :offset'
+        );
+        $stmt->bindValue(':label_id', $canonicalLabelId, PDO::PARAM_STR);
+        $stmt->bindValue(':label_name', $labelName, PDO::PARAM_STR);
+        $stmt->bindValue(':limit', $limit + 1, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable) {
+        $rows = [];
+    }
+}
+
+// 旧DB構造やID未登録データは従来の名前検索へフォールバックする。
+if ($rows === []) {
+    $rows = fetch_items_by_label_name($labelName, $limit + 1, $offset);
+}
+
+$rows = dedupe_items_by_key($rows);
 [$list, $hasNext] = paginate_items($rows, $limit);
 if ($labelPage === 1 && $list === []) {
     require __DIR__ . '/404.php';
