@@ -79,8 +79,7 @@ $images = [];
 try {
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
     $stmt = db()->prepare(
-        'SELECT id, image_small, image_url, main_image_url, raw_json '
-        . 'FROM items WHERE id IN (' . $placeholders . ')'
+        'SELECT id, image_small, raw_json FROM items WHERE id IN (' . $placeholders . ')'
     );
     foreach ($ids as $index => $id) {
         $stmt->bindValue($index + 1, $id, PDO::PARAM_INT);
@@ -107,8 +106,6 @@ try {
             $firstImageFromMixed($raw['imageURL']['large'] ?? null),
             $normalizeImageUrl((string)($row['image_small'] ?? '')),
             $firstImageFromMixed($raw['imageURL']['small'] ?? null),
-            $normalizeImageUrl((string)($row['image_url'] ?? '')),
-            $normalizeImageUrl((string)($row['main_image_url'] ?? '')),
         ];
 
         foreach ($candidates as $candidate) {
