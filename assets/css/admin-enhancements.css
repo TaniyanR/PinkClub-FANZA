@@ -18,7 +18,7 @@ body.admin-page .admin-main > form.admin-card{
 
 /* Keep form cards and their row backgrounds visually consistent across pages. */
 body.admin-page .admin-main > .admin-card--form{
-  width:min(1180px,100%);
+  width:100%;
   max-width:none;
   box-sizing:border-box;
 }
@@ -138,6 +138,16 @@ body.admin-page .admin-main .admin-media-preview{
 body.admin-page .admin-main .admin-media-preview--logo{max-width:400px;max-height:100px}
 body.admin-page .admin-main .admin-media-preview--favicon{width:64px;height:64px}
 body.admin-page .admin-main .admin-media-preview--ogp{max-width:480px;max-height:252px}
+
+/* All top-level admin content cards use the same available width. */
+body.admin-page .admin-main > .admin-card,
+body.admin-page .admin-main > form.admin-card{
+  width:100%;
+  max-width:none;
+  margin-left:0;
+  margin-right:0;
+  box-sizing:border-box;
+}
 
 @media (max-width:768px){
   body.admin-page .admin-main > .admin-card,
