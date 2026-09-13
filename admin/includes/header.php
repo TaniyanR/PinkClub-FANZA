@@ -74,6 +74,7 @@ if (function_exists('site_media_meta_get')) {
   <?php endif; ?>
   <link rel="stylesheet" href="<?= e(asset_url('css/style.css')) ?>">
   <link rel="stylesheet" href="<?= e(asset_url('css/admin-enhancements.css')) ?>">
+  <?php if ($currentScript === 'analytics.php'): ?><script src="<?= e(asset_url('js/admin-analytics.js')) ?>" defer></script><?php endif; ?>
 </head>
 <body class="admin-page">
 <input class="admin-menu-toggle" type="checkbox" id="admin-menu-toggle" hidden>
