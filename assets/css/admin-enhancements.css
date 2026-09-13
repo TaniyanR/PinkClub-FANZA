@@ -16,6 +16,22 @@ body.admin-page .admin-main > form.admin-card{
   box-shadow:0 4px 14px rgba(29,35,39,.06);
 }
 
+/* Keep form cards and their row backgrounds visually consistent across pages. */
+body.admin-page .admin-main > .admin-card--form{
+  width:min(1180px,100%);
+  max-width:none;
+  box-sizing:border-box;
+}
+body.admin-page .admin-main .admin-card--form > form{
+  width:100%;
+  max-width:none !important;
+  box-sizing:border-box;
+}
+body.admin-page .admin-main .admin-card--form form > label{
+  width:100%;
+  box-sizing:border-box;
+}
+
 body.admin-page .admin-main > .admin-card > h1:first-child,
 body.admin-page .admin-main > .admin-card > h2:first-child{
   padding-left:11px;
