@@ -4,9 +4,25 @@ declare(strict_types=1);
 <style>
 @media (min-width: 901px) {
   .site-main--legacy .rail-section:not(.home-feature-section) > .rail-row--home-taxonomy {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 16px !important;
     flex-wrap: wrap !important;
     overflow-x: visible !important;
     overflow-y: visible !important;
+    padding-bottom: 10px;
+  }
+  .site-main--legacy .rail-section:not(.home-feature-section) > .rail-row--home-taxonomy .rail-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    flex: none !important;
+  }
+  .site-main--legacy .rail-section:not(.home-feature-section) > .rail-row--home-taxonomy .rail-card .thumb,
+  .site-main--legacy .rail-section:not(.home-feature-section) > .rail-row--home-taxonomy .rail-card .rail-card__noimage {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
   }
 }
 </style>
