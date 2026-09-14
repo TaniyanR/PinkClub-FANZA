@@ -121,7 +121,7 @@ function pcf_public_page_cache_start(int $ttlSeconds = 120): void
     }
     $cacheGeneration = $scriptName === 'item.php' ? 'v6-social-card' : 'v5';
     if ($scriptName === 'index.php') {
-        $cacheGeneration = 'v6-home-visible-products';
+        $cacheGeneration = 'v7-home-visible-products';
     }
     $cacheKey = hash('sha256', $cacheGeneration . '|' . $cacheAuthority . '|' . $variant . '|' . $normalizedRequestUri);
     $cacheFile = $cacheDirectory . '/' . $cacheKey . '.html';

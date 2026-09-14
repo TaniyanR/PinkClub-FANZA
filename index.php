@@ -324,30 +324,36 @@ function item_sample_state(array $item): array
     return ['movie_url' => $firstMovieUrl, 'movie_urls' => $movieUrls, 'has_images' => $hasImageSample];
 }
 
-function pick_full_package_image(array $item): string
+function home_package_image_candidates(array $item, bool $preferFullPackageImage = true): array
 {
-    foreach (['image_large', 'image_list', 'image_small'] as $key) {
-        if ($key === 'image_list') {
-            foreach (parse_index_image_urls((string)($item['image_list'] ?? '')) as $image) {
-                $candidate = normalize_index_image_url((string)$image);
-                if ($candidate !== '') {
-                    return $candidate;
-                }
+    $keys = $preferFullPackageImage
+        ? ['image_large', 'image_list', 'image_small']
+        : ['image_small', 'image_large', 'image_list'];
+    $images = [];
+    foreach ($keys as $key) {
+        $values = $key === 'image_list'
+            ? parse_index_image_urls((string)($item[$key] ?? ''))
+            : [(string)($item[$key] ?? '')];
+        foreach ($values as $value) {
+            $candidate = normalize_index_image_url((string)$value);
+            if ($candidate !== '') {
+                $images[] = $candidate;
             }
-            continue;
-        }
-        $candidate = normalize_index_image_url((string)($item[$key] ?? ''));
-        if ($candidate !== '') {
-            return $candidate;
         }
     }
+    // Package candidates only; keep retries bounded even for legacy image lists.
+    return array_slice(array_values(array_unique($images)), 0, 3);
+}
 
-    return '';
+function pick_full_package_image(array $item): string
+{
+    return home_package_image_candidates($item)[0] ?? '';
 }
 
 function render_item_card(array $item, int $width = 180, ?array $taxonomy = null, bool $preferFullPackageImage = false, bool $lazyLoad = true): void
 {
-    if (pick_full_package_image($item) === '') {
+    $imageCandidates = home_package_image_candidates($item, $preferFullPackageImage);
+    if ($imageCandidates === []) {
         return;
     }
     $itemUrl = app_url('public/item.php?id=' . (int)$item['id']);
@@ -356,20 +362,11 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     $movieClass = $sample['movie_url'] !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $imageClass = $sample['has_images'] ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')) . '&format=json');
-    $thumbUrl = normalize_index_image_url((string)($item['image_small'] ?? ''));
-    if ($preferFullPackageImage) {
-        $fullPackageImage = pick_full_package_image($item);
-        if ($fullPackageImage !== '') {
-            $thumbUrl = $fullPackageImage;
-        }
-    }
-    if ($thumbUrl === '') {
-        $thumbUrl = pick_full_package_image($item);
-    }
+    $thumbUrl = $imageCandidates[0];
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
       <?php if ($thumbUrl !== ''): ?>
-        <a href="<?= e($itemUrl) ?>"><img class="thumb" src="<?= e($thumbUrl) ?>" alt="<?= e($title) ?>"<?= $lazyLoad ? ' loading="lazy"' : '' ?> decoding="async" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;"></a>
+        <a href="<?= e($itemUrl) ?>"><img class="thumb" data-home-image-candidates="<?= e((string)json_encode($imageCandidates, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE)) ?>" src="<?= e($thumbUrl) ?>" alt="<?= e($title) ?>"<?= $lazyLoad ? ' loading="lazy"' : '' ?> decoding="async" style="width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;"></a>
       <?php else: ?>
         <div class="rail-card__noimage" style="width:<?= (int)$width ?>px;height:<?= (int)$width ?>px;">画像なし</div>
       <?php endif; ?>
@@ -741,6 +738,30 @@ $hasHomeContent = $newReleaseTop !== []
 </div>
 <script>
 (() => {
+  const remainingImages = new WeakMap();
+  const retryHomeImage = (img) => {
+    if (!(img instanceof HTMLImageElement) || !img.hasAttribute('data-home-image-candidates')) return;
+    if (!img.complete || img.naturalWidth > 0) return;
+    if (!remainingImages.has(img)) {
+      let candidates = [];
+      try { candidates = JSON.parse(img.dataset.homeImageCandidates || '[]'); } catch (_) {}
+      const urls = Array.isArray(candidates) ? candidates.filter((url) => typeof url === 'string' && /^https?:\/\//i.test(url)) : [];
+      remainingImages.set(img, [...new Set(urls)].filter((url) => url !== img.getAttribute('src')).slice(0, 2));
+    }
+    const next = remainingImages.get(img).shift();
+    if (next) {
+      img.src = next;
+    } else {
+      const card = img.closest('.rail-card');
+      if (card) card.style.display = 'none';
+    }
+  };
+  // Resource errors do not bubble. Also handle errors before this script ran.
+  document.addEventListener('error', (event) => retryHomeImage(event.target), true);
+  document.querySelectorAll('img[data-home-image-candidates]').forEach((img) => {
+    if (img.complete && img.naturalWidth === 0) retryHomeImage(img);
+  });
+
   const modal = document.getElementById('sample-movie-modal');
   const frame = document.getElementById('sample-movie-frame');
   const titleNode = document.getElementById('sample-movie-title');
