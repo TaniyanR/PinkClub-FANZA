@@ -111,6 +111,49 @@ $tradeMetrics = rss_trade_metrics_host_aware($metricItems, 30);
 
 require __DIR__ . '/includes/header.php';
 ?>
+<style>
+.partner-link-options {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin:12px 0 14px;
+}
+body.admin-page .admin-card--form form > .partner-link-options > .partner-link-option {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-height:46px;
+  margin:0;
+  padding:0 14px;
+  border:1px solid #d7dce1;
+  border-radius:6px;
+  background:#f7f8f9;
+  box-sizing:border-box;
+  font-weight:600;
+  white-space:nowrap;
+}
+body.admin-page .admin-card--form form > .partner-link-options > .partner-link-option input[type="checkbox"] {
+  width:auto;
+  max-width:none;
+  margin:0;
+  flex:0 0 auto;
+}
+.partner-link-table-toggle label {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:0;
+}
+.partner-link-table-toggle input[type="checkbox"] {
+  width:auto;
+  max-width:none;
+  margin:0;
+}
+@media (max-width: 900px) {
+  .partner-link-options { grid-template-columns:1fr; }
+  body.admin-page .admin-card--form form > .partner-link-options > .partner-link-option { white-space:normal; }
+}
+</style>
 <section class="admin-card admin-card--form">
   <h1>相互リンク管理</h1>
   <?php if ($message): ?><p class="flash success"><?= e($message) ?></p><?php endif; ?>
@@ -120,11 +163,11 @@ require __DIR__ . '/includes/header.php';
     <label>サイト名<input name="name" required></label>
     <label>URL<input name="url" type="url" required></label>
     <label>RSS URL<input name="rss_url" type="url"></label>
-    <div style="display:flex;align-items:center;gap:28px;flex-wrap:wrap;margin:10px 0 12px;">
-      <label style="display:flex;align-items:center;gap:8px;margin:0;"><input type="checkbox" name="show_link" value="1" checked style="width:auto;margin:0;"> 相互リンクを表示する</label>
-      <label style="display:flex;align-items:center;gap:8px;margin:0;"><input type="checkbox" name="rel_nofollow" value="1" style="width:auto;margin:0;" <?= !$partnerNofollowSupported ? 'disabled' : '' ?>> rel="nofollow"</label>
+    <div class="partner-link-options">
+      <label class="partner-link-option"><input type="checkbox" name="show_link" value="1" checked> 相互リンクを表示する</label>
+      <label class="partner-link-option"><input type="checkbox" name="rel_nofollow" value="1" <?= !$partnerNofollowSupported ? 'disabled' : '' ?>> rel="nofollow"</label>
+      <label class="partner-link-option"><input type="checkbox" name="show_rss" value="1" checked> RSSを表示する</label>
     </div>
-    <label><input type="checkbox" name="show_rss" value="1" checked> RSSを表示する</label>
     <fieldset>
       <legend>表示順</legend>
       <label><input type="radio" name="sort_mode" value="registered" <?= $sortMode !== 'kana' ? 'checked' : '' ?>> 登録順</label>
@@ -156,19 +199,19 @@ require __DIR__ . '/includes/header.php';
         <td><?= e((string)$outCount) ?></td>
         <td><?= e(($debt > 0 ? '+' : '') . (string)$debt) ?></td>
         <td><?= e(number_format($weight, 2, '.', '')) ?></td>
-        <td style="width:1%;white-space:nowrap;text-align:center;">
+        <td class="partner-link-table-toggle" style="width:1%;white-space:nowrap;text-align:center;">
           <form method="post"><?= csrf_input() ?><input type="hidden" name="action" value="toggle_link"><input type="hidden" name="id" value="<?= e((string)$r['id']) ?>">
             <label><input type="checkbox" name="show_link" value="1" <?= ((int)($r['show_link'] ?? 1) === 1) ? 'checked' : '' ?> onchange="this.form.submit()"></label>
           </form>
         </td>
-        <td style="width:1%;white-space:nowrap;text-align:center;">
+        <td class="partner-link-table-toggle" style="width:1%;white-space:nowrap;text-align:center;">
           <?php if ($partnerNofollowSupported): ?>
           <form method="post"><?= csrf_input() ?><input type="hidden" name="action" value="toggle_nofollow"><input type="hidden" name="id" value="<?= e((string)$r['id']) ?>">
             <label><input type="checkbox" name="rel_nofollow" value="1" <?= ((int)($r['rel_nofollow'] ?? 0) === 1) ? 'checked' : '' ?> onchange="this.form.submit()"></label>
           </form>
           <?php endif; ?>
         </td>
-        <td style="width:1%;white-space:nowrap;text-align:center;">
+        <td class="partner-link-table-toggle" style="width:1%;white-space:nowrap;text-align:center;">
           <?php if ((int)($r['rss_id'] ?? 0) > 0): ?>
           <form method="post"><?= csrf_input() ?><input type="hidden" name="action" value="toggle_rss"><input type="hidden" name="rss_id" value="<?= e((string)$r['rss_id']) ?>">
             <label><input type="checkbox" name="show_rss" value="1" <?= ((int)($r['show_rss'] ?? 0) === 1) ? 'checked' : '' ?> onchange="this.form.submit()"></label>
