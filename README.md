@@ -6,10 +6,11 @@
 3. 保存後に自動でセットアップされない場合、同じ画面の「セットアップを実行する」を押す
 4. `public/login0718.php` を開く
 
-初回はDB接続設定を保存したうえで、セットアップ（DB作成→`sql/schema.sql` 適用→`sql/migrations/*.sql` をファイル名順に適用→seed適用→admin/settings保証）を実行します。
-失敗時やDBを削除・空にして作り直す場合は `public/setup_check.php` を開いて原因確認または再実行してください。
+初回はDB接続設定を保存したうえで、セットアップ（DB作成→旧形式settingsの退避・変換準備→`sql/schema.sql` 適用→旧形式settingsの変換→`sql/migrations/*.sql` をファイル名順に適用→seed適用→admin/settings保証）を実行します。
+失敗時は `public/setup_check.php` と `logs/install.log` で原因を確認してください。通常の更新・修正で既存DBを削除する必要はありません。
 
-### DBを削除・空にして作り直す場合の初心者向け手順
+### 新規検証環境を空にして作り直す場合の手順
+既存の運用DBでは実施しないでください。以下は、保存データを破棄してよい新規検証環境だけを対象にした手順です。
 1. サーバーパネルのMySQL管理画面で、対象DBを削除して同じDB名で作り直すか、対象DB内のテーブルをすべて削除します。
 2. サーバーパネルで、利用するMySQLユーザーを作り直した対象DBに追加し、必要な権限を付与します。
 3. 最新コード一式をサーバーの公開ディレクトリへアップロードします。
@@ -22,7 +23,7 @@
 - 管理ログイン入口（固定）: `/public/login0718.php`
 - 管理トップ: `/admin/index.php`
 - 公開トップ: `/public/`
-- 初期管理者: `admin` / `password`
+- 初期管理者: `admin` / セットアップ時に生成・表示されるランダムな初期パスワード（固定の `password` ではありません）
 
 ## 失敗時の確認
 - エラー詳細は `logs/install.log` に記録されます。
@@ -33,6 +34,8 @@
 - `login0718.php` / `setup_check.php` のCSSは `/assets/css/style.css` を共通利用します。
 
 ## マイグレーション適用
+- CLIからは、DB設定済みの環境で `php scripts/init_db.php` を実行できます。新規管理者の初期パスワードが標準出力に表示されるため、出力を公開ログに保存しないでください。
+- 旧形式settingsはマイグレーション前に変換され、元テーブルを `settings_legacy_backup_<ランダム文字列>` に保持します。既存バックアップは削除しません。
 - インストーラーは `sql/schema.sql` 適用後に `sql/migrations/*.sql` をファイル名順で実行します。
 - `sql/migrations/009_public_query_indexes.sql` も自動適用対象です。
 - 実行済みは `migrations` テーブルで管理します。適用後は `009_public_query_indexes.sql` も `migrations.migration_name` に登録されます。

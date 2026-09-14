@@ -87,6 +87,16 @@ function installer_ensure_database_exists(): void
     db_reset_connections();
 }
 
+function installer_prepare_legacy_settings_table(PDO $pdo, string $stepLabel): void
+{
+    // Older installations used site_settings. Rename it before schema.sql can
+    // create an empty settings table and leave the existing values stranded.
+    if (!db_table_exists('settings') && db_table_exists('site_settings')) {
+        $pdo->exec('RENAME TABLE site_settings TO settings');
+        installer_log('step=' . $stepLabel . ' site_settings_renamed=true');
+    }
+}
+
 function installer_read_sql_file(string $path): string
 {
     if (!is_file($path)) throw new RuntimeException('SQLファイルが見つかりません: ' . $path);
@@ -193,8 +203,9 @@ function installer_normalize_settings_table(PDO $pdo, string $stepLabel): void
         return;
     }
 
-    $tmpTable = 'settings_kv_tmp';
-    $pdo->exec('DROP TABLE IF EXISTS `' . $tmpTable . '`');
+    // Keep previous migration attempts and backups intact.
+    $suffix = bin2hex(random_bytes(8));
+    $tmpTable = 'settings_kv_tmp_' . $suffix;
     $pdo->exec('CREATE TABLE `' . $tmpTable . '` (setting_key VARCHAR(191) PRIMARY KEY, setting_value LONGTEXT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
 
     $pairs = [
@@ -232,10 +243,10 @@ function installer_normalize_settings_table(PDO $pdo, string $stepLabel): void
         $pdo->exec($sql);
     }
 
-    $backup = 'settings_legacy_backup';
-    $pdo->exec('DROP TABLE IF EXISTS `' . $backup . '`');
+    $backup = 'settings_legacy_backup_' . $suffix;
     $pdo->exec('RENAME TABLE settings TO `' . $backup . '`, `' . $tmpTable . '` TO settings');
-    installer_log('step=' . $stepLabel . ' settings_table_normalized=true');
+    unset($GLOBALS['__site_settings_columns']);
+    installer_log('step=' . $stepLabel . ' settings_table_normalized=true backup=' . $backup);
 }
 
 function installer_ensure_admin_user(PDO $pdo, string $stepLabel): bool
@@ -332,11 +343,14 @@ function installer_run(): array
 
         $currentStep='create_database'; installer_ensure_database_exists(); $step('create_database', true);
 
+        $currentStep='prepare_legacy_settings'; installer_prepare_legacy_settings_table(db(), 'prepare_legacy_settings'); $step('prepare_legacy_settings', true);
+
         $currentStep='create_tables'; $tableCount = installer_execute_sql_file(__DIR__ . '/../sql/schema.sql', 'create_tables'); $step('create_tables', true, 'results=' . $tableCount);
 
-        $currentStep='apply_migrations'; $migrationCount = installer_apply_migrations(__DIR__ . '/../sql/migrations', 'apply_migrations'); $step('apply_migrations', true, 'count=' . $migrationCount);
-
+        // Credential migrations read setting_key / setting_value.
         $currentStep='normalize_settings'; installer_normalize_settings_table(db(), 'normalize_settings'); $step('normalize_settings', true);
+
+        $currentStep='apply_migrations'; $migrationCount = installer_apply_migrations(__DIR__ . '/../sql/migrations', 'apply_migrations'); $step('apply_migrations', true, 'count=' . $migrationCount);
 
         $currentStep='seed_data';
         $seedPath = __DIR__ . '/../sql/seed.sql';
