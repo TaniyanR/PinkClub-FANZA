@@ -142,7 +142,7 @@ require __DIR__ . '/partials/header.php';
 
 <h2 class="pcf-section-title"><?= e($labelName) ?>一覧</h2>
 <?php if ($list !== []): ?>
-  <section class="pcf-related-grid pcf-label-related-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));">
+  <section class="pcf-related-grid pcf-label-related-grid">
     <?php foreach ($list as $item): pcf_render_item_card(is_array($item) ? $item : []); endforeach; ?>
   </section>
   <nav class="pcf-pagination" aria-label="ページネーション">
