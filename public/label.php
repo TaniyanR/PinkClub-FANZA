@@ -14,7 +14,41 @@ $limit = 20;
 $offset = ($labelPage - 1) * $limit;
 $list = [];
 $hasNext = false;
+
 $label = fetch_label($id, $name);
+
+// 現行item_labelsは dmm_id / label_name を保持している。
+// PDOのネイティブprepareでは同じ名前付きプレースホルダーを複数回使えないため、
+// 既存のマスター取得で見つからない場合は関連テーブルから一意なプレースホルダーで解決する。
+if ($label === null && db_column_exists('item_labels', 'item_id')) {
+    try {
+        $stmt = db()->prepare(
+            'SELECT COALESCE(NULLIF(TRIM(dmm_id), ""), TRIM(label_name)) AS id, '
+            . 'TRIM(label_name) AS name '
+            . 'FROM item_labels '
+            . 'WHERE TRIM(label_name) <> "" '
+            . 'AND ('
+            . '(:id_present <> "" AND (TRIM(dmm_id) = :id_dmm OR TRIM(label_name) = :id_name)) '
+            . 'OR (:name_present <> "" AND TRIM(label_name) = :name_exact)'
+            . ') '
+            . 'LIMIT 1'
+        );
+        $stmt->execute([
+            ':id_present' => $id,
+            ':id_dmm' => $id,
+            ':id_name' => $id,
+            ':name_present' => $name,
+            ':name_exact' => $name,
+        ]);
+        $resolved = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (is_array($resolved)) {
+            $label = $resolved;
+        }
+    } catch (Throwable $e) {
+        error_log('[label] relation resolution failed: ' . $e->getMessage());
+    }
+}
+
 if ($label === null) {
     require __DIR__ . '/404.php';
 }
@@ -25,7 +59,41 @@ if ($labelName === '' || $canonicalLabelId === '') {
     require __DIR__ . '/404.php';
 }
 
-$rows = dedupe_items_by_key(fetch_items_by_label_name($labelName, $limit + 1, $offset));
+$rows = [];
+
+// 名前だけで結ぶと表記揺れで0件になるため、現行DBではレーベルIDを最優先して取得する。
+if (db_column_exists('item_labels', 'item_id')) {
+    try {
+        $stmt = db()->prepare(
+            'SELECT DISTINCT items.* '
+            . 'FROM items '
+            . 'INNER JOIN item_labels ON item_labels.item_id = items.id '
+            . 'WHERE ('
+            . 'TRIM(COALESCE(item_labels.dmm_id, "")) = :label_id '
+            . 'OR TRIM(item_labels.label_name) = :label_name'
+            . ') '
+            . 'AND ' . items_product_source_where('items') . ' '
+            . 'ORDER BY items.release_date DESC, items.id DESC '
+            . 'LIMIT :limit OFFSET :offset'
+        );
+        $stmt->bindValue(':label_id', $canonicalLabelId, PDO::PARAM_STR);
+        $stmt->bindValue(':label_name', $labelName, PDO::PARAM_STR);
+        $stmt->bindValue(':limit', $limit + 1, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        error_log('[label] item lookup by relation failed: ' . $e->getMessage());
+        $rows = [];
+    }
+}
+
+// 旧DB構造やID未登録データは従来の名前検索へフォールバックする。
+if ($rows === []) {
+    $rows = fetch_items_by_label_name($labelName, $limit + 1, $offset);
+}
+
+$rows = dedupe_items_by_key($rows);
 [$list, $hasNext] = paginate_items($rows, $limit);
 if ($labelPage === 1 && $list === []) {
     require __DIR__ . '/404.php';
@@ -65,6 +133,22 @@ if ($hasNext) {
 }
 require __DIR__ . '/partials/header.php';
 ?>
+<style>
+.pcf-label-related-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 1100px) {
+  .pcf-label-related-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .pcf-label-related-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 768px) {
+  .pcf-label-related-grid { grid-template-columns: 1fr; }
+  .pcf-label-related-grid .pcf-dm-card__image-link,
+  .pcf-label-related-grid .pcf-dm-card__image { height: auto; }
+}
+</style>
 <?php pcf_render_breadcrumbs([
     ['label' => 'トップ', 'url' => public_url('index.php')],
     ['label' => 'レーベル一覧', 'url' => public_url('labels.php')],
@@ -74,7 +158,7 @@ require __DIR__ . '/partials/header.php';
 
 <h2 class="pcf-section-title"><?= e($labelName) ?>一覧</h2>
 <?php if ($list !== []): ?>
-  <section class="pcf-related-grid pcf-label-related-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));">
+  <section class="pcf-related-grid pcf-label-related-grid">
     <?php foreach ($list as $item): pcf_render_item_card(is_array($item) ? $item : []); endforeach; ?>
   </section>
   <nav class="pcf-pagination" aria-label="ページネーション">
