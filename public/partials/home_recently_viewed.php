@@ -1,6 +1,15 @@
 <?php
 declare(strict_types=1);
 ?>
+<style>
+@media (min-width: 901px) {
+  .site-main--legacy .rail-section:not(.home-feature-section) > .rail-row--home-taxonomy {
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+  }
+}
+</style>
 <section id="pcf-recently-viewed" class="pcf-recent" aria-labelledby="pcf-recent-title" hidden>
   <div class="pcf-recent__heading">
     <div>
