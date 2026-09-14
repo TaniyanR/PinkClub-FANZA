@@ -82,6 +82,8 @@ function pcf_public_page_cache_start(int $ttlSeconds = 120): void
     }
     $cacheAuthority = $cacheHost . ($cachePort !== null ? ':' . $cachePort : '');
     $variant = pcf_public_request_is_mobile() ? 'sp' : 'pc';
+    // Invalidate cached link markup without changing the page/image cache revisions.
+    $variant .= '|link-rel-v2';
     $cacheQuery = [];
     parse_str((string)(parse_url($requestUri, PHP_URL_QUERY) ?? ''), $cacheQuery);
     $allowedCacheQueryKeys = [

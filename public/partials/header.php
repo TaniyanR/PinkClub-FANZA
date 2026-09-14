@@ -210,7 +210,7 @@ if (!headers_sent()) {
         link.classList.add('sample-button--enabled');
         link.href = `<?= e(public_url('vr_affiliate.php')) ?>?id=${encodeURIComponent(itemId)}`;
         link.target = '_blank';
-        link.rel = 'noopener noreferrer sponsored nofollow';
+        link.rel = 'noopener sponsored nofollow';
         link.textContent = '元サイトで見る';
         link.setAttribute('aria-label', `${title}をFANZAで見る`);
         link.style.display = 'flex';

@@ -159,7 +159,7 @@ if (!function_exists('render_shared_content_ad_row')) {
                 echo '<ul class="rss-list">';
                 foreach ($columnItems as $item) {
                     $href = rss_trade_out_url($item);
-                    echo '<li class="rss-list__item"><a href="' . e($href) . '" target="_blank" rel="noopener noreferrer">' . e((string)($item['title'] ?? '')) . '</a></li>';
+                    echo '<li class="rss-list__item"><a href="' . e($href) . '" target="_blank" rel="noopener">' . e((string)($item['title'] ?? '')) . '</a></li>';
                 }
                 echo '</ul>';
             }
@@ -173,3 +173,4 @@ if (!function_exists('render_shared_content_ad_row')) {
         echo '</div>';
     }
 }
+
