@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/public/_bootstrap.php';
 require_once __DIR__ . '/lib/repository.php';
 require_once __DIR__ . '/lib/home_rotation_cache.php';
+require_once __DIR__ . '/lib/home_item_visibility.php';
 
 function redirect_canonical_home_url(): void
 {
@@ -66,7 +67,7 @@ function take_unique_items_for_home(array $items, array &$usedKeys, int $limit):
     $result = [];
 
     foreach (dedupe_items_by_key($items) as $item) {
-        if (!is_array($item)) {
+        if (!is_array($item) || pick_full_package_image($item) === '') {
             continue;
         }
 
@@ -268,7 +269,7 @@ function home_column_exists(PDO $pdo, string $table, string $column): bool
 function fetch_items_with_order_fallback(PDO $pdo, array $orderByCandidates, int $limit): array
 {
     $limit = max(1, min(300, $limit));
-    $sourceWhere = items_product_source_where();
+    $sourceWhere = items_product_source_where() . ' AND ' . pcf_home_item_image_where();
     $sourceWhereSql = $sourceWhere !== '' ? ' WHERE ' . $sourceWhere : '';
 
     foreach ($orderByCandidates as $orderBy) {
@@ -328,14 +329,14 @@ function pick_full_package_image(array $item): string
     foreach (['image_large', 'image_list', 'image_small'] as $key) {
         if ($key === 'image_list') {
             foreach (parse_index_image_urls((string)($item['image_list'] ?? '')) as $image) {
-                $candidate = trim((string)$image);
+                $candidate = normalize_index_image_url((string)$image);
                 if ($candidate !== '') {
                     return $candidate;
                 }
             }
             continue;
         }
-        $candidate = trim((string)($item[$key] ?? ''));
+        $candidate = normalize_index_image_url((string)($item[$key] ?? ''));
         if ($candidate !== '') {
             return $candidate;
         }
@@ -346,13 +347,16 @@ function pick_full_package_image(array $item): string
 
 function render_item_card(array $item, int $width = 180, ?array $taxonomy = null, bool $preferFullPackageImage = false, bool $lazyLoad = true): void
 {
+    if (pick_full_package_image($item) === '') {
+        return;
+    }
     $itemUrl = app_url('public/item.php?id=' . (int)$item['id']);
     $title = (string)($item['title'] ?? '');
     $sample = item_sample_state($item);
     $movieClass = $sample['movie_url'] !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $imageClass = $sample['has_images'] ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')) . '&format=json');
-    $thumbUrl = trim((string)($item['image_small'] ?? ''));
+    $thumbUrl = normalize_index_image_url((string)($item['image_small'] ?? ''));
     if ($preferFullPackageImage) {
         $fullPackageImage = pick_full_package_image($item);
         if ($fullPackageImage !== '') {
@@ -360,7 +364,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
         }
     }
     if ($thumbUrl === '') {
-        $thumbUrl = trim((string)($item['image_large'] ?? ''));
+        $thumbUrl = pick_full_package_image($item);
     }
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
@@ -422,9 +426,10 @@ $authorSection = ['name' => '', 'url' => '', 'items' => []];
 try {
     $pdo = db();
     $homeRotationCache = pcf_home_rotation_load();
-    $sourceWhere = items_product_source_where();
+    $sourceWhere = items_product_source_where() . ' AND ' . pcf_home_item_image_where();
+    $taxonomyWhere = items_product_source_where('i') . ' AND ' . pcf_home_item_image_where('i');
     $sourceWhereSql = $sourceWhere !== '' ? ' WHERE ' . $sourceWhere : '';
-    $itemExistsStmt = $pdo->query('SELECT 1 FROM items' . $sourceWhereSql . ' LIMIT 1');
+    $itemExistsStmt = $pdo->query('SELECT 1 FROM items WHERE ' . items_product_source_where() . ' LIMIT 1');
     $itemCount = ($itemExistsStmt && $itemExistsStmt->fetchColumn()) ? 1 : 0;
 
     if ($itemCount > 0) {
@@ -482,8 +487,8 @@ try {
             foreach (array_slice($genreCandidates, 0, 3) as $index => $genre) {
                 $genreItems = [];
                 foreach ([
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_genres ig ON ig.item_id = i.id INNER JOIN genres g ON g.dmm_id = ig.dmm_id WHERE g.id = :id ORDER BY i.view_count DESC, i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120',
-                    'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_genres ig ON ig.item_id = i.id INNER JOIN genres g ON g.dmm_id = ig.dmm_id WHERE g.id = :id ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120',
+                    'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_genres ig ON ig.item_id = i.id INNER JOIN genres g ON g.dmm_id = ig.dmm_id WHERE g.id = :id AND ' . $taxonomyWhere . ' ORDER BY i.view_count DESC, i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120',
+                    'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_genres ig ON ig.item_id = i.id INNER JOIN genres g ON g.dmm_id = ig.dmm_id WHERE g.id = :id AND ' . $taxonomyWhere . ' ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120',
                 ] as $genreSql) {
                     $genreItems = query_all_safe($pdo, $genreSql, [':id' => (int)$genre['id']]);
                     if ($genreItems !== []) {
@@ -492,8 +497,8 @@ try {
                 }
                 if ($genreItems === [] && home_column_exists($pdo, 'item_genres', 'content_id') && home_column_exists($pdo, 'item_genres', 'genre_id')) {
                     foreach ([
-                        'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_genres ig ON ig.content_id = i.content_id WHERE ig.genre_id = :id ORDER BY i.view_count DESC, i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120',
-                        'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_genres ig ON ig.content_id = i.content_id WHERE ig.genre_id = :id ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120',
+                        'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_genres ig ON ig.content_id = i.content_id WHERE ig.genre_id = :id AND ' . $taxonomyWhere . ' ORDER BY i.view_count DESC, i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120',
+                        'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_genres ig ON ig.content_id = i.content_id WHERE ig.genre_id = :id AND ' . $taxonomyWhere . ' ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120',
                     ] as $genreSql) {
                         $genreItems = query_all_safe($pdo, $genreSql, [':id' => (int)$genre['id']]);
                         if ($genreItems !== []) {
@@ -523,9 +528,9 @@ try {
             if ($seriesCandidates !== []) {
                 $seriesCandidates = seeded_shuffle($seriesCandidates, $seedBase + 40);
                 $picked = $seriesCandidates[0];
-                $seriesItems = query_all_safe($pdo, 'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_series isr ON isr.item_id = i.id INNER JOIN series_master s ON s.dmm_id = isr.dmm_id WHERE s.id = :id ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120', [':id' => (int)$picked['id']]);
+                $seriesItems = query_all_safe($pdo, 'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_series isr ON isr.item_id = i.id INNER JOIN series_master s ON s.dmm_id = isr.dmm_id WHERE s.id = :id AND ' . $taxonomyWhere . ' ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120', [':id' => (int)$picked['id']]);
                 if ($seriesItems === [] && home_column_exists($pdo, 'item_series', 'content_id') && home_column_exists($pdo, 'item_series', 'series_id')) {
-                    $seriesItems = query_all_safe($pdo, 'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_series isr ON isr.content_id = i.content_id WHERE isr.series_id = :id ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120', [':id' => (int)$picked['id']]);
+                    $seriesItems = query_all_safe($pdo, 'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_series isr ON isr.content_id = i.content_id WHERE isr.series_id = :id AND ' . $taxonomyWhere . ' ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120', [':id' => (int)$picked['id']]);
                 }
                 $seriesPool = pick_random_items($seriesItems, $seedBase + 41, 120);
                 $seriesItems = take_unique_items_for_home($seriesPool, $usedHomeItemKeys, 15);
@@ -552,9 +557,9 @@ try {
             if ($makerCandidates !== []) {
                 $makerCandidates = seeded_shuffle($makerCandidates, $seedBase + 50);
                 $picked = $makerCandidates[0];
-                $makerItems = query_all_safe($pdo, 'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_makers im ON im.item_id = i.id INNER JOIN makers m ON m.dmm_id = im.dmm_id WHERE m.id = :id ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120', [':id' => (int)$picked['id']]);
+                $makerItems = query_all_safe($pdo, 'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_makers im ON im.item_id = i.id INNER JOIN makers m ON m.dmm_id = im.dmm_id WHERE m.id = :id AND ' . $taxonomyWhere . ' ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120', [':id' => (int)$picked['id']]);
                 if ($makerItems === [] && home_column_exists($pdo, 'item_makers', 'content_id') && home_column_exists($pdo, 'item_makers', 'maker_id')) {
-                    $makerItems = query_all_safe($pdo, 'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_makers im ON im.content_id = i.content_id WHERE im.maker_id = :id ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120', [':id' => (int)$picked['id']]);
+                    $makerItems = query_all_safe($pdo, 'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_makers im ON im.content_id = i.content_id WHERE im.maker_id = :id AND ' . $taxonomyWhere . ' ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120', [':id' => (int)$picked['id']]);
                 }
                 $makerPool = pick_random_items($makerItems, $seedBase + 51, 120);
                 $makerItems = take_unique_items_for_home($makerPool, $usedHomeItemKeys, 15);
@@ -583,7 +588,7 @@ try {
                      FROM items i
                      INNER JOIN item_authors ia ON ia.item_id = i.id
                      INNER JOIN authors a ON a.dmm_id = ia.dmm_id
-                     WHERE a.id = :id
+                     WHERE a.id = :id AND ' . $taxonomyWhere . '
                      ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC
                      LIMIT 120'
                 );
@@ -783,3 +788,4 @@ $hasHomeContent = $newReleaseTop !== []
 })();
 </script>
 <?php require __DIR__ . '/public/partials/footer.php'; ?>
+

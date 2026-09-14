@@ -120,6 +120,9 @@ function pcf_public_page_cache_start(int $ttlSeconds = 120): void
         $normalizedRequestUri .= '?' . $normalizedQuery;
     }
     $cacheGeneration = $scriptName === 'item.php' ? 'v6-social-card' : 'v5';
+    if ($scriptName === 'index.php') {
+        $cacheGeneration = 'v6-home-visible-products';
+    }
     $cacheKey = hash('sha256', $cacheGeneration . '|' . $cacheAuthority . '|' . $variant . '|' . $normalizedRequestUri);
     $cacheFile = $cacheDirectory . '/' . $cacheKey . '.html';
     // Sixteen lock shards prevent a cache stampede without creating one lock file per URL.
@@ -228,3 +231,4 @@ function pcf_public_page_cache_start(int $ttlSeconds = 120): void
         }
     });
 }
+
