@@ -104,7 +104,7 @@ if (function_exists('site_media_meta_get')) {
   <label class="admin-menu-toggle__button" for="admin-menu-toggle" aria-label="管理メニューを開閉">☰</label>
   <div class="admin-topbar__brand"><a href="<?= e(admin_url('index.php')) ?>">PinkClub FANZA 管理</a></div>
   <div class="admin-topbar__right">
-    <a href="<?= e(public_url('')) ?>" target="_blank" rel="noopener noreferrer">フロント表示</a>
+    <a href="<?= e(public_url('')) ?>" target="_blank" rel="noopener">フロント表示</a>
     <span class="admin-topbar__separator" aria-hidden="true"> | </span>
     <form method="post" action="<?= e(admin_url('logout.php')) ?>" style="display:inline;margin:0;">
       <?= csrf_input() ?>
@@ -148,3 +148,4 @@ if (function_exists('site_media_meta_get')) {
     <?php if (is_array($flash) && isset($flash['message'])): ?>
       <div class="admin-notice <?= ($flash['type'] ?? '') === 'success' ? 'admin-notice--success' : 'admin-notice--error' ?>"><p><?= e((string)$flash['message']) ?></p></div>
     <?php endif; ?>
+

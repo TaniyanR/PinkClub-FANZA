@@ -158,7 +158,7 @@ if ($fixedPages === []) {
         <?php else : ?>
             <ul class="sidebar-links sidebar-links--partners">
                 <?php foreach ($partnerLinks as $link) : ?>
-                    <?php $partnerRel = ((int)($link['rel_nofollow'] ?? 0) === 1) ? 'noopener noreferrer nofollow' : 'noopener noreferrer'; ?>
+                    <?php $partnerRel = ((int)($link['rel_nofollow'] ?? 0) === 1) ? 'noopener nofollow' : 'noopener'; ?>
                     <li><a href="<?= e((string)$link['url']) ?>" target="_blank" rel="<?= e($partnerRel) ?>"><?= e((string)$link['name']) ?></a></li>
                 <?php endforeach; ?>
             </ul>
@@ -166,3 +166,4 @@ if ($fixedPages === []) {
     </section>
     <?php endif; ?>
 </aside>
+

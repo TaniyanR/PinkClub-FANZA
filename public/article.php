@@ -65,8 +65,9 @@ require __DIR__ . '/partials/header.php';
     <p>価格: <?= e((string)$article['price']) ?>円</p>
   <?php endif; ?>
   <?php if (!empty($article['affiliate_url'])): ?>
-    <p><a href="<?= e((string)$article['affiliate_url']) ?>" target="_blank" rel="noopener noreferrer sponsored nofollow">FANZA商品ページへ</a></p>
+    <p><a href="<?= e((string)$article['affiliate_url']) ?>" target="_blank" rel="noopener sponsored nofollow">FANZA商品ページへ</a></p>
   <?php endif; ?>
 </article>
 <?php
 require __DIR__ . '/partials/footer.php';
+
