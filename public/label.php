@@ -18,7 +18,8 @@ $hasNext = false;
 $label = fetch_label($id, $name);
 
 // 現行item_labelsは dmm_id / label_name を保持している。
-// 既存のマスター取得で見つからない場合も、関連テーブル自体から安全に解決する。
+// PDOのネイティブprepareでは同じ名前付きプレースホルダーを複数回使えないため、
+// 既存のマスター取得で見つからない場合は関連テーブルから一意なプレースホルダーで解決する。
 if ($label === null && db_column_exists('item_labels', 'item_id')) {
     try {
         $stmt = db()->prepare(
@@ -27,17 +28,24 @@ if ($label === null && db_column_exists('item_labels', 'item_id')) {
             . 'FROM item_labels '
             . 'WHERE TRIM(label_name) <> "" '
             . 'AND ('
-            . '(:id <> "" AND (TRIM(dmm_id) = :id OR TRIM(label_name) = :id)) '
-            . 'OR (:name <> "" AND TRIM(label_name) = :name)'
+            . '(:id_present <> "" AND (TRIM(dmm_id) = :id_dmm OR TRIM(label_name) = :id_name)) '
+            . 'OR (:name_present <> "" AND TRIM(label_name) = :name_exact)'
             . ') '
             . 'LIMIT 1'
         );
-        $stmt->execute([':id' => $id, ':name' => $name]);
+        $stmt->execute([
+            ':id_present' => $id,
+            ':id_dmm' => $id,
+            ':id_name' => $id,
+            ':name_present' => $name,
+            ':name_exact' => $name,
+        ]);
         $resolved = $stmt->fetch(PDO::FETCH_ASSOC);
         if (is_array($resolved)) {
             $label = $resolved;
         }
-    } catch (Throwable) {
+    } catch (Throwable $e) {
+        error_log('[label] relation resolution failed: ' . $e->getMessage());
     }
 }
 
@@ -74,7 +82,8 @@ if (db_column_exists('item_labels', 'item_id')) {
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-    } catch (Throwable) {
+    } catch (Throwable $e) {
+        error_log('[label] item lookup by relation failed: ' . $e->getMessage());
         $rows = [];
     }
 }
