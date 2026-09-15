@@ -47,15 +47,33 @@ function pcf_public_page_cache_start(int $ttlSeconds = 120): void
         'link_apply.php',
         'deletion_request_submit.php',
     ];
+    // The page cache stores only response bodies. Non-HTML endpoints must send
+    // their own Content-Type, and request-specific endpoints must execute on
+    // every request.
+    $cacheBypassScripts = [
+        'recommendations.php',
+        'recent_images.php',
+        'feed.php',
+        'feed-10.php',
+        'feed-60.php',
+        'feed-free-10.php',
+        'feed-free-60.php',
+    ];
     $pageSlug = trim((string)($_GET['slug'] ?? ''));
     $isContactPage = $scriptName === 'page.php' && in_array($pageSlug, ['que', 'contact'], true);
+    $isSampleImagesJson = $scriptName === 'sample_images.php'
+        && strtolower(trim((string)($_GET['format'] ?? ''))) === 'json';
+    $isTrackedLinkVisit = $scriptName === 'links.php' && (int)($_GET['from'] ?? 0) > 0;
     $isExcludedScript = in_array($scriptName, $excludedScripts, true) || $isContactPage;
+    $mustBypassCache = in_array($scriptName, $cacheBypassScripts, true)
+        || $isSampleImagesJson || $isTrackedLinkVisit;
 
     if (
         str_contains($requestPath, '/admin/')
         || str_contains($requestPath, '/api/')
         || $scriptName === 'page_view_beacon.php'
         || $isExcludedScript
+        || $mustBypassCache
         || isset($_GET['pcf_nocache'])
     ) {
         if ($isExcludedScript) {
