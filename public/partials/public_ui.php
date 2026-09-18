@@ -1,6 +1,250 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/_helpers.php';
+
+if (!function_exists('pcf_placeholder_data_uri')) {
+    function pcf_placeholder_data_uri(string $label = 'No Image'): string
+    {
+        $safeLabel = e($label);
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="900" viewBox="0 0 640 900"><rect width="100%" height="100%" fill="#1b2434"/><text x="50%" y="50%" fill="#7f8ea3" font-size="34" font-family="sans-serif" font-weight="700" text-anchor="middle" dominant-baseline="middle">' . $safeLabel . '</text></svg>';
+        return 'data:image/svg+xml;charset=UTF-8,' . rawurlencode($svg);
+    }
+}
+
+if (!function_exists('pcf_parse_image_urls')) {
+    function pcf_parse_image_urls(?string $value): array
+    {
+        if ($value === null || trim($value) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($value, true);
+        if (is_array($decoded)) {
+            $urls = [];
+            foreach ($decoded as $item) {
+                if (is_string($item) && trim($item) !== '') {
+                    $urls[] = trim($item);
+                } elseif (is_array($item)) {
+                    foreach (['large', 'small', 'url', 'src'] as $k) {
+                        if (!empty($item[$k]) && is_string($item[$k])) {
+                            $urls[] = trim($item[$k]);
+                            break;
+                        }
+                    }
+                }
+            }
+            if ($urls !== []) {
+                return array_values(array_unique($urls));
+            }
+        }
+
+        $lines = preg_split('/\r\n|\r|\n/', $value);
+        $urls = [];
+        if (is_array($lines)) {
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if ($line !== '' && filter_var($line, FILTER_VALIDATE_URL)) {
+                    $urls[] = $line;
+                }
+            }
+        }
+
+        return array_values(array_unique($urls));
+    }
+}
+
+if (!function_exists('pcf_maybe_decode_json_val')) {
+    function pcf_maybe_decode_json_val($value)
+    {
+        if (!is_string($value) || trim($value) === '') {
+            return $value;
+        }
+        $trimmed = trim($value);
+        if (($trimmed[0] === '{' && substr($trimmed, -1) === '}') || ($trimmed[0] === '[' && substr($trimmed, -1) === ']')) {
+            $decoded = json_decode($trimmed, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return $decoded;
+            }
+        }
+        return $value;
+    }
+}
+
+if (!function_exists('pcf_looks_like_image_url')) {
+    function pcf_looks_like_image_url(string $url): bool
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+        if (!is_string($path) || $path === '') {
+            return false;
+        }
+        return (bool)preg_match('/\.(jpe?g|png|webp|gif)$/i', $path);
+    }
+}
+
+if (!function_exists('pcf_is_self_hosted_fanza_image')) {
+    function pcf_is_self_hosted_fanza_image(string $url): bool
+    {
+        return str_starts_with($url, '/uploads/fanza/');
+    }
+}
+
+if (!function_exists('pcf_first_image_from_mixed')) {
+    function pcf_first_image_from_mixed($value): string
+    {
+        $val = pcf_maybe_decode_json_val($value);
+        if (is_string($val)) {
+            $val = trim($val);
+            if (pcf_is_self_hosted_fanza_image($val) || pcf_looks_like_image_url($val)) {
+                return $val;
+            }
+            return '';
+        }
+        if (is_array($val)) {
+            foreach (['large', 'small', 'url', 'src'] as $k) {
+                if (!empty($val[$k]) && is_string($val[$k])) {
+                    $candidate = trim($val[$k]);
+                    if (pcf_is_self_hosted_fanza_image($candidate) || pcf_looks_like_image_url($candidate)) {
+                        return $candidate;
+                    }
+                }
+            }
+            foreach ($val as $sub) {
+                $candidate = pcf_first_image_from_mixed($sub);
+                if ($candidate !== '') {
+                    return $candidate;
+                }
+            }
+        }
+        return '';
+    }
+}
+
+if (!function_exists('pcf_first_text_from_mixed')) {
+    function pcf_first_text_from_mixed($value): string
+    {
+        $val = pcf_maybe_decode_json_val($value);
+        if (is_string($val)) {
+            return trim($val);
+        }
+        if (is_array($val)) {
+            foreach (['name', 'title', 'label', 'text'] as $k) {
+                if (!empty($val[$k]) && is_string($val[$k])) {
+                    return trim($val[$k]);
+                }
+            }
+            foreach ($val as $sub) {
+                $candidate = pcf_first_text_from_mixed($sub);
+                if ($candidate !== '') {
+                    return $candidate;
+                }
+            }
+        }
+        return '';
+    }
+}
+
+if (!function_exists('pcf_first_text_by_keys')) {
+    function pcf_first_text_by_keys(array $row, array $keys): string
+    {
+        foreach ($keys as $k) {
+            if (isset($row[$k])) {
+                $txt = pcf_first_text_from_mixed($row[$k]);
+                if ($txt !== '') {
+                    return $txt;
+                }
+            }
+        }
+        return '';
+    }
+}
+
+if (!function_exists('pcf_first_image_by_keys')) {
+    function pcf_first_image_by_keys(array $row, array $keys): string
+    {
+        foreach ($keys as $k) {
+            if (isset($row[$k])) {
+                $img = pcf_first_image_from_mixed($row[$k]);
+                if ($img !== '') {
+                    return $img;
+                }
+            }
+        }
+        return '';
+    }
+}
+
+if (!function_exists('pcf_item_image')) {
+    function pcf_item_image(array $item): string
+    {
+        $img = pcf_first_image_by_keys($item, [
+            'package_image',
+            'image_url',
+            'package_url',
+            'thumb_url',
+            'thumbnail_url',
+            'sample_images',
+        ]);
+        if ($img !== '') {
+            return $img;
+        }
+        return pcf_placeholder_data_uri('No Image');
+    }
+}
+
+if (!function_exists('pcf_item_title')) {
+    function pcf_item_title(array $item): string
+    {
+        $title = pcf_first_text_by_keys($item, [
+            'title',
+            'name',
+            'product_name',
+        ]);
+        return $title !== '' ? $title : '名称未設定';
+    }
+}
+
+if (!function_exists('pcf_item_content_id')) {
+    function pcf_item_content_id(array $item): string
+    {
+        return pcf_first_text_by_keys($item, [
+            'content_id',
+            'dmm_id',
+            'cid',
+            'sku',
+        ]);
+    }
+}
+
+if (!function_exists('pcf_item_price_text')) {
+    function pcf_item_price_text(array $item): string
+    {
+        if (isset($item['price']) && is_numeric($item['price'])) {
+            $price = (int)$item['price'];
+            if ($price > 0) {
+                return '¥' . number_format($price) . '〜';
+            }
+        }
+        return '';
+    }
+}
+
+if (!function_exists('pcf_item_release_date')) {
+    function pcf_item_release_date(array $item): string
+    {
+        $raw = pcf_first_text_by_keys($item, [
+            'date_released',
+            'release_date',
+            'date',
+            'created_at',
+        ]);
+        if ($raw === '' || $raw === '0000-00-00' || str_starts_with($raw, '0000-00-00')) {
+            return '';
+        }
+        return substr($raw, 0, 10);
+    }
+}
+
 if (!function_exists('pcf_render_header_search')) {
     function pcf_render_header_search(string $keyword = '', string $media = 'all', string $sort = 'rank'): void
     {
@@ -74,13 +318,14 @@ if (!function_exists('pcf_render_item_card')) {
     function pcf_render_item_card(array $item, array $options = []): void
     {
         $id = (int)($item['id'] ?? 0);
-        $title = trim((string)($item['title'] ?? ''));
-        $packageImage = pcf_pick_card_image($item);
-        $affiliateUrl = pcf_out_url($id, (string)($options['position'] ?? 'card'));
-        $detailUrl = public_url('item.php') . '?id=' . rawurlencode((string)$id);
+        $title = pcf_item_title($item);
+        $image = pcf_item_image($item);
+        $price = pcf_item_price_text($item);
+        $date = pcf_item_release_date($item);
+        $contentId = pcf_item_content_id($item);
 
-        $dateReleased = trim((string)($item['date_released'] ?? ''));
-        $price = (int)($item['price'] ?? 0);
+        $detailUrl = public_url('item.php') . '?id=' . rawurlencode((string)$id);
+        $outUrl = pcf_out_url($id, (string)($options['position'] ?? 'card'));
 
         $sampleMovieUrl = '';
         if (!empty($item['sample_movie_url'])) {
@@ -92,11 +337,7 @@ if (!function_exists('pcf_render_item_card')) {
         echo '<article class="pcf-card" data-item-id="' . e((string)$id) . '">';
         echo '<div class="pcf-card__thumb-wrap">';
         echo '<a href="' . e($detailUrl) . '" class="pcf-card__thumb-link" aria-label="' . e($title) . 'の詳細へ">';
-        if ($packageImage !== '') {
-            echo '<img class="pcf-card__thumb" src="' . e($packageImage) . '" alt="' . e($title) . '" loading="lazy" decoding="async">';
-        } else {
-            echo '<div class="pcf-card__no-thumb">NO IMAGE</div>';
-        }
+        echo '<img class="pcf-card__thumb" src="' . e($image) . '" alt="' . e($title) . '" loading="lazy" decoding="async">';
         echo '</a>';
 
         if ($sampleMovieUrl !== '') {
@@ -113,17 +354,17 @@ if (!function_exists('pcf_render_item_card')) {
         echo '</h3>';
 
         echo '<div class="pcf-card__meta">';
-        if ($dateReleased !== '' && $dateReleased !== '0000-00-00') {
-            echo '<span class="pcf-card__date">' . e($dateReleased) . '</span>';
+        if ($date !== '') {
+            echo '<span class="pcf-card__date">' . e($date) . '</span>';
         }
-        if ($price > 0) {
-            echo '<span class="pcf-card__price">¥' . number_format($price) . '〜</span>';
+        if ($price !== '') {
+            echo '<span class="pcf-card__price">' . e($price) . '</span>';
         }
         echo '</div>';
 
         echo '<div class="pcf-card__actions">';
         echo '<a href="' . e($detailUrl) . '" class="pcf-card__btn pcf-card__btn--detail">詳細</a>';
-        echo '<a href="' . e($affiliateUrl) . '" target="_blank" rel="nofollow noopener noreferrer" class="pcf-card__btn pcf-card__btn--fanza">FANZA</a>';
+        echo '<a href="' . e($outUrl) . '" target="_blank" rel="nofollow noopener noreferrer" class="pcf-card__btn pcf-card__btn--fanza">FANZA</a>';
         echo '</div>';
 
         echo '</div>';
