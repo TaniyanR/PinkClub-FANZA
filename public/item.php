@@ -213,7 +213,7 @@ if (function_exists('pcf_pick_detail_main_image')) {
 }
 $ogImage = $packageImage !== '' ? $packageImage : (!empty($item['image_url']) ? (string)$item['image_url'] : '');
 
-$breadcrumbTitle// Fetch user reviews
+// Fetch user reviews
 $reviews = [];
 try {
     $revStmt = $db->prepare("SELECT * FROM item_reviews WHERE item_id = :item_id AND status = 'approved' ORDER BY created_at DESC LIMIT 10");

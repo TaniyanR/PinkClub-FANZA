@@ -282,3 +282,26 @@ function format_price(mixed $price): string
     }
     return '¥' . number_format($n);
 }
+
+if (!function_exists('pcf_is_noise_name')) {
+    function pcf_is_noise_name(string $name): bool
+    {
+        $value = mb_strtolower(trim($name), 'UTF-8');
+        if ($value === '') {
+            return true;
+        }
+
+        $noiseKeywords = [
+            '相互リンク', '相互rss', 'お問い合わせ', 'privacy policy', 'プライバシー',
+            'サイトについて', '公式サイト', 'オフィシャルサイト', '削除依頼', '利用規約'
+        ];
+
+        foreach ($noiseKeywords as $invalid) {
+            if (str_contains($value, mb_strtolower($invalid, 'UTF-8'))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}

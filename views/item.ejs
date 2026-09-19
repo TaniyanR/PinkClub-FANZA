@@ -137,13 +137,19 @@
   <% } %>
 
     <!-- User Reviews Section (SEO Unique Content & Rich Snippet Grounding) -->
-  <section class="item-reviews-section" style="margin:28px 0;border-top:1px solid #eee;padding-top:20px;">
+  <section class="item-reviews-section" id="reviews-section" style="margin:28px 0;border-top:1px solid #eee;padding-top:20px;">
+    <% if (typeof successReviewed !== 'undefined' && successReviewed) { %>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;padding:12px 16px;border-radius:6px;font-size:14px;font-weight:bold;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+        <span>✓</span> レビューを正常に投稿しました！本ページの独自評価として掲載されます。
+      </div>
+    <% } %>
+
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
       <h3 style="font-size:18px;margin:0;color:#1d2327;display:flex;align-items:center;gap:8px;">
         <span style="background:#ff8000;color:#fff;font-size:12px;padding:2px 8px;border-radius:4px;">REVIEW</span>
         ユーザーレビュー・感想
       </h3>
-      <span style="font-size:13px;color:#888;">全 <%= typeof reviews !== 'undefined' && reviews ? reviews.length : 1 %> 件</span>
+      <span style="font-size:13px;color:#888;">全 <%= typeof reviews !== 'undefined' && reviews ? reviews.length : 0 %> 件</span>
     </div>
 
     <div style="display:flex;flex-direction:column;gap:12px;">
@@ -166,6 +172,47 @@
           まだレビューはありません。この作品をチェックした感想をお待ちしています。
         </div>
       <% } %>
+    </div>
+
+    <!-- Interactive Custom Review Form -->
+    <div style="margin-top:24px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;">
+      <h4 style="font-size:15px;margin:0 0 14px;color:#1e293b;font-weight:bold;display:flex;align-items:center;gap:6px;">
+        ✍ この作品のレビュー・評価を投稿する
+      </h4>
+      <form action="/item/<%= item.id %>/review" method="post" style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;flex-wrap:wrap;gap:12px;">
+          <div style="flex:1;min-width:200px;">
+            <label style="display:block;font-size:12px;color:#475569;font-weight:bold;margin-bottom:4px;">ニックネーム <span style="color:#ef4444;">*</span></label>
+            <input type="text" name="reviewer_name" placeholder="例：動画ファン" required style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;box-sizing:border-box;">
+          </div>
+          <div style="flex:1;min-width:200px;">
+            <label style="display:block;font-size:12px;color:#475569;font-weight:bold;margin-bottom:4px;">評価・星数 <span style="color:#ef4444;">*</span></label>
+            <select name="rating" required style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;background:#fff;box-sizing:border-box;">
+              <option value="5">★★★★★ (5/5)</option>
+              <option value="4">★★★★☆ (4/5)</option>
+              <option value="3">★★★☆☆ (3/5)</option>
+              <option value="2">★★☆☆☆ (2/5)</option>
+              <option value="1">★☆☆☆☆ (1/5)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label style="display:block;font-size:12px;color:#475569;font-weight:bold;margin-bottom:4px;">レビュータイトル</label>
+          <input type="text" name="review_title" placeholder="作品の簡潔なまとめ（例：最高のクオリティでした！）" style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;box-sizing:border-box;">
+        </div>
+
+        <div>
+          <label style="display:block;font-size:12px;color:#475569;font-weight:bold;margin-bottom:4px;">感想・口コミ本文 <span style="color:#ef4444;">*</span></label>
+          <textarea name="review_body" placeholder="ネタバレを避けつつ、見どころやおすすめポイントを書いてみましょう。※最大1000文字" required rows="4" style="width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;line-height:1.5;box-sizing:border-box;resize:vertical;"></textarea>
+        </div>
+
+        <div style="text-align:right;">
+          <button type="submit" style="background:#ff4da6;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#ff1a8c'" onmouseout="this.style.background='#ff4da6'">
+            レビューを投稿する
+          </button>
+        </div>
+      </form>
     </div>
   </section>
 

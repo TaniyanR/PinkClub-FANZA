@@ -760,3 +760,15 @@ if (!function_exists('pcf_render_banner')) {
         // 既存のバナー表示ロジック用スタブ
     }
 }
+
+if (!function_exists('pcf_render_hero')) {
+    function pcf_render_hero(string $title, string $subtitle = ''): void
+    {
+        echo '<section class="pcf-hero">';
+        echo '<h1 class="pcf-hero__title">' . e($title) . '</h1>';
+        if ($subtitle !== '') {
+            echo '<p class="pcf-hero__subtitle">' . e($subtitle) . '</p>';
+        }
+        echo '</section>';
+    }
+}
