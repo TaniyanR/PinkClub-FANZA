@@ -53,6 +53,11 @@ app.use((req, res, next) => {
   res.locals.sidebarGenres = db.genres.slice(0, 10);
   res.locals.sidebarLinks = db.mutual_links.slice(0, 5);
   res.locals.isAdmin = req.session && req.session.isAdmin;
+
+  // Fallback self-referential canonical URL (will be overridden by routes as needed)
+  const page = req.query.page;
+  res.locals.canonicalUrl = 'https://pinkclub-fanza.com' + req.path + (page ? `?page=${encodeURIComponent(page)}` : '');
+
   next();
 });
 
@@ -72,11 +77,14 @@ function requireAdmin(req, res, next) {
 app.get(['/', '/index.php', '/public/index.php'], (req, res) => {
   const popularItems = getItems({ sort: 'popular' }).slice(0, 4);
   const newItems = getItems({ sort: 'new' });
+  const page = req.query.page;
+  const canonicalUrl = 'https://pinkclub-fanza.com/' + (page ? `?page=${encodeURIComponent(page)}` : '');
   res.render('home', {
     popularItems,
     newItems,
     actresses: db.actresses,
-    totalItems: db.items.length
+    totalItems: db.items.length,
+    canonicalUrl
   });
 });
 
@@ -178,9 +186,12 @@ app.get(['/item/:id', '/items/:id', '/item.php', '/public/item.php'], (req, res)
 
 // Actresses Directory
 app.get(['/actresses', '/actresses.php', '/public/actresses.php'], (req, res) => {
+  const page = req.query.page;
+  const canonicalUrl = 'https://pinkclub-fanza.com/actresses' + (page ? `?page=${encodeURIComponent(page)}` : '');
   res.render('actresses', {
     title: '人気AV女優一覧',
-    actresses: db.actresses
+    actresses: db.actresses,
+    canonicalUrl
   });
 });
 
@@ -193,18 +204,24 @@ app.get(['/actress/:id', '/actresses/:id', '/actress.php', '/public/actress.php'
   }
 
   const items = getItems({ actress_id: actress.id });
+  const page = req.query.page;
+  const canonicalUrl = `https://pinkclub-fanza.com/actress/${encodeURIComponent(actress.id)}` + (page ? `?page=${encodeURIComponent(page)}` : '');
   res.render('actress', {
     title: `${actress.name} の出演作品・プロフィール`,
     actress,
-    items
+    items,
+    canonicalUrl
   });
 });
 
 // Genres Directory
 app.get(['/genres', '/genres.php', '/public/genres.php'], (req, res) => {
+  const page = req.query.page;
+  const canonicalUrl = 'https://pinkclub-fanza.com/genres' + (page ? `?page=${encodeURIComponent(page)}` : '');
   res.render('genres', {
     title: 'ジャンル一覧',
-    genres: db.genres
+    genres: db.genres,
+    canonicalUrl
   });
 });
 
@@ -217,10 +234,13 @@ app.get(['/genre/:id', '/genres/:id', '/genre.php', '/public/genre.php'], (req, 
   }
 
   const items = getItems({ genre_id: genre.id });
+  const page = req.query.page;
+  const canonicalUrl = `https://pinkclub-fanza.com/genre/${encodeURIComponent(genre.id)}` + (page ? `?page=${encodeURIComponent(page)}` : '');
   res.render('genre', {
     title: `${genre.name} 作品一覧`,
     genre,
-    items
+    items,
+    canonicalUrl
   });
 });
 
@@ -230,21 +250,32 @@ app.get(['/search', '/search.php', '/public/search.php'], (req, res) => {
   const sort = req.query.sort || 'new';
   const items = getItems({ q: query, sort });
 
+  const page = req.query.page;
+  let canonicalUrl = 'https://pinkclub-fanza.com/search';
+  const params = [];
+  if (query) params.push(`q=${encodeURIComponent(query)}`);
+  if (page) params.push(`page=${encodeURIComponent(page)}`);
+  if (params.length > 0) canonicalUrl += `?${params.join('&')}`;
+
   res.render('search', {
     title: `「${query}」の検索結果`,
     query,
     sort,
-    items
+    items,
+    canonicalUrl
   });
 });
 
 // Mutual Links
 app.get(['/links', '/links.php', '/public/links.php'], (req, res) => {
   const success = req.query.applied === '1';
+  const page = req.query.page;
+  const canonicalUrl = 'https://pinkclub-fanza.com/links' + (page ? `?page=${encodeURIComponent(page)}` : '');
   res.render('links', {
     title: '相互リンク集＆申請',
     links: db.mutual_links,
-    success
+    success,
+    canonicalUrl
   });
 });
 
@@ -282,9 +313,11 @@ app.get('/out', (req, res) => {
 // Contact
 app.get(['/contact', '/contact.php', '/public/contact.php'], (req, res) => {
   const success = req.query.sent === '1';
+  const canonicalUrl = 'https://pinkclub-fanza.com/contact';
   res.render('contact', {
     title: 'お問い合わせ',
-    success
+    success,
+    canonicalUrl
   });
 });
 
@@ -299,9 +332,11 @@ app.get(['/page/:slug', '/page.php', '/public/page.php'], (req, res) => {
   if (!page) {
     return res.status(404).send('ページが見つかりませんでした。<a href="/">トップへ戻る</a>');
   }
+  const canonicalUrl = `https://pinkclub-fanza.com/page/${encodeURIComponent(page.slug)}`;
   res.render('page', {
     title: page.title,
-    page
+    page,
+    canonicalUrl
   });
 });
 

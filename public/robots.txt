@@ -11,6 +11,8 @@ Disallow: /public/out.php?to=
 Disallow: /vr_affiliate.php
 Disallow: /public/vr_affiliate.php
 Disallow: /*?*sort=
+Disallow: /*?*aff_id=
+Disallow: /*?*view_mode=
 Disallow: /*?*order=
 Disallow: /*?*rank_period=
 Disallow: /*?*affiliate_id=
