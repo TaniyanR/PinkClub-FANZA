@@ -3,6 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="rating" content="R18">
+  <meta name="rating" content="adult">
+  <meta name="RATING" content="RTA-5042-1996-1400-1579-RTA">
+  <% if (typeof canonicalUrl !== 'undefined' && canonicalUrl) { %>
+  <link rel="canonical" href="<%= canonicalUrl %>">
+  <% } %>
+  <% if (typeof jsonLd !== 'undefined' && jsonLd) { %>
+  <script type="application/ld+json"><%- jsonLd %></script>
+  <% } %>
   <title><%= typeof title !== 'undefined' && title ? title + ' | ' + settings.site_name : settings.site_name + ' - ' + settings.site_tagline %></title>
   <meta name="description" content="<%= typeof description !== 'undefined' && description ? description : settings.site_tagline %>">
   <meta name="keywords" content="<%= settings.site_keywords %>">

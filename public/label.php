@@ -121,10 +121,11 @@ $accessRankingRows = array_values(array_filter($accessRankingRows, static functi
 
 $title = $labelName;
 $pageDescription = mb_strimwidth($labelName . 'レーベルの作品一覧。FANZAで販売中の最新作・人気作品を紹介。', 0, 150, '…', 'UTF-8');
-$canonicalUrl = public_url('label.php') . '?' . http_build_query([
-    'id' => $canonicalLabelId,
-    'page' => $labelPage > 1 ? $labelPage : null,
-]);
+$canonicalParams = ['id' => $canonicalLabelId];
+if ($labelPage > 1) {
+    $canonicalParams['page'] = $labelPage;
+}
+$canonicalUrl = public_url('label.php') . '?' . http_build_query($canonicalParams);
 if ($labelPage > 1) {
     $relPrev = public_url('label.php') . '?' . http_build_query(['id' => $canonicalLabelId, 'page' => $labelPage - 1]);
 }
