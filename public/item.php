@@ -213,7 +213,7 @@ if (function_exists('pcf_pick_detail_main_image')) {
 }
 $ogImage = $packageImage !== '' ? $packageImage : (!empty($item['image_url']) ? (string)$item['image_url'] : '');
 
-$breadcrumbTitle// Fetch user reviews
+// Fetch user reviews
 $reviews = [];
 try {
     $revStmt = $db->prepare("SELECT * FROM item_reviews WHERE item_id = :item_id AND status = 'approved' ORDER BY created_at DESC LIMIT 10");
@@ -432,23 +432,23 @@ require __DIR__ . '/partials/header.php';
   <section class="block item-reviews-section" style="margin-top:40px;">
     <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px;">
       <h2 class="section-title" style="margin:0;">ユーザーレビュー・感想</h2>
-      <span style="font-size:14px; color:#777;">（<?= count() ?>件の感想）</span>
+      <span style="font-size:14px; color:#777;">（<?= count($reviews) ?>件の感想）</span>
     </div>
 
-    <?php if ( !== []): ?>
+    <?php if ($reviews !== []): ?>
       <div class="item-reviews-list" style="display:flex; flex-direction:column; gap:16px;">
-        <?php foreach ( as ): ?>
+        <?php foreach ($reviews as $review): ?>
           <div class="review-card" style="background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:16px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-              <strong style="color:#333;"><?= e((string)(['reviewer_name'] ?? '名無しファン')) ?></strong>
-              <span style="color:#f39c12; font-weight:bold;"><?= str_repeat('★', (int)(['rating'] ?? 5)) . str_repeat('☆', 5 - (int)(['rating'] ?? 5)) ?> (<?= (int)(['rating'] ?? 5) ?>.0)</span>
+              <strong style="color:#333;"><?= e((string)($review['reviewer_name'] ?? '名無しファン')) ?></strong>
+              <span style="color:#f39c12; font-weight:bold;"><?= str_repeat('★', (int)($review['rating'] ?? 5)) . str_repeat('☆', 5 - (int)($review['rating'] ?? 5)) ?> (<?= (int)($review['rating'] ?? 5) ?>.0)</span>
             </div>
-            <?php if (!empty(['review_title'])): ?>
-              <h4 style="margin:0 0 6px 0; font-size:15px; color:#222;"><?= e((string)['review_title']) ?></h4>
+            <?php if (!empty($review['review_title'])): ?>
+              <h4 style="margin:0 0 6px 0; font-size:15px; color:#222;"><?= e((string)$review['review_title']) ?></h4>
             <?php endif; ?>
-            <p style="margin:0; font-size:14px; line-height:1.6; color:#444;"><?= nl2br(e((string)(['review_body'] ?? ''))) ?></p>
+            <p style="margin:0; font-size:14px; line-height:1.6; color:#444;"><?= nl2br(e((string)($review['review_body'] ?? ''))) ?></p>
             <div style="font-size:12px; color:#999; margin-top:8px; text-align:right;">
-              投稿日: <?= e(date('Y年m月d日', strtotime((string)(['created_at'] ?? 'now')))) ?>
+              投稿日: <?= e(date('Y年m月d日', strtotime((string)($review['created_at'] ?? 'now')))) ?>
             </div>
           </div>
         <?php endforeach; ?>
