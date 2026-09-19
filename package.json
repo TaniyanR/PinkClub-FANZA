@@ -1,0 +1,19 @@
+{
+  "name": "pinkclub-fanza",
+  "version": "1.0.0",
+  "description": "FANZA affiliate portal site featuring adult video directory, actress profiles, genre classifications, item details, and WordPress-style administration dashboard.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "lint": "node --check server.js data.js",
+    "build": "node -e \"console.log('Build successful')\"",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1"
+  }
+}

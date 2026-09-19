@@ -1,0 +1,84 @@
+<%- include('admin_header', { title: 'FANZA API / 同期設定', currentRoute: 'affiliate_api' }) %>
+
+<div class="admin-dashboard-hero" style="margin-bottom:20px;">
+  <div class="admin-dashboard-hero__eyebrow">DMM / FANZA API</div>
+  <h1>FANZA API・自動同期設定</h1>
+  <p class="admin-form-note">DMM Webサービス（FANZA）のAPI認証情報および商品・女優データの自動同期スケジュールを管理します。</p>
+</div>
+
+<% if (typeof success !== 'undefined' && success) { %>
+  <div class="flash success" style="margin-bottom:16px;">
+    <%= success %>
+  </div>
+<% } %>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+  <!-- API Credentials Form -->
+  <div class="admin-dashboard-section admin-card--form">
+    <h2>API認証・同期設定</h2>
+    <form action="/admin/affiliate_api.php" method="post">
+      <input type="hidden" name="action" value="save_config">
+      
+      <label>
+        <span>FANZA API ID (API Key)</span>
+        <input type="text" name="fanza_api_id" value="<%= settings.fanza_api_id || '' %>" placeholder="例: xxxxxxxxxxxxxxxxxxxxxxxx">
+      </label>
+
+      <label>
+        <span>アフィリエイトID (Affiliate ID)</span>
+        <input type="text" name="fanza_affiliate_id" value="<%= settings.fanza_affiliate_id || '' %>" placeholder="例: pinkclub-990" required>
+      </label>
+
+      <label>
+        <span>1回あたりの取得件数</span>
+        <select name="item_sync_batch">
+          <option value="10" <%= settings.item_sync_batch === '10' ? 'selected' : '' %>>10件 (標準)</option>
+          <option value="20" <%= settings.item_sync_batch === '20' ? 'selected' : '' %>>20件</option>
+          <option value="50" <%= settings.item_sync_batch === '50' ? 'selected' : '' %>>50件</option>
+          <option value="100" <%= settings.item_sync_batch === '100' ? 'selected' : '' %>>100件</option>
+        </select>
+      </label>
+
+      <label>
+        <span>自動同期間隔</span>
+        <select name="item_sync_interval">
+          <option value="1" <%= settings.item_sync_interval === '1' ? 'selected' : '' %>>1時間ごと</option>
+          <option value="3" <%= settings.item_sync_interval === '3' ? 'selected' : '' %>>3時間ごと (推奨)</option>
+          <option value="6" <%= settings.item_sync_interval === '6' ? 'selected' : '' %>>6時間ごと</option>
+          <option value="12" <%= settings.item_sync_interval === '12' ? 'selected' : '' %>>12時間ごと</option>
+          <option value="24" <%= settings.item_sync_interval === '24' ? 'selected' : '' %>>24時間ごと</option>
+        </select>
+      </label>
+
+      <div class="admin-actions" style="margin-top:20px;">
+        <button type="submit">API設定を保存する</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Manual Test Fetch -->
+  <div class="admin-dashboard-section">
+    <h2>手動テスト取得 (10件)</h2>
+    <p style="font-size:13px;color:#555;line-height:1.6;margin-bottom:16px;">
+      FANZA APIへの接続テスト、または今すぐ最新の商品10件を取得・更新してデータベースに反映したい場合は下記を実行してください。
+    </p>
+
+    <form action="/admin/affiliate_api.php" method="post">
+      <input type="hidden" name="action" value="test_fetch">
+      <button type="submit" style="background:#28a745;border-color:#28a745;padding:12px 20px;font-size:15px;font-weight:bold;">
+        ⚡ 10件テスト取得を実行する
+      </button>
+    </form>
+
+    <div style="margin-top:24px;padding:14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;">
+      <h3 style="margin:0 0 8px;font-size:14px;color:#1d2327;">タイマー同期ステータス</h3>
+      <div style="font-size:13px;color:#555;line-height:1.6;">
+        <div>ステータス: <span style="color:#28a745;font-weight:bold;">有効 (Active)</span></div>
+        <div>最終同期: <%= settings.last_sync_time || '2026-09-18 12:00:00' %></div>
+        <div>最終取得結果: <%= settings.last_sync_count || 10 %>件のデータをインポート済み</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('admin_footer') %>

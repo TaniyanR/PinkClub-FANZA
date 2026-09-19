@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' && title ? title + ' | ' + settings.site_name : settings.site_name + ' - ' + settings.site_tagline %></title>
+  <meta name="description" content="<%= typeof description !== 'undefined' && description ? description : settings.site_tagline %>">
+  <meta name="keywords" content="<%= settings.site_keywords %>">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/public-ui.css">
+  <link rel="stylesheet" href="/assets/css/admin-enhancements.css">
+  <%- settings.custom_head_code || '' %>
+</head>
+<body>
+  <%- settings.custom_body_open_code || '' %>
+  <header class="site-header">
+    <div class="site-header__top">
+      <div class="site-header__left">
+        <h1 class="site-title"><a href="/" style="color:#ff4da6;text-decoration:none;"><%= settings.site_name %></a></h1>
+        <div class="site-disclaimer">※当サイトは18歳未満の方のアクセスを禁止しています（18禁アダルトポータル）</div>
+      </div>
+      <div class="site-header__right">
+        <div class="site-name"><%= settings.site_tagline %></div>
+        <% if (settings.header_ad_html) { %>
+          <div class="site-ad"><%- settings.header_ad_html %></div>
+        <% } %>
+      </div>
+    </div>
+    <nav class="site-nav">
+      <a href="/">トップ</a>
+      <a href="/actresses">人気女優一覧</a>
+      <a href="/genres">ジャンル一覧</a>
+      <a href="/links">相互リンク</a>
+      <a href="/contact">お問い合わせ</a>
+      <a href="/public/login0718.php" style="color:#ffb3d9;">⚙ 管理ログイン</a>
+      <form class="site-search" action="/search" method="get">
+        <input class="site-search__input" type="search" name="q" placeholder="キーワード検索..." value="<%= typeof query !== 'undefined' ? query : '' %>" required>
+        <button class="site-search__button" type="submit">検索</button>
+      </form>
+    </nav>
+  </header>
+  <div class="site-layout">
+    <main class="site-main" style="flex:1;min-width:0;">

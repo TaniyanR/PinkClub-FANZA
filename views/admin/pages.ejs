@@ -1,0 +1,63 @@
+<%- include('admin_header', { title: '固定ページ管理', currentRoute: 'pages' }) %>
+
+<div class="admin-dashboard-hero" style="margin-bottom:20px;">
+  <div class="admin-dashboard-hero__eyebrow">CMS PAGES</div>
+  <h1>固定ページ管理</h1>
+  <p class="admin-form-note">プライバシーポリシー、当サイトについて、特定商取引法に基づく表記などの静的ページを管理・編集します。</p>
+</div>
+
+<% if (typeof success !== 'undefined' && success) { %>
+  <div class="flash success" style="margin-bottom:16px;">
+    <%= success %>
+  </div>
+<% } %>
+
+<div style="display:grid;grid-template-columns:1fr 2fr;gap:20px;margin-bottom:24px;">
+  <!-- Pages List -->
+  <div class="admin-dashboard-section">
+    <h2>固定ページ一覧</h2>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
+      <% pages.forEach(function(p) { %>
+        <div style="padding:12px;border:1px solid #ddd;border-radius:6px;background:<%= typeof selectedPage !== 'undefined' && selectedPage && selectedPage.slug === p.slug ? '#eef6fc' : '#fafafa' %>;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <strong><%= p.title %></strong>
+            <a href="/admin/pages.php?slug=<%= p.slug %>" style="color:#2271b1;font-size:12px;text-decoration:none;">編集 &raquo;</a>
+          </div>
+          <div style="font-size:11px;color:#666;margin-top:4px;">
+            スラッグ: <code>/page/<%= p.slug %></code>
+            <a href="/page/<%= p.slug %>" target="_blank" style="margin-left:8px;color:#888;">↗ 表示</a>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+
+  <!-- Page Edit Form -->
+  <div class="admin-dashboard-section admin-card--form">
+    <h2><%= selectedPage ? '「' + selectedPage.title + '」の編集' : 'ページ編集' %></h2>
+    <% if (selectedPage) { %>
+      <form action="/admin/pages.php" method="post">
+        <input type="hidden" name="action" value="save">
+        <input type="hidden" name="slug" value="<%= selectedPage.slug %>">
+
+        <label>
+          <span>ページタイトル</span>
+          <input type="text" name="title" value="<%= selectedPage.title %>" required>
+        </label>
+
+        <label>
+          <span>本文 HTML</span>
+          <textarea name="content" rows="12" required><%= selectedPage.content %></textarea>
+        </label>
+
+        <div class="admin-actions" style="margin-top:16px;">
+          <button type="submit">ページ内容を保存する</button>
+        </div>
+      </form>
+    <% } else { %>
+      <p style="color:#888;padding:20px 0;">左の一覧から編集したいページを選択してください。</p>
+    <% } %>
+  </div>
+</div>
+
+<%- include('admin_footer') %>
