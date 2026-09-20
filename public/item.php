@@ -133,7 +133,7 @@ if ($itemContentId !== '') {
         error_log('item series lookup failed: ' . $e->getMessage());
         $series = [];
     }
-    if (db_table_exists('item_labels')) {
+    if (db_table_exists('item_labels') && db_column_exists('item_labels', 'content_id')) {
         try {
             $labels = fetch_item_labels($itemContentId);
         } catch (Throwable $e) {
@@ -276,21 +276,6 @@ if ($itemContentId !== '') {
             $relatedItems = dedupe_items_by_key(array_merge($relatedItems, $stmt->fetchAll() ?: []));
         }
 
-        if (count($relatedItems) < 12) {
-            $excludeIds = array_values(array_filter(array_unique(array_merge([$id], array_map(static fn(array $row): int => (int)($row['id'] ?? 0), $relatedItems))), static fn(int $v): bool => $v > 0));
-            $excludeClause = implode(',', array_fill(0, count($excludeIds), '?'));
-            $limit = 12 - count($relatedItems);
-            $stmt = $db->prepare(
-                'SELECT i.*
-                 FROM items i
-                 WHERE i.id NOT IN (' . $excludeClause . ')
-                   AND ' . items_product_source_where('i') . '
-                 ORDER BY i.' . $relatedOrderColumn . ' DESC, i.id DESC
-                 LIMIT ' . (int)$limit
-            );
-            $stmt->execute($excludeIds);
-            $relatedItems = dedupe_items_by_key(array_merge($relatedItems, $stmt->fetchAll() ?: []));
-        }
     } catch (Throwable $e) {
         error_log('related item lookup by item_id failed: ' . $e->getMessage());
         $relatedItems = [];
