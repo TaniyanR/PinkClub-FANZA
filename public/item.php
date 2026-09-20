@@ -83,6 +83,23 @@ try {
     error_log('item page db bootstrap failed: ' . $e->getMessage());
 }
 
+$hasItemActressItemId = false;
+$hasItemGenreItemId = false;
+$hasItemMakerItemId = false;
+$hasItemSeriesItemId = false;
+$hasItemLabelItemId = false;
+if ($db instanceof PDO) {
+    try {
+        $hasItemActressItemId = db_column_exists('item_actresses', 'item_id');
+        $hasItemGenreItemId = db_column_exists('item_genres', 'item_id');
+        $hasItemMakerItemId = db_column_exists('item_makers', 'item_id');
+        $hasItemSeriesItemId = db_column_exists('item_series', 'item_id');
+        $hasItemLabelItemId = db_column_exists('item_labels', 'item_id');
+    } catch (Throwable $e) {
+        error_log('item schema detection failed: ' . $e->getMessage());
+    }
+}
+
 $id = (int)$item['id'];
 $itemId = $id;
 $itemContentId = trim((string)($item['content_id'] ?? ''));
@@ -125,18 +142,7 @@ if ($itemContentId !== '') {
         }
     }
 } elseif ($db instanceof PDO) {
-    $hasItemActressItemId = false;
-    $hasItemGenreItemId = false;
-    $hasItemMakerItemId = false;
-    $hasItemSeriesItemId = false;
-    $hasItemLabelItemId = false;
     try {
-        $hasItemActressItemId = db_column_exists('item_actresses', 'item_id');
-        $hasItemGenreItemId = db_column_exists('item_genres', 'item_id');
-        $hasItemMakerItemId = db_column_exists('item_makers', 'item_id');
-        $hasItemSeriesItemId = db_column_exists('item_series', 'item_id');
-        $hasItemLabelItemId = db_column_exists('item_labels', 'item_id');
-
         if ($hasItemActressItemId) {
             $stmt = $db->prepare('SELECT DISTINCT a.* FROM item_actresses ia INNER JOIN actresses a ON a.dmm_id = ia.dmm_id WHERE ia.item_id = :item_id ORDER BY a.name ASC');
             $stmt->execute([':item_id' => $id]);
@@ -224,6 +230,27 @@ if ($itemContentId !== '') {
     } catch (Throwable $e) {
         error_log('related item lookup failed: ' . $e->getMessage());
         $relatedItems = [];
+    }
+
+    if (count($relatedItems) < 12 && $db instanceof PDO) {
+        try {
+            $relatedOrderColumn = db_column_exists('items', 'release_date') ? 'release_date' : 'date_released';
+            $excludeIds = array_values(array_filter(array_unique(array_merge([$id], array_map(static fn(array $row): int => (int)($row['id'] ?? 0), $relatedItems))), static fn(int $v): bool => $v > 0));
+            $excludeClause = implode(',', array_fill(0, count($excludeIds), '?'));
+            $limit = 12 - count($relatedItems);
+            $stmt = $db->prepare(
+                'SELECT i.*
+                 FROM items i
+                 WHERE i.id NOT IN (' . $excludeClause . ')
+                   AND ' . items_product_source_where('i') . '
+                 ORDER BY i.' . $relatedOrderColumn . ' DESC, i.id DESC
+                 LIMIT ' . (int)$limit
+            );
+            $stmt->execute($excludeIds);
+            $relatedItems = dedupe_items_by_key(array_merge($relatedItems, $stmt->fetchAll() ?: []));
+        } catch (Throwable $e) {
+            error_log('related item top-up lookup failed: ' . $e->getMessage());
+        }
     }
 } elseif ($db instanceof PDO) {
     try {
