@@ -216,20 +216,46 @@ if ($itemContentId !== '') {
     }
 } elseif ($db instanceof PDO) {
     try {
-        if (db_column_exists('item_genres', 'item_id')) {
+        $relatedIds = [];
+        if (db_column_exists('item_actresses', 'item_id')) {
             $stmt = $db->prepare(
-                'SELECT DISTINCT i2.*
-                 FROM item_genres ig1
-                 INNER JOIN item_genres ig2 ON ig2.dmm_id = ig1.dmm_id
-                 INNER JOIN items i2 ON i2.id = ig2.item_id
-                 WHERE ig1.item_id = :item_id
-                   AND i2.id <> :item_id
-                   AND ' . items_product_source_where('i2') . '
-                 ORDER BY i2.release_date DESC, i2.id DESC
+                'SELECT DISTINCT i.*
+                 FROM item_actresses ia
+                 INNER JOIN items i ON i.id = ia.item_id
+                 WHERE ia.dmm_id IN (
+                     SELECT dmm_id FROM item_actresses
+                     WHERE item_id = :item_id AND TRIM(COALESCE(dmm_id, "")) <> ""
+                 )
+                   AND i.id <> :item_id
+                   AND ' . items_product_source_where('i') . '
+                 ORDER BY i.release_date DESC, i.id DESC
                  LIMIT 12'
             );
             $stmt->execute([':item_id' => $id]);
             $relatedItems = dedupe_items_by_key($stmt->fetchAll() ?: []);
+            $relatedIds = array_values(array_unique(array_map(static fn(array $row): int => (int)($row['id'] ?? 0), $relatedItems)));
+        }
+
+        if (count($relatedItems) < 12 && db_column_exists('item_genres', 'item_id')) {
+            $excludeIds = array_values(array_filter(array_unique(array_merge([$id], $relatedIds)), static fn(int $v): bool => $v > 0));
+            $excludeClause = implode(',', array_fill(0, count($excludeIds), '?'));
+            $limit = 12 - count($relatedItems);
+            $stmt = $db->prepare(
+                'SELECT DISTINCT i.*
+                 FROM item_genres ig
+                 INNER JOIN items i ON i.id = ig.item_id
+                 WHERE ig.dmm_id IN (
+                     SELECT dmm_id FROM item_genres
+                     WHERE item_id = ? AND TRIM(COALESCE(dmm_id, "")) <> ""
+                 )
+                   AND i.id NOT IN (' . $excludeClause . ')
+                   AND ' . items_product_source_where('i') . '
+                 ORDER BY i.release_date DESC, i.id DESC
+                 LIMIT ' . (int)$limit
+            );
+            $params = array_merge([$id], $excludeIds);
+            $stmt->execute($params);
+            $relatedItems = dedupe_items_by_key(array_merge($relatedItems, $stmt->fetchAll() ?: []));
         }
     } catch (Throwable $e) {
         error_log('related item lookup by item_id failed: ' . $e->getMessage());
