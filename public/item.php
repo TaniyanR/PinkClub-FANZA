@@ -214,6 +214,27 @@ if ($itemContentId !== '') {
         error_log('related item lookup failed: ' . $e->getMessage());
         $relatedItems = [];
     }
+} elseif ($db instanceof PDO) {
+    try {
+        if (db_column_exists('item_genres', 'item_id')) {
+            $stmt = $db->prepare(
+                'SELECT DISTINCT i2.*
+                 FROM item_genres ig1
+                 INNER JOIN item_genres ig2 ON ig2.dmm_id = ig1.dmm_id
+                 INNER JOIN items i2 ON i2.id = ig2.item_id
+                 WHERE ig1.item_id = :item_id
+                   AND i2.id <> :item_id
+                   AND ' . items_product_source_where('i2') . '
+                 ORDER BY i2.release_date DESC, i2.id DESC
+                 LIMIT 12'
+            );
+            $stmt->execute([':item_id' => $id]);
+            $relatedItems = dedupe_items_by_key($stmt->fetchAll() ?: []);
+        }
+    } catch (Throwable $e) {
+        error_log('related item lookup by item_id failed: ' . $e->getMessage());
+        $relatedItems = [];
+    }
 }
 
 $title = (string)$item['title'];
