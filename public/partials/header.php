@@ -129,10 +129,7 @@ if (!headers_sent()) {
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="rating" content="R18">
-  <meta name="rating" content="adult">
-  <meta name="RATING" content="RTA-5042-1996-1400-1579-RTA">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="referrer" content="unsafe-url">
   <title><?= e($titleText) ?></title>
   <?php if ($descriptionText !== ''): ?><meta name="description" content="<?= e($descriptionText) ?>"><?php endif; ?>

@@ -66,11 +66,10 @@ $accessRankingRows = pcf_public_weighted_ranking('series', $accessRankingPeriod)
 
 $title = $seriesName;
 $pageDescription = mb_strimwidth($seriesName . 'シリーズの作品一覧。全' . (int)$total . '作品を掲載。', 0, 150, '…', 'UTF-8');
-$canonicalParams = ['id' => $id];
-if ((int)($pg['page'] ?? 1) > 1) {
-    $canonicalParams['page'] = (int)$pg['page'];
-}
-$canonicalUrl = public_url('series_detail.php') . '?' . http_build_query($canonicalParams);
+$canonicalUrl = public_url('series_detail.php') . '?' . http_build_query([
+    'id' => $id,
+    'page' => (int)($pg['page'] ?? 1) > 1 ? (int)$pg['page'] : null,
+]);
 if ((int)($pg['page'] ?? 1) > 1) {
     $relPrev = public_url('series_detail.php') . '?' . http_build_query(['id' => $id, 'page' => (int)$pg['page'] - 1]);
 }

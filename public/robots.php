@@ -20,12 +20,4 @@ echo "Disallow: /out.php?to=\n";
 echo "Disallow: /public/out.php?to=\n";
 echo "Disallow: /vr_affiliate.php\n";
 echo "Disallow: /public/vr_affiliate.php\n";
-echo "Disallow: /*?*sort=
-";
-echo "Disallow: /*?*order=
-";
-echo "Disallow: /*?*rank_period=
-";
-echo "Disallow: /*?*affiliate_id=
-";
 echo "Sitemap: {$base}/sitemap.php\n";

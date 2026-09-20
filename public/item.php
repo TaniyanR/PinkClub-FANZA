@@ -169,33 +169,8 @@ if (count($relatedItems) < 6 && $genres !== []) {
 
 $relatedItems = pcf_normalize_items_for_public($relatedItems);
 
-$rawItemTitle = (string)($item['title'] ?? '');
-$contentId = trim((string)($item['content_id'] ?? $item['product_id'] ?? ''));
-$firstActress = '';
-foreach ($actresses as $a) {
-    $aName = trim((string)($a['name'] ?? ''));
-    if ($aName !== '' && !is_invalid_actress_name($aName)) {
-        $firstActress = $aName;
-        break;
-    }
-}
-
-// SERP optimization: 【品番】女優名 作品タイトル
-$prefixParts = [];
-if ($contentId !== '') {
-    $prefixParts[] = '【' . $contentId . '】';
-}
-if ($firstActress !== '' && !str_contains($rawItemTitle, $firstActress)) {
-    $prefixParts[] = $firstActress;
-}
-
-if ($prefixParts !== []) {
-    $seoPrefix = implode(' ', $prefixParts) . ' ';
-    $title = $seoPrefix . $rawItemTitle;
-} else {
-    $title = $rawItemTitle;
-}
-$pageTitle = $title;
+$title = (string)$item['title'];
+$metaTitle = $title . ' - 作品詳細 | PinkClub';
 
 $descBase = !empty($item['comment'])
     ? strip_tags((string)$item['comment'])
@@ -204,24 +179,8 @@ $pageDescription = mb_strimwidth(trim(preg_replace('/\s+/u', ' ', $descBase)), 0
 
 $canonicalUrl = public_url('item.php') . '?id=' . rawurlencode((string)$id);
 
-if (function_exists('pcf_pick_detail_main_image')) {
-    $packageImage = pcf_pick_detail_main_image($item);
-} elseif (function_exists('pcf_item_image')) {
-    $packageImage = pcf_item_image($item);
-} else {
-    $packageImage = (string)($item['image_large'] ?? $item['image_small'] ?? $item['image_url'] ?? '');
-}
+$packageImage = pcf_pick_detail_main_image($item);
 $ogImage = $packageImage !== '' ? $packageImage : (!empty($item['image_url']) ? (string)$item['image_url'] : '');
-
-// Fetch user reviews
-$reviews = [];
-try {
-    $revStmt = $db->prepare("SELECT * FROM item_reviews WHERE item_id = :item_id AND status = 'approved' ORDER BY created_at DESC LIMIT 10");
-    $revStmt->execute([':item_id' => (int)$id]);
-    $reviews = $revStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-} catch (Throwable) {
-    $reviews = [];
-}
 
 $breadcrumbTitle = mb_strimwidth($title, 0, 24, '…', 'UTF-8');
 
@@ -429,37 +388,6 @@ require __DIR__ . '/partials/header.php';
     </div>
   </div>
 
-  <section class="block item-reviews-section" style="margin-top:40px;">
-    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px;">
-      <h2 class="section-title" style="margin:0;">ユーザーレビュー・感想</h2>
-      <span style="font-size:14px; color:#777;">（<?= count() ?>件の感想）</span>
-    </div>
-
-    <?php if ( !== []): ?>
-      <div class="item-reviews-list" style="display:flex; flex-direction:column; gap:16px;">
-        <?php foreach ( as ): ?>
-          <div class="review-card" style="background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:16px;">
-            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-              <strong style="color:#333;"><?= e((string)(['reviewer_name'] ?? '名無しファン')) ?></strong>
-              <span style="color:#f39c12; font-weight:bold;"><?= str_repeat('★', (int)(['rating'] ?? 5)) . str_repeat('☆', 5 - (int)(['rating'] ?? 5)) ?> (<?= (int)(['rating'] ?? 5) ?>.0)</span>
-            </div>
-            <?php if (!empty(['review_title'])): ?>
-              <h4 style="margin:0 0 6px 0; font-size:15px; color:#222;"><?= e((string)['review_title']) ?></h4>
-            <?php endif; ?>
-            <p style="margin:0; font-size:14px; line-height:1.6; color:#444;"><?= nl2br(e((string)(['review_body'] ?? ''))) ?></p>
-            <div style="font-size:12px; color:#999; margin-top:8px; text-align:right;">
-              投稿日: <?= e(date('Y年m月d日', strtotime((string)(['created_at'] ?? 'now')))) ?>
-            </div>
-          </div>
-        <?php endforeach; ?>
-      </div>
-    <?php else: ?>
-      <div style="background:#f9f9f9; border:1px dashed #ccc; border-radius:8px; padding:24px; text-align:center; color:#666;">
-        <p style="margin:0 0 8px 0; font-size:14px;">まだレビューはありません。この作品をチェックした感想をお待ちしています。</p>
-        <span style="font-size:12px; color:#999;">※FANZA公式サイトでも多数のレビューが公開されています</span>
-      </div>
-    <?php endif; ?>
-  </section>
   <?php if ($relatedItems !== []): ?>
     <section class="block related-items" style="margin-top:40px;">
       <h2 class="section-title">関連作品</h2>
