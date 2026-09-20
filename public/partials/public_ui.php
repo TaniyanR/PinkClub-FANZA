@@ -4,15 +4,6 @@ declare(strict_types=1);
 require_once __DIR__ . '/_helpers.php';
 require_once __DIR__ . '/../../lib/images.php';
 
-if (!function_exists('pcf_placeholder_data_uri')) {
-    function pcf_placeholder_data_uri(string $label = 'No Image'): string
-    {
-        $safeLabel = e($label);
-        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="900" viewBox="0 0 640 900"><rect width="100%" height="100%" fill="#1b2434"/><text x="50%" y="50%" fill="#7f8ea3" font-size="34" font-family="sans-serif" font-weight="700" text-anchor="middle" dominant-baseline="middle">' . $safeLabel . '</text></svg>';
-        return 'data:image/svg+xml;charset=UTF-8,' . rawurlencode($svg);
-    }
-}
-
 if (!function_exists('pcf_parse_image_urls')) {
     function pcf_parse_image_urls(?string $value): array
     {
@@ -466,7 +457,7 @@ if (!function_exists('pcf_render_sample_movie_modal')) {
         echo '<button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>';
         echo '<div id="sample-movie-title" class="sample-movie-modal__title">サンプル動画</div>';
         echo '<div class="sample-movie-modal__frame-wrap">';
-        echo '<iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer" sandbox="allow-scripts allow-presentation" title="サンプル動画プレイヤー"></iframe>';
+        echo '<iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer" title="サンプル動画プレイヤー"></iframe>';
         echo '</div>';
         echo '</div>';
         echo '</div>';
