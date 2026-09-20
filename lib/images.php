@@ -226,6 +226,11 @@ if (!function_exists('pcf_item_sample_movie_urls')) {
         $raw = pcf_item_raw_payload($item);
         foreach (['sampleMovieURL', 'sample_movie_url', 'sampleMovieUrl', 'sampleMovieURLVR'] as $key) {
             if (array_key_exists($key, $raw)) {
+                if (is_array($raw[$key])) {
+                    foreach (['size_720_480', 'size_644_414', 'size_560_360', 'size_476_306'] as $movieKey) {
+                        pcf_collect_sample_movie_urls($raw[$key][$movieKey] ?? null, $urls);
+                    }
+                }
                 pcf_collect_sample_movie_urls($raw[$key], $urls);
             }
         }
