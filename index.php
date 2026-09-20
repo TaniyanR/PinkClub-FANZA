@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/public/_bootstrap.php';
+require_once __DIR__ . '/lib/images.php';
 require_once __DIR__ . '/lib/repository.php';
 require_once __DIR__ . '/lib/home_rotation_cache.php';
 require_once __DIR__ . '/lib/home_item_visibility.php';
@@ -361,11 +362,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     $sample = item_sample_state($item);
     $movieClass = $sample['movie_url'] !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $imageClass = $sample['has_images'] ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
-    $sampleImagesUrl = public_url('sample_images.php') . '?' . http_build_query([
-        'content_id' => (string)($item['content_id'] ?? ''),
-        'id' => (int)($item['id'] ?? 0),
-        'format' => 'json',
-    ]);
+    $sampleImagesUrl = pcf_item_sample_images_endpoint_url($item);
     $thumbUrl = $imageCandidates[0];
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
