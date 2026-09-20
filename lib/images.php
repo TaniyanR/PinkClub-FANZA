@@ -153,7 +153,12 @@ if (!function_exists('pcf_item_sample_images')) {
         $sampleImageUrl = $raw['sampleImageURL'] ?? null;
         if (is_array($sampleImageUrl)) {
             foreach (['sample_l', 'sample_s'] as $sampleKey) {
-                pcf_collect_sample_image_urls($sampleImageUrl[$sampleKey]['image'] ?? null, $images);
+                $sampleImages = [];
+                pcf_collect_sample_image_urls($sampleImageUrl[$sampleKey]['image'] ?? null, $sampleImages);
+                if ($sampleImages !== []) {
+                    $images = array_merge($images, $sampleImages);
+                    break;
+                }
             }
         } elseif ($sampleImageUrl !== null) {
             pcf_collect_sample_image_urls($sampleImageUrl, $images);

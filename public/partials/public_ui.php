@@ -86,7 +86,7 @@ if (!function_exists('pcf_looks_like_image_url')) {
 if (!function_exists('pcf_is_self_hosted_fanza_image')) {
     function pcf_is_self_hosted_fanza_image(string $url): bool
     {
-        return false;
+        return str_starts_with($url, '/uploads/fanza/');
     }
 }
 
@@ -466,7 +466,7 @@ if (!function_exists('pcf_render_sample_movie_modal')) {
         echo '<button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>';
         echo '<div id="sample-movie-title" class="sample-movie-modal__title">サンプル動画</div>';
         echo '<div class="sample-movie-modal__frame-wrap">';
-        echo '<iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>';
+        echo '<iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer" title="サンプル動画プレイヤー"></iframe>';
         echo '</div>';
         echo '</div>';
         echo '</div>';
