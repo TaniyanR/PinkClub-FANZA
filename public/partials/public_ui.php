@@ -466,7 +466,7 @@ if (!function_exists('pcf_render_sample_movie_modal')) {
         echo '<button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>';
         echo '<div id="sample-movie-title" class="sample-movie-modal__title">サンプル動画</div>';
         echo '<div class="sample-movie-modal__frame-wrap">';
-        echo '<iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer" title="サンプル動画プレイヤー"></iframe>';
+        echo '<iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-presentation" title="サンプル動画プレイヤー"></iframe>';
         echo '</div>';
         echo '</div>';
         echo '</div>';
@@ -477,7 +477,9 @@ if (!function_exists('pcf_render_sample_movie_modal')) {
         echo 'const titleNode = document.getElementById("sample-movie-title");';
         echo 'if (!modal || !frame || !titleNode || modal.dataset.bound === "1") return;';
         echo 'modal.dataset.bound = "1";';
-        echo 'const openMovie = (url, title) => { if (!url) { console.warn("sample movie URL missing"); return; } titleNode.textContent = String(title || "").trim() || "サンプル動画"; modal.style.setProperty("--movie-modal-width", "900px"); frame.src = url; modal.classList.add("is-open"); modal.setAttribute("aria-hidden", "false"); };';
+        echo 'const allowedRoots = ["dmm.co.jp", "dmm.com", "fanza.co.jp"];';
+        echo 'const allowedMovieUrl = (value) => { try { const parsed = new URL(String(value || ""), window.location.href); const host = (parsed.hostname || "").toLowerCase().replace(/\\.$/, ""); return /^https?:$/.test(parsed.protocol) && allowedRoots.some((root) => host === root || host.endsWith("." + root)) ? parsed.href : ""; } catch (_) { return ""; } };';
+        echo 'const openMovie = (url, title) => { const safeUrl = allowedMovieUrl(url); if (!safeUrl) { console.warn("sample movie URL rejected"); return; } titleNode.textContent = String(title || "").trim() || "サンプル動画"; modal.style.setProperty("--movie-modal-width", "900px"); frame.src = safeUrl; modal.classList.add("is-open"); modal.setAttribute("aria-hidden", "false"); };';
         echo 'const closeMovie = () => { modal.classList.remove("is-open"); modal.setAttribute("aria-hidden", "true"); frame.src = "about:blank"; modal.style.removeProperty("--movie-modal-width"); titleNode.textContent = "サンプル動画"; };';
         echo 'document.addEventListener("click", (event) => { const trigger = event.target.closest(".sample-movie-trigger, [data-sample-movie-url]"); if (trigger && !trigger.disabled) { event.preventDefault(); const title = trigger.dataset.movieTitle || trigger.dataset.sampleMovieTitle || ""; const url = trigger.dataset.movieUrl || trigger.dataset.sampleMovieUrl || ""; openMovie(url, title); return; } if (event.target.closest("[data-movie-close=\'1\']")) { event.preventDefault(); closeMovie(); } });';
         echo 'document.addEventListener("keydown", (event) => { if (event.key === "Escape" && modal.classList.contains("is-open")) closeMovie(); });';
