@@ -18,21 +18,6 @@ $resolvedPartnerRss = false;
 
 // backward compatibility: ?id=nnn
 $id = (int)($_GET['id'] ?? 0);
-$itemId = (int)($_GET['item_id'] ?? 0);
-
-if ($to === '' && $itemId > 0) {
-    try {
-        $st = db()->prepare('SELECT affiliate_url, url FROM items WHERE id = :id LIMIT 1');
-        $st->execute([':id' => $itemId]);
-        $row = $st->fetch(PDO::FETCH_ASSOC);
-        if (is_array($row)) {
-            $to = (string)($row['affiliate_url'] ?? $row['url'] ?? '');
-        }
-    } catch (Throwable $e) {
-        error_log('item affiliate url lookup failed: ' . $e->getMessage());
-    }
-}
-
 if ($to === '' && $id > 0) {
     $st = db()->prepare('SELECT link_url, site_url, ref_code FROM mutual_links WHERE id = :id AND status = "approved" LIMIT 1');
     $st->execute([':id' => $id]);

@@ -6,28 +6,6 @@ require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/../lib/public_rankings.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
-if (!function_exists('is_invalid_actress_name')) {
-    function is_invalid_actress_name(string $name): bool {
-        if (function_exists('pcf_is_noise_name') && pcf_is_noise_name($name)) return true;
-        return trim($name) === '';
-    }
-}
-if (!function_exists('pcf_out_url')) {
-    function pcf_out_url(int $itemId, string $position = 'card'): string {
-        return public_url('out.php') . '?item_id=' . $itemId;
-    }
-}
-if (!function_exists('pcf_normalize_items_for_public')) {
-    function pcf_normalize_items_for_public(array $items): array {
-        return array_values(array_filter($items, 'is_array'));
-    }
-}
-if (!function_exists('pcf_item_labels')) {
-    function pcf_item_labels(PDO $db, int $itemId): array {
-        return [];
-    }
-}
-
 $id = (int)get('id', 0);
 $contentId = trim((string)get('content_id', ''));
 $cid = trim((string)get('cid', ''));
