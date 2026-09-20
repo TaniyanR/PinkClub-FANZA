@@ -238,7 +238,7 @@ if ($itemContentId !== '') {
         }
 
         if (count($relatedItems) < 12 && db_column_exists('item_genres', 'item_id')) {
-            $excludeIds = array_values(array_filter(array_unique(array_merge([$id], $relatedIds)), static fn(int $v): bool => $v > 0));
+            $excludeIds = array_values(array_filter(array_unique(array_merge([$id], array_map(static fn(array $row): int => (int)($row['id'] ?? 0), $relatedItems))), static fn(int $v): bool => $v > 0));
             $excludeClause = implode(',', array_fill(0, count($excludeIds), '?'));
             $limit = 12 - count($relatedItems);
             $stmt = $db->prepare(
