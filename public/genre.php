@@ -117,11 +117,10 @@ $accessRankingRows = pcf_public_weighted_ranking('genres', $accessRankingPeriod)
 
 $title = $genreName;
 $pageDescription = mb_strimwidth($genreName . 'のAV・成人向け動画作品一覧。FANZAアフィリエイト最新作を紹介。', 0, 150, '…', 'UTF-8');
-$canonicalParams = ['id' => $id];
-if ((int)($pg['page'] ?? 1) > 1) {
-    $canonicalParams['page'] = (int)$pg['page'];
-}
-$canonicalUrl = public_url('genre.php') . '?' . http_build_query($canonicalParams);
+$canonicalUrl = public_url('genre.php') . '?' . http_build_query([
+    'id' => $id,
+    'page' => (int)($pg['page'] ?? 1) > 1 ? (int)$pg['page'] : null,
+]);
 if ((int)($pg['page'] ?? 1) > 1) {
     $relPrev = public_url('genre.php') . '?' . http_build_query(['id' => $id, 'page' => (int)$pg['page'] - 1]);
 }

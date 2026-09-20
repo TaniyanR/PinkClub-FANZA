@@ -185,11 +185,10 @@ unset($title, $pageTitle);
 $title = $actressDisplayName;
 $pageTitle = $actressDisplayName;
 $pageDescription = mb_strimwidth($actressDisplayName . 'の出演作品一覧。FANZAで人気の' . $actressDisplayName . '作品をチェック。', 0, 150, '…', 'UTF-8');
-$canonicalParams = ['id' => $id];
-if ($actressPage > 1) {
-    $canonicalParams['page'] = $actressPage;
-}
-$canonicalUrl = public_url('actress.php') . '?' . http_build_query($canonicalParams);
+$canonicalUrl = public_url('actress.php') . '?' . http_build_query([
+    'id' => $id,
+    'page' => $actressPage > 1 ? $actressPage : null,
+]);
 $ogImage = $profileImage;
 if ($actressPage > 1) {
     $relPrev = public_url('actress.php') . '?' . http_build_query(['id' => $id, 'page' => $actressPage - 1]);
