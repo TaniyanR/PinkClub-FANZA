@@ -338,7 +338,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     $sample = item_sample_state($item);
     $movieClass = $sample['movie_url'] !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $imageClass = $sample['has_images'] ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
-    $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')) . '&format=json');
+    $sampleImagesUrl = pcf_item_sample_images_endpoint_url($item);
     $thumbUrl = trim((string)($item['image_small'] ?? ''));
     if ($preferFullPackageImage) {
         $fullPackageImage = pick_full_package_image($item);
@@ -461,7 +461,7 @@ require __DIR__ . '/partials/header.php';
     <button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>
     <div id="sample-movie-title" class="sample-movie-modal__title">サンプル動画</div>
     <div class="sample-movie-modal__frame-wrap">
-      <iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
+      <iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="unsafe-url"></iframe>
     </div>
   </div>
 </div>

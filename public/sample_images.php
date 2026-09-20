@@ -2,113 +2,39 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
-
-function sample_images_parse_list(?string $value): array
-{
-    if ($value === null || trim($value) === '') {
-        return [];
-    }
-
-    $trimmed = trim($value);
-    if ($trimmed !== '' && $trimmed[0] === '[') {
-        $decoded = json_decode($trimmed, true);
-        if (is_array($decoded)) {
-            return array_values(array_filter(array_map('strval', $decoded)));
-        }
-    }
-
-    $parts = preg_split('/[\r\n,|\s]+/', $value);
-    if (!is_array($parts)) {
-        return [];
-    }
-
-    return array_values(array_filter(array_map('trim', $parts), static fn(string $v): bool => $v !== ''));
-}
-
-function sample_images_is_self_hosted_fanza_image_url(string $url): bool
-{
-    $value = trim($url);
-    if ($value === '') {
-        return false;
-    }
-
-    $path = parse_url($value, PHP_URL_PATH);
-    if (!is_string($path) || $path === '') {
-        return false;
-    }
-
-    if (!preg_match('#^/(?:uploads|images|img|cache|thumbnails|thumbs|wp-content/uploads)(?:/|$)#i', $path)) {
-        return false;
-    }
-
-    $host = parse_url($value, PHP_URL_HOST);
-    if ($host === null || $host === false || $host === '') {
-        return str_starts_with($value, '/');
-    }
-
-    $siteHost = parse_url(public_url(''), PHP_URL_HOST);
-    return is_string($siteHost) && strcasecmp($host, $siteHost) === 0;
-}
-
-function sample_images_collect_from_value(mixed $value, array &$images): void
-{
-    if (is_string($value)) {
-        foreach (sample_images_parse_list($value) as $candidate) {
-            $url = trim((string)$candidate);
-            if ($url !== '' && !sample_images_is_self_hosted_fanza_image_url($url)) {
-                $images[] = $url;
-            }
-        }
-        return;
-    }
-
-    if (!is_array($value)) {
-        return;
-    }
-
-    foreach ($value as $child) {
-        sample_images_collect_from_value($child, $images);
-    }
-}
+require_once __DIR__ . '/../lib/images.php';
 
 $contentId = trim((string)get('content_id', ''));
-if ($contentId === '') {
+$id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+if ($contentId === '' && !is_int($id)) {
+    error_log('sample_images.php request missing item identifier');
     http_response_code(404);
-    exit('content_id が指定されていません。');
+    exit('商品識別子が指定されていません。');
 }
 
-$stmt = db()->prepare('SELECT content_id, title, raw_json, image_list FROM items WHERE content_id = ? LIMIT 1');
-$stmt->execute([$contentId]);
+$params = [];
+$where = '';
+if ($contentId !== '') {
+    $where = 'content_id = :content_id';
+    $params[':content_id'] = $contentId;
+} else {
+    $where = 'id = :id';
+    $params[':id'] = $id;
+}
+
+$stmt = db()->prepare('SELECT id, content_id, title, sample_images, raw_json, image_list FROM items WHERE ' . $where . ' LIMIT 1');
+$stmt->execute($params);
 $item = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$item) {
+    error_log('sample_images.php item not found');
     http_response_code(404);
     exit('指定の商品が見つかりません。');
 }
 
-$decoded = json_decode((string)($item['raw_json'] ?? ''), true);
-$images = [];
-if (is_array($decoded) && isset($decoded['sampleImageURL'])) {
-    if (is_array($decoded['sampleImageURL'])) {
-        foreach (['sample_l', 'sample_s'] as $sizeKey) {
-            $sampleImages = [];
-            sample_images_collect_from_value($decoded['sampleImageURL'][$sizeKey]['image'] ?? null, $sampleImages);
-            if ($sampleImages !== []) {
-                $images = array_merge($images, $sampleImages);
-                break;
-            }
-        }
-    } else {
-        sample_images_collect_from_value($decoded['sampleImageURL'], $images);
-    }
-}
-$images = array_values(array_unique($images));
+$images = pcf_item_sample_images($item);
 if ($images === []) {
-    $images = array_values(array_unique(array_filter(sample_images_parse_list((string)($item['image_list'] ?? '')), static fn($url) => !sample_images_is_self_hosted_fanza_image_url((string)$url))));
+    error_log('sample_images.php no displayable sample images for item ' . (string)($item['id'] ?? ''));
 }
-$images = array_values(array_filter($images, static function (string $url): bool {
-    $scheme = strtolower((string)parse_url($url, PHP_URL_SCHEME));
-    return in_array($scheme, ['http', 'https'], true);
-}));
 
 if (strtolower(trim((string)get('format', ''))) === 'json') {
     header('Content-Type: application/json; charset=UTF-8');
@@ -116,6 +42,7 @@ if (strtolower(trim((string)get('format', ''))) === 'json') {
     echo json_encode([
         'title' => (string)$item['title'],
         'images' => $images,
+        'error' => $images === [] ? 'no_images' : null,
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
     exit;
 }

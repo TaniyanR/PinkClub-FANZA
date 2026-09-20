@@ -361,7 +361,11 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     $sample = item_sample_state($item);
     $movieClass = $sample['movie_url'] !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $imageClass = $sample['has_images'] ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
-    $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')) . '&format=json');
+    $sampleImagesUrl = public_url('sample_images.php') . '?' . http_build_query([
+        'content_id' => (string)($item['content_id'] ?? ''),
+        'id' => (int)($item['id'] ?? 0),
+        'format' => 'json',
+    ]);
     $thumbUrl = $imageCandidates[0];
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
@@ -732,7 +736,7 @@ $hasHomeContent = $newReleaseTop !== []
     <button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>
     <div id="sample-movie-title" class="sample-movie-modal__title">サンプル動画</div>
     <div class="sample-movie-modal__frame-wrap">
-      <iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
+      <iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="unsafe-url"></iframe>
     </div>
   </div>
 </div>
@@ -809,4 +813,3 @@ $hasHomeContent = $newReleaseTop !== []
 })();
 </script>
 <?php require __DIR__ . '/public/partials/footer.php'; ?>
-

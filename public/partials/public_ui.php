@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_helpers.php';
+require_once __DIR__ . '/../../lib/images.php';
 
 if (!function_exists('pcf_placeholder_data_uri')) {
     function pcf_placeholder_data_uri(string $label = 'No Image'): string
@@ -85,7 +86,7 @@ if (!function_exists('pcf_looks_like_image_url')) {
 if (!function_exists('pcf_is_self_hosted_fanza_image')) {
     function pcf_is_self_hosted_fanza_image(string $url): bool
     {
-        return str_starts_with($url, '/uploads/fanza/');
+        return false;
     }
 }
 
@@ -177,9 +178,17 @@ if (!function_exists('pcf_first_image_by_keys')) {
 if (!function_exists('pcf_item_image')) {
     function pcf_item_image(array $item): string
     {
+        $img = pcf_pick_detail_main_image($item);
+        if ($img !== '') {
+            return $img;
+        }
+
         $img = pcf_first_image_by_keys($item, [
             'package_image',
             'image_url',
+            'image_large',
+            'image_small',
+            'image_list',
             'package_url',
             'thumb_url',
             'thumbnail_url',
@@ -326,22 +335,16 @@ if (!function_exists('pcf_render_item_card')) {
 
         $detailUrl = public_url('item.php') . '?id=' . rawurlencode((string)$id);
         $outUrl = pcf_out_url($id, (string)($options['position'] ?? 'card'));
-
-        $sampleMovieUrl = '';
-        if (!empty($item['sample_movie_url'])) {
-            $sampleMovieUrl = (string)$item['sample_movie_url'];
-        } elseif (!empty($item['sample_movie_url_pc'])) {
-            $sampleMovieUrl = (string)$item['sample_movie_url_pc'];
-        }
+        $sampleMovieUrl = pcf_item_sample_movie_url($item);
 
         echo '<article class="pcf-card" data-item-id="' . e((string)$id) . '">';
         echo '<div class="pcf-card__thumb-wrap">';
         echo '<a href="' . e($detailUrl) . '" class="pcf-card__thumb-link" aria-label="' . e($title) . 'の詳細へ">';
-        echo '<img class="pcf-card__thumb" src="' . e($image) . '" alt="' . e($title) . '" loading="lazy" decoding="async">';
+        echo '<img class="pcf-card__thumb" src="' . e($image) . '" alt="' . e($title) . '" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=' . "'" . e(pcf_placeholder_data_uri('No Image')) . "'" . ';">';
         echo '</a>';
 
         if ($sampleMovieUrl !== '') {
-            echo '<button type="button" class="pcf-card__quick-play" data-sample-movie-url="' . e($sampleMovieUrl) . '" data-sample-movie-title="' . e($title) . '" aria-label="サンプル動画を再生">';
+            echo '<button type="button" class="pcf-card__quick-play sample-movie-trigger" data-movie-url="' . e($sampleMovieUrl) . '" data-movie-title="' . e($title) . '" aria-label="サンプル動画を再生">';
             echo '▶ 再生';
             echo '</button>';
         }
@@ -451,16 +454,35 @@ if (!function_exists('pcf_render_pagination')) {
 if (!function_exists('pcf_render_sample_movie_modal')) {
     function pcf_render_sample_movie_modal(): void
     {
-        echo '<div id="sample-movie-modal" class="sample-movie-modal" aria-hidden="true" style="display:none;">';
+        static $rendered = false;
+        if ($rendered) {
+            return;
+        }
+        $rendered = true;
+
+        echo '<div id="sample-movie-modal" class="sample-movie-modal" aria-hidden="true">';
         echo '<div class="sample-movie-modal__overlay" data-movie-close="1"></div>';
-        echo '<div class="sample-movie-modal__content" role="dialog" aria-modal="true">';
+        echo '<div class="sample-movie-modal__dialog" role="dialog" aria-modal="true" aria-label="サンプル動画プレイヤー">';
         echo '<button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>';
-        echo '<div class="sample-movie-modal__player-wrap">';
-        echo '<video id="sample-movie-player" controls playsinline preload="none"></video>';
+        echo '<div id="sample-movie-title" class="sample-movie-modal__title">サンプル動画</div>';
+        echo '<div class="sample-movie-modal__frame-wrap">';
+        echo '<iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="unsafe-url"></iframe>';
         echo '</div>';
-        echo '<p id="sample-movie-title" class="sample-movie-modal__title"></p>';
         echo '</div>';
         echo '</div>';
+        echo '<script>';
+        echo '(() => {';
+        echo 'const modal = document.getElementById("sample-movie-modal");';
+        echo 'const frame = document.getElementById("sample-movie-frame");';
+        echo 'const titleNode = document.getElementById("sample-movie-title");';
+        echo 'if (!modal || !frame || !titleNode || modal.dataset.bound === "1") return;';
+        echo 'modal.dataset.bound = "1";';
+        echo 'const openMovie = (url, title) => { if (!url) { console.warn("sample movie URL missing"); return; } titleNode.textContent = String(title || "").trim() || "サンプル動画"; modal.style.setProperty("--movie-modal-width", "900px"); frame.src = url; modal.classList.add("is-open"); modal.setAttribute("aria-hidden", "false"); };';
+        echo 'const closeMovie = () => { modal.classList.remove("is-open"); modal.setAttribute("aria-hidden", "true"); frame.src = "about:blank"; modal.style.removeProperty("--movie-modal-width"); titleNode.textContent = "サンプル動画"; };';
+        echo 'document.addEventListener("click", (event) => { const trigger = event.target.closest(".sample-movie-trigger, [data-sample-movie-url]"); if (trigger && !trigger.disabled) { event.preventDefault(); const title = trigger.dataset.movieTitle || trigger.dataset.sampleMovieTitle || ""; const url = trigger.dataset.movieUrl || trigger.dataset.sampleMovieUrl || ""; openMovie(url, title); return; } if (event.target.closest("[data-movie-close=\'1\']")) { event.preventDefault(); closeMovie(); } });';
+        echo 'document.addEventListener("keydown", (event) => { if (event.key === "Escape" && modal.classList.contains("is-open")) closeMovie(); });';
+        echo '})();';
+        echo '</script>';
     }
 }
 

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/bootstrap.php';
 require_once __DIR__ . '/../lib/public_rankings.php';
+require_once __DIR__ . '/partials/public_ui.php';
 
 $id = (int)get('id', 0);
 $contentId = trim((string)get('content_id', ''));
@@ -92,30 +93,8 @@ $labels = pcf_item_labels($db, $id);
 $directAffiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
 $affiliateUrl = pcf_out_url((int)$item['id'], 'item_detail');
 
-$sampleMovieUrl = '';
-if (!empty($item['sample_movie_url'])) {
-    $sampleMovieUrl = (string)$item['sample_movie_url'];
-} elseif (!empty($item['sample_movie_url_pc'])) {
-    $sampleMovieUrl = (string)$item['sample_movie_url_pc'];
-}
-
-$sampleImages = [];
-$sampleImagesCount = 0;
-if (!empty($item['sample_images'])) {
-    $decoded = json_decode((string)$item['sample_images'], true);
-    if (is_array($decoded)) {
-        foreach ($decoded as $k => $v) {
-            if (is_string($v) && $v !== '') {
-                $sampleImages[] = $v;
-            } elseif (is_array($v)) {
-                $candidate = (string)($v['xlarge'] ?? $v['large'] ?? $v['medium'] ?? $v['small'] ?? $v['image'] ?? '');
-                if ($candidate !== '') {
-                    $sampleImages[] = $candidate;
-                }
-            }
-        }
-    }
-}
+$sampleMovieUrl = pcf_item_sample_movie_url($item);
+$sampleImages = pcf_item_sample_images($item);
 $sampleImagesCount = count($sampleImages);
 
 $relatedItems = [];
@@ -249,7 +228,7 @@ require __DIR__ . '/partials/header.php';
     <div class="item-detail__media">
       <div class="item-detail__cover-wrap">
         <?php if ($packageImage !== ''): ?>
-          <img class="item-detail__cover" src="<?= e($packageImage) ?>" alt="<?= e($title) ?>" loading="eager" decoding="async">
+          <img class="item-detail__cover" src="<?= e($packageImage) ?>" alt="<?= e($title) ?>" loading="eager" decoding="async" data-package-image="1" onerror="this.onerror=null;this.src='<?= e(pcf_placeholder_data_uri('No Image')) ?>';">
         <?php else: ?>
           <div class="item-card__no-image" style="height:320px;">NO IMAGE</div>
         <?php endif; ?>
@@ -268,6 +247,7 @@ require __DIR__ . '/partials/header.php';
                   decoding="async"
                   data-image-index="<?= $idx ?>"
                   data-full-src="<?= e($sUrl) ?>"
+                  onerror="this.closest('.sample-gallery__item')?.remove();"
                 >
               </div>
             <?php endforeach; ?>
@@ -285,7 +265,7 @@ require __DIR__ . '/partials/header.php';
 
       <?php if ($sampleMovieUrl !== ''): ?>
         <div class="item-detail__action-secondary" style="margin-top:10px;">
-          <button type="button" class="btn btn--secondary btn--block" data-sample-movie-url="<?= e($sampleMovieUrl) ?>" data-sample-movie-title="<?= e($title) ?>">
+          <button type="button" class="btn btn--secondary btn--block sample-movie-trigger" data-movie-url="<?= e($sampleMovieUrl) ?>" data-movie-title="<?= e($title) ?>">
             サンプル動画を再生
           </button>
         </div>
