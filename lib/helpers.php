@@ -305,3 +305,67 @@ if (!function_exists('pcf_is_noise_name')) {
         return false;
     }
 }
+
+if (!function_exists('is_invalid_actress_name')) {
+    function is_invalid_actress_name(string $name): bool
+    {
+        if (pcf_is_noise_name($name)) {
+            return true;
+        }
+        $v = mb_strtolower(trim($name), 'UTF-8');
+        if ($v === '') {
+            return true;
+        }
+        foreach (['相互リンク', '相互rss', 'お問い合わせ', 'privacy policy', 'プライバシー', 'サイトについて', '公式サイト', 'オフィシャルサイト'] as $ng) {
+            if (str_contains($v, mb_strtolower($ng, 'UTF-8'))) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+if (!function_exists('pcf_out_url')) {
+    function pcf_out_url(int $itemId, string $position = 'card'): string
+    {
+        if ($itemId <= 0) {
+            return public_url('out.php');
+        }
+        $query = 'item_id=' . $itemId;
+        if ($position !== '') {
+            $query .= '&pos=' . rawurlencode($position);
+        }
+        return public_url('out.php?' . $query);
+    }
+}
+
+if (!function_exists('pcf_normalize_items_for_public')) {
+    function pcf_normalize_items_for_public(array $items): array
+    {
+        $res = [];
+        foreach ($items as $item) {
+            if (is_array($item)) {
+                $res[] = $item;
+            }
+        }
+        return $res;
+    }
+}
+
+if (!function_exists('pcf_item_labels')) {
+    function pcf_item_labels(PDO $db, int $itemId): array
+    {
+        if ($itemId <= 0) {
+            return [];
+        }
+        try {
+            if (db_table_exists('item_labels')) {
+                $stmt = $db->prepare('SELECT COALESCE(NULLIF(dmm_id, ""), label_name) AS id, label_name AS name FROM item_labels WHERE item_id = :item_id GROUP BY COALESCE(NULLIF(dmm_id, ""), label_name), label_name');
+                $stmt->execute([':item_id' => $itemId]);
+                return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            }
+        } catch (Throwable) {
+        }
+        return [];
+    }
+}
