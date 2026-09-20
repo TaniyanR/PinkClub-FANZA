@@ -385,7 +385,7 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
         <?php $releaseDateRaw = trim((string)($item['release_date'] ?? '')); ?>
         <span style="display:block;width:100%;padding:12px 10px;text-align:center;color:#000;background:transparent;border:1px solid #000;border-radius:4px;font-size:14px;font-weight:700;box-sizing:border-box;"><?= $releaseDateRaw !== '' ? '発売日：' . e(format_date($releaseDateRaw)) : '発売日' ?></span>
         <button type="button" class="<?= e($movieClass) ?> sample-movie-trigger" <?= $sample['movie_url'] === '' ? 'disabled' : '' ?> data-movie-url="<?= e((string)$sample['movie_url']) ?>" data-movie-title="<?= e($title) ?>">サンプル動画</button>
-        <button type="button" class="<?= e($imageClass) ?> sample-image-trigger" <?= !$hasSampleImages ? 'disabled' : '' ?> data-sample-images-url="<?= e($sampleImagesUrl) ?>" data-sample-images-title="<?= e($title) ?>">サンプル画像</button>
+        <button type="button" class="<?= e($imageClass) ?><?= $hasSampleImages ? ' sample-image-trigger' : '' ?>" <?= !$hasSampleImages ? 'disabled' : '' ?><?= $hasSampleImages ? ' data-sample-images-url="' . e($sampleImagesUrl) . '" data-sample-images-title="' . e($title) . '"' : '' ?>>サンプル画像</button>
       </div>
     </article>
     <?php
