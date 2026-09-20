@@ -25,7 +25,11 @@ function item_build_affiliate_out_url(array $item): string
         return '#';
     }
 
-    return public_url('out.php') . '?' . http_build_query(['to' => $affiliate]);
+    return public_url('out.php') . '?' . http_build_query([
+        'to' => $affiliate,
+        'ref' => 'item_detail',
+        'item_id' => (int)($item['id'] ?? 0),
+    ]);
 }
 
 function item_is_invalid_actress_name(string $name): bool
