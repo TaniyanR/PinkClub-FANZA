@@ -457,7 +457,7 @@ if (!function_exists('pcf_render_sample_movie_modal')) {
         echo '<button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>';
         echo '<div id="sample-movie-title" class="sample-movie-modal__title">サンプル動画</div>';
         echo '<div class="sample-movie-modal__frame-wrap">';
-        echo '<iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation" title="サンプル動画プレイヤー"></iframe>';
+        echo '<iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer" sandbox="allow-scripts allow-forms allow-presentation" title="サンプル動画プレイヤー"></iframe>';
         echo '</div>';
         echo '</div>';
         echo '</div>';
@@ -474,7 +474,7 @@ if (!function_exists('pcf_render_sample_movie_modal')) {
         echo 'const allowedMovieUrl = (value) => { try { const parsed = new URL(String(value || ""), window.location.href); const host = (parsed.hostname || "").toLowerCase().replace(/\\.$/, ""); return /^https?:$/.test(parsed.protocol) && allowedRoots.some((root) => host === root || host.endsWith("." + root)) ? parsed.href : ""; } catch (_) { return ""; } };';
         echo 'const openMovie = (url, title, trigger) => { const safeUrl = allowedMovieUrl(url); if (!safeUrl) { console.warn("sample movie URL rejected"); return; } returnFocus = trigger instanceof HTMLElement ? trigger : null; titleNode.textContent = String(title || "").trim() || "サンプル動画"; modal.style.setProperty("--movie-modal-width", "900px"); frame.src = safeUrl; modal.classList.add("is-open"); modal.setAttribute("aria-hidden", "false"); if (closeButton instanceof HTMLElement) closeButton.focus(); };';
         echo 'const closeMovie = () => { modal.classList.remove("is-open"); modal.setAttribute("aria-hidden", "true"); frame.src = "about:blank"; modal.style.removeProperty("--movie-modal-width"); titleNode.textContent = "サンプル動画"; if (returnFocus instanceof HTMLElement) { returnFocus.focus(); returnFocus = null; } };';
-        echo 'document.addEventListener("click", (event) => { if (!(event.target instanceof Element)) return; const trigger = event.target.closest(".sample-movie-trigger, [data-sample-movie-url]"); if (trigger && !trigger.disabled) { event.preventDefault(); const title = trigger.dataset.movieTitle || trigger.dataset.sampleMovieTitle || ""; const url = trigger.dataset.movieUrl || trigger.dataset.sampleMovieUrl || ""; openMovie(url, title, trigger); return; } if (event.target.closest("[data-movie-close=\'1\']")) { event.preventDefault(); closeMovie(); } });';
+        echo 'document.addEventListener("click", (event) => { if (!(event.target instanceof Element)) return; const trigger = event.target.closest(".sample-movie-trigger"); if (trigger instanceof HTMLButtonElement && !trigger.disabled) { event.preventDefault(); const title = trigger.dataset.movieTitle || ""; const url = trigger.dataset.movieUrl || ""; openMovie(url, title, trigger); return; } if (event.target.closest("[data-movie-close=\'1\']")) { event.preventDefault(); closeMovie(); } });';
         echo 'document.addEventListener("keydown", (event) => { if (event.key === "Escape" && modal.classList.contains("is-open")) closeMovie(); });';
         echo '})();';
         echo '</script>';

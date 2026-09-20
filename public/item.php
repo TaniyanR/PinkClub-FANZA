@@ -248,7 +248,7 @@ require __DIR__ . '/partials/header.php';
                   decoding="async"
                   data-image-index="<?= $idx ?>"
                   data-full-src="<?= e($sUrl) ?>"
-                  onerror="this.onerror=null;this.src='<?= e(pcf_placeholder_data_uri('No Image')) ?>';this.alt='サンプル画像を表示できません';"
+                  onerror="this.onerror=null;this.src='<?= e(pcf_placeholder_data_uri('No Image')) ?>';"
                 >
               </div>
             <?php endforeach; ?>
