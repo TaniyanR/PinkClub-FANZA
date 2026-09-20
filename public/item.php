@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/bootstrap.php';
 require_once __DIR__ . '/../lib/public_rankings.php';
+require_once __DIR__ . '/partials/public_ui.php';
 
 $id = (int)get('id', 0);
 $contentId = trim((string)get('content_id', ''));
@@ -93,10 +94,16 @@ $directAffiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
 $affiliateUrl = pcf_out_url((int)$item['id'], 'item_detail');
 
 $sampleMovieUrl = '';
-if (!empty($item['sample_movie_url'])) {
-    $sampleMovieUrl = (string)$item['sample_movie_url'];
-} elseif (!empty($item['sample_movie_url_pc'])) {
-    $sampleMovieUrl = (string)$item['sample_movie_url_pc'];
+foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476', 'sample_movie_url', 'sample_movie_url_pc'] as $movieKey) {
+    $candidate = trim((string)($item[$movieKey] ?? ''));
+    if ($candidate !== '') {
+        $sampleMovieUrl = $candidate;
+        break;
+    }
+}
+if ($sampleMovieUrl === '') {
+    $fallbackMovie = item_sample_movie_url($item);
+    $sampleMovieUrl = is_string($fallbackMovie) ? $fallbackMovie : '';
 }
 
 $sampleImages = [];
@@ -115,6 +122,9 @@ if (!empty($item['sample_images'])) {
             }
         }
     }
+}
+if ($sampleImages === []) {
+    $sampleImages = item_sample_image_urls($item);
 }
 $sampleImagesCount = count($sampleImages);
 
@@ -179,7 +189,7 @@ $pageDescription = mb_strimwidth(trim(preg_replace('/\s+/u', ' ', $descBase)), 0
 
 $canonicalUrl = public_url('item.php') . '?id=' . rawurlencode((string)$id);
 
-$packageImage = pcf_pick_detail_main_image($item);
+$packageImage = pcf_item_image($item);
 $ogImage = $packageImage !== '' ? $packageImage : (!empty($item['image_url']) ? (string)$item['image_url'] : '');
 
 $breadcrumbTitle = mb_strimwidth($title, 0, 24, '…', 'UTF-8');

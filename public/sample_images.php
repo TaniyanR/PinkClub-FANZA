@@ -72,13 +72,22 @@ function sample_images_collect_from_value(mixed $value, array &$images): void
 }
 
 $contentId = trim((string)get('content_id', ''));
-if ($contentId === '') {
+$validatedId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+$id = ($validatedId === null || $validatedId === false) ? 0 : (int)$validatedId;
+if ($contentId === '' && $id <= 0) {
     http_response_code(404);
-    exit('content_id が指定されていません。');
+    exit('content_id または id が指定されていません。');
 }
 
-$stmt = db()->prepare('SELECT content_id, title, raw_json, image_list FROM items WHERE content_id = ? LIMIT 1');
-$stmt->execute([$contentId]);
+$where = 'content_id = :content_id';
+$params = [':content_id' => $contentId];
+if ($contentId === '') {
+    $where = 'id = :id';
+    $params = [':id' => $id];
+}
+
+$stmt = db()->prepare('SELECT id, content_id, title, raw_json, image_list FROM items WHERE ' . $where . ' LIMIT 1');
+$stmt->execute($params);
 $item = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$item) {
     http_response_code(404);

@@ -361,7 +361,15 @@ function render_item_card(array $item, int $width = 180, ?array $taxonomy = null
     $sample = item_sample_state($item);
     $movieClass = $sample['movie_url'] !== '' ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
     $imageClass = $sample['has_images'] ? 'sample-button sample-button--enabled' : 'sample-button sample-button--disabled';
-    $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode((string)($item['content_id'] ?? '')) . '&format=json');
+    $sampleContentId = trim((string)($item['content_id'] ?? ''));
+    $sampleId = (int)($item['id'] ?? 0);
+    if ($sampleContentId !== '') {
+        $sampleImagesUrl = public_url('sample_images.php?content_id=' . rawurlencode($sampleContentId) . '&format=json');
+    } elseif ($sampleId > 0) {
+        $sampleImagesUrl = public_url('sample_images.php?id=' . rawurlencode((string)$sampleId) . '&format=json');
+    } else {
+        $sampleImagesUrl = public_url('sample_images.php?format=json');
+    }
     $thumbUrl = $imageCandidates[0];
     ?>
     <article class="card rail-card rail-card--<?= (int)$width ?>" style="width:<?= (int)$width ?>px;min-width:<?= (int)$width ?>px;max-width:<?= (int)$width ?>px;">
@@ -809,4 +817,3 @@ $hasHomeContent = $newReleaseTop !== []
 })();
 </script>
 <?php require __DIR__ . '/public/partials/footer.php'; ?>
-

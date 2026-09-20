@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_helpers.php';
+require_once __DIR__ . '/../../lib/images.php';
 
 if (!function_exists('pcf_placeholder_data_uri')) {
     function pcf_placeholder_data_uri(string $label = 'No Image'): string
@@ -328,10 +329,12 @@ if (!function_exists('pcf_render_item_card')) {
         $outUrl = pcf_out_url($id, (string)($options['position'] ?? 'card'));
 
         $sampleMovieUrl = '';
-        if (!empty($item['sample_movie_url'])) {
-            $sampleMovieUrl = (string)$item['sample_movie_url'];
-        } elseif (!empty($item['sample_movie_url_pc'])) {
-            $sampleMovieUrl = (string)$item['sample_movie_url_pc'];
+        foreach (['sample_movie_url_720', 'sample_movie_url_644', 'sample_movie_url_560', 'sample_movie_url_476', 'sample_movie_url', 'sample_movie_url_pc'] as $movieKey) {
+            $candidate = trim((string)($item[$movieKey] ?? ''));
+            if ($candidate !== '') {
+                $sampleMovieUrl = $candidate;
+                break;
+            }
         }
 
         echo '<article class="pcf-card" data-item-id="' . e((string)$id) . '">';
