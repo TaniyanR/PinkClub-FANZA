@@ -1,32 +1,8 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/_bootstrap.php';
-require_once __DIR__ . '/../lib/repository.php';
+require_once __DIR__ . '/../lib/bootstrap.php';
 require_once __DIR__ . '/../lib/public_rankings.php';
-require_once __DIR__ . '/partials/public_ui.php';
-
-if (!function_exists('is_invalid_actress_name')) {
-    function is_invalid_actress_name(string $name): bool {
-        if (function_exists('pcf_is_noise_name') && pcf_is_noise_name($name)) return true;
-        return trim($name) === '';
-    }
-}
-if (!function_exists('pcf_out_url')) {
-    function pcf_out_url(int $itemId, string $position = 'card'): string {
-        return public_url('out.php') . '?item_id=' . $itemId;
-    }
-}
-if (!function_exists('pcf_normalize_items_for_public')) {
-    function pcf_normalize_items_for_public(array $items): array {
-        return array_values(array_filter($items, 'is_array'));
-    }
-}
-if (!function_exists('pcf_item_labels')) {
-    function pcf_item_labels(PDO $db, int $itemId): array {
-        return [];
-    }
-}
 
 $id = (int)get('id', 0);
 $contentId = trim((string)get('content_id', ''));
@@ -36,19 +12,19 @@ $db = db();
 
 $item = null;
 if ($id > 0) {
-    $stmt = $db->prepare('SELECT * FROM items WHERE id = :id LIMIT 1');
+    $stmt = $db->prepare('SELECT * FROM items WHERE id = :id AND ' . items_product_source_where() . ' LIMIT 1');
     $stmt->execute([':id' => $id]);
     $item = $stmt->fetch();
 }
 
 if (!$item && $contentId !== '') {
-    $stmt = $db->prepare('SELECT * FROM items WHERE content_id = :cid LIMIT 1');
+    $stmt = $db->prepare('SELECT * FROM items WHERE content_id = :cid AND ' . items_product_source_where() . ' LIMIT 1');
     $stmt->execute([':cid' => $contentId]);
     $item = $stmt->fetch();
 }
 
 if (!$item && $cid !== '') {
-    $stmt = $db->prepare('SELECT * FROM items WHERE (content_id = :cid OR dmm_id = :cid) LIMIT 1');
+    $stmt = $db->prepare('SELECT * FROM items WHERE (content_id = :cid OR dmm_id = :cid) AND ' . items_product_source_where() . ' LIMIT 1');
     $stmt->execute([':cid' => $cid]);
     $item = $stmt->fetch();
 }
@@ -64,7 +40,6 @@ if (!$item) {
 
 $id = (int)$item['id'];
 $itemId = $id;
-$contentIdVal = trim((string)($item['content_id'] ?? ''));
 
 try {
     pcf_log_access_event($db, 'item', (int)$item['id'], (string)$item['title'], 'pv');
@@ -72,104 +47,47 @@ try {
     error_log('item page view logging failed: ' . $e->getMessage());
 }
 
-$actresses = [];
-try {
-    $actressesStmt = $db->prepare('
-        SELECT DISTINCT a.*
-        FROM item_actresses ia
-        INNER JOIN actresses a ON (
-            (ia.dmm_id IS NOT NULL AND ia.dmm_id <> "" AND a.dmm_id = ia.dmm_id)
-            OR (ia.actress_name IS NOT NULL AND ia.actress_name <> "" AND a.name = ia.actress_name)
-        )
-        WHERE ia.item_id = :item_id
-        ORDER BY a.name ASC
-    ');
-    $actressesStmt->execute([':item_id' => $id]);
-    $actresses = $actressesStmt->fetchAll() ?: [];
-} catch (Throwable $e) {
-    error_log('item actresses fetch failed: ' . $e->getMessage());
-}
+$actressesStmt = $db->prepare('
+    SELECT a.*
+    FROM item_actresses ia
+    INNER JOIN actresses a ON a.dmm_id = ia.dmm_id
+    WHERE ia.item_id = :item_id
+    ORDER BY a.name ASC
+');
+$actressesStmt->execute([':item_id' => $id]);
+$actresses = $actressesStmt->fetchAll();
 
-$genres = [];
-try {
-    $genresStmt = $db->prepare('
-        SELECT DISTINCT g.*
-        FROM item_genres ig
-        INNER JOIN genres g ON (
-            (ig.dmm_id IS NOT NULL AND ig.dmm_id <> "" AND g.dmm_id = ig.dmm_id)
-            OR (ig.genre_name IS NOT NULL AND ig.genre_name <> "" AND g.name = ig.genre_name)
-        )
-        WHERE ig.item_id = :item_id
-        ORDER BY g.name ASC
-    ');
-    $genresStmt->execute([':item_id' => $id]);
-    $genres = $genresStmt->fetchAll() ?: [];
-} catch (Throwable $e) {
-    error_log('item genres fetch failed: ' . $e->getMessage());
-}
+$genresStmt = $db->prepare('
+    SELECT g.*
+    FROM item_genres ig
+    INNER JOIN genres g ON g.dmm_id = ig.dmm_id
+    WHERE ig.item_id = :item_id
+    ORDER BY g.name ASC
+');
+$genresStmt->execute([':item_id' => $id]);
+$genres = $genresStmt->fetchAll();
 
-$makers = [];
-try {
-    $makersStmt = $db->prepare('
-        SELECT DISTINCT m.*
-        FROM item_makers im
-        INNER JOIN makers m ON (
-            (im.dmm_id IS NOT NULL AND im.dmm_id <> "" AND m.dmm_id = im.dmm_id)
-            OR (im.maker_name IS NOT NULL AND im.maker_name <> "" AND m.name = im.maker_name)
-        )
-        WHERE im.item_id = :item_id
-        ORDER BY m.name ASC
-    ');
-    $makersStmt->execute([':item_id' => $id]);
-    $makers = $makersStmt->fetchAll() ?: [];
-} catch (Throwable $e) {
-    error_log('item makers fetch failed: ' . $e->getMessage());
-}
+$makersStmt = $db->prepare('
+    SELECT m.*
+    FROM item_makers im
+    INNER JOIN makers m ON m.dmm_id = im.dmm_id
+    WHERE im.item_id = :item_id
+    ORDER BY m.name ASC
+');
+$makersStmt->execute([':item_id' => $id]);
+$makers = $makersStmt->fetchAll();
 
-$series = [];
-try {
-    if (db_table_exists('series_master')) {
-        $seriesStmt = $db->prepare('
-            SELECT DISTINCT s.*
-            FROM item_series ise
-            INNER JOIN series_master s ON (
-                (ise.dmm_id IS NOT NULL AND ise.dmm_id <> "" AND s.dmm_id = ise.dmm_id)
-                OR (ise.series_name IS NOT NULL AND ise.series_name <> "" AND s.name = ise.series_name)
-            )
-            WHERE ise.item_id = :item_id
-            ORDER BY s.name ASC
-        ');
-        $seriesStmt->execute([':item_id' => $id]);
-        $series = $seriesStmt->fetchAll() ?: [];
-    }
-} catch (Throwable) {
-}
-if ($series === []) {
-    try {
-        if (db_table_exists('series')) {
-            $seriesStmt2 = $db->prepare('
-                SELECT DISTINCT s.*
-                FROM item_series ise
-                INNER JOIN series s ON (
-                    (ise.dmm_id IS NOT NULL AND ise.dmm_id <> "" AND s.dmm_id = ise.dmm_id)
-                    OR (ise.series_name IS NOT NULL AND ise.series_name <> "" AND s.name = ise.series_name)
-                )
-                WHERE ise.item_id = :item_id
-                ORDER BY s.name ASC
-            ');
-            $seriesStmt2->execute([':item_id' => $id]);
-            $series = $seriesStmt2->fetchAll() ?: [];
-        }
-    } catch (Throwable) {
-    }
-}
+$seriesStmt = $db->prepare('
+    SELECT s.*
+    FROM item_series ise
+    INNER JOIN series_master s ON s.dmm_id = ise.dmm_id
+    WHERE ise.item_id = :item_id
+    ORDER BY s.name ASC
+');
+$seriesStmt->execute([':item_id' => $id]);
+$series = $seriesStmt->fetchAll();
 
-$labels = [];
-try {
-    $labels = pcf_item_labels($db, $id);
-} catch (Throwable $e) {
-    error_log('item labels fetch failed: ' . $e->getMessage());
-}
+$labels = pcf_item_labels($db, $id);
 
 $directAffiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
 $affiliateUrl = pcf_out_url((int)$item['id'], 'item_detail');
@@ -203,69 +121,50 @@ $sampleImagesCount = count($sampleImages);
 $relatedItems = [];
 $relatedIds = [];
 
-try {
-    if ($actresses !== []) {
-        $actressDmmIds = array_values(array_filter(array_map(static fn($a) => (string)($a['dmm_id'] ?? ''), $actresses)));
-        $actressNames = array_values(array_filter(array_map(static fn($a) => trim((string)($a['name'] ?? '')), $actresses)));
-        if ($actressDmmIds !== [] || $actressNames !== []) {
-            $conditions = [];
-            $params = [];
-            if ($actressDmmIds !== []) {
-                $conditions[] = 'ia.dmm_id IN (' . implode(',', array_fill(0, count($actressDmmIds), '?')) . ')';
-                $params = array_merge($params, $actressDmmIds);
-            }
-            if ($actressNames !== []) {
-                $conditions[] = 'ia.actress_name IN (' . implode(',', array_fill(0, count($actressNames), '?')) . ')';
-                $params = array_merge($params, $actressNames);
-            }
-            $params[] = $id;
-            $relStmt = $db->prepare("
-                SELECT DISTINCT i.*
-                FROM item_actresses ia
-                INNER JOIN items i ON i.id = ia.item_id
-                WHERE (" . implode(' OR ', $conditions) . ")
-                  AND i.id <> ?
-                ORDER BY i.release_date DESC, i.id DESC
-                LIMIT 12
-            ");
-            $relStmt->execute($params);
-            $relatedItems = $relStmt->fetchAll() ?: [];
-            $relatedIds = array_map(static fn($r) => (int)$r['id'], $relatedItems);
-        }
+if ($actresses !== []) {
+    $actressDmmIds = array_filter(array_map(static fn($a) => (string)($a['dmm_id'] ?? ''), $actresses));
+    if ($actressDmmIds !== []) {
+        $inClause = implode(',', array_fill(0, count($actressDmmIds), '?'));
+        $relStmt = $db->prepare("
+            SELECT DISTINCT i.*
+            FROM item_actresses ia
+            INNER JOIN items i ON i.id = ia.item_id
+            WHERE ia.dmm_id IN ($inClause)
+              AND i.id <> ?
+              AND " . items_product_source_where('i') . "
+            ORDER BY i.date_released DESC, i.id DESC
+            LIMIT 12
+        ");
+        $params = array_values($actressDmmIds);
+        $params[] = $id;
+        $relStmt->execute($params);
+        $relatedItems = $relStmt->fetchAll();
+        $relatedIds = array_map(static fn($r) => (int)$r['id'], $relatedItems);
     }
+}
 
-    if (count($relatedItems) < 6 && $genres !== []) {
-        $genreDmmIds = array_values(array_filter(array_map(static fn($g) => (string)($g['dmm_id'] ?? ''), $genres)));
-        $genreNames = array_values(array_filter(array_map(static fn($g) => trim((string)($g['name'] ?? '')), $genres)));
-        if ($genreDmmIds !== [] || $genreNames !== []) {
-            $exclude = array_values(array_merge([$id], $relatedIds));
-            $conditions = [];
-            $params = [];
-            if ($genreDmmIds !== []) {
-                $conditions[] = 'ig.dmm_id IN (' . implode(',', array_fill(0, count($genreDmmIds), '?')) . ')';
-                $params = array_merge($params, $genreDmmIds);
-            }
-            if ($genreNames !== []) {
-                $conditions[] = 'ig.genre_name IN (' . implode(',', array_fill(0, count($genreNames), '?')) . ')';
-                $params = array_merge($params, $genreNames);
-            }
-            $params = array_merge($params, $exclude);
-            $limit = 12 - count($relatedItems);
-            $relStmt = $db->prepare("
-                SELECT DISTINCT i.*
-                FROM item_genres ig
-                INNER JOIN items i ON i.id = ig.item_id
-                WHERE (" . implode(' OR ', $conditions) . ")
-                  AND i.id NOT IN (" . implode(',', array_fill(0, count($exclude), '?')) . ")
-                ORDER BY i.release_date DESC, i.id DESC
-                LIMIT $limit
-            ");
-            $relStmt->execute($params);
-            $genreItems = $relStmt->fetchAll() ?: [];
-            $relatedItems = array_merge($relatedItems, $genreItems);
-        }
+if (count($relatedItems) < 6 && $genres !== []) {
+    $genreDmmIds = array_filter(array_map(static fn($g) => (string)($g['dmm_id'] ?? ''), $genres));
+    if ($genreDmmIds !== []) {
+        $exclude = array_merge([$id], $relatedIds);
+        $inGenres = implode(',', array_fill(0, count($genreDmmIds), '?'));
+        $exClause = implode(',', array_fill(0, count($exclude), '?'));
+        $limit = 12 - count($relatedItems);
+        $relStmt = $db->prepare("
+            SELECT DISTINCT i.*
+            FROM item_genres ig
+            INNER JOIN items i ON i.id = ig.item_id
+            WHERE ig.dmm_id IN ($inGenres)
+              AND i.id NOT IN ($exClause)
+              AND " . items_product_source_where('i') . "
+            ORDER BY i.date_released DESC, i.id DESC
+            LIMIT $limit
+        ");
+        $params = array_merge(array_values($genreDmmIds), $exclude);
+        $relStmt->execute($params);
+        $genreItems = $relStmt->fetchAll();
+        $relatedItems = array_merge($relatedItems, $genreItems);
     }
-} catch (Throwable) {
 }
 
 $relatedItems = pcf_normalize_items_for_public($relatedItems);
@@ -441,15 +340,10 @@ require __DIR__ . '/partials/header.php';
           </div>
         <?php endif; ?>
 
-        <?php 
-          $releaseDateDisplay = !empty($item['release_date']) && $item['release_date'] !== '0000-00-00'
-              ? (string)$item['release_date']
-              : (!empty($item['date_released']) && $item['date_released'] !== '0000-00-00' ? (string)$item['date_released'] : '');
-        ?>
-        <?php if ($releaseDateDisplay !== ''): ?>
+        <?php if (!empty($item['date_released']) && $item['date_released'] !== '0000-00-00'): ?>
           <div class="item-meta-list__row">
             <dt>発売日</dt>
-            <dd><?= e($releaseDateDisplay) ?></dd>
+            <dd><?= e((string)$item['date_released']) ?></dd>
           </div>
         <?php endif; ?>
 
@@ -538,23 +432,23 @@ require __DIR__ . '/partials/header.php';
   <section class="block item-reviews-section" style="margin-top:40px;">
     <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px;">
       <h2 class="section-title" style="margin:0;">ユーザーレビュー・感想</h2>
-      <span style="font-size:14px; color:#777;">（<?= count($reviews) ?>件の感想）</span>
+      <span style="font-size:14px; color:#777;">（<?= count() ?>件の感想）</span>
     </div>
 
-    <?php if ($reviews !== []): ?>
+    <?php if ( !== []): ?>
       <div class="item-reviews-list" style="display:flex; flex-direction:column; gap:16px;">
-        <?php foreach ($reviews as $rev): ?>
+        <?php foreach ( as ): ?>
           <div class="review-card" style="background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:16px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-              <strong style="color:#333;"><?= e((string)($rev['reviewer_name'] ?? '名無しファン')) ?></strong>
-              <span style="color:#f39c12; font-weight:bold;"><?= str_repeat('★', (int)($rev['rating'] ?? 5)) . str_repeat('☆', 5 - (int)($rev['rating'] ?? 5)) ?> (<?= (int)($rev['rating'] ?? 5) ?>.0)</span>
+              <strong style="color:#333;"><?= e((string)(['reviewer_name'] ?? '名無しファン')) ?></strong>
+              <span style="color:#f39c12; font-weight:bold;"><?= str_repeat('★', (int)(['rating'] ?? 5)) . str_repeat('☆', 5 - (int)(['rating'] ?? 5)) ?> (<?= (int)(['rating'] ?? 5) ?>.0)</span>
             </div>
-            <?php if (!empty($rev['review_title'])): ?>
-              <h4 style="margin:0 0 6px 0; font-size:15px; color:#222;"><?= e((string)$rev['review_title']) ?></h4>
+            <?php if (!empty(['review_title'])): ?>
+              <h4 style="margin:0 0 6px 0; font-size:15px; color:#222;"><?= e((string)['review_title']) ?></h4>
             <?php endif; ?>
-            <p style="margin:0; font-size:14px; line-height:1.6; color:#444;"><?= nl2br(e((string)($rev['review_body'] ?? ''))) ?></p>
+            <p style="margin:0; font-size:14px; line-height:1.6; color:#444;"><?= nl2br(e((string)(['review_body'] ?? ''))) ?></p>
             <div style="font-size:12px; color:#999; margin-top:8px; text-align:right;">
-              投稿日: <?= e(date('Y年m月d日', strtotime((string)($rev['created_at'] ?? 'now')))) ?>
+              投稿日: <?= e(date('Y年m月d日', strtotime((string)(['created_at'] ?? 'now')))) ?>
             </div>
           </div>
         <?php endforeach; ?>

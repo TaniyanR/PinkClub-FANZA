@@ -59,10 +59,45 @@ if ($labelName === '' || $canonicalLabelId === '') {
     require __DIR__ . '/404.php';
 }
 
-$rows = fetch_items_by_label($canonicalLabelId, $labelName, $limit + 1, $offset);
+$rows = [];
+
+// 名前だけで結ぶと表記揺れで0件になるため、現行DBではレーベルIDを最優先して取得する。
+if (db_column_exists('item_labels', 'item_id')) {
+    try {
+        $stmt = db()->prepare(
+            'SELECT DISTINCT items.* '
+            . 'FROM items '
+            . 'INNER JOIN item_labels ON item_labels.item_id = items.id '
+            . 'WHERE ('
+            . 'TRIM(COALESCE(item_labels.dmm_id, "")) = :label_id '
+            . 'OR TRIM(item_labels.label_name) = :label_name'
+            . ') '
+            . 'AND ' . items_product_source_where('items') . ' '
+            . 'ORDER BY items.release_date DESC, items.id DESC '
+            . 'LIMIT :limit OFFSET :offset'
+        );
+        $stmt->bindValue(':label_id', $canonicalLabelId, PDO::PARAM_STR);
+        $stmt->bindValue(':label_name', $labelName, PDO::PARAM_STR);
+        $stmt->bindValue(':limit', $limit + 1, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        error_log('[label] item lookup by relation failed: ' . $e->getMessage());
+        $rows = [];
+    }
+}
+
+// 旧DB構造やID未登録データは従来の名前検索へフォールバックする。
+if ($rows === []) {
+    $rows = fetch_items_by_label_name($labelName, $limit + 1, $offset);
+}
 
 $rows = dedupe_items_by_key($rows);
 [$list, $hasNext] = paginate_items($rows, $limit);
+if ($labelPage === 1 && $list === []) {
+    require __DIR__ . '/404.php';
+}
 
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
 $accessRankingTabs = [

@@ -29,14 +29,9 @@ $pg = paginate(0, $page, $per);
 try {
     $series = fetch_series_one($id);
     if ($series !== null) {
-        $seriesName = (string)($series['name'] ?? 'シリーズ詳細');
         $total = function_exists('count_items_by_series') ? count_items_by_series((int)$series['id']) : 0;
         $pg = paginate($total, $page, $per);
         $seriesItems = dedupe_items_by_key(fetch_items_by_series((int)$series['id'], (int)$pg['perPage'], (int)$pg['offset']));
-        if ($seriesItems !== [] && $total <= 0) {
-            $total = count($seriesItems);
-            $pg = paginate($total, $page, $per);
-        }
     }
 } catch (Throwable) {
     $series = null;
@@ -46,7 +41,9 @@ try {
 }
 if ($series === null) {
     require __DIR__ . '/404.php';
-    exit;
+}
+if ($total === 0) {
+    require __DIR__ . '/404.php';
 }
 
 $seriesName = (string)($series['name'] ?? 'シリーズ詳細');
@@ -106,7 +103,7 @@ require __DIR__ . '/partials/header.php';
 <h2 class="pcf-section-title"><?= e($seriesName) ?>一覧</h2>
 <?php if ($seriesItems !== []): ?>
   <section class="pcf-related-grid pcf-series-related-grid">
-    <?php foreach ($seriesItems as $item): pcf_render_item_card(is_array($item) ? $item : []); endforeach; ?>
+    <?php foreach ($seriesItems as $item): pcf_render_item_card(is_array($item) ? $item : [], 180, $seriesViewportMode === 'sp'); endforeach; ?>
   </section>
   <?php pcf_render_pagination($pg, public_url('series_detail.php'), ['id' => (int)$series['id']]); ?>
 <?php else: ?>
