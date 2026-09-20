@@ -294,8 +294,8 @@ if (!function_exists('pcf_render_breadcrumbs')) {
             return;
         }
 
-        echo '<nav class="pcf-breadcrumb" aria-label="パンくずリスト" style="margin:0 0 16px;">';
-        echo '<ol class="pcf-breadcrumb__list" itemscope itemtype="https://schema.org/BreadcrumbList" style="display:flex;align-items:center;flex-wrap:wrap;list-style:none;margin:0;padding:0;font-size:13px;color:#666;">';
+        echo '<nav class="pcf-breadcrumb" aria-label="パンくずリスト">';
+        echo '<ol class="pcf-breadcrumb__list" itemscope itemtype="https://schema.org/BreadcrumbList" style="display:flex;align-items:center;flex-wrap:wrap;list-style:none;margin:0 0 16px;padding:0;gap:8px;">';
 
         $position = 1;
         $count = count($crumbs);
@@ -310,15 +310,12 @@ if (!function_exists('pcf_render_breadcrumbs')) {
 
             echo '<li class="pcf-breadcrumb__item" itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem" style="display:inline-flex;align-items:center;list-style:none;margin:0;padding:0;">';
             if (!$isLast && $url !== '') {
-                echo '<a class="pcf-breadcrumb__link" href="' . e($url) . '" itemprop="item" style="color:#0066cc;text-decoration:none;"><span itemprop="name">' . e($label) . '</span></a>';
+                echo '<a class="pcf-breadcrumb__link" href="' . e($url) . '" itemprop="item"><span itemprop="name">' . e($label) . '</span></a>';
             } else {
-                echo '<span class="pcf-breadcrumb__current" aria-current="page" itemprop="name" style="color:#333;font-weight:bold;">' . e($label) . '</span>';
+                echo '<span class="pcf-breadcrumb__current" aria-current="page" itemprop="name">' . e($label) . '</span>';
             }
             echo '<meta itemprop="position" content="' . $position . '">';
             echo '</li>';
-            if (!$isLast) {
-                echo '<li class="pcf-breadcrumb__separator" aria-hidden="true" style="display:inline-flex;align-items:center;margin:0 6px;color:#999;list-style:none;">&gt;</li>';
-            }
             $position++;
         }
 

@@ -29,14 +29,9 @@ $pg = paginate(0, $page, $per);
 try {
     $series = fetch_series_one($id);
     if ($series !== null) {
-        $seriesName = (string)($series['name'] ?? 'シリーズ詳細');
         $total = function_exists('count_items_by_series') ? count_items_by_series((int)$series['id']) : 0;
         $pg = paginate($total, $page, $per);
         $seriesItems = dedupe_items_by_key(fetch_items_by_series((int)$series['id'], (int)$pg['perPage'], (int)$pg['offset']));
-        if ($seriesItems !== [] && $total <= 0) {
-            $total = count($seriesItems);
-            $pg = paginate($total, $page, $per);
-        }
     }
 } catch (Throwable) {
     $series = null;
@@ -46,7 +41,6 @@ try {
 }
 if ($series === null) {
     require __DIR__ . '/404.php';
-    exit;
 }
 
 $seriesName = (string)($series['name'] ?? 'シリーズ詳細');
