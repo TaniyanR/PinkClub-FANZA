@@ -152,9 +152,6 @@ try {
     $list = [];
     $hasNext = false;
 }
-if ($actressItemsLoaded && $actressPage === 1 && $list === []) {
-    require __DIR__ . '/404.php';
-}
 
 $profileImage = actress_profile_image($profile);
 $actressDisplayName = $profile['name'];

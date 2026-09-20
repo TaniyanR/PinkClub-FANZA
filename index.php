@@ -504,9 +504,9 @@ try {
                     }
                 }
                 $genrePool = pick_random_items($genreItems, $seedBase + 30 + $index, 120);
-                $genreItems = take_unique_items_for_home($genrePool, $usedHomeItemKeys, 15);
+                $genreItems = take_unique_items_for_home($genrePool, $usedHomeItemKeys, 4);
                 if ($genreItems === []) {
-                    $genreItems = array_slice(dedupe_items_by_key($genrePool), 0, 15);
+                    $genreItems = array_slice(dedupe_items_by_key($genrePool), 0, 4);
                 }
                 if ($genreItems !== []) {
                     $genreRows[] = ['id' => (int)$genre['id'], 'name' => (string)$genre['name'], 'items' => $genreItems];
@@ -530,9 +530,9 @@ try {
                     $seriesItems = query_all_safe($pdo, 'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_series isr ON isr.content_id = i.content_id WHERE isr.series_id = :id AND ' . $taxonomyWhere . ' ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120', [':id' => (int)$picked['id']]);
                 }
                 $seriesPool = pick_random_items($seriesItems, $seedBase + 41, 120);
-                $seriesItems = take_unique_items_for_home($seriesPool, $usedHomeItemKeys, 15);
+                $seriesItems = take_unique_items_for_home($seriesPool, $usedHomeItemKeys, 4);
                 if ($seriesItems === []) {
-                    $seriesItems = array_slice(dedupe_items_by_key($seriesPool), 0, 15);
+                    $seriesItems = array_slice(dedupe_items_by_key($seriesPool), 0, 4);
                 }
                 if ($seriesItems !== []) {
                     $seriesSection = [
@@ -559,9 +559,9 @@ try {
                     $makerItems = query_all_safe($pdo, 'SELECT i.id,i.content_id,i.title,i.image_small,i.image_large,i.image_list,i.raw_json,i.affiliate_url,i.sample_movie_url_720,i.sample_movie_url_644,i.sample_movie_url_560,i.sample_movie_url_476,i.release_date,i.updated_at FROM items i INNER JOIN item_makers im ON im.content_id = i.content_id WHERE im.maker_id = :id AND ' . $taxonomyWhere . ' ORDER BY i.release_date DESC, i.updated_at DESC, i.id DESC LIMIT 120', [':id' => (int)$picked['id']]);
                 }
                 $makerPool = pick_random_items($makerItems, $seedBase + 51, 120);
-                $makerItems = take_unique_items_for_home($makerPool, $usedHomeItemKeys, 15);
+                $makerItems = take_unique_items_for_home($makerPool, $usedHomeItemKeys, 4);
                 if ($makerItems === []) {
-                    $makerItems = array_slice(dedupe_items_by_key($makerPool), 0, 15);
+                    $makerItems = array_slice(dedupe_items_by_key($makerPool), 0, 4);
                 }
                 if ($makerItems !== []) {
                     $makerSection = [
@@ -692,16 +692,16 @@ $hasHomeContent = $newReleaseTop !== []
     <h2>ジャンル</h2>
     <?php foreach ($genreRows as $genre): ?>
       <h3><a href="<?= e(app_url('public/genre.php?id=' . (int)$genre['id'])) ?>"><?= e((string)$genre['name']) ?></a></h3>
-      <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal rail-row--home-taxonomy">
-        <?php foreach ($genre['items'] as $item) { render_item_card($item, 200, ['name' => (string)$genre['name'], 'url' => app_url('public/genre.php?id=' . (int)$genre['id'])], true); } ?>
+      <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--home-taxonomy">
+        <?php foreach (array_slice($genre['items'], 0, 4) as $item) { render_item_card($item, 200, ['name' => (string)$genre['name'], 'url' => app_url('public/genre.php?id=' . (int)$genre['id'])], true); } ?>
       </div>
     <?php endforeach; ?>
   </section>
   <?php if (!empty($seriesSection['items'])): ?>
   <section class="rail-section">
     <h2>シリーズ<?= $seriesSection['name'] !== '' ? '：<a href="' . e(app_url('public/series_one.php?id=' . (int)$seriesSection['id'])) . '">' . e($seriesSection['name']) . '</a>' : '' ?></h2>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal rail-row--home-taxonomy">
-      <?php foreach ($seriesSection['items'] as $item) { render_item_card($item, 200, ['name' => (string)$seriesSection['name'], 'url' => app_url('public/series_one.php?id=' . (int)$seriesSection['id'])], true); } ?>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--home-taxonomy">
+      <?php foreach (array_slice($seriesSection['items'], 0, 4) as $item) { render_item_card($item, 200, ['name' => (string)$seriesSection['name'], 'url' => app_url('public/series_one.php?id=' . (int)$seriesSection['id'])], true); } ?>
     </div>
   </section>
   <?php endif; ?>
@@ -709,8 +709,8 @@ $hasHomeContent = $newReleaseTop !== []
   <?php if (!empty($makerSection['items'])): ?>
   <section class="rail-section">
     <h2>メーカー<?= $makerSection['name'] !== '' ? '：<a href="' . e(app_url('public/maker.php?id=' . (int)$makerSection['id'])) . '">' . e($makerSection['name']) . '</a>' : '' ?></h2>
-    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--bottom-scroll rail-row--bottom-horizontal rail-row--home-taxonomy">
-      <?php foreach ($makerSection['items'] as $item) { render_item_card($item, 200, ['name' => (string)$makerSection['name'], 'url' => app_url('public/maker.php?id=' . (int)$makerSection['id'])], true); } ?>
+    <div class="rail-row rail-row--200 rail-row--wide-thumb rail-row--home-taxonomy">
+      <?php foreach (array_slice($makerSection['items'], 0, 4) as $item) { render_item_card($item, 200, ['name' => (string)$makerSection['name'], 'url' => app_url('public/maker.php?id=' . (int)$makerSection['id'])], true); } ?>
     </div>
   </section>
   <?php endif; ?>

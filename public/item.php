@@ -12,19 +12,19 @@ $db = db();
 
 $item = null;
 if ($id > 0) {
-    $stmt = $db->prepare('SELECT * FROM items WHERE id = :id AND ' . items_product_source_where() . ' LIMIT 1');
+    $stmt = $db->prepare('SELECT * FROM items WHERE id = :id LIMIT 1');
     $stmt->execute([':id' => $id]);
     $item = $stmt->fetch();
 }
 
 if (!$item && $contentId !== '') {
-    $stmt = $db->prepare('SELECT * FROM items WHERE content_id = :cid AND ' . items_product_source_where() . ' LIMIT 1');
+    $stmt = $db->prepare('SELECT * FROM items WHERE content_id = :cid LIMIT 1');
     $stmt->execute([':cid' => $contentId]);
     $item = $stmt->fetch();
 }
 
 if (!$item && $cid !== '') {
-    $stmt = $db->prepare('SELECT * FROM items WHERE (content_id = :cid OR dmm_id = :cid) AND ' . items_product_source_where() . ' LIMIT 1');
+    $stmt = $db->prepare('SELECT * FROM items WHERE (content_id = :cid OR dmm_id = :cid) LIMIT 1');
     $stmt->execute([':cid' => $cid]);
     $item = $stmt->fetch();
 }
@@ -40,6 +40,7 @@ if (!$item) {
 
 $id = (int)$item['id'];
 $itemId = $id;
+$contentIdVal = trim((string)($item['content_id'] ?? ''));
 
 try {
     pcf_log_access_event($db, 'item', (int)$item['id'], (string)$item['title'], 'pv');
@@ -48,44 +49,73 @@ try {
 }
 
 $actressesStmt = $db->prepare('
-    SELECT a.*
+    SELECT DISTINCT a.*
     FROM item_actresses ia
-    INNER JOIN actresses a ON a.dmm_id = ia.dmm_id
-    WHERE ia.item_id = :item_id
+    INNER JOIN actresses a ON (
+        (ia.dmm_id IS NOT NULL AND ia.dmm_id <> "" AND a.dmm_id = ia.dmm_id)
+        OR (ia.actress_name IS NOT NULL AND ia.actress_name <> "" AND a.name = ia.actress_name)
+    )
+    WHERE (ia.item_id = :item_id OR (:cid <> "" AND ia.content_id = :cid))
     ORDER BY a.name ASC
 ');
-$actressesStmt->execute([':item_id' => $id]);
+$actressesStmt->execute([':item_id' => $id, ':cid' => $contentIdVal]);
 $actresses = $actressesStmt->fetchAll();
 
 $genresStmt = $db->prepare('
-    SELECT g.*
+    SELECT DISTINCT g.*
     FROM item_genres ig
-    INNER JOIN genres g ON g.dmm_id = ig.dmm_id
-    WHERE ig.item_id = :item_id
+    INNER JOIN genres g ON (
+        (ig.dmm_id IS NOT NULL AND ig.dmm_id <> "" AND g.dmm_id = ig.dmm_id)
+        OR (ig.genre_name IS NOT NULL AND ig.genre_name <> "" AND g.name = ig.genre_name)
+    )
+    WHERE (ig.item_id = :item_id OR (:cid <> "" AND ig.content_id = :cid))
     ORDER BY g.name ASC
 ');
-$genresStmt->execute([':item_id' => $id]);
+$genresStmt->execute([':item_id' => $id, ':cid' => $contentIdVal]);
 $genres = $genresStmt->fetchAll();
 
 $makersStmt = $db->prepare('
-    SELECT m.*
+    SELECT DISTINCT m.*
     FROM item_makers im
-    INNER JOIN makers m ON m.dmm_id = im.dmm_id
-    WHERE im.item_id = :item_id
+    INNER JOIN makers m ON (
+        (im.dmm_id IS NOT NULL AND im.dmm_id <> "" AND m.dmm_id = im.dmm_id)
+        OR (im.maker_name IS NOT NULL AND im.maker_name <> "" AND m.name = im.maker_name)
+    )
+    WHERE (im.item_id = :item_id OR (:cid <> "" AND im.content_id = :cid))
     ORDER BY m.name ASC
 ');
-$makersStmt->execute([':item_id' => $id]);
+$makersStmt->execute([':item_id' => $id, ':cid' => $contentIdVal]);
 $makers = $makersStmt->fetchAll();
 
 $seriesStmt = $db->prepare('
-    SELECT s.*
+    SELECT DISTINCT s.*
     FROM item_series ise
-    INNER JOIN series_master s ON s.dmm_id = ise.dmm_id
-    WHERE ise.item_id = :item_id
+    INNER JOIN series_master s ON (
+        (ise.dmm_id IS NOT NULL AND ise.dmm_id <> "" AND s.dmm_id = ise.dmm_id)
+        OR (ise.series_name IS NOT NULL AND ise.series_name <> "" AND s.name = ise.series_name)
+    )
+    WHERE (ise.item_id = :item_id OR (:cid <> "" AND ise.content_id = :cid))
     ORDER BY s.name ASC
 ');
-$seriesStmt->execute([':item_id' => $id]);
+$seriesStmt->execute([':item_id' => $id, ':cid' => $contentIdVal]);
 $series = $seriesStmt->fetchAll();
+if ($series === [] && items_table_exists('series')) {
+    try {
+        $seriesStmt2 = $db->prepare('
+            SELECT DISTINCT s.*
+            FROM item_series ise
+            INNER JOIN series s ON (
+                (ise.dmm_id IS NOT NULL AND ise.dmm_id <> "" AND s.dmm_id = ise.dmm_id)
+                OR (ise.series_name IS NOT NULL AND ise.series_name <> "" AND s.name = ise.series_name)
+            )
+            WHERE (ise.item_id = :item_id OR (:cid <> "" AND ise.content_id = :cid))
+            ORDER BY s.name ASC
+        ');
+        $seriesStmt2->execute([':item_id' => $id, ':cid' => $contentIdVal]);
+        $series = $seriesStmt2->fetchAll();
+    } catch (Throwable) {
+    }
+}
 
 $labels = pcf_item_labels($db, $id);
 
@@ -432,23 +462,23 @@ require __DIR__ . '/partials/header.php';
   <section class="block item-reviews-section" style="margin-top:40px;">
     <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px;">
       <h2 class="section-title" style="margin:0;">ユーザーレビュー・感想</h2>
-      <span style="font-size:14px; color:#777;">（<?= count() ?>件の感想）</span>
+      <span style="font-size:14px; color:#777;">（<?= count($reviews) ?>件の感想）</span>
     </div>
 
-    <?php if ( !== []): ?>
+    <?php if ($reviews !== []): ?>
       <div class="item-reviews-list" style="display:flex; flex-direction:column; gap:16px;">
-        <?php foreach ( as ): ?>
+        <?php foreach ($reviews as $rev): ?>
           <div class="review-card" style="background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:16px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-              <strong style="color:#333;"><?= e((string)(['reviewer_name'] ?? '名無しファン')) ?></strong>
-              <span style="color:#f39c12; font-weight:bold;"><?= str_repeat('★', (int)(['rating'] ?? 5)) . str_repeat('☆', 5 - (int)(['rating'] ?? 5)) ?> (<?= (int)(['rating'] ?? 5) ?>.0)</span>
+              <strong style="color:#333;"><?= e((string)($rev['reviewer_name'] ?? '名無しファン')) ?></strong>
+              <span style="color:#f39c12; font-weight:bold;"><?= str_repeat('★', (int)($rev['rating'] ?? 5)) . str_repeat('☆', 5 - (int)($rev['rating'] ?? 5)) ?> (<?= (int)($rev['rating'] ?? 5) ?>.0)</span>
             </div>
-            <?php if (!empty(['review_title'])): ?>
-              <h4 style="margin:0 0 6px 0; font-size:15px; color:#222;"><?= e((string)['review_title']) ?></h4>
+            <?php if (!empty($rev['review_title'])): ?>
+              <h4 style="margin:0 0 6px 0; font-size:15px; color:#222;"><?= e((string)$rev['review_title']) ?></h4>
             <?php endif; ?>
-            <p style="margin:0; font-size:14px; line-height:1.6; color:#444;"><?= nl2br(e((string)(['review_body'] ?? ''))) ?></p>
+            <p style="margin:0; font-size:14px; line-height:1.6; color:#444;"><?= nl2br(e((string)($rev['review_body'] ?? ''))) ?></p>
             <div style="font-size:12px; color:#999; margin-top:8px; text-align:right;">
-              投稿日: <?= e(date('Y年m月d日', strtotime((string)(['created_at'] ?? 'now')))) ?>
+              投稿日: <?= e(date('Y年m月d日', strtotime((string)($rev['created_at'] ?? 'now')))) ?>
             </div>
           </div>
         <?php endforeach; ?>
