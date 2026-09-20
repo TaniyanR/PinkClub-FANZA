@@ -153,7 +153,12 @@ $sampleImagesCount = count($sampleImages);
 
 $relatedItems = [];
 if ($itemContentId !== '') {
-    $relatedItems = dedupe_items_by_key(fetch_related_items($itemContentId, 12));
+    try {
+        $relatedItems = dedupe_items_by_key(fetch_related_items($itemContentId, 12));
+    } catch (Throwable $e) {
+        error_log('related item lookup failed: ' . $e->getMessage());
+        $relatedItems = [];
+    }
 }
 
 $title = (string)$item['title'];
