@@ -189,7 +189,10 @@ $pageDescription = mb_strimwidth(trim(preg_replace('/\s+/u', ' ', $descBase)), 0
 
 $canonicalUrl = public_url('item.php') . '?id=' . rawurlencode((string)$id);
 
-$packageImage = pcf_item_image($item);
+$packageImage = function_exists('pcf_item_image') ? pcf_item_image($item) : '';
+if ($packageImage === '') {
+    $packageImage = trim((string)($item['image_large'] ?? $item['image_small'] ?? $item['image_url'] ?? ''));
+}
 $ogImage = $packageImage !== '' ? $packageImage : (!empty($item['image_url']) ? (string)$item['image_url'] : '');
 
 $breadcrumbTitle = mb_strimwidth($title, 0, 24, '…', 'UTF-8');
