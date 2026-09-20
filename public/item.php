@@ -231,27 +231,6 @@ if ($itemContentId !== '') {
         error_log('related item lookup failed: ' . $e->getMessage());
         $relatedItems = [];
     }
-
-    if (count($relatedItems) < 12 && $db instanceof PDO) {
-        try {
-            $relatedOrderColumn = db_column_exists('items', 'release_date') ? 'release_date' : 'date_released';
-            $excludeIds = array_values(array_filter(array_unique(array_merge([$id], array_map(static fn(array $row): int => (int)($row['id'] ?? 0), $relatedItems))), static fn(int $v): bool => $v > 0));
-            $excludeClause = implode(',', array_fill(0, count($excludeIds), '?'));
-            $limit = 12 - count($relatedItems);
-            $stmt = $db->prepare(
-                'SELECT i.*
-                 FROM items i
-                 WHERE i.id NOT IN (' . $excludeClause . ')
-                   AND ' . items_product_source_where('i') . '
-                 ORDER BY i.' . $relatedOrderColumn . ' DESC, i.id DESC
-                 LIMIT ' . (int)$limit
-            );
-            $stmt->execute($excludeIds);
-            $relatedItems = dedupe_items_by_key(array_merge($relatedItems, $stmt->fetchAll() ?: []));
-        } catch (Throwable $e) {
-            error_log('related item top-up lookup failed: ' . $e->getMessage());
-        }
-    }
 } elseif ($db instanceof PDO) {
     try {
         $relatedIds = [];
