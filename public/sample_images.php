@@ -6,7 +6,7 @@ require_once __DIR__ . '/../lib/images.php';
 
 $contentId = trim((string)get('content_id', ''));
 $validatedId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-$id = is_int($validatedId) && $validatedId > 0 ? $validatedId : 0;
+$id = ($validatedId === null || $validatedId === false) ? 0 : (int)$validatedId;
 if ($contentId === '' && $id <= 0) {
     error_log('sample_images.php request missing item identifier');
     http_response_code(404);
