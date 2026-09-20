@@ -457,7 +457,7 @@ if (!function_exists('pcf_render_sample_movie_modal')) {
         echo '<button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>';
         echo '<div id="sample-movie-title" class="sample-movie-modal__title">サンプル動画</div>';
         echo '<div class="sample-movie-modal__frame-wrap">';
-        echo '<iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation" title="サンプル動画プレイヤー"></iframe>';
+        echo '<iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer" sandbox="allow-scripts allow-forms allow-presentation" title="サンプル動画プレイヤー"></iframe>';
         echo '</div>';
         echo '</div>';
         echo '</div>';
@@ -467,8 +467,9 @@ if (!function_exists('pcf_render_sample_movie_modal')) {
         echo 'const frame = document.getElementById("sample-movie-frame");';
         echo 'const titleNode = document.getElementById("sample-movie-title");';
         echo 'const closeButton = modal ? modal.querySelector("[data-movie-close=\'1\']") : null;';
-        echo 'if (!modal || !frame || !titleNode || modal.dataset.bound === "1") return;';
+        echo 'if (!modal || !frame || !titleNode || modal.dataset.bound === "1" || window.__pcfSampleMovieModalBound === true) return;';
         echo 'modal.dataset.bound = "1";';
+        echo 'window.__pcfSampleMovieModalBound = true;';
         echo 'let returnFocus = null;';
         echo 'const allowedRoots = ["dmm.co.jp", "dmm.com", "fanza.co.jp"];';
         echo 'const allowedMovieUrl = (value) => { try { const parsed = new URL(String(value || ""), window.location.href); const host = (parsed.hostname || "").toLowerCase().replace(/\\.$/, ""); return /^https?:$/.test(parsed.protocol) && allowedRoots.some((root) => host === root || host.endsWith("." + root)) ? parsed.href : ""; } catch (_) { return ""; } };';

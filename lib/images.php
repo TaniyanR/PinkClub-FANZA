@@ -155,7 +155,38 @@ if (!function_exists('pcf_item_sample_images')) {
         $images = [];
 
         if (isset($item['sample_images'])) {
-            pcf_collect_sample_image_urls($item['sample_images'], $images);
+            $sampleImagesValue = $item['sample_images'];
+            if (is_string($sampleImagesValue)) {
+                $decodedSampleImages = json_decode($sampleImagesValue, true);
+                if (is_array($decodedSampleImages)) {
+                    foreach ($decodedSampleImages as $entry) {
+                        if (is_string($entry)) {
+                            $normalized = pcf_normalize_external_media_url($entry);
+                            if ($normalized !== '' && !pcf_is_self_hosted_fanza_image($normalized)) {
+                                $images[] = $normalized;
+                            }
+                            continue;
+                        }
+                        if (!is_array($entry)) {
+                            continue;
+                        }
+                        $candidate = '';
+                        foreach (['xlarge', 'large', 'medium', 'small', 'image'] as $key) {
+                            $candidate = pcf_normalize_external_media_url((string)($entry[$key] ?? ''));
+                            if ($candidate !== '') {
+                                break;
+                            }
+                        }
+                        if ($candidate !== '' && !pcf_is_self_hosted_fanza_image($candidate)) {
+                            $images[] = $candidate;
+                        }
+                    }
+                } else {
+                    pcf_collect_sample_image_urls($sampleImagesValue, $images);
+                }
+            } else {
+                pcf_collect_sample_image_urls($sampleImagesValue, $images);
+            }
         }
 
         $raw = pcf_item_raw_payload($item);
