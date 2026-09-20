@@ -14,29 +14,37 @@ $makerPage = max(1, (int)get('page', 1));
 $limit = 20;
 $offset = ($makerPage - 1) * $limit;
 $hasNext = false;
+
 try {
     $row = fetch_maker($id);
-    if ($row !== null) {
-        $rows = dedupe_items_by_key(fetch_items_by_maker((int)$row['id'], $limit + 1, $offset));
-        [$list, $hasNext] = paginate_items($rows, $limit);
-    }
 } catch (Throwable) {
     $row = null;
-    $list = [];
 }
+
 $makerName = trim((string)($row['name'] ?? ''));
-$makerNameSql = db_column_exists('item_makers', 'item_id')
-    ? "SELECT im.maker_name FROM item_makers im INNER JOIN makers m ON m.id = :id AND im.dmm_id = m.dmm_id WHERE TRIM(COALESCE(im.maker_name, '')) <> '' GROUP BY im.maker_name ORDER BY COUNT(*) DESC, im.maker_name ASC LIMIT 1"
-    : "SELECT maker_name FROM item_makers WHERE maker_id = :id AND TRIM(COALESCE(maker_name, '')) <> '' GROUP BY maker_name ORDER BY COUNT(*) DESC, maker_name ASC LIMIT 1";
+
 try {
+    $makerNameSql = db_column_exists('item_makers', 'item_id')
+        ? "SELECT im.maker_name FROM item_makers im LEFT JOIN makers m ON m.id = :id AND im.dmm_id = m.dmm_id WHERE (m.id = :id2 OR im.dmm_id = :dmm_id OR im.item_id = :id3) AND TRIM(COALESCE(im.maker_name, '')) <> '' GROUP BY im.maker_name ORDER BY COUNT(*) DESC, im.maker_name ASC LIMIT 1"
+        : "SELECT maker_name FROM item_makers WHERE (maker_id = :id OR item_id = :id2) AND TRIM(COALESCE(maker_name, '')) <> '' GROUP BY maker_name ORDER BY COUNT(*) DESC, maker_name ASC LIMIT 1";
     $makerNameStmt = db()->prepare($makerNameSql);
-    $makerNameStmt->execute([':id' => $id]);
+    $params = [':id' => $id, ':id2' => $id];
+    if (db_column_exists('item_makers', 'item_id')) {
+        $params[':dmm_id'] = (string)($row['dmm_id'] ?? '');
+        $params[':id3'] = $id;
+    }
+    $makerNameStmt->execute($params);
     $makerNameCandidate = trim((string)($makerNameStmt->fetchColumn() ?: ''));
     if ($makerNameCandidate !== '' && !pcf_is_noise_name($makerNameCandidate)) {
         $makerName = $makerNameCandidate;
     }
 } catch (Throwable) {
 }
+
+if ($row === null && $makerName !== '') {
+    $row = ['id' => $id, 'name' => $makerName, 'dmm_id' => ''];
+}
+
 $makerNameIsMutualLink = false;
 if ($makerName !== '') {
     try {
@@ -47,8 +55,18 @@ if ($makerName !== '') {
         $makerNameIsMutualLink = false;
     }
 }
-if ($row === null || $makerName === '' || pcf_is_noise_name($makerName) || $makerNameIsMutualLink) {
+
+if (($row === null && $id <= 0) || $makerName === '' || pcf_is_noise_name($makerName) || $makerNameIsMutualLink) {
     require __DIR__ . '/404.php';
+    exit;
+}
+
+try {
+    $rows = dedupe_items_by_key(fetch_items_by_maker($id, $limit + 1, $offset, $makerName));
+    [$list, $hasNext] = paginate_items($rows, $limit);
+} catch (Throwable) {
+    $list = [];
+    $hasNext = false;
 }
 
 try {

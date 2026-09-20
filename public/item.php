@@ -1,8 +1,10 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/../lib/bootstrap.php';
+require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/../lib/public_rankings.php';
+require_once __DIR__ . '/partials/public_ui.php';
 
 $id = (int)get('id', 0);
 $contentId = trim((string)get('content_id', ''));
@@ -99,20 +101,22 @@ $seriesStmt = $db->prepare('
 ');
 $seriesStmt->execute([':item_id' => $id, ':cid' => $contentIdVal]);
 $series = $seriesStmt->fetchAll();
-if ($series === [] && items_table_exists('series')) {
+if ($series === []) {
     try {
-        $seriesStmt2 = $db->prepare('
-            SELECT DISTINCT s.*
-            FROM item_series ise
-            INNER JOIN series s ON (
-                (ise.dmm_id IS NOT NULL AND ise.dmm_id <> "" AND s.dmm_id = ise.dmm_id)
-                OR (ise.series_name IS NOT NULL AND ise.series_name <> "" AND s.name = ise.series_name)
-            )
-            WHERE (ise.item_id = :item_id OR (:cid <> "" AND ise.content_id = :cid))
-            ORDER BY s.name ASC
-        ');
-        $seriesStmt2->execute([':item_id' => $id, ':cid' => $contentIdVal]);
-        $series = $seriesStmt2->fetchAll();
+        if (db_table_exists('series')) {
+            $seriesStmt2 = $db->prepare('
+                SELECT DISTINCT s.*
+                FROM item_series ise
+                INNER JOIN series s ON (
+                    (ise.dmm_id IS NOT NULL AND ise.dmm_id <> "" AND s.dmm_id = ise.dmm_id)
+                    OR (ise.series_name IS NOT NULL AND ise.series_name <> "" AND s.name = ise.series_name)
+                )
+                WHERE (ise.item_id = :item_id OR (:cid <> "" AND ise.content_id = :cid))
+                ORDER BY s.name ASC
+            ');
+            $seriesStmt2->execute([':item_id' => $id, ':cid' => $contentIdVal]);
+            $series = $seriesStmt2->fetchAll() ?: [];
+        }
     } catch (Throwable) {
     }
 }
@@ -151,50 +155,69 @@ $sampleImagesCount = count($sampleImages);
 $relatedItems = [];
 $relatedIds = [];
 
-if ($actresses !== []) {
-    $actressDmmIds = array_filter(array_map(static fn($a) => (string)($a['dmm_id'] ?? ''), $actresses));
-    if ($actressDmmIds !== []) {
-        $inClause = implode(',', array_fill(0, count($actressDmmIds), '?'));
-        $relStmt = $db->prepare("
-            SELECT DISTINCT i.*
-            FROM item_actresses ia
-            INNER JOIN items i ON i.id = ia.item_id
-            WHERE ia.dmm_id IN ($inClause)
-              AND i.id <> ?
-              AND " . items_product_source_where('i') . "
-            ORDER BY i.date_released DESC, i.id DESC
-            LIMIT 12
-        ");
-        $params = array_values($actressDmmIds);
-        $params[] = $id;
-        $relStmt->execute($params);
-        $relatedItems = $relStmt->fetchAll();
-        $relatedIds = array_map(static fn($r) => (int)$r['id'], $relatedItems);
+try {
+    if ($actresses !== []) {
+        $actressDmmIds = array_values(array_filter(array_map(static fn($a) => (string)($a['dmm_id'] ?? ''), $actresses)));
+        $actressNames = array_values(array_filter(array_map(static fn($a) => trim((string)($a['name'] ?? '')), $actresses)));
+        if ($actressDmmIds !== [] || $actressNames !== []) {
+            $conditions = [];
+            $params = [];
+            if ($actressDmmIds !== []) {
+                $conditions[] = 'ia.dmm_id IN (' . implode(',', array_fill(0, count($actressDmmIds), '?')) . ')';
+                $params = array_merge($params, $actressDmmIds);
+            }
+            if ($actressNames !== []) {
+                $conditions[] = 'ia.actress_name IN (' . implode(',', array_fill(0, count($actressNames), '?')) . ')';
+                $params = array_merge($params, $actressNames);
+            }
+            $params[] = $id;
+            $relStmt = $db->prepare("
+                SELECT DISTINCT i.*
+                FROM item_actresses ia
+                INNER JOIN items i ON (i.id = ia.item_id OR (i.content_id IS NOT NULL AND i.content_id = ia.content_id))
+                WHERE (" . implode(' OR ', $conditions) . ")
+                  AND i.id <> ?
+                ORDER BY i.release_date DESC, i.id DESC
+                LIMIT 12
+            ");
+            $relStmt->execute($params);
+            $relatedItems = $relStmt->fetchAll() ?: [];
+            $relatedIds = array_map(static fn($r) => (int)$r['id'], $relatedItems);
+        }
     }
-}
 
-if (count($relatedItems) < 6 && $genres !== []) {
-    $genreDmmIds = array_filter(array_map(static fn($g) => (string)($g['dmm_id'] ?? ''), $genres));
-    if ($genreDmmIds !== []) {
-        $exclude = array_merge([$id], $relatedIds);
-        $inGenres = implode(',', array_fill(0, count($genreDmmIds), '?'));
-        $exClause = implode(',', array_fill(0, count($exclude), '?'));
-        $limit = 12 - count($relatedItems);
-        $relStmt = $db->prepare("
-            SELECT DISTINCT i.*
-            FROM item_genres ig
-            INNER JOIN items i ON i.id = ig.item_id
-            WHERE ig.dmm_id IN ($inGenres)
-              AND i.id NOT IN ($exClause)
-              AND " . items_product_source_where('i') . "
-            ORDER BY i.date_released DESC, i.id DESC
-            LIMIT $limit
-        ");
-        $params = array_merge(array_values($genreDmmIds), $exclude);
-        $relStmt->execute($params);
-        $genreItems = $relStmt->fetchAll();
-        $relatedItems = array_merge($relatedItems, $genreItems);
+    if (count($relatedItems) < 6 && $genres !== []) {
+        $genreDmmIds = array_values(array_filter(array_map(static fn($g) => (string)($g['dmm_id'] ?? ''), $genres)));
+        $genreNames = array_values(array_filter(array_map(static fn($g) => trim((string)($g['name'] ?? '')), $genres)));
+        if ($genreDmmIds !== [] || $genreNames !== []) {
+            $exclude = array_values(array_merge([$id], $relatedIds));
+            $conditions = [];
+            $params = [];
+            if ($genreDmmIds !== []) {
+                $conditions[] = 'ig.dmm_id IN (' . implode(',', array_fill(0, count($genreDmmIds), '?')) . ')';
+                $params = array_merge($params, $genreDmmIds);
+            }
+            if ($genreNames !== []) {
+                $conditions[] = 'ig.genre_name IN (' . implode(',', array_fill(0, count($genreNames), '?')) . ')';
+                $params = array_merge($params, $genreNames);
+            }
+            $params = array_merge($params, $exclude);
+            $limit = 12 - count($relatedItems);
+            $relStmt = $db->prepare("
+                SELECT DISTINCT i.*
+                FROM item_genres ig
+                INNER JOIN items i ON (i.id = ig.item_id OR (i.content_id IS NOT NULL AND i.content_id = ig.content_id))
+                WHERE (" . implode(' OR ', $conditions) . ")
+                  AND i.id NOT IN (" . implode(',', array_fill(0, count($exclude), '?')) . ")
+                ORDER BY i.release_date DESC, i.id DESC
+                LIMIT $limit
+            ");
+            $relStmt->execute($params);
+            $genreItems = $relStmt->fetchAll() ?: [];
+            $relatedItems = array_merge($relatedItems, $genreItems);
+        }
     }
+} catch (Throwable) {
 }
 
 $relatedItems = pcf_normalize_items_for_public($relatedItems);
@@ -370,10 +393,15 @@ require __DIR__ . '/partials/header.php';
           </div>
         <?php endif; ?>
 
-        <?php if (!empty($item['date_released']) && $item['date_released'] !== '0000-00-00'): ?>
+        <?php 
+          $releaseDateDisplay = !empty($item['release_date']) && $item['release_date'] !== '0000-00-00'
+              ? (string)$item['release_date']
+              : (!empty($item['date_released']) && $item['date_released'] !== '0000-00-00' ? (string)$item['date_released'] : '');
+        ?>
+        <?php if ($releaseDateDisplay !== ''): ?>
           <div class="item-meta-list__row">
             <dt>発売日</dt>
-            <dd><?= e((string)$item['date_released']) ?></dd>
+            <dd><?= e($releaseDateDisplay) ?></dd>
           </div>
         <?php endif; ?>
 

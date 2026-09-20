@@ -91,24 +91,58 @@ $row = null;
 $list = [];
 $total = 0;
 $pg = paginate(0, $page, $per);
+
 try {
     $row = fetch_genre($id);
-    if ($row !== null) {
-        $total = pcf_genre_count_items((int)$row['id']);
-        $pg = paginate($total, $page, $per);
-        $list = dedupe_items_by_key(fetch_items_by_genre((int)$row['id'], (int)$pg['perPage'], (int)$pg['offset']));
-    }
 } catch (Throwable) {
     $row = null;
+}
+
+if ($row === null && $id <= 0) {
+    require __DIR__ . '/404.php';
+    exit;
+}
+
+$genreName = $row !== null ? pcf_genre_display_name($row) : '';
+if ($genreName === '' || pcf_is_noise_name($genreName)) {
+    // try to find from item_genres
+    try {
+        $gStmt = db()->prepare("SELECT genre_name FROM item_genres WHERE genre_id = :id OR item_id = :id2 GROUP BY genre_name ORDER BY COUNT(*) DESC LIMIT 1");
+        $gStmt->execute([':id' => $id, ':id2' => $id]);
+        $cand = trim((string)($gStmt->fetchColumn() ?: ''));
+        if ($cand !== '' && !pcf_is_noise_name($cand)) {
+            $genreName = $cand;
+        }
+    } catch (Throwable) {
+    }
+}
+
+if ($row === null && $genreName !== '') {
+    $row = ['id' => $id, 'name' => $genreName, 'dmm_id' => ''];
+}
+
+if ($row === null) {
+    require __DIR__ . '/404.php';
+    exit;
+}
+
+try {
+    $total = count_items_by_genre($id, $genreName);
+    if ($total <= 0) {
+        $total = pcf_genre_count_items($id);
+    }
+    $pg = paginate($total, $page, $per);
+    $list = dedupe_items_by_key(fetch_items_by_genre($id, (int)$pg['perPage'], (int)$pg['offset'], $genreName));
+    if ($list !== [] && $total <= 0) {
+        $total = count($list);
+        $pg = paginate($total, $page, $per);
+    }
+} catch (Throwable) {
     $list = [];
     $total = 0;
     $pg = paginate(0, $page, $per);
 }
-if ($row === null) {
-    require __DIR__ . '/404.php';
-}
 
-$genreName = pcf_genre_display_name($row);
 try {
     analytics_log_genre_page_view((int)$row['id']);
 } catch (Throwable $e) {

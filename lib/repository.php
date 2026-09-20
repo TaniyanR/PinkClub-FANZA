@@ -628,32 +628,97 @@ function fetch_items_by_label_name(string $labelName, int $limit, int $offset = 
     }
 }
 
-function fetch_items_by_actress(int $actressId, int $limit, int $offset = 0): array
+function count_items_by_actress(int $actressId, string $actressName = ''): int
+{
+    $actressId = max(1, $actressId);
+    $actress = fetch_actress($actressId);
+    $name = trim($actressName !== '' ? $actressName : (string)($actress['name'] ?? ''));
+    $dmmId = trim((string)($actress['dmm_id'] ?? ''));
+
+    try {
+        $conditions = [];
+        $params = [];
+        if ($dmmId !== '') {
+            $conditions[] = 'ia.dmm_id = ?';
+            $params[] = $dmmId;
+        }
+        if ($name !== '') {
+            $conditions[] = 'ia.actress_name = ? OR TRIM(ia.actress_name) = ?';
+            $params[] = $name;
+            $params[] = $name;
+        }
+        $conditions[] = 'ia.actress_id = ?';
+        $params[] = $actressId;
+
+        $sql = 'SELECT COUNT(DISTINCT items.id)
+                FROM items
+                INNER JOIN item_actresses ia ON (ia.item_id = items.id OR (items.content_id IS NOT NULL AND items.content_id = ia.content_id))
+                WHERE (' . implode(' OR ', $conditions) . ')';
+        $stmt = db()->prepare($sql);
+        $stmt->execute($params);
+        $count = (int)$stmt->fetchColumn();
+        if ($count > 0) {
+            return $count;
+        }
+    } catch (Throwable) {
+    }
+
+    if ($name !== '') {
+        try {
+            $sql = 'SELECT COUNT(DISTINCT items.id)
+                    FROM items
+                    INNER JOIN item_actresses ia ON (ia.item_id = items.id OR (items.content_id IS NOT NULL AND items.content_id = ia.content_id))
+                    WHERE ia.actress_name LIKE ?';
+            $stmt = db()->prepare($sql);
+            $stmt->execute(['%' . $name . '%']);
+            $count = (int)$stmt->fetchColumn();
+            if ($count > 0) {
+                return $count;
+            }
+        } catch (Throwable) {
+        }
+    }
+
+    return 0;
+}
+
+function fetch_items_by_actress(int $actressId, int $limit, int $offset = 0, string $actressName = ''): array
 {
     $actressId = max(1, $actressId);
     $limit     = normalize_int($limit, 1, 100);
     $offset    = max(0, $offset);
+    $actress   = fetch_actress($actressId);
+    $name      = trim($actressName !== '' ? $actressName : (string)($actress['name'] ?? ''));
+    $dmmId     = trim((string)($actress['dmm_id'] ?? ''));
 
+    // Step 1: Matching with dmm_id / name / actress_id with source filter
     try {
+        $conditions = [];
+        $params = [];
+        if ($dmmId !== '') {
+            $conditions[] = 'ia.dmm_id = ?';
+            $params[] = $dmmId;
+        }
+        if ($name !== '') {
+            $conditions[] = 'ia.actress_name = ? OR TRIM(ia.actress_name) = ?';
+            $params[] = $name;
+            $params[] = $name;
+        }
+        $conditions[] = 'ia.actress_id = ?';
+        $params[] = $actressId;
+
         $sourceWhere = items_product_source_where('items');
         $whereSql = $sourceWhere !== '' ? ' AND ' . $sourceWhere : '';
 
         $sql = 'SELECT DISTINCT items.*
                 FROM items
-                INNER JOIN actresses ON actresses.id = :id
-                INNER JOIN item_actresses ON (
-                    (item_actresses.dmm_id IS NOT NULL AND item_actresses.dmm_id <> "" AND item_actresses.dmm_id = actresses.dmm_id)
-                    OR (item_actresses.actress_name IS NOT NULL AND item_actresses.actress_name <> "" AND item_actresses.actress_name = actresses.name)
-                )
-                WHERE (items.id = item_actresses.item_id OR (items.content_id IS NOT NULL AND items.content_id = item_actresses.content_id))'
-                . $whereSql . '
+                INNER JOIN item_actresses ia ON (ia.item_id = items.id OR (items.content_id IS NOT NULL AND items.content_id = ia.content_id))
+                WHERE (' . implode(' OR ', $conditions) . ')' . $whereSql . '
                 ORDER BY items.release_date DESC, items.id DESC
-                LIMIT :limit OFFSET :offset';
+                LIMIT ? OFFSET ?';
+        $execParams = array_merge($params, [$limit, $offset]);
         $stmt = db()->prepare($sql);
-        $stmt->bindValue(':id',     $actressId, PDO::PARAM_INT);
-        $stmt->bindValue(':limit',  $limit,     PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset,    PDO::PARAM_INT);
-        $stmt->execute();
+        $stmt->execute($execParams);
         $results = $stmt->fetchAll() ?: [];
         if ($results !== []) {
             return $results;
@@ -661,50 +726,151 @@ function fetch_items_by_actress(int $actressId, int $limit, int $offset = 0): ar
     } catch (Throwable) {
     }
 
+    // Step 2: Same match without source filter
     try {
+        $conditions = [];
+        $params = [];
+        if ($dmmId !== '') {
+            $conditions[] = 'ia.dmm_id = ?';
+            $params[] = $dmmId;
+        }
+        if ($name !== '') {
+            $conditions[] = 'ia.actress_name = ? OR TRIM(ia.actress_name) = ?';
+            $params[] = $name;
+            $params[] = $name;
+        }
+        $conditions[] = 'ia.actress_id = ?';
+        $params[] = $actressId;
+
         $sql = 'SELECT DISTINCT items.*
                 FROM items
-                INNER JOIN item_actresses ON items.content_id = item_actresses.content_id
-                WHERE item_actresses.actress_id = :id
+                INNER JOIN item_actresses ia ON (ia.item_id = items.id OR (items.content_id IS NOT NULL AND items.content_id = ia.content_id))
+                WHERE (' . implode(' OR ', $conditions) . ')
                 ORDER BY items.release_date DESC, items.id DESC
-                LIMIT :limit OFFSET :offset';
+                LIMIT ? OFFSET ?';
+        $execParams = array_merge($params, [$limit, $offset]);
         $stmt = db()->prepare($sql);
-        $stmt->bindValue(':id',     $actressId, PDO::PARAM_INT);
-        $stmt->bindValue(':limit',  $limit,     PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset,    PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll() ?: [];
+        $stmt->execute($execParams);
+        $results = $stmt->fetchAll() ?: [];
+        if ($results !== []) {
+            return $results;
+        }
     } catch (Throwable) {
-        return [];
     }
+
+    // Step 3: Partial name search on item_actresses or items
+    if ($name !== '') {
+        try {
+            $sql = 'SELECT DISTINCT items.*
+                    FROM items
+                    INNER JOIN item_actresses ia ON (ia.item_id = items.id OR (items.content_id IS NOT NULL AND items.content_id = ia.content_id))
+                    WHERE ia.actress_name LIKE ?
+                    ORDER BY items.release_date DESC, items.id DESC
+                    LIMIT ? OFFSET ?';
+            $stmt = db()->prepare($sql);
+            $stmt->execute(['%' . $name . '%', $limit, $offset]);
+            $results = $stmt->fetchAll() ?: [];
+            if ($results !== []) {
+                return $results;
+            }
+        } catch (Throwable) {
+        }
+    }
+
+    return [];
 }
 
-function fetch_items_by_genre(int $genreId, int $limit, int $offset = 0): array
+function count_items_by_genre(int $genreId, string $genreName = ''): int
+{
+    $genreId = max(1, $genreId);
+    $genre = fetch_genre($genreId);
+    $name = trim($genreName !== '' ? $genreName : (string)($genre['name'] ?? ''));
+    $dmmId = trim((string)($genre['dmm_id'] ?? ''));
+
+    try {
+        $conditions = [];
+        $params = [];
+        if ($dmmId !== '') {
+            $conditions[] = 'ig.dmm_id = ?';
+            $params[] = $dmmId;
+        }
+        if ($name !== '') {
+            $conditions[] = 'ig.genre_name = ? OR TRIM(ig.genre_name) = ?';
+            $params[] = $name;
+            $params[] = $name;
+        }
+        $conditions[] = 'ig.genre_id = ?';
+        $params[] = $genreId;
+
+        $sql = 'SELECT COUNT(DISTINCT items.id)
+                FROM items
+                INNER JOIN item_genres ig ON (ig.item_id = items.id OR (items.content_id IS NOT NULL AND items.content_id = ig.content_id))
+                WHERE (' . implode(' OR ', $conditions) . ')';
+        $stmt = db()->prepare($sql);
+        $stmt->execute($params);
+        $count = (int)$stmt->fetchColumn();
+        if ($count > 0) {
+            return $count;
+        }
+    } catch (Throwable) {
+    }
+
+    if ($name !== '') {
+        try {
+            $sql = 'SELECT COUNT(DISTINCT items.id)
+                    FROM items
+                    INNER JOIN item_genres ig ON (ig.item_id = items.id OR (items.content_id IS NOT NULL AND items.content_id = ig.content_id))
+                    WHERE ig.genre_name LIKE ?';
+            $stmt = db()->prepare($sql);
+            $stmt->execute(['%' . $name . '%']);
+            $count = (int)$stmt->fetchColumn();
+            if ($count > 0) {
+                return $count;
+            }
+        } catch (Throwable) {
+        }
+    }
+
+    return 0;
+}
+
+function fetch_items_by_genre(int $genreId, int $limit, int $offset = 0, string $genreName = ''): array
 {
     $genreId = max(1, $genreId);
     $limit   = normalize_int($limit, 1, 100);
     $offset  = max(0, $offset);
+    $genre   = fetch_genre($genreId);
+    $name    = trim($genreName !== '' ? $genreName : (string)($genre['name'] ?? ''));
+    $dmmId   = trim((string)($genre['dmm_id'] ?? ''));
 
+    // Step 1: Try with source filter
     try {
+        $conditions = [];
+        $params = [];
+        if ($dmmId !== '') {
+            $conditions[] = 'ig.dmm_id = ?';
+            $params[] = $dmmId;
+        }
+        if ($name !== '') {
+            $conditions[] = 'ig.genre_name = ? OR TRIM(ig.genre_name) = ?';
+            $params[] = $name;
+            $params[] = $name;
+        }
+        $conditions[] = 'ig.genre_id = ?';
+        $params[] = $genreId;
+
         $sourceWhere = items_product_source_where('items');
         $whereSql = $sourceWhere !== '' ? ' AND ' . $sourceWhere : '';
 
         $sql = 'SELECT DISTINCT items.*
                 FROM items
-                INNER JOIN genres ON genres.id = :id
-                INNER JOIN item_genres ON (
-                    (item_genres.dmm_id IS NOT NULL AND item_genres.dmm_id <> "" AND item_genres.dmm_id = genres.dmm_id)
-                    OR (item_genres.genre_name IS NOT NULL AND item_genres.genre_name <> "" AND item_genres.genre_name = genres.name)
-                )
-                WHERE (items.id = item_genres.item_id OR (items.content_id IS NOT NULL AND items.content_id = item_genres.content_id))'
-                . $whereSql . '
+                INNER JOIN item_genres ig ON (ig.item_id = items.id OR (items.content_id IS NOT NULL AND items.content_id = ig.content_id))
+                WHERE (' . implode(' OR ', $conditions) . ')' . $whereSql . '
                 ORDER BY items.release_date DESC, items.id DESC
-                LIMIT :limit OFFSET :offset';
+                LIMIT ? OFFSET ?';
+        $execParams = array_merge($params, [$limit, $offset]);
         $stmt = db()->prepare($sql);
-        $stmt->bindValue(':id',     $genreId, PDO::PARAM_INT);
-        $stmt->bindValue(':limit',  $limit,   PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset,  PDO::PARAM_INT);
-        $stmt->execute();
+        $stmt->execute($execParams);
         $results = $stmt->fetchAll() ?: [];
         if ($results !== []) {
             return $results;
@@ -712,50 +878,173 @@ function fetch_items_by_genre(int $genreId, int $limit, int $offset = 0): array
     } catch (Throwable) {
     }
 
+    // Step 2: Without source filter
     try {
+        $conditions = [];
+        $params = [];
+        if ($dmmId !== '') {
+            $conditions[] = 'ig.dmm_id = ?';
+            $params[] = $dmmId;
+        }
+        if ($name !== '') {
+            $conditions[] = 'ig.genre_name = ? OR TRIM(ig.genre_name) = ?';
+            $params[] = $name;
+            $params[] = $name;
+        }
+        $conditions[] = 'ig.genre_id = ?';
+        $params[] = $genreId;
+
         $sql = 'SELECT DISTINCT items.*
                 FROM items
-                INNER JOIN item_genres ON items.content_id = item_genres.content_id
-                WHERE item_genres.genre_id = :id
+                INNER JOIN item_genres ig ON (ig.item_id = items.id OR (items.content_id IS NOT NULL AND items.content_id = ig.content_id))
+                WHERE (' . implode(' OR ', $conditions) . ')
                 ORDER BY items.release_date DESC, items.id DESC
-                LIMIT :limit OFFSET :offset';
+                LIMIT ? OFFSET ?';
+        $execParams = array_merge($params, [$limit, $offset]);
         $stmt = db()->prepare($sql);
-        $stmt->bindValue(':id',     $genreId, PDO::PARAM_INT);
-        $stmt->bindValue(':limit',  $limit,   PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset,  PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll() ?: [];
+        $stmt->execute($execParams);
+        $results = $stmt->fetchAll() ?: [];
+        if ($results !== []) {
+            return $results;
+        }
     } catch (Throwable) {
-        return [];
     }
+
+    // Step 3: Partial name match
+    if ($name !== '') {
+        try {
+            $sql = 'SELECT DISTINCT items.*
+                    FROM items
+                    INNER JOIN item_genres ig ON (ig.item_id = items.id OR (items.content_id IS NOT NULL AND items.content_id = ig.content_id))
+                    WHERE ig.genre_name LIKE ?
+                    ORDER BY items.release_date DESC, items.id DESC
+                    LIMIT ? OFFSET ?';
+            $stmt = db()->prepare($sql);
+            $stmt->execute(['%' . $name . '%', $limit, $offset]);
+            $results = $stmt->fetchAll() ?: [];
+            if ($results !== []) {
+                return $results;
+            }
+        } catch (Throwable) {
+        }
+    }
+
+    return [];
 }
 
-function fetch_items_by_maker(int $makerId, int $limit, int $offset = 0): array
+function count_items_by_maker(int $makerId, string $makerName = ''): int
+{
+    $makerId = max(1, $makerId);
+    $maker = fetch_maker($makerId);
+    $name = trim($makerName !== '' ? $makerName : (string)($maker['name'] ?? ''));
+    $dmmId = trim((string)($maker['dmm_id'] ?? ''));
+
+    // Try to resolve name from item_makers if empty
+    if ($name === '') {
+        try {
+            $findSql = "SELECT maker_name FROM item_makers WHERE maker_id = :id OR dmm_id = :dmm_id GROUP BY maker_name ORDER BY COUNT(*) DESC LIMIT 1";
+            $fStmt = db()->prepare($findSql);
+            $fStmt->execute([':id' => $makerId, ':dmm_id' => $dmmId]);
+            $name = trim((string)($fStmt->fetchColumn() ?: ''));
+        } catch (Throwable) {
+        }
+    }
+
+    try {
+        $conditions = [];
+        $params = [];
+        if ($dmmId !== '') {
+            $conditions[] = 'im.dmm_id = ?';
+            $params[] = $dmmId;
+        }
+        if ($name !== '') {
+            $conditions[] = 'im.maker_name = ? OR TRIM(im.maker_name) = ?';
+            $params[] = $name;
+            $params[] = $name;
+        }
+        $conditions[] = 'im.maker_id = ?';
+        $params[] = $makerId;
+
+        $sql = 'SELECT COUNT(DISTINCT items.id)
+                FROM items
+                INNER JOIN item_makers im ON (im.item_id = items.id OR (items.content_id IS NOT NULL AND items.content_id = im.content_id))
+                WHERE (' . implode(' OR ', $conditions) . ')';
+        $stmt = db()->prepare($sql);
+        $stmt->execute($params);
+        $count = (int)$stmt->fetchColumn();
+        if ($count > 0) {
+            return $count;
+        }
+    } catch (Throwable) {
+    }
+
+    if ($name !== '') {
+        try {
+            $sql = 'SELECT COUNT(DISTINCT items.id)
+                    FROM items
+                    INNER JOIN item_makers im ON (im.item_id = items.id OR (items.content_id IS NOT NULL AND items.content_id = im.content_id))
+                    WHERE im.maker_name LIKE ?';
+            $stmt = db()->prepare($sql);
+            $stmt->execute(['%' . $name . '%']);
+            $count = (int)$stmt->fetchColumn();
+            if ($count > 0) {
+                return $count;
+            }
+        } catch (Throwable) {
+        }
+    }
+
+    return 0;
+}
+
+function fetch_items_by_maker(int $makerId, int $limit, int $offset = 0, string $makerName = ''): array
 {
     $makerId = max(1, $makerId);
     $limit   = normalize_int($limit, 1, 100);
     $offset  = max(0, $offset);
+    $maker   = fetch_maker($makerId);
+    $name    = trim($makerName !== '' ? $makerName : (string)($maker['name'] ?? ''));
+    $dmmId   = trim((string)($maker['dmm_id'] ?? ''));
 
+    // Try to resolve name from item_makers if empty
+    if ($name === '') {
+        try {
+            $findSql = "SELECT maker_name FROM item_makers WHERE maker_id = :id OR dmm_id = :dmm_id GROUP BY maker_name ORDER BY COUNT(*) DESC LIMIT 1";
+            $fStmt = db()->prepare($findSql);
+            $fStmt->execute([':id' => $makerId, ':dmm_id' => $dmmId]);
+            $name = trim((string)($fStmt->fetchColumn() ?: ''));
+        } catch (Throwable) {
+        }
+    }
+
+    // Step 1: Try with source filter
     try {
+        $conditions = [];
+        $params = [];
+        if ($dmmId !== '') {
+            $conditions[] = 'im.dmm_id = ?';
+            $params[] = $dmmId;
+        }
+        if ($name !== '') {
+            $conditions[] = 'im.maker_name = ? OR TRIM(im.maker_name) = ?';
+            $params[] = $name;
+            $params[] = $name;
+        }
+        $conditions[] = 'im.maker_id = ?';
+        $params[] = $makerId;
+
         $sourceWhere = items_product_source_where('items');
         $whereSql = $sourceWhere !== '' ? ' AND ' . $sourceWhere : '';
 
         $sql = 'SELECT DISTINCT items.*
                 FROM items
-                INNER JOIN makers ON makers.id = :id
-                INNER JOIN item_makers ON (
-                    (item_makers.dmm_id IS NOT NULL AND item_makers.dmm_id <> "" AND item_makers.dmm_id = makers.dmm_id)
-                    OR (item_makers.maker_name IS NOT NULL AND item_makers.maker_name <> "" AND item_makers.maker_name = makers.name)
-                )
-                WHERE (items.id = item_makers.item_id OR (items.content_id IS NOT NULL AND items.content_id = item_makers.content_id))'
-                . $whereSql . '
+                INNER JOIN item_makers im ON (im.item_id = items.id OR (items.content_id IS NOT NULL AND items.content_id = im.content_id))
+                WHERE (' . implode(' OR ', $conditions) . ')' . $whereSql . '
                 ORDER BY items.release_date DESC, items.id DESC
-                LIMIT :limit OFFSET :offset';
+                LIMIT ? OFFSET ?';
+        $execParams = array_merge($params, [$limit, $offset]);
         $stmt = db()->prepare($sql);
-        $stmt->bindValue(':id',     $makerId, PDO::PARAM_INT);
-        $stmt->bindValue(':limit',  $limit,   PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset,  PDO::PARAM_INT);
-        $stmt->execute();
+        $stmt->execute($execParams);
         $results = $stmt->fetchAll() ?: [];
         if ($results !== []) {
             return $results;
@@ -763,22 +1052,58 @@ function fetch_items_by_maker(int $makerId, int $limit, int $offset = 0): array
     } catch (Throwable) {
     }
 
+    // Step 2: Without source filter
     try {
+        $conditions = [];
+        $params = [];
+        if ($dmmId !== '') {
+            $conditions[] = 'im.dmm_id = ?';
+            $params[] = $dmmId;
+        }
+        if ($name !== '') {
+            $conditions[] = 'im.maker_name = ? OR TRIM(im.maker_name) = ?';
+            $params[] = $name;
+            $params[] = $name;
+        }
+        $conditions[] = 'im.maker_id = ?';
+        $params[] = $makerId;
+
         $sql = 'SELECT DISTINCT items.*
                 FROM items
-                INNER JOIN item_makers ON items.content_id = item_makers.content_id
-                WHERE item_makers.maker_id = :id
+                INNER JOIN item_makers im ON (im.item_id = items.id OR (items.content_id IS NOT NULL AND items.content_id = im.content_id))
+                WHERE (' . implode(' OR ', $conditions) . ')
                 ORDER BY items.release_date DESC, items.id DESC
-                LIMIT :limit OFFSET :offset';
+                LIMIT ? OFFSET ?';
+        $execParams = array_merge($params, [$limit, $offset]);
         $stmt = db()->prepare($sql);
-        $stmt->bindValue(':id',     $makerId, PDO::PARAM_INT);
-        $stmt->bindValue(':limit',  $limit,   PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset,  PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll() ?: [];
+        $stmt->execute($execParams);
+        $results = $stmt->fetchAll() ?: [];
+        if ($results !== []) {
+            return $results;
+        }
     } catch (Throwable) {
-        return [];
     }
+
+    // Step 3: Partial name search on item_makers
+    if ($name !== '') {
+        try {
+            $sql = 'SELECT DISTINCT items.*
+                    FROM items
+                    INNER JOIN item_makers im ON (im.item_id = items.id OR (items.content_id IS NOT NULL AND items.content_id = im.content_id))
+                    WHERE im.maker_name LIKE ?
+                    ORDER BY items.release_date DESC, items.id DESC
+                    LIMIT ? OFFSET ?';
+            $stmt = db()->prepare($sql);
+            $stmt->execute(['%' . $name . '%', $limit, $offset]);
+            $results = $stmt->fetchAll() ?: [];
+            if ($results !== []) {
+                return $results;
+            }
+        } catch (Throwable) {
+        }
+    }
+
+    return [];
 }
 
 function count_items_by_series(int $seriesId): int

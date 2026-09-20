@@ -81,8 +81,9 @@ if (!is_array($row)) {
 
 $actressDisplayName = trim((string)($row['name'] ?? ''));
 $dmmId = trim((string)($row['dmm_id'] ?? ''));
-if ($actressDisplayName === '' || is_invalid_actress_name($actressDisplayName) || str_starts_with($dmmId, 'name:') || !ctype_digit($dmmId)) {
+if ($actressDisplayName === '' || is_invalid_actress_name($actressDisplayName)) {
     require __DIR__ . '/404.php';
+    exit;
 }
 
 try {
@@ -146,7 +147,8 @@ if (is_array($cachedProfilePayload)) {
 }
 
 try {
-    [$list, $hasNext] = paginate_items(dedupe_items_by_key(fetch_items_by_actress((int)$row['id'], $limit + 1, $offset)), $limit);
+    $actressNameForQuery = $profile['name'] !== '' ? $profile['name'] : $actressDisplayName;
+    [$list, $hasNext] = paginate_items(dedupe_items_by_key(fetch_items_by_actress((int)$row['id'], $limit + 1, $offset, $actressNameForQuery)), $limit);
     $actressItemsLoaded = true;
 } catch (Throwable) {
     $list = [];
