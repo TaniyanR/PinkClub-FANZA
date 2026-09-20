@@ -12,31 +12,16 @@ function pcf_genre_count_items(int $genreId): int
     $genreId = max(1, $genreId);
 
     try {
-        $sourceWhere = items_product_source_where('items');
-        $whereSql = $sourceWhere !== '' ? ' AND ' . $sourceWhere : '';
-        $sql = 'SELECT COUNT(DISTINCT items.id)
-                FROM items
-                INNER JOIN genres ON genres.id = :id
-                INNER JOIN item_genres ON (
-                    (item_genres.dmm_id IS NOT NULL AND item_genres.dmm_id <> "" AND item_genres.dmm_id = genres.dmm_id)
-                    OR (item_genres.genre_name IS NOT NULL AND item_genres.genre_name <> "" AND item_genres.genre_name = genres.name)
-                )
-                WHERE (items.id = item_genres.item_id OR (items.content_id IS NOT NULL AND items.content_id = item_genres.content_id))'
-                . $whereSql;
-        $stmt = db()->prepare($sql);
-        $stmt->execute([':id' => $genreId]);
-        $count = (int)$stmt->fetchColumn();
-        if ($count > 0) {
-            return $count;
-        }
-    } catch (Throwable) {
-    }
-
-    try {
-        $sql = 'SELECT COUNT(DISTINCT items.id)
-                FROM items
-                INNER JOIN item_genres ON items.content_id = item_genres.content_id
-                WHERE item_genres.genre_id = :id';
+        $sql = db_column_exists('item_genres', 'item_id')
+            ? 'SELECT COUNT(DISTINCT items.id)
+               FROM items
+               INNER JOIN genres      ON genres.id          = :id
+               INNER JOIN item_genres ON item_genres.dmm_id = genres.dmm_id
+               WHERE items.id = item_genres.item_id AND ' . items_product_source_where('items')
+            : 'SELECT COUNT(DISTINCT items.id)
+               FROM items
+               INNER JOIN item_genres ON items.content_id = item_genres.content_id
+               WHERE item_genres.genre_id = :id AND ' . items_product_source_where('items');
         $stmt = db()->prepare($sql);
         $stmt->execute([':id' => $genreId]);
         return (int)$stmt->fetchColumn();
@@ -105,6 +90,9 @@ try {
     $pg = paginate(0, $page, $per);
 }
 if ($row === null) {
+    require __DIR__ . '/404.php';
+}
+if ($total === 0) {
     require __DIR__ . '/404.php';
 }
 

@@ -279,7 +279,6 @@ if (!headers_sent()) {
       <?php else: ?>
         <div class="site-title"><a href="<?= e(public_url('')) ?>" class="site-title-link"><?= e($siteName) ?></a></div>
       <?php endif; ?>
-      <div class="site-disclaimer" style="margin-bottom:2px;"><strong style="color:#ff4da6;">18+ ：当サイトは18歳未満の方の閲覧を固くお断りします。</strong></div>
       <div class="site-disclaimer"><strong>当サイトはアフィリエイト広告を利用しています。</strong></div>
     </div>
     <div class="header-right site-header__right">

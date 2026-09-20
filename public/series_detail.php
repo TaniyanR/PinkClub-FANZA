@@ -42,6 +42,9 @@ try {
 if ($series === null) {
     require __DIR__ . '/404.php';
 }
+if ($total === 0) {
+    require __DIR__ . '/404.php';
+}
 
 $seriesName = (string)($series['name'] ?? 'シリーズ詳細');
 try {
@@ -100,7 +103,7 @@ require __DIR__ . '/partials/header.php';
 <h2 class="pcf-section-title"><?= e($seriesName) ?>一覧</h2>
 <?php if ($seriesItems !== []): ?>
   <section class="pcf-related-grid pcf-series-related-grid">
-    <?php foreach ($seriesItems as $item): pcf_render_item_card(is_array($item) ? $item : []); endforeach; ?>
+    <?php foreach ($seriesItems as $item): pcf_render_item_card(is_array($item) ? $item : [], 180, $seriesViewportMode === 'sp'); endforeach; ?>
   </section>
   <?php pcf_render_pagination($pg, public_url('series_detail.php'), ['id' => (int)$series['id']]); ?>
 <?php else: ?>

@@ -178,16 +178,7 @@ if (!function_exists('pcf_first_image_by_keys')) {
 if (!function_exists('pcf_item_image')) {
     function pcf_item_image(array $item): string
     {
-        if (function_exists('pick_full_package_image')) {
-            $img = pick_full_package_image($item);
-            if ($img !== '') {
-                return $img;
-            }
-        }
         $img = pcf_first_image_by_keys($item, [
-            'image_large',
-            'image_small',
-            'image_list',
             'package_image',
             'image_url',
             'package_url',
@@ -295,7 +286,7 @@ if (!function_exists('pcf_render_breadcrumbs')) {
         }
 
         echo '<nav class="pcf-breadcrumb" aria-label="パンくずリスト">';
-        echo '<ol class="pcf-breadcrumb__list" itemscope itemtype="https://schema.org/BreadcrumbList" style="display:flex;align-items:center;flex-wrap:wrap;list-style:none;margin:0 0 16px;padding:0;gap:8px;">';
+        echo '<ol class="pcf-breadcrumb__list" itemscope itemtype="https://schema.org/BreadcrumbList">';
 
         $position = 1;
         $count = count($crumbs);
@@ -308,7 +299,7 @@ if (!function_exists('pcf_render_breadcrumbs')) {
                 continue;
             }
 
-            echo '<li class="pcf-breadcrumb__item" itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem" style="display:inline-flex;align-items:center;list-style:none;margin:0;padding:0;">';
+            echo '<li class="pcf-breadcrumb__item" itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">';
             if (!$isLast && $url !== '') {
                 echo '<a class="pcf-breadcrumb__link" href="' . e($url) . '" itemprop="item"><span itemprop="name">' . e($label) . '</span></a>';
             } else {
@@ -325,9 +316,8 @@ if (!function_exists('pcf_render_breadcrumbs')) {
 }
 
 if (!function_exists('pcf_render_item_card')) {
-    function pcf_render_item_card(array $item, mixed $options = []): void
+    function pcf_render_item_card(array $item, array $options = []): void
     {
-        $opt = is_array($options) ? $options : [];
         $id = (int)($item['id'] ?? 0);
         $title = pcf_item_title($item);
         $image = pcf_item_image($item);
@@ -335,14 +325,8 @@ if (!function_exists('pcf_render_item_card')) {
         $date = pcf_item_release_date($item);
         $contentId = pcf_item_content_id($item);
 
-        if ($id > 0) {
-            $detailUrl = public_url('item.php') . '?id=' . rawurlencode((string)$id);
-        } elseif ($contentId !== '') {
-            $detailUrl = public_url('item.php') . '?content_id=' . rawurlencode($contentId);
-        } else {
-            $detailUrl = public_url('item.php');
-        }
-        $outUrl = pcf_out_url($id, (string)($opt['position'] ?? 'card'));
+        $detailUrl = public_url('item.php') . '?id=' . rawurlencode((string)$id);
+        $outUrl = pcf_out_url($id, (string)($options['position'] ?? 'card'));
 
         $sampleMovieUrl = '';
         if (!empty($item['sample_movie_url'])) {

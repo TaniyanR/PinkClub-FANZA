@@ -67,7 +67,7 @@ if (db_column_exists('item_labels', 'item_id')) {
         $stmt = db()->prepare(
             'SELECT DISTINCT items.* '
             . 'FROM items '
-            . 'INNER JOIN item_labels ON (item_labels.item_id = items.id OR (items.content_id IS NOT NULL AND items.content_id = item_labels.content_id)) '
+            . 'INNER JOIN item_labels ON item_labels.item_id = items.id '
             . 'WHERE ('
             . 'TRIM(COALESCE(item_labels.dmm_id, "")) = :label_id '
             . 'OR TRIM(item_labels.label_name) = :label_name'
@@ -95,6 +95,9 @@ if ($rows === []) {
 
 $rows = dedupe_items_by_key($rows);
 [$list, $hasNext] = paginate_items($rows, $limit);
+if ($labelPage === 1 && $list === []) {
+    require __DIR__ . '/404.php';
+}
 
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));
 $accessRankingTabs = [

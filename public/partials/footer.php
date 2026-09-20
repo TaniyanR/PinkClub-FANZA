@@ -55,8 +55,9 @@ try {
 } catch (Throwable $e) {
 }
 $currentYear = (int)date('Y');
-$startYear = min($copyrightStartYear, $currentYear > 2024 ? 2024 : $currentYear);
-$copyrightYears = $startYear . '-' . $currentYear;
+$copyrightYears = $copyrightStartYear >= $currentYear
+    ? (string)$currentYear
+    : $copyrightStartYear . '-' . $currentYear;
 
 ?>
   <?php $pageType = function_exists('ad_current_page_type') ? ad_current_page_type() : 'home'; ?>
@@ -79,7 +80,7 @@ $copyrightYears = $startYear . '-' . $currentYear;
   <div class="site-footer__credit">
     <a href="https://affiliate.dmm.com/api/"><img src="https://p.dmm.co.jp/p/affiliate/web_service/r18_135_17.gif" width="135" height="17" alt="WEB SERVICE BY FANZA"></a>
   </div>
-  <div class="site-footer__copy">Copyright &copy; <?= e($copyrightYears) ?> <a href="<?= e(public_url('')) ?>"><?= e($siteName) ?></a>. All Rights Reserved.</div>
+  <div class="site-footer__copy">© <?= e($copyrightYears) ?> <a href="<?= e(public_url('')) ?>"><?= e($siteName) ?></a></div>
 </footer>
 <script>
 (function () {
