@@ -125,8 +125,19 @@ if ($itemContentId !== '') {
         }
     }
 } elseif ($db instanceof PDO) {
+    $hasItemActressItemId = false;
+    $hasItemGenreItemId = false;
+    $hasItemMakerItemId = false;
+    $hasItemSeriesItemId = false;
+    $hasItemLabelItemId = false;
     try {
-        if (db_column_exists('item_actresses', 'item_id')) {
+        $hasItemActressItemId = db_column_exists('item_actresses', 'item_id');
+        $hasItemGenreItemId = db_column_exists('item_genres', 'item_id');
+        $hasItemMakerItemId = db_column_exists('item_makers', 'item_id');
+        $hasItemSeriesItemId = db_column_exists('item_series', 'item_id');
+        $hasItemLabelItemId = db_column_exists('item_labels', 'item_id');
+
+        if ($hasItemActressItemId) {
             $stmt = $db->prepare('SELECT DISTINCT a.* FROM item_actresses ia INNER JOIN actresses a ON a.dmm_id = ia.dmm_id WHERE ia.item_id = :item_id ORDER BY a.name ASC');
             $stmt->execute([':item_id' => $id]);
             $actresses = $stmt->fetchAll() ?: [];
@@ -136,7 +147,7 @@ if ($itemContentId !== '') {
         $actresses = [];
     }
     try {
-        if (db_column_exists('item_genres', 'item_id')) {
+        if ($hasItemGenreItemId) {
             $stmt = $db->prepare('SELECT DISTINCT g.* FROM item_genres ig INNER JOIN genres g ON g.dmm_id = ig.dmm_id WHERE ig.item_id = :item_id ORDER BY g.name ASC');
             $stmt->execute([':item_id' => $id]);
             $genres = $stmt->fetchAll() ?: [];
@@ -146,7 +157,7 @@ if ($itemContentId !== '') {
         $genres = [];
     }
     try {
-        if (db_column_exists('item_makers', 'item_id')) {
+        if ($hasItemMakerItemId) {
             $stmt = $db->prepare('SELECT DISTINCT m.* FROM item_makers im INNER JOIN makers m ON m.dmm_id = im.dmm_id WHERE im.item_id = :item_id ORDER BY m.name ASC');
             $stmt->execute([':item_id' => $id]);
             $makers = $stmt->fetchAll() ?: [];
@@ -156,7 +167,7 @@ if ($itemContentId !== '') {
         $makers = [];
     }
     try {
-        if (db_column_exists('item_series', 'item_id')) {
+        if ($hasItemSeriesItemId) {
             $stmt = $db->prepare('SELECT DISTINCT s.* FROM item_series ise INNER JOIN series_master s ON s.dmm_id = ise.dmm_id WHERE ise.item_id = :item_id ORDER BY s.name ASC');
             $stmt->execute([':item_id' => $id]);
             $series = $stmt->fetchAll() ?: [];
@@ -165,7 +176,7 @@ if ($itemContentId !== '') {
         error_log('item series lookup by item_id failed: ' . $e->getMessage());
         $series = [];
     }
-    if (db_table_exists('item_labels') && db_column_exists('item_labels', 'item_id')) {
+    if (db_table_exists('item_labels') && $hasItemLabelItemId) {
         try {
             $stmt = $db->prepare('SELECT label_id, label_name, label_ruby FROM item_labels WHERE item_id = :item_id ORDER BY label_name ASC');
             $stmt->execute([':item_id' => $id]);
@@ -218,7 +229,7 @@ if ($itemContentId !== '') {
     try {
         $relatedIds = [];
         $relatedOrderColumn = db_column_exists('items', 'release_date') ? 'release_date' : 'date_released';
-        if (db_column_exists('item_actresses', 'item_id')) {
+        if ($hasItemActressItemId) {
             $stmt = $db->prepare(
                 'SELECT DISTINCT i.*
                  FROM item_actresses ia
@@ -237,7 +248,7 @@ if ($itemContentId !== '') {
             $relatedIds = array_values(array_unique(array_map(static fn(array $row): int => (int)($row['id'] ?? 0), $relatedItems)));
         }
 
-        if (count($relatedItems) < 12 && db_column_exists('item_genres', 'item_id')) {
+        if (count($relatedItems) < 12 && $hasItemGenreItemId) {
             $excludeIds = array_values(array_filter(array_unique(array_merge([$id], array_map(static fn(array $row): int => (int)($row['id'] ?? 0), $relatedItems))), static fn(int $v): bool => $v > 0));
             $excludeClause = implode(',', array_fill(0, count($excludeIds), '?'));
             $limit = 12 - count($relatedItems);
