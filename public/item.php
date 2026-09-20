@@ -88,10 +88,30 @@ $makers = [];
 $series = [];
 $labels = [];
 if ($itemContentId !== '') {
-    $actresses = fetch_item_actresses($itemContentId);
-    $genres = fetch_item_genres($itemContentId);
-    $makers = fetch_item_makers($itemContentId);
-    $series = fetch_item_series($itemContentId);
+    try {
+        $actresses = fetch_item_actresses($itemContentId);
+    } catch (Throwable $e) {
+        error_log('item actress lookup failed: ' . $e->getMessage());
+        $actresses = [];
+    }
+    try {
+        $genres = fetch_item_genres($itemContentId);
+    } catch (Throwable $e) {
+        error_log('item genre lookup failed: ' . $e->getMessage());
+        $genres = [];
+    }
+    try {
+        $makers = fetch_item_makers($itemContentId);
+    } catch (Throwable $e) {
+        error_log('item maker lookup failed: ' . $e->getMessage());
+        $makers = [];
+    }
+    try {
+        $series = fetch_item_series($itemContentId);
+    } catch (Throwable $e) {
+        error_log('item series lookup failed: ' . $e->getMessage());
+        $series = [];
+    }
     if (db_table_exists('item_labels')) {
         try {
             $labels = fetch_item_labels($itemContentId);
