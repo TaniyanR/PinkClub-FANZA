@@ -457,7 +457,7 @@ if (!function_exists('pcf_render_sample_movie_modal')) {
         echo '<button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>';
         echo '<div id="sample-movie-title" class="sample-movie-modal__title">サンプル動画</div>';
         echo '<div class="sample-movie-modal__frame-wrap">';
-        echo '<iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer" sandbox="allow-scripts allow-forms allow-presentation" title="サンプル動画プレイヤー"></iframe>';
+        echo '<iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation" title="サンプル動画プレイヤー"></iframe>';
         echo '</div>';
         echo '</div>';
         echo '</div>';

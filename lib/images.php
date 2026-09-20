@@ -249,7 +249,7 @@ if (!function_exists('pcf_item_sample_movie_url')) {
 if (!function_exists('pcf_pick_detail_main_image')) {
     function pcf_pick_detail_main_image(array $item): string
     {
-        foreach (['image_large', 'image_list', 'image_small', 'image_url'] as $key) {
+        foreach (['image_large', 'image_small', 'image_url', 'image_list'] as $key) {
             $values = $key === 'image_list'
                 ? pcf_parse_image_urls((string)($item[$key] ?? ''))
                 : [pcf_normalize_external_media_url((string)($item[$key] ?? ''))];
