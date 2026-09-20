@@ -3,7 +3,7 @@ import session from 'express-session';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { db, getItems, getItemById, getActressById, getGenreById, getRelatedItems } from './data.js';
+import { db, getItems, getItemById, getActressById, getGenreById, getMakerById, getSeriesById, getRelatedItems } from './data.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -309,6 +309,90 @@ app.get(['/genre/:id', '/genres/:id', '/genre.php', '/public/genre.php'], (req, 
   res.render('genre', {
     title: `${genre.name} 作品一覧`,
     genre,
+    items,
+    canonicalUrl
+  });
+});
+
+// Makers Directory
+app.get(['/makers', '/makers.php', '/public/makers.php'], (req, res) => {
+  const page = req.query.page;
+  const canonicalUrl = 'https://pinkclub-fanza.com/makers' + (page ? `?page=${encodeURIComponent(page)}` : '');
+  res.render('genres', {
+    title: 'メーカー一覧',
+    genres: (db.makers || []).map(m => ({ id: m.id, name: m.name, dmm_id: m.dmm_id })),
+    canonicalUrl
+  });
+});
+
+// Single Maker Page
+app.get(['/maker/:id', '/makers/:id', '/maker.php', '/public/maker.php'], (req, res) => {
+  const id = req.params.id || req.query.id;
+  const maker = getMakerById(id) || (db.makers && db.makers[0]) || { id: 1, name: 'S1 NO.1 STYLE' };
+  const items = getItems({}).filter(i => !maker.id || i.maker_id === maker.id);
+  const displayItems = items.length > 0 ? items : getItems({}).slice(0, 12);
+  const page = req.query.page;
+  const canonicalUrl = `https://pinkclub-fanza.com/maker/${encodeURIComponent(maker.id)}` + (page ? `?page=${encodeURIComponent(page)}` : '');
+  res.render('genre', {
+    title: `${maker.name} 作品一覧`,
+    genre: { id: maker.id, name: maker.name },
+    items: displayItems,
+    canonicalUrl
+  });
+});
+
+// Series Directory & Detail
+app.get(['/series', '/series.php', '/public/series.php', '/series_list.php', '/public/series_list.php'], (req, res) => {
+  const page = req.query.page;
+  const canonicalUrl = 'https://pinkclub-fanza.com/series' + (page ? `?page=${encodeURIComponent(page)}` : '');
+  res.render('genres', {
+    title: 'シリーズ一覧',
+    genres: (db.series || []).map(s => ({ id: s.id, name: s.name, dmm_id: s.dmm_id })),
+    canonicalUrl
+  });
+});
+
+app.get(['/series/:id', '/series_detail.php', '/public/series_detail.php', '/series_item.php', '/public/series_item.php'], (req, res) => {
+  const id = req.params.id || req.query.id;
+  const series = getSeriesById(id) || (db.series && db.series[0]) || { id: 1, name: '人気シリーズ' };
+  const items = getItems({}).filter(i => !series.id || i.series_id === series.id);
+  const displayItems = items.length > 0 ? items : getItems({}).slice(0, 12);
+  const page = req.query.page;
+  const canonicalUrl = `https://pinkclub-fanza.com/series/${encodeURIComponent(series.id)}` + (page ? `?page=${encodeURIComponent(page)}` : '');
+  res.render('genre', {
+    title: `${series.name} 作品一覧`,
+    genre: { id: series.id, name: series.name },
+    items: displayItems,
+    canonicalUrl
+  });
+});
+
+// Label Directory & Detail
+app.get(['/labels', '/labels.php', '/public/labels.php'], (req, res) => {
+  const page = req.query.page;
+  const canonicalUrl = 'https://pinkclub-fanza.com/labels' + (page ? `?page=${encodeURIComponent(page)}` : '');
+  res.render('genres', {
+    title: 'レーベル一覧',
+    genres: [
+      { id: 1, name: 'S1 NO.1 STYLE' },
+      { id: 2, name: 'MOODYZ' },
+      { id: 3, name: 'アイデアポケット' },
+      { id: 4, name: 'SODクリエイト' },
+      { id: 5, name: 'いきなりエロざんまい' }
+    ],
+    canonicalUrl
+  });
+});
+
+app.get(['/label/:id', '/label.php', '/public/label.php'], (req, res) => {
+  const id = req.params.id || req.query.id || req.query.name || 'いきなりエロざんまい';
+  const labelName = req.query.name || (typeof id === 'string' && isNaN(Number(id)) ? id : 'いきなりエロざんまい');
+  const items = getItems({}).slice(0, 12);
+  const page = req.query.page;
+  const canonicalUrl = `https://pinkclub-fanza.com/label.php?id=${encodeURIComponent(id)}` + (page ? `&page=${encodeURIComponent(page)}` : '');
+  res.render('genre', {
+    title: `${labelName} 作品一覧`,
+    genre: { id: 1, name: labelName },
     items,
     canonicalUrl
   });

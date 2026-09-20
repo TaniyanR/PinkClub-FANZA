@@ -24,8 +24,9 @@ if (!$row) {
 $list = [];
 if (db_table_exists('item_authors')) {
     try {
-        $itemStmt = db()->prepare('SELECT items.* FROM items INNER JOIN item_authors ia ON items.content_id = ia.content_id WHERE ia.author_id = :id AND ' . items_product_source_where('items') . ' ORDER BY items.date_published DESC LIMIT 100');
+        $itemStmt = db()->prepare('SELECT items.* FROM items INNER JOIN item_authors ia ON items.id = ia.item_id WHERE (ia.author_id = :id OR ia.dmm_id = :id_str) AND ' . items_product_source_where('items') . ' ORDER BY items.release_date DESC, items.id DESC LIMIT 100');
         $itemStmt->bindValue(':id', (int)$id, PDO::PARAM_INT);
+        $itemStmt->bindValue(':id_str', (string)$id, PDO::PARAM_STR);
         $itemStmt->execute();
         $list = $itemStmt->fetchAll() ?: [];
     } catch (Throwable) {

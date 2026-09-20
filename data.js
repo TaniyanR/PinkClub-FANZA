@@ -498,18 +498,48 @@ export function getItems(query = {}) {
 }
 
 export function getItemById(id) {
+  if (!id) return db.items[0] || null;
   const nid = parseInt(id, 10);
-  return db.items.find(i => i.id === nid || i.content_id === id);
+  const strId = String(id).trim().toLowerCase();
+  return (
+    db.items.find(
+      i =>
+        i.id === nid ||
+        (i.content_id && i.content_id.toLowerCase() === strId) ||
+        (i.product_id && i.product_id.toLowerCase() === strId)
+    ) ||
+    db.items.find(i => i.content_id && i.content_id.toLowerCase().includes(strId)) ||
+    db.items[0] ||
+    null
+  );
 }
 
 export function getActressById(id) {
+  if (!id) return null;
   const nid = parseInt(id, 10);
-  return db.actresses.find(a => a.id === nid || a.dmm_id === id);
+  const strId = String(id).trim().toLowerCase();
+  return db.actresses.find(a => a.id === nid || (a.dmm_id && String(a.dmm_id).toLowerCase() === strId) || a.name === id);
 }
 
 export function getGenreById(id) {
+  if (!id) return null;
   const nid = parseInt(id, 10);
-  return db.genres.find(g => g.id === nid || g.dmm_id === id);
+  const strId = String(id).trim().toLowerCase();
+  return db.genres.find(g => g.id === nid || (g.dmm_id && String(g.dmm_id).toLowerCase() === strId) || g.name === id);
+}
+
+export function getMakerById(id) {
+  if (!id) return null;
+  const nid = parseInt(id, 10);
+  const strId = String(id).trim().toLowerCase();
+  return (db.makers || []).find(m => m.id === nid || (m.dmm_id && String(m.dmm_id).toLowerCase() === strId) || m.name === id);
+}
+
+export function getSeriesById(id) {
+  if (!id) return null;
+  const nid = parseInt(id, 10);
+  const strId = String(id).trim().toLowerCase();
+  return (db.series || []).find(s => s.id === nid || (s.dmm_id && String(s.dmm_id).toLowerCase() === strId) || s.name === id);
 }
 
 export function getRelatedItems(item, limit = 4) {

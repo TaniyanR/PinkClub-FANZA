@@ -50,57 +50,78 @@ try {
     error_log('item page view logging failed: ' . $e->getMessage());
 }
 
-$actressesStmt = $db->prepare('
-    SELECT DISTINCT a.*
-    FROM item_actresses ia
-    INNER JOIN actresses a ON (
-        (ia.dmm_id IS NOT NULL AND ia.dmm_id <> "" AND a.dmm_id = ia.dmm_id)
-        OR (ia.actress_name IS NOT NULL AND ia.actress_name <> "" AND a.name = ia.actress_name)
-    )
-    WHERE (ia.item_id = :item_id OR (:cid <> "" AND ia.content_id = :cid))
-    ORDER BY a.name ASC
-');
-$actressesStmt->execute([':item_id' => $id, ':cid' => $contentIdVal]);
-$actresses = $actressesStmt->fetchAll();
+$actresses = [];
+try {
+    $actressesStmt = $db->prepare('
+        SELECT DISTINCT a.*
+        FROM item_actresses ia
+        INNER JOIN actresses a ON (
+            (ia.dmm_id IS NOT NULL AND ia.dmm_id <> "" AND a.dmm_id = ia.dmm_id)
+            OR (ia.actress_name IS NOT NULL AND ia.actress_name <> "" AND a.name = ia.actress_name)
+        )
+        WHERE ia.item_id = :item_id
+        ORDER BY a.name ASC
+    ');
+    $actressesStmt->execute([':item_id' => $id]);
+    $actresses = $actressesStmt->fetchAll() ?: [];
+} catch (Throwable $e) {
+    error_log('item actresses fetch failed: ' . $e->getMessage());
+}
 
-$genresStmt = $db->prepare('
-    SELECT DISTINCT g.*
-    FROM item_genres ig
-    INNER JOIN genres g ON (
-        (ig.dmm_id IS NOT NULL AND ig.dmm_id <> "" AND g.dmm_id = ig.dmm_id)
-        OR (ig.genre_name IS NOT NULL AND ig.genre_name <> "" AND g.name = ig.genre_name)
-    )
-    WHERE (ig.item_id = :item_id OR (:cid <> "" AND ig.content_id = :cid))
-    ORDER BY g.name ASC
-');
-$genresStmt->execute([':item_id' => $id, ':cid' => $contentIdVal]);
-$genres = $genresStmt->fetchAll();
+$genres = [];
+try {
+    $genresStmt = $db->prepare('
+        SELECT DISTINCT g.*
+        FROM item_genres ig
+        INNER JOIN genres g ON (
+            (ig.dmm_id IS NOT NULL AND ig.dmm_id <> "" AND g.dmm_id = ig.dmm_id)
+            OR (ig.genre_name IS NOT NULL AND ig.genre_name <> "" AND g.name = ig.genre_name)
+        )
+        WHERE ig.item_id = :item_id
+        ORDER BY g.name ASC
+    ');
+    $genresStmt->execute([':item_id' => $id]);
+    $genres = $genresStmt->fetchAll() ?: [];
+} catch (Throwable $e) {
+    error_log('item genres fetch failed: ' . $e->getMessage());
+}
 
-$makersStmt = $db->prepare('
-    SELECT DISTINCT m.*
-    FROM item_makers im
-    INNER JOIN makers m ON (
-        (im.dmm_id IS NOT NULL AND im.dmm_id <> "" AND m.dmm_id = im.dmm_id)
-        OR (im.maker_name IS NOT NULL AND im.maker_name <> "" AND m.name = im.maker_name)
-    )
-    WHERE (im.item_id = :item_id OR (:cid <> "" AND im.content_id = :cid))
-    ORDER BY m.name ASC
-');
-$makersStmt->execute([':item_id' => $id, ':cid' => $contentIdVal]);
-$makers = $makersStmt->fetchAll();
+$makers = [];
+try {
+    $makersStmt = $db->prepare('
+        SELECT DISTINCT m.*
+        FROM item_makers im
+        INNER JOIN makers m ON (
+            (im.dmm_id IS NOT NULL AND im.dmm_id <> "" AND m.dmm_id = im.dmm_id)
+            OR (im.maker_name IS NOT NULL AND im.maker_name <> "" AND m.name = im.maker_name)
+        )
+        WHERE im.item_id = :item_id
+        ORDER BY m.name ASC
+    ');
+    $makersStmt->execute([':item_id' => $id]);
+    $makers = $makersStmt->fetchAll() ?: [];
+} catch (Throwable $e) {
+    error_log('item makers fetch failed: ' . $e->getMessage());
+}
 
-$seriesStmt = $db->prepare('
-    SELECT DISTINCT s.*
-    FROM item_series ise
-    INNER JOIN series_master s ON (
-        (ise.dmm_id IS NOT NULL AND ise.dmm_id <> "" AND s.dmm_id = ise.dmm_id)
-        OR (ise.series_name IS NOT NULL AND ise.series_name <> "" AND s.name = ise.series_name)
-    )
-    WHERE (ise.item_id = :item_id OR (:cid <> "" AND ise.content_id = :cid))
-    ORDER BY s.name ASC
-');
-$seriesStmt->execute([':item_id' => $id, ':cid' => $contentIdVal]);
-$series = $seriesStmt->fetchAll();
+$series = [];
+try {
+    if (db_table_exists('series_master')) {
+        $seriesStmt = $db->prepare('
+            SELECT DISTINCT s.*
+            FROM item_series ise
+            INNER JOIN series_master s ON (
+                (ise.dmm_id IS NOT NULL AND ise.dmm_id <> "" AND s.dmm_id = ise.dmm_id)
+                OR (ise.series_name IS NOT NULL AND ise.series_name <> "" AND s.name = ise.series_name)
+            )
+            WHERE ise.item_id = :item_id
+            ORDER BY s.name ASC
+        ');
+        $seriesStmt->execute([':item_id' => $id]);
+        $series = $seriesStmt->fetchAll() ?: [];
+    }
+} catch (Throwable) {
+}
 if ($series === []) {
     try {
         if (db_table_exists('series')) {
@@ -111,17 +132,22 @@ if ($series === []) {
                     (ise.dmm_id IS NOT NULL AND ise.dmm_id <> "" AND s.dmm_id = ise.dmm_id)
                     OR (ise.series_name IS NOT NULL AND ise.series_name <> "" AND s.name = ise.series_name)
                 )
-                WHERE (ise.item_id = :item_id OR (:cid <> "" AND ise.content_id = :cid))
+                WHERE ise.item_id = :item_id
                 ORDER BY s.name ASC
             ');
-            $seriesStmt2->execute([':item_id' => $id, ':cid' => $contentIdVal]);
+            $seriesStmt2->execute([':item_id' => $id]);
             $series = $seriesStmt2->fetchAll() ?: [];
         }
     } catch (Throwable) {
     }
 }
 
-$labels = pcf_item_labels($db, $id);
+$labels = [];
+try {
+    $labels = pcf_item_labels($db, $id);
+} catch (Throwable $e) {
+    error_log('item labels fetch failed: ' . $e->getMessage());
+}
 
 $directAffiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
 $affiliateUrl = pcf_out_url((int)$item['id'], 'item_detail');
@@ -174,7 +200,7 @@ try {
             $relStmt = $db->prepare("
                 SELECT DISTINCT i.*
                 FROM item_actresses ia
-                INNER JOIN items i ON (i.id = ia.item_id OR (i.content_id IS NOT NULL AND i.content_id = ia.content_id))
+                INNER JOIN items i ON i.id = ia.item_id
                 WHERE (" . implode(' OR ', $conditions) . ")
                   AND i.id <> ?
                 ORDER BY i.release_date DESC, i.id DESC
@@ -206,7 +232,7 @@ try {
             $relStmt = $db->prepare("
                 SELECT DISTINCT i.*
                 FROM item_genres ig
-                INNER JOIN items i ON (i.id = ig.item_id OR (i.content_id IS NOT NULL AND i.content_id = ig.content_id))
+                INNER JOIN items i ON i.id = ig.item_id
                 WHERE (" . implode(' OR ', $conditions) . ")
                   AND i.id NOT IN (" . implode(',', array_fill(0, count($exclude), '?')) . ")
                 ORDER BY i.release_date DESC, i.id DESC
