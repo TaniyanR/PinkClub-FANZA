@@ -217,6 +217,7 @@ if ($itemContentId !== '') {
 } elseif ($db instanceof PDO) {
     try {
         $relatedIds = [];
+        $relatedOrderColumn = db_column_exists('items', 'release_date') ? 'release_date' : 'date_released';
         if (db_column_exists('item_actresses', 'item_id')) {
             $stmt = $db->prepare(
                 'SELECT DISTINCT i.*
@@ -228,7 +229,7 @@ if ($itemContentId !== '') {
                  )
                    AND i.id <> :item_id
                    AND ' . items_product_source_where('i') . '
-                 ORDER BY i.release_date DESC, i.id DESC
+                 ORDER BY i.' . $relatedOrderColumn . ' DESC, i.id DESC
                  LIMIT 12'
             );
             $stmt->execute([':item_id' => $id]);
@@ -250,7 +251,7 @@ if ($itemContentId !== '') {
                  )
                    AND i.id NOT IN (' . $excludeClause . ')
                    AND ' . items_product_source_where('i') . '
-                 ORDER BY i.release_date DESC, i.id DESC
+                 ORDER BY i.' . $relatedOrderColumn . ' DESC, i.id DESC
                  LIMIT ' . (int)$limit
             );
             $params = array_merge([$id], $excludeIds);
