@@ -1,96 +1,109 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/../lib/bootstrap.php';
+require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/../lib/public_rankings.php';
+require_once __DIR__ . '/partials/public_ui.php';
+
+function item_pick_detail_main_image(array $item): string
+{
+    foreach (['image_large', 'image_url_large', 'package_image', 'image_url', 'jacket_image_url'] as $key) {
+        $candidate = trim((string)($item[$key] ?? ''));
+        if ($candidate !== '') {
+            return $candidate;
+        }
+    }
+
+    return '';
+}
+
+function item_build_affiliate_out_url(array $item): string
+{
+    $affiliate = trim((string)($item['affiliate_url'] ?? ''));
+    if ($affiliate === '') {
+        return '#';
+    }
+
+    return public_url('out.php') . '?' . http_build_query(['to' => $affiliate]);
+}
+
+function item_is_invalid_actress_name(string $name): bool
+{
+    if (function_exists('pcf_is_noise_name') && pcf_is_noise_name($name)) {
+        return true;
+    }
+
+    $value = mb_strtolower(trim($name), 'UTF-8');
+    return $value === '' || $value === '--' || $value === '---';
+}
 
 $id = (int)get('id', 0);
 $contentId = trim((string)get('content_id', ''));
 $cid = trim((string)get('cid', ''));
 
-$db = db();
-
-$item = null;
-if ($id > 0) {
-    $stmt = $db->prepare('SELECT * FROM items WHERE id = :id AND ' . items_product_source_where() . ' LIMIT 1');
-    $stmt->execute([':id' => $id]);
-    $item = $stmt->fetch();
+if ($contentId === '' && $cid !== '') {
+    $contentId = $cid;
 }
 
-if (!$item && $contentId !== '') {
-    $stmt = $db->prepare('SELECT * FROM items WHERE content_id = :cid AND ' . items_product_source_where() . ' LIMIT 1');
-    $stmt->execute([':cid' => $contentId]);
-    $item = $stmt->fetch();
+$item = false;
+try {
+    if ($id > 0) {
+        $stmt = db()->prepare('SELECT * FROM items WHERE id = :id AND ' . items_product_source_where() . ' LIMIT 1');
+        $stmt->execute([':id' => $id]);
+        $item = $stmt->fetch();
+    }
+
+    if (!$item && $contentId !== '') {
+        $item = fetch_item_by_content_id($contentId);
+    }
+
+    if (!$item && $cid !== '') {
+        $stmt = db()->prepare('SELECT * FROM items WHERE (content_id = :cid OR dmm_id = :cid) AND ' . items_product_source_where() . ' LIMIT 1');
+        $stmt->execute([':cid' => $cid]);
+        $item = $stmt->fetch();
+    }
+} catch (Throwable $e) {
+    error_log('item lookup failed: ' . $e->getMessage());
+    $item = false;
 }
 
-if (!$item && $cid !== '') {
-    $stmt = $db->prepare('SELECT * FROM items WHERE (content_id = :cid OR dmm_id = :cid) AND ' . items_product_source_where() . ' LIMIT 1');
-    $stmt->execute([':cid' => $cid]);
-    $item = $stmt->fetch();
+if (!$item || !is_array($item)) {
+    require __DIR__ . '/404.php';
 }
 
-if (!$item) {
-    http_response_code(404);
-    $title = '商品が見つかりません';
-    require __DIR__ . '/partials/header.php';
-    echo '<p class="error-box">指定された商品は存在しないか、非公開です。</p>';
-    require __DIR__ . '/partials/footer.php';
-    exit;
+$db = null;
+try {
+    $db = db();
+} catch (Throwable $e) {
+    error_log('item page db bootstrap failed: ' . $e->getMessage());
 }
 
 $id = (int)$item['id'];
 $itemId = $id;
-
-try {
-    pcf_log_access_event($db, 'item', (int)$item['id'], (string)$item['title'], 'pv');
-} catch (Throwable $e) {
-    error_log('item page view logging failed: ' . $e->getMessage());
+$itemContentId = trim((string)($item['content_id'] ?? ''));
+$actresses = [];
+$genres = [];
+$makers = [];
+$series = [];
+$labels = [];
+if ($itemContentId !== '') {
+    $actresses = fetch_item_actresses($itemContentId);
+    $genres = fetch_item_genres($itemContentId);
+    $makers = fetch_item_makers($itemContentId);
+    $series = fetch_item_series($itemContentId);
+    if (db_table_exists('item_labels')) {
+        try {
+            $labels = fetch_item_labels($itemContentId);
+        } catch (Throwable $e) {
+            error_log('item label lookup failed: ' . $e->getMessage());
+            $labels = [];
+        }
+    }
 }
 
-$actressesStmt = $db->prepare('
-    SELECT a.*
-    FROM item_actresses ia
-    INNER JOIN actresses a ON a.dmm_id = ia.dmm_id
-    WHERE ia.item_id = :item_id
-    ORDER BY a.name ASC
-');
-$actressesStmt->execute([':item_id' => $id]);
-$actresses = $actressesStmt->fetchAll();
-
-$genresStmt = $db->prepare('
-    SELECT g.*
-    FROM item_genres ig
-    INNER JOIN genres g ON g.dmm_id = ig.dmm_id
-    WHERE ig.item_id = :item_id
-    ORDER BY g.name ASC
-');
-$genresStmt->execute([':item_id' => $id]);
-$genres = $genresStmt->fetchAll();
-
-$makersStmt = $db->prepare('
-    SELECT m.*
-    FROM item_makers im
-    INNER JOIN makers m ON m.dmm_id = im.dmm_id
-    WHERE im.item_id = :item_id
-    ORDER BY m.name ASC
-');
-$makersStmt->execute([':item_id' => $id]);
-$makers = $makersStmt->fetchAll();
-
-$seriesStmt = $db->prepare('
-    SELECT s.*
-    FROM item_series ise
-    INNER JOIN series_master s ON s.dmm_id = ise.dmm_id
-    WHERE ise.item_id = :item_id
-    ORDER BY s.name ASC
-');
-$seriesStmt->execute([':item_id' => $id]);
-$series = $seriesStmt->fetchAll();
-
-$labels = pcf_item_labels($db, $id);
-
 $directAffiliateUrl = trim((string)($item['affiliate_url'] ?? ''));
-$affiliateUrl = pcf_out_url((int)$item['id'], 'item_detail');
+$affiliateUrl = item_build_affiliate_out_url($item);
 
 $sampleMovieUrl = '';
 if (!empty($item['sample_movie_url'])) {
@@ -119,55 +132,9 @@ if (!empty($item['sample_images'])) {
 $sampleImagesCount = count($sampleImages);
 
 $relatedItems = [];
-$relatedIds = [];
-
-if ($actresses !== []) {
-    $actressDmmIds = array_filter(array_map(static fn($a) => (string)($a['dmm_id'] ?? ''), $actresses));
-    if ($actressDmmIds !== []) {
-        $inClause = implode(',', array_fill(0, count($actressDmmIds), '?'));
-        $relStmt = $db->prepare("
-            SELECT DISTINCT i.*
-            FROM item_actresses ia
-            INNER JOIN items i ON i.id = ia.item_id
-            WHERE ia.dmm_id IN ($inClause)
-              AND i.id <> ?
-              AND " . items_product_source_where('i') . "
-            ORDER BY i.date_released DESC, i.id DESC
-            LIMIT 12
-        ");
-        $params = array_values($actressDmmIds);
-        $params[] = $id;
-        $relStmt->execute($params);
-        $relatedItems = $relStmt->fetchAll();
-        $relatedIds = array_map(static fn($r) => (int)$r['id'], $relatedItems);
-    }
+if ($itemContentId !== '') {
+    $relatedItems = dedupe_items_by_key(fetch_related_items($itemContentId, 12));
 }
-
-if (count($relatedItems) < 6 && $genres !== []) {
-    $genreDmmIds = array_filter(array_map(static fn($g) => (string)($g['dmm_id'] ?? ''), $genres));
-    if ($genreDmmIds !== []) {
-        $exclude = array_merge([$id], $relatedIds);
-        $inGenres = implode(',', array_fill(0, count($genreDmmIds), '?'));
-        $exClause = implode(',', array_fill(0, count($exclude), '?'));
-        $limit = 12 - count($relatedItems);
-        $relStmt = $db->prepare("
-            SELECT DISTINCT i.*
-            FROM item_genres ig
-            INNER JOIN items i ON i.id = ig.item_id
-            WHERE ig.dmm_id IN ($inGenres)
-              AND i.id NOT IN ($exClause)
-              AND " . items_product_source_where('i') . "
-            ORDER BY i.date_released DESC, i.id DESC
-            LIMIT $limit
-        ");
-        $params = array_merge(array_values($genreDmmIds), $exclude);
-        $relStmt->execute($params);
-        $genreItems = $relStmt->fetchAll();
-        $relatedItems = array_merge($relatedItems, $genreItems);
-    }
-}
-
-$relatedItems = pcf_normalize_items_for_public($relatedItems);
 
 $title = (string)$item['title'];
 $metaTitle = $title . ' - 作品詳細 | PinkClub';
@@ -179,7 +146,7 @@ $pageDescription = mb_strimwidth(trim(preg_replace('/\s+/u', ' ', $descBase)), 0
 
 $canonicalUrl = public_url('item.php') . '?id=' . rawurlencode((string)$id);
 
-$packageImage = pcf_pick_detail_main_image($item);
+$packageImage = item_pick_detail_main_image($item);
 $ogImage = $packageImage !== '' ? $packageImage : (!empty($item['image_url']) ? (string)$item['image_url'] : '');
 
 $breadcrumbTitle = mb_strimwidth($title, 0, 24, '…', 'UTF-8');
@@ -187,7 +154,7 @@ $breadcrumbTitle = mb_strimwidth($title, 0, 24, '…', 'UTF-8');
 $actressNames = [];
 foreach ($actresses as $a) {
     $name = trim((string)($a['name'] ?? ''));
-    if ($name !== '' && !is_invalid_actress_name($name)) {
+    if ($name !== '' && !item_is_invalid_actress_name($name)) {
         $actressNames[] = $name;
     }
 }

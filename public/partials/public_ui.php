@@ -598,3 +598,39 @@ if (!function_exists('pcf_render_empty')) {
         echo '</div>';
     }
 }
+
+if (!function_exists('pcf_render_hero')) {
+    function pcf_render_hero(string $title, string $subtitle = ''): void
+    {
+        echo '<section class="pcf-hero">';
+        echo '<h1 class="pcf-hero__title">' . e($title) . '</h1>';
+        if ($subtitle !== '') {
+            echo '<p class="pcf-hero__subtitle">' . e($subtitle) . '</p>';
+        }
+        echo '</section>';
+    }
+}
+
+if (!function_exists('pcf_is_noise_name')) {
+    function pcf_is_noise_name(string $name): bool
+    {
+        $v = mb_strtolower(trim($name), 'UTF-8');
+        if ($v === '') {
+            return true;
+        }
+
+        if (str_contains($v, 'http://') || str_contains($v, 'https://') || str_contains($v, 'www.')) {
+            return true;
+        }
+
+        if (preg_match('/\.(com|net|jp|org|info|biz)(?:$|[^a-z])/i', $v)) {
+            return true;
+        }
+
+        if (str_contains($v, '/')) {
+            return true;
+        }
+
+        return false;
+    }
+}
