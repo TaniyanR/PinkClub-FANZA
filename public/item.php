@@ -189,7 +189,12 @@ $pageDescription = mb_strimwidth(trim(preg_replace('/\s+/u', ' ', $descBase)), 0
 
 $canonicalUrl = public_url('item.php') . '?id=' . rawurlencode((string)$id);
 
-$packageImage = function_exists('pcf_item_image') ? pcf_item_image($item) : '';
+$packageImage = '';
+if (function_exists('pcf_pick_detail_main_image')) {
+    $packageImage = pcf_pick_detail_main_image($item);
+} elseif (function_exists('pcf_item_image')) {
+    $packageImage = pcf_item_image($item);
+}
 if ($packageImage === '') {
     $packageImage = trim((string)($item['image_large'] ?? $item['image_small'] ?? $item['image_url'] ?? ''));
 }
