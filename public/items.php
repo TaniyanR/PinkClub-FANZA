@@ -461,7 +461,7 @@ require __DIR__ . '/partials/header.php';
     <button type="button" class="sample-movie-modal__close" data-movie-close="1" aria-label="閉じる">×</button>
     <div id="sample-movie-title" class="sample-movie-modal__title">サンプル動画</div>
     <div class="sample-movie-modal__frame-wrap">
-      <iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="unsafe-url"></iframe>
+      <iframe id="sample-movie-frame" class="sample-movie-modal__frame" src="about:blank" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
     </div>
   </div>
 </div>
