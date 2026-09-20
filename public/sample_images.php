@@ -5,8 +5,9 @@ require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/images.php';
 
 $contentId = trim((string)get('content_id', ''));
-$id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-if ($contentId === '' && !is_int($id)) {
+$validatedId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+$id = is_int($validatedId) && $validatedId > 0 ? $validatedId : 0;
+if ($contentId === '' && $id <= 0) {
     error_log('sample_images.php request missing item identifier');
     http_response_code(404);
     exit('商品識別子が指定されていません。');
