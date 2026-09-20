@@ -79,15 +79,13 @@ if ($contentId === '' && $id <= 0) {
     exit('content_id または id が指定されていません。');
 }
 
-$where = 'content_id = :content_id';
-$params = [':content_id' => $contentId];
-if ($contentId === '') {
-    $where = 'id = :id';
-    $params = [':id' => $id];
+if ($contentId !== '') {
+    $stmt = db()->prepare('SELECT id, content_id, title, raw_json, image_list FROM items WHERE content_id = :content_id LIMIT 1');
+    $stmt->execute([':content_id' => $contentId]);
+} else {
+    $stmt = db()->prepare('SELECT id, content_id, title, raw_json, image_list FROM items WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => $id]);
 }
-
-$stmt = db()->prepare('SELECT id, content_id, title, raw_json, image_list FROM items WHERE ' . $where . ' LIMIT 1');
-$stmt->execute($params);
 $item = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$item) {
     http_response_code(404);
