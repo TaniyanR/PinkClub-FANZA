@@ -146,6 +146,7 @@ require $target;
                 for _ in range(2):
                     status, body, headers = request(path)
                     assert status == 200 and headers['Content-Type'].startswith(mime), (path, status)
+                    if path == '/robots.txt': assert 'Sitemap: ' + origin + '/sitemap.php' in body.splitlines(), body
                     if path == '/sitemap.php' and _ == 1: assert headers.get('X-PCF-Page-Cache') == 'HIT'
             assert request('/admin/index.php')[0] == 302
             assert request(setup)[0] == 302, 'Anonymous user can reopen completed setup'

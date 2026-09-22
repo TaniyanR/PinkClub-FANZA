@@ -47,6 +47,8 @@ function detect_base_path(string $scriptName): string
 
     $patterns = [
         '#/(?:public|admin)(?:/.*)?$#i',
+        // Apache may expose the rewritten robots endpoint as SCRIPT_NAME.
+        '#/robots\.txt$#i',
         '#/index\.php(?:/.*)?$#i',
         '#/[^/]+\.php(?:/.*)?$#i',
     ];
@@ -82,6 +84,8 @@ function detect_base_path_from_request_uri(string $requestUri): string
     $normalized = str_replace('\\', '/', $path);
     $patterns = [
         '#/(?:public|admin)(?:/.*)?$#i',
+        // robots.txt is a route, not an application installation directory.
+        '#/robots\.txt$#i',
         '#/index\.php(?:/.*)?$#i',
         '#/[^/]+\.php(?:/.*)?$#i',
     ];
