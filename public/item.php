@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
+require_once __DIR__ . '/../lib/images.php';
 require_once __DIR__ . '/../lib/public_rankings.php';
 require_once __DIR__ . '/partials/public_ui.php';
 
@@ -655,6 +656,7 @@ if (!isset($accessRankingTabs[$accessRankingPeriod])) {
 }
 $accessRankingRows = pcf_public_weighted_ranking('items', $accessRankingPeriod);
 
+$recentFrontCover = item_front_cover_url($item);
 require __DIR__ . '/partials/header.php';
 ?>
 <?php pcf_render_breadcrumbs([
@@ -663,7 +665,7 @@ require __DIR__ . '/partials/header.php';
     ['label' => $breadcrumbTitle],
 ]); ?>
 
-<article>
+<article data-recent-front-cover="<?= e($recentFrontCover) ?>">
   <h1 class="pcf-hero__title pcf-item-title"><?= e($breadcrumbTitle) ?></h1>
 
   <?php if ($sampleMovieUrl !== '' || $sampleImagesSmallLargeMap !== []): ?>

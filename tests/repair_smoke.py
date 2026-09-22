@@ -107,6 +107,11 @@ require $target;
             status, _, headers = request('/public/login0718.php', {'_csrf': csrf(body), 'username': 'admin', 'password': html.unescape(initial.group(1))}, admin)
             assert status == 302 and '/admin/' in headers['Location'], 'Initial admin cannot log in'
             subprocess.run([PHP, str(app / 'tests/repair_fixture.php')], env=env, check=True)
+            status, about, _ = request('/page.php?slug=about')
+            assert status == 200 and 'Privacy Policy</a>' in about and 'Privacy Policy</a>ページ' not in about and '下記のページをご覧下さい' in about
+            status, covers, _ = request('/recent_images.php?ids=101&v=portrait-2')
+            assert status == 200 and json.loads(covers)['images']['101'].endswith('fixtureps.jpg')
+            print('PASS: saved about text and portrait history endpoint')
             print('PASS: CSRF, credential validation, blank-password preservation, fresh HTTP setup and admin login')
             pages = {'/': '動作確認作品', '/items.php': '動作確認作品', '/item.php?id=101': '動作確認作品', '/genres.php': '検証ジャンル', '/genre.php?id=101': '動作確認作品', '/makers.php': '検証メーカー', '/maker.php?id=101': '動作確認作品', '/series_list.php': '検証シリーズ', '/series_detail.php?id=101': '動作確認作品', '/labels.php': '検証レーベル', '/label.php?id=9001': '動作確認作品', '/actresses.php': 'data-actress-lazy-group', '/actress.php?id=101': '動作確認作品', '/author.php?id=101': '動作確認作品', '/search.php?q=' + urllib.parse.quote('動作確認'): '動作確認作品'}
             for path, expected in pages.items():
@@ -119,6 +124,7 @@ require $target;
                 assert status == 200 and '</html>' in body, (path, status)
             status, body, headers = request('/item.php?id=101')
             assert headers.get('X-PCF-Page-Cache') == 'HIT'
+            assert 'data-recent-front-cover="https://pics.dmm.co.jp/digital/video/fixture/fixtureps.jpg"' in body
             assert len(re.findall(r'property="og:title"', body)) == 1
             assert len(re.findall(r'property="og:image"', body)) == 1
             assert len(re.findall(r'rel="canonical"', body)) == 1
