@@ -68,7 +68,7 @@ require __DIR__ . '/includes/header.php';
       <div class="admin-status-card"><strong>自動送信</strong><p><?= pcf_indexnow_enabled() ? '有効' : '停止中' ?></p></div>
       <div class="admin-status-card"><strong>送信待ち</strong><p><?= number_format($pending) ?>件</p></div>
     </div>
-    <p class="admin-form-note">本番サイトで有効にしてください。テストサイトでは、確認のために送信する場合だけ有効にします。DBを別ドメインへコピーした場合は自動送信を停止します。</p>
+    <p class="admin-form-note">上の送信対象URLを確認し、このサイトの更新を検索エンジンへ通知する場合は有効にしてください。サイトのドメインが変わった場合は自動送信を停止するため、移転先で再度有効にしてください。</p>
     <form method="post" class="admin-search-enable">
       <?= csrf_input() ?>
       <label class="admin-search-confirm"><input type="checkbox" name="confirmed_origin" value="<?= e(pcf_indexnow_origin()) ?>" required><span>このサイトのURLを検索エンジンへ通知する</span></label>
@@ -77,8 +77,9 @@ require __DIR__ . '/includes/header.php';
     <form method="post" class="admin-actions">
       <?= csrf_input() ?>
       <button class="button-secondary" name="action" value="disable">送信を停止</button>
-      <button class="button-secondary" name="action" value="send">送信待ちを処理（最大1,000件）</button>
+      <button class="button-secondary" name="action" value="send" aria-describedby="indexnow-pending-help">送信待ちを処理（最大1,000件）</button>
     </form>
+    <p class="admin-form-note" id="indexnow-pending-help">現在の送信待ち：<strong><?= number_format($pending) ?>件</strong>。<?= $pending === 0 ? '送信待ちはありません。今は処理ボタンを押す必要はありません。' : '上部の「送信待ち」欄でも確認できます。有効にすると自動で順次送信されます。手動で処理する場合は上のボタンを押してください。' ?> 最新の件数はページを再読み込みして確認できます。</p>
     <p class="admin-form-note">通常は既存のcronによる自動更新時に送信します。送信失敗時は間隔を空けて再送します。200は受信済み、202はキー検証待ちで、検索への掲載を保証するものではありません。</p>
     <?php if (pcf_indexnow_enabled()): ?><p class="admin-form-note"><a href="<?= e(pcf_indexnow_origin() . '/indexnow-key.php') ?>" target="_blank" rel="noopener">所有権確認ファイルを開く</a>（文字列だけが表示されれば正常です）</p><?php endif; ?>
     <?php if (is_array($last)): ?><p class="admin-form-note">最終送信：<?= e((string)($last['at'] ?? '')) ?> / HTTP <?= (int)($last['http'] ?? 0) ?> / <?= (int)($last['count'] ?? 0) ?>件</p><?php endif; ?>
