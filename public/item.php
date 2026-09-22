@@ -248,6 +248,9 @@ function item_unique_rows(array $rows, array $keys): array
     return $unique;
 }
 
+foreach (['id','cid','content_id'] as $inputKey) {
+    if (isset($_GET[$inputKey]) && !is_string($_GET[$inputKey])) require __DIR__ . '/404.php';
+}
 $id = (int)get('id', 0);
 $contentId = trim((string)get('content_id', ''));
 $cid = trim((string)get('cid', ''));
@@ -256,6 +259,7 @@ if ($contentId === '' && $cid !== '') {
     $contentId = $cid;
 }
 
+require_once __DIR__ . '/../lib/search_lifecycle.php';
 $item = false;
 try {
     if ($id > 0) {
@@ -274,11 +278,18 @@ try {
     } elseif ($contentId !== '') {
         $item = fetch_item_by_content_id($contentId);
     }
-} catch (Throwable) {
-    $item = false;
+} catch (Throwable $e) {
+    error_log('Item lookup failed: ' . $e->getMessage());
+    pcf_search_error(503);
 }
 
 if (!$item) {
+    try {
+        if (pcf_item_is_gone($id, normalize_content_id($contentId))) pcf_search_error(410);
+    } catch (Throwable $e) {
+        error_log('Item status lookup failed: ' . $e->getMessage());
+        pcf_search_error(503);
+    }
     require __DIR__ . '/404.php';
 }
 
@@ -616,8 +627,14 @@ if (str_starts_with($packageImage, 'data:image/svg+xml') || pcf_is_self_hosted_f
 
 $actressNames = array_values(array_filter(array_map(static fn($row) => trim((string)($row['name'] ?? '')), $actresses), static fn($name) => $name !== ''));
 $genreNames = array_values(array_filter(array_map(static fn($row) => trim((string)($row['name'] ?? '')), $genres), static fn($name) => $name !== ''));
-$pageDescriptionSource = $desc !== '' ? $desc : $title . 'のFANZA通販ページ。' . ($actressNames !== [] ? implode('、', array_slice($actressNames, 0, 3)) . '出演、' : '') . ($genreNames !== [] ? implode('、', array_slice($genreNames, 0, 3)) . '作品です。' : '作品です。');
-$pageDescription = mb_strimwidth($pageDescriptionSource, 0, 150, '…', 'UTF-8');
+require_once __DIR__ . '/../lib/seo_metadata.php';
+$makerNames = array_values(array_filter(array_map(static fn($row) => trim((string)($row['name'] ?? '')), $makers)));
+$pageDescriptionSource = $title . 'の作品情報。'
+    . ($actressNames !== [] ? '出演：' . implode('、', array_slice($actressNames, 0, 3)) . '。' : '')
+    . ($makerNames !== [] ? 'メーカー：' . implode('、', array_slice($makerNames, 0, 2)) . '。' : '')
+    . ($genreNames !== [] ? 'ジャンル：' . implode('、', array_slice($genreNames, 0, 3)) . '。' : '')
+    . $desc;
+$pageDescription = pcf_meta_description($pageDescriptionSource, $title, 'item.php', site_title_setting('PinkClub FANZA'));
 $canonicalUrl = public_url('item.php') . '?id=' . rawurlencode((string)(int)$item['id']);
 $ogImage = $packageImage;
 if ($ogImage !== '' && str_starts_with($ogImage, '//')) {
@@ -642,6 +659,8 @@ if ($ogImage !== '') {
 if ($actressNames !== []) {
     $productJsonLd['actor'] = array_map(static fn($name) => ['@type' => 'Person', 'name' => $name], $actressNames);
 }
+$videoJsonLd = pcf_video_object($title, $pageDescription, $ogImage, $sampleMovieUrl, (string)($raw['sampleMovieURL']['uploadDate'] ?? ''));
+if ($videoJsonLd !== null) $productJsonLd['subjectOf'] = $videoJsonLd;
 $jsonLd = (string)json_encode($productJsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
 
 $accessRankingPeriod = trim((string)get('rank_period', 'daily'));

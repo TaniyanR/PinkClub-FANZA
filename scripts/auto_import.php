@@ -34,6 +34,10 @@ function main(): int
 
     try {
         maybe_run_scheduled_jobs();
+        require_once __DIR__ . '/../lib/indexnow.php';
+        pcf_indexnow_dispatch();
+        require_once __DIR__ . '/../lib/public_rankings.php';
+        pcf_public_ranking_warm_due();
         rss_widget_bootstrap();
         rss_refresh_stale_sources(2, 1800, 2);
         pcf_home_rotation_refresh();
