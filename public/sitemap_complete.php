@@ -6,7 +6,17 @@ require_once __DIR__ . '/../lib/bootstrap.php';
 require_once __DIR__ . '/../lib/repository.php';
 require_once __DIR__ . '/../lib/contact_page_slug.php';
 
+try {
+    db()->query('SELECT 1');
+} catch (Throwable $e) {
+    http_response_code(503);
+    header('Retry-After: 300');
+    header('Cache-Control: no-store');
+    exit;
+}
 header('Content-Type: application/xml; charset=UTF-8');
+require_once __DIR__ . '/../lib/public_page_cache.php';
+pcf_public_page_cache_start(600);
 
 function sitemap_complete_e(string $value): string
 {

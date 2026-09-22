@@ -61,6 +61,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ':is_published' => post('is_published', '0') === '1' ? 1 : 0,
         ':id' => $id,
     ]);
+    require_once __DIR__ . '/../lib/search_lifecycle.php';
+    $slugStmt = db()->prepare('SELECT slug FROM fixed_pages WHERE id=?');
+    $slugStmt->execute([$id]);
+    $savedSlug = $slugStmt->fetchColumn();
+    if (is_string($savedSlug)) pcf_indexnow_enqueue(public_url('page.php') . '?slug=' . rawurlencode($savedSlug));
+    pcf_search_cache_invalidate();
     $message = '固定ページを更新しました。';
 }
 

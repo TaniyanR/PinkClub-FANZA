@@ -389,7 +389,10 @@ class DmmSyncService
 
         $idStmt = $this->pdo->prepare('SELECT id FROM items WHERE content_id = ?');
         $idStmt->execute([$item['content_id']]);
-        return (int) $idStmt->fetchColumn();
+        $savedId = (int)$idStmt->fetchColumn();
+        require_once __DIR__ . '/indexnow.php';
+        pcf_indexnow_item_changed($savedId);
+        return $savedId;
     }
 
     private function rebuildItemRelations(int $itemId, array $item): void

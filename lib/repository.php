@@ -206,6 +206,9 @@ function items_product_source_where(string $alias = ''): string
     }
 
     $where[] = items_front_release_where($outerPrefix);
+    if (db_table_exists('item_tombstones')) {
+        $where[] = 'NOT EXISTS (SELECT 1 FROM item_tombstones gone WHERE gone.item_id = ' . $outerPrefix . '.id)';
+    }
 
     if (items_table_exists('rss_items') && items_table_exists('rss_sources') && items_column_exists('source_type', 'rss_sources')) {
         $where[] = 'NOT EXISTS (SELECT 1 FROM rss_items ri INNER JOIN rss_sources rs ON rs.id = ri.source_id WHERE rs.source_type = "partner_link" AND (ri.title = ' . $outerPrefix . '.title OR ri.url = ' . $outerPrefix . '.url OR ri.url = ' . $outerPrefix . '.affiliate_url))';
@@ -1078,6 +1081,8 @@ function upsert_item(array $item): array
             ':id'                   => (int)$existingId,
         ]);
 
+        require_once __DIR__ . '/indexnow.php';
+        pcf_indexnow_item_changed((int)$existingId);
         return ['id' => (int)$existingId, 'status' => 'updated'];
     }
 
@@ -1114,7 +1119,10 @@ function upsert_item(array $item): array
         ':updated_at'           => $now,
     ]);
 
-    return ['id' => (int)$pdo->lastInsertId(), 'status' => 'inserted'];
+    $insertedId = (int)$pdo->lastInsertId();
+    require_once __DIR__ . '/indexnow.php';
+    pcf_indexnow_item_changed($insertedId);
+    return ['id' => $insertedId, 'status' => 'inserted'];
 }
 
 function upsert_actress(array $actress): string

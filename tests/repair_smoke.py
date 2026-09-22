@@ -137,9 +137,48 @@ require $target;
                 for _ in range(2):
                     status, body, headers = request(path)
                     assert status == 200 and headers['Content-Type'].startswith(mime), (path, status)
+                    if path == '/sitemap.php' and _ == 1: assert headers.get('X-PCF-Page-Cache') == 'HIT'
             assert request('/admin/index.php')[0] == 302
             assert request(setup)[0] == 302, 'Anonymous user can reopen completed setup'
             print(f'PASS: {len(pages)} public pages, 3 admin pages, cache, canonical/OGP, redirects, 404, feeds and setup protection')
+            subprocess.run([PHP, str(app / 'tests/search_recovery_fixture.php')], check=True, env=env)
+            subprocess.run([PHP, str(app / 'tests/search_recovery_fixture.php'), 'ranking_failure'], check=True, env=env)
+            status, body, _ = request('/admin/search_settings.php', who=admin)
+            assert status == 200 and 'SEO・IndexNow' in body
+            token = csrf(body)
+            assert request('/admin/search_settings.php', dict(action='enable'), who=admin)[0] == 419
+            assert request('/admin/search_settings.php')[0] == 302
+            status, body, _ = request('/admin/search_settings.php', dict(action='enable', _csrf=token, confirmed_origin=origin), who=admin)
+            assert status == 200 and '有効にしました' in body
+            status, key, headers = request('/indexnow-key.php')
+            assert status == 200 and re.fullmatch(r'[a-zA-Z0-9-]{8,128}', key) and headers['Content-Type'].startswith('text/plain')
+            assert request('/public/indexnow-key.php')[1] == key
+            status, body, _ = request('/admin/search_settings.php', dict(action='gone', _csrf=token, item_id=101, reason='配信終了をテスト確認'), who=admin)
+            assert status == 200 and '掲載終了（410）に設定しました' in body
+            for path in ['/item.php?id=101', '/item.php?cid=fixture001']:
+                status, body, headers = request(path)
+                assert status == 410 and 'noindex' in body and headers.get('Cache-Control') == 'no-store'
+            status, body, _ = request('/sitemap.php?part=1')
+            assert status == 200 and '/item.php?id=101' not in body
+            assert request('/item.php?id=999999')[0] == 404
+            status, body, _ = request('/admin/search_settings.php', dict(action='restore', _csrf=token, item_id=101), who=admin)
+            assert status == 200 and '解除しました' in body
+            status, body, headers = request('/item.php?id=101')
+            assert status == 200 and body.count('name="rating"') == 1
+            assert headers.get('Referrer-Policy') == 'strict-origin-when-cross-origin'
+            assert 70 <= len(html.unescape(re.search(r'name="description" content="([^"]+)"', body)[1])) <= 160
+            assert body.count('property="og:image"') == 1 and body.count('rel="canonical"') == 1
+            assert request('/item.php?id[]=101')[0] == 404
+            request('/admin/search_settings.php', dict(action='disable', _csrf=token), who=admin)
+            assert request('/indexnow-key.php')[0] == 404
+            subprocess.run([PHP, str(app / 'tests/search_recovery_fixture.php'), 'outage_on'], check=True, env=env)
+            try:
+                status, body, headers = request('/item.php?id=101')
+                assert status == 503 and headers.get('Retry-After') == '300' and 'noindex' not in body
+            finally:
+                subprocess.run([PHP, str(app / 'tests/search_recovery_fixture.php'), 'outage_off'], check=True, env=env)
+            assert request('/item.php?id=101')[0] == 200
+            print('PASS: admin auth/CSRF, IndexNow key, cached 200→410→200, sitemap exclusion, 404/503, metadata headers')
             if os.environ.get('PCF_BROWSER_CHECK'):
                 subprocess.run([os.environ.get('PCF_NODE_BIN', 'node'), os.environ['PCF_BROWSER_CHECK'], origin, str(work)], check=True)
             log.flush()

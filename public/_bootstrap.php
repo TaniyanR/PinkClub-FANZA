@@ -38,15 +38,7 @@ $longCachePublicPages = [
     'page.php',
 ];
 $publicPageCacheTtl = in_array($publicScriptName, $longCachePublicPages, true) ? 600 : 120;
-$userAgent = (string)($_SERVER['HTTP_USER_AGENT'] ?? '');
-$isSocialCardCrawler = $publicScriptName === 'item.php'
-    && preg_match('/(?:Twitterbot|facebookexternalhit|LinkedInBot|Discordbot|Slackbot)/i', $userAgent) === 1;
-if ($isSocialCardCrawler) {
-    header('Cache-Control: public, max-age=0, must-revalidate');
-    header('X-PCF-Page-Cache: BYPASS-SOCIAL');
-} else {
-    pcf_public_page_cache_start($publicPageCacheTtl);
-}
+pcf_public_page_cache_start($publicPageCacheTtl);
 
 // Resolve the default social image only when the request is not already
 // satisfied by the public page cache. This keeps cached page hits from doing
