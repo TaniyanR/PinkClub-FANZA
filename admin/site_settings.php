@@ -99,6 +99,7 @@ $siteMediaSchemaReady = site_media_ensure_table();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_validate_or_fail((string)post('_csrf', ''));
+    $startYear = filter_var(post('site_start_year', (string)site_start_year()), FILTER_VALIDATE_INT, ['options'=>['min_range'=>1900, 'max_range'=>(int)date('Y')]]);
     $siteName = $normalizePinkClubName((string)post('site_name', ''));
     $siteUrl = trim((string)post('site_url', ''));
     $tagline = trim((string)post('site_tagline', ''));
@@ -106,6 +107,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$siteMediaSchemaReady) {
         $error = '画像保存用DBテーブルを準備できませんでした。サーバーのDB権限を確認してください。';
+    } elseif ($startYear === false) {
+        $error = '開設年は1900年から今年までの西暦で入力してください。';
     } elseif ($siteName === '') {
         $error = 'サイト名を入力してください。';
     } elseif ($siteUrl === '' || filter_var($siteUrl, FILTER_VALIDATE_URL) === false || !str_starts_with(strtolower($siteUrl), 'https://')) {
@@ -173,6 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $updates = [
+                'site.start_year' => (string)$startYear,
                 'site.title' => $siteName,
                 'site.name' => $siteName,
                 'site.url' => rtrim($siteUrl, '/'),
@@ -228,6 +232,10 @@ require __DIR__ . '/includes/header.php';
     <label>サイト名
       <input type="text" name="site_name" value="<?= e($normalizePinkClubName(site_setting_get('site.title', site_setting_get('site.name', APP_NAME)))) ?>" required>
     </label>
+    <label>開設年（西暦）
+      <input type="number" name="site_start_year" min="1900" max="<?= (int)date('Y') ?>" value="<?= site_start_year() ?>" required>
+    </label>
+    <p class="admin-form-note">フッターの開始年に使います。未設定時は初期管理者の作成年を表示するため、実際の開設年を入力してください。</p>
     <label>URL
       <input type="url" name="site_url" value="<?= e(site_setting_get('site.url', app_url())) ?>" required inputmode="url">
     </label>
