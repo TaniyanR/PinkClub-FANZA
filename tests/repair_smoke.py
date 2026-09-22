@@ -117,6 +117,15 @@ require $target;
             for path, expected in pages.items():
                 status, body, _ = request(path)
                 assert status == 200 and expected in body and '</html>' in body, (path, status, 'Incomplete page')
+            for actress_id, name in [(190903, 'プロフィール検証女優'), (1611931, '出演作品未登録の女優')]:
+                status, body, _ = request(f'/actress.php?id={actress_id}')
+                assert status == 200 and name in body and '現在、公開中の出演作品はありません。' in body
+            status, body, _ = request('/')
+            notice = '18+：当サイトはアダルトサイトで18歳未満の方はご利用出来ません。'
+            assert body.index(notice) < body.index('当サイトはアフィリエイト広告を利用しています。')
+            assert re.search(r'Copyright ©2020-\d{4} <a[^>]+>[^<]+</a> All Rights Reserved\.', body)
+            assert re.search(r'<a[^>]+href="[^"]*actress.php\?id=190903"[^>]+>\s*<img', body)
+            print('PASS: actress profiles without works, linked portraits, age notice, copyright start year')
             status, body, _ = request('/actresses_group.php?group=' + urllib.parse.quote('kana:か'))
             assert status == 200 and json.loads(body)['rows'][0][1] == '検証出演者'
             for path in ['/admin/index.php', '/admin/site_settings.php', '/admin/pages_index.php']:

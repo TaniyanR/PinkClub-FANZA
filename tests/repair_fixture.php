@@ -26,6 +26,8 @@ check(db_table_exists('fixed_pages'), 'Fixed pages schema is missing.');
 foreach (['actresses' => '検証出演者', 'genres' => '検証ジャンル', 'makers' => '検証メーカー', 'series_master' => '検証シリーズ', 'authors' => '検証作者'] as $table => $name) {
     $pdo->prepare("INSERT INTO $table (id,dmm_id,name,ruby) VALUES (101,'9001',?,'けんしょう')")->execute([$name]);
 }
+$pdo->exec("INSERT INTO actresses (id,dmm_id,name,image_small) VALUES (190903,'190903','プロフィール検証女優','https://example.org/profile.jpg'),(1611931,'1611931','出演作品未登録の女優','https://example.org/profile2.jpg')");
+site_setting_set('site.start_year', '2020');
 $raw = ['title' => '動作確認作品', 'comment' => 'ページ表示を確認する架空データです。', 'imageURL' => ['small' => 'https://pics.dmm.co.jp/digital/video/fixture/fixtureps.jpg', 'large' => 'https://pics.dmm.co.jp/digital/video/fixture/fixturepl.jpg']];
 $pdo->prepare('INSERT INTO items (id,content_id,title,item_source,release_date,image_large,raw_json,url,affiliate_url) VALUES (101,?,?,?,CURDATE(),?,?,?,?)')->execute(['fixture001', '動作確認作品', 'fanza_product', $raw['imageURL']['large'], json_encode($raw, JSON_UNESCAPED_UNICODE), 'https://www.dmm.co.jp/digital/videoa/-/detail/=/cid=fixture001/', 'https://al.dmm.co.jp/?lurl=https%3A%2F%2Fwww.dmm.co.jp%2F&af_id=fixture-990']);
 foreach (['actresses' => ['actress', '出演者'], 'genres' => ['genre', 'ジャンル'], 'makers' => ['maker', 'メーカー'], 'series' => ['series', 'シリーズ'], 'authors' => ['author', '作者'], 'labels' => ['label', 'レーベル']] as $suffix => [$singular, $label]) {
