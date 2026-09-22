@@ -159,3 +159,35 @@ body.admin-page .admin-main > form.admin-card{
     padding:8px;
   }
 }
+
+/* SEO settings reuse the shared admin cards, with local checkbox/table layout. */
+body.admin-page .admin-search-settings{overflow-wrap:anywhere}
+body.admin-page .admin-search-settings .admin-status-grid{margin:16px 0;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))}
+body.admin-page .admin-search-settings .admin-status-card{min-width:0}
+body.admin-page .admin-search-settings .admin-status-card .admin-search-origin{font-size:14px;line-height:1.6}
+body.admin-page .admin-search-settings .admin-form-note{line-height:1.8}
+body.admin-page .admin-search-settings form > label.admin-search-confirm{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+}
+body.admin-page .admin-search-settings form > label.admin-search-confirm > input{
+  width:18px;
+  height:18px;
+  max-width:none;
+  flex:0 0 18px;
+  margin:2px 0 0;
+  padding:0;
+}
+body.admin-page .admin-search-settings input{box-sizing:border-box;min-width:0}
+body.admin-page .admin-search-settings .admin-actions{gap:10px;margin-top:12px}
+body.admin-page .admin-search-settings button{max-width:100%;white-space:normal;line-height:1.5}
+body.admin-page .admin-search-settings .admin-search-section{margin-top:24px;padding-top:20px;border-top:1px solid var(--admin-border)}
+body.admin-page .admin-search-settings .admin-search-section h3{margin:0 0 14px;font-size:16px}
+body.admin-page .admin-search-settings .admin-search-table-wrap{overflow-x:auto}
+body.admin-page .admin-search-settings .admin-table{display:table;min-width:560px;table-layout:fixed}
+body.admin-page .admin-search-settings .admin-table th:first-child{width:70px}
+body.admin-page .admin-search-settings .admin-table th:last-child{width:150px}
+@media (max-width:768px){
+  body.admin-page .admin-search-settings .admin-actions > button{width:100%}
+}
