@@ -102,7 +102,7 @@ function pcf_public_page_cache_start(int $ttlSeconds = 120): void
     $variant = pcf_public_request_is_mobile() ? 'sp' : 'pc';
     // Invalidate broken/partial public markup after restoring the shared UI.
     // Keep the existing TTL and the separate image cache unchanged.
-    $variant .= '|link-rel-v2|public-ui-restored-v1';
+    $variant .= '|link-rel-v2|public-ui-restored-v1|portrait-about-v1';
     $cacheQuery = [];
     parse_str((string)(parse_url($requestUri, PHP_URL_QUERY) ?? ''), $cacheQuery);
     $allowedCacheQueryKeys = [

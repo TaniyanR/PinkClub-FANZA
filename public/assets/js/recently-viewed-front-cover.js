@@ -22,6 +22,7 @@
 
   const endpoint = new URL('recent_images.php', window.location.href);
   endpoint.searchParams.set('ids', ids.slice(0, 10).join(','));
+  endpoint.searchParams.set('v', 'portrait-2');
 
   fetch(endpoint.href, {
     method: 'GET',
@@ -35,14 +36,20 @@
         : null;
       if (!images) return;
 
+      // Preserve removals/hide actions performed while the request was pending.
+      try {
+        history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      } catch (_) { return; }
+      if (!Array.isArray(history)) return;
       let changed = false;
       history = history.map((entry) => {
         if (!entry || typeof entry !== 'object') return entry;
         const id = Number.parseInt(String(entry.id || ''), 10);
         const image = typeof images[String(id)] === 'string' ? images[String(id)].trim() : '';
-        if (!image || entry.image === image) return entry;
+        if (!Object.prototype.hasOwnProperty.call(images, String(id))) return entry;
+        if (entry.image === image && entry.imageType === 'front-cover') return entry;
         changed = true;
-        return { ...entry, image };
+        return { ...entry, image, imageType: 'front-cover' };
       });
 
       if (changed) {
@@ -51,14 +58,7 @@
         } catch (_) {}
       }
 
-      list.querySelectorAll('[data-recent-remove-id]').forEach((button) => {
-        const id = Number.parseInt(button.dataset.recentRemoveId || '', 10);
-        const imageUrl = images[String(id)];
-        if (typeof imageUrl !== 'string' || imageUrl.trim() === '') return;
-        const card = button.closest('.pcf-recent__card');
-        const image = card ? card.querySelector('img.pcf-recent__card-image') : null;
-        if (image) image.src = imageUrl;
-      });
+      window.dispatchEvent(new Event('pcf-recent-images-updated'));
     })
     .catch(() => {});
 })();

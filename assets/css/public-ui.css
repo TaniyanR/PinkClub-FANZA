@@ -950,6 +950,7 @@ body.sample-image-modal-open { overflow:hidden; }
 .pcf-recommendations__card{flex:0 0 180px;min-width:180px}
 .pcf-recent__card-image,.pcf-recommendations__image{display:block;width:180px;height:250px;object-fit:cover;border-radius:6px;background:#eee}
 .pcf-recent__card-title,.pcf-recommendations__title{display:-webkit-box;margin:8px 0 6px;overflow:hidden;color:#1670b7;font-size:14px;font-weight:700;line-height:1.45;text-decoration:none;-webkit-box-orient:vertical;-webkit-line-clamp:3}
+.pcf-recent__card-image{object-fit:contain}
 .pcf-recent__card-title{height:4.35em;margin-bottom:7px}
 .pcf-recent__card-actions{display:flex;gap:6px;align-items:center;margin-top:auto}
 .pcf-recent__open{flex:1;padding:7px 8px;border:1px solid #555;border-radius:5px;color:#222;text-align:center;text-decoration:none;font-size:12px;font-weight:700}
